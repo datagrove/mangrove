@@ -38,7 +38,7 @@ func main() {
 		Use: "testview ",
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Printf("%v", config)
-			launch()
+			launch(&config)
 		}}
 
 	rootCmd.PersistentFlags().StringVar(&config.Http, "http", ":5078", "http address")
@@ -47,8 +47,10 @@ func main() {
 	rootCmd.Execute()
 }
 
-func launch() {
-	mux := http.NewServeMux()
+func launch(config *mangrove.Config) {
+	// I should set up triggers and graphs here.
+	x := mangrove.NewServer(&mangrove.Config{})
+	mux := x.Mux
 	var staticFS = fs.FS(res)
 	htmlContent, err := fs.Sub(staticFS, "dist")
 	if err != nil {
@@ -116,7 +118,5 @@ func launch() {
 
 		json.NewEncoder(w).Encode(testcode)
 	})
-
-	err = http.ListenAndServe(config.Http, mux)
-	log.Fatal(err)
+	x.Run()
 }

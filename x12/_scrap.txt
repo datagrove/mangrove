@@ -1,0 +1,27 @@
+type Subscriber struct {
+	Name
+	Address
+	Demographic
+	*Phone
+}
+
+func (x *Subscriber) Write(w *EdiWriter) {
+	x.Name.Nm1("IL", w)
+	x.Phone.Per("IP", w)
+	x.Address.N3N4(w)
+	x.Demographic.Dmg(w)
+	w.Write("HD", "030")
+}
+
+type Sponsor struct {
+	Name
+}
+
+type Ref struct {
+	Qual  string
+	Value string
+}
+
+func (x *Ref) Write(w *EdiWriter) {
+	w.Write("REF", x.Qual, x.Value)
+}

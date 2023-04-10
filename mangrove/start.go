@@ -1,10 +1,13 @@
 package mangrove
 
 import (
+	"embed"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/fsnotify/fsnotify"
@@ -36,19 +39,35 @@ type Config struct {
 	Http  string `json:"http,omitempty"`
 	Sftp  string `json:"sftp,omitempty"`
 	Store string `json:"test_root,omitempty"`
+	Ui    embed.FS
 }
 type Server struct {
 	*Config
+	Mux *http.ServeMux
 }
 
 func NewServer(opt *Config) *Server {
+	var staticFS = fs.FS(opt.Ui)
+	// should this be in config?
+	htmlContent, err := fs.Sub(staticFS, "ui/dist")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fs := http.FileServer(http.FS(htmlContent))
+	mux := http.NewServeMux()
+	mux.Handle("/", fs)
+
 	return &Server{
-		opt,
+		Config: opt,
+		Mux:    mux,
 	}
 }
 
 // start as service
 func (sx *Server) Run() {
+	go func() {
+		log.Fatal(http.ListenAndServe(sx.Http, sx.Mux))
+	}()
 
 	svcConfig := &service.Config{
 		Name:        "GoServiceExampleSimple",
@@ -77,14 +96,16 @@ type FileSystem struct {
 type TaskOption interface {
 }
 
-func SftpGet(f *FileSystem, glob string) TaskOption {
-	return nil
-}
-func SftpPut(f *FileSystem, dir string) TaskOption {
+func (x *Server) Listen() error {
 	return nil
 }
 
-func (x *Server) Listen() error {
+// the hard parts of fetching is avoiding duplicates
+func (x *Server) FetchTask(dir string, config *SftpFetch) error {
+	return nil
+}
+
+func (x *Server) PutTask(dir string, config *SftpPut) error {
 	return nil
 }
 
@@ -92,7 +113,7 @@ func (x *Server) Listen() error {
 // watch the directory and run the function on any file that is dropped in it
 // the sftp server will allow access to the directory.
 // options can use sftp to pull and push to directories on other servers
-func (x *Server) AddTask(dir string, then func(path string) error, opt ...TaskOption) error {
+func (x *Server) FileTask(dir string, then func(path string) error, opt ...TaskOption) error {
 
 	os.MkdirAll(dir, os.ModePerm)
 	watcher, err := fsnotify.NewWatcher()

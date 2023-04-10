@@ -10,54 +10,108 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func mirror() {
-	// Define the SFTP connection parameters
-	config := &ssh.ClientConfig{
-		User: "username",
+type SshConnection struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	ssh.PublicKey
+}
+
+// at least once delivery.
+type SftpFetch struct {
+	SshConnection
+	RemotePath string // glob
+	LocalPath  string
+}
+
+type DeliverFile struct {
+	RemotePath string
+	LocalPath  string
+}
+type SftpPut struct {
+	SshConnection,
+	Files []DeliverFile
+}
+
+//matches, err := filepath.Glob(pattern)
+
+// we want to do this as a transaction
+// we need to write all the files with temp names, then log the names, then do something on the server, potentially delete them.
+// we need to hash the files as another way to reject duplicates.
+
+// mirror to Sftp
+func Open(s *SshConnection) (*sftp.Client, error) {
+	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", s.Host, s.Port), &ssh.ClientConfig{
+		User: s.User,
 		Auth: []ssh.AuthMethod{
-			ssh.Password("password"),
+			ssh.Password(s.Password),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-	host := "example.com"
-	port := 22
-
-	// Connect to the SFTP server
-	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", host, port), config)
+	})
 	if err != nil {
-		fmt.Printf("Failed to connect to SFTP server: %v\n", err)
-		os.Exit(1)
+		return nil, err
 	}
-	defer conn.Close()
-
-	// Create an SFTP client
 	client, err := sftp.NewClient(conn)
 	if err != nil {
-		fmt.Printf("Failed to create SFTP client: %v\n", err)
-		os.Exit(1)
+		return nil, err
+	}
+	return client, nil
+}
+
+//	func Glob(client *sftp.Client, pattern string) (string[],error {
+//		client.ReadDir(pattern)
+//		return nil
+//	}
+func PutSftp(s *SftpFetch) error {
+	client, e := Open(&s.SshConnection)
+	if e != nil {
+		return e
 	}
 	defer client.Close()
+	// Create a file on the SFTP server
+	remoteFile, err := client.Create("/path/to/remote/file")
+	if err != nil {
+		return err
+	}
+	defer remoteFile.Close()
 
+	// Write some data to the SFTP server
+	_, err = remoteFile.Write([]byte("Hello, world!"))
+	if err != nil {
+		return err
+	}
+
+	// Close the file
+	err = remoteFile.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func MirrorFromSftp(s *SftpFetch) error {
+	client, e := Open(&s.SshConnection)
+	if e != nil {
+		return e
+	}
 	// Fetch a remote file
 	remoteFile, err := client.Open("/path/to/remote/file")
 	if err != nil {
-		fmt.Printf("Failed to open remote file: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 	defer remoteFile.Close()
 
 	// Read the contents of the remote file
 	remoteBytes, err := ioutil.ReadAll(remoteFile)
 	if err != nil {
-		fmt.Printf("Failed to read remote file: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 
 	// Write the contents of the remote file to a local file
 	err = ioutil.WriteFile("/path/to/local/file", remoteBytes, 0644)
 	if err != nil {
-		fmt.Printf("Failed to write local file: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 
 	// Write a file to the SFTP server
@@ -74,7 +128,7 @@ func mirror() {
 		os.Exit(1)
 	}
 
-	fmt.Println("File transfer complete.")
+	return nil
 }
 
 // writeToSFTP writes a file to an SFTP server using an SFTP client.

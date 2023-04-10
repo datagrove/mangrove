@@ -1,0 +1,23 @@
+package mangrove
+
+import (
+	"database/sql"
+
+	_ "github.com/marcboeker/go-duckdb"
+)
+
+func dbsome() {
+	db, _ := sql.Open("duckdb", "sample.db")
+	defer db.Close()
+
+	db.Exec("CREATE TABLE test (a INTEGER, b VARCHAR);")
+	db.Exec("INSERT INTO test VALUES (1, 'Hello'), (2, 'World');")
+	rows, _ := db.Query("SELECT * FROM test;")
+	for rows.Next() {
+		var a int
+		var b string
+		rows.Scan(&a, &b)
+	}
+	rows.Close()
+	db.Close()
+}
