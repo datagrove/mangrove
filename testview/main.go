@@ -2,9 +2,7 @@ package main
 
 import (
 	"embed"
-	_ "embed"
 	"encoding/json"
-	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -18,16 +16,14 @@ import (
 // testview --port 5078 --sftp localhost:5079 --http localhost:5078 --store ./TestResults
 
 var (
-	//go:embed dist/**
+	//go:embed ui/dist/**
 	res embed.FS
 )
-
-var config mangrove.Config
 
 // main is where we set up the web hooks, file hooks, apis, and reports
 func main() {
 	// I should set up triggers and graphs here.
-	config, e := mangrove.DefaultConfig("TestView")
+	config, e := mangrove.DefaultConfig("TestView", res)
 	if e != nil {
 		log.Fatal(e)
 	}
@@ -50,13 +46,6 @@ func launch(config *mangrove.Config) {
 		log.Fatal(e)
 	}
 	mux := x.Mux
-	var staticFS = fs.FS(res)
-	htmlContent, err := fs.Sub(staticFS, "dist")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fs := http.FileServer(http.FS(htmlContent))
-	mux.Handle("/", fs)
 
 	mux.Handle("/TestResults/", http.StripPrefix("/TestResults/", http.FileServer(http.Dir(config.Store))))
 

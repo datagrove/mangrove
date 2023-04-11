@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/ProtonMail/gopenpgp/v2 v2.6.1
 	github.com/fsnotify/fsnotify v1.6.0
+	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.8.0
 )
 

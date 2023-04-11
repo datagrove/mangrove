@@ -68,7 +68,7 @@ func NewServer(opt *Config) (*Server, error) {
 		Mux:    mux,
 	}, nil
 }
-func DefaultConfig(name string) (*Config, error) {
+func DefaultConfig(name string, res embed.FS) (*Config, error) {
 	h, _ := os.UserHomeDir()
 	err := godotenv.Load()
 	if err != nil {
@@ -81,6 +81,7 @@ func DefaultConfig(name string) (*Config, error) {
 		log.Fatal(e)
 	}
 	json.Unmarshal(b, &j)
+	j.Ui = res
 	j.Service = service.Config{
 		Name:        name,
 		DisplayName: name,
