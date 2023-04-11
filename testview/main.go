@@ -26,19 +26,16 @@ var config mangrove.Config
 
 // main is where we set up the web hooks, file hooks, apis, and reports
 func main() {
-	h, _ := os.UserHomeDir()
-	config = mangrove.Config{
-		Http:  "localhost:5078",
-		Sftp:  "localhost:5079",
-		Store: "TestResults",
-		Key:   path.Join(h, ".ssh", "id_rsa"),
+	// I should set up triggers and graphs here.
+	config, e := mangrove.DefaultConfig("TestView")
+	if e != nil {
+		log.Fatal(e)
 	}
-
 	rootCmd := &cobra.Command{
 		Use: "testview ",
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Printf("%v", config)
-			launch(&config)
+			launch(config)
 		}}
 
 	rootCmd.PersistentFlags().StringVar(&config.Http, "http", ":5078", "http address")
@@ -48,8 +45,10 @@ func main() {
 }
 
 func launch(config *mangrove.Config) {
-	// I should set up triggers and graphs here.
-	x := mangrove.NewServer(&mangrove.Config{})
+	x, e := mangrove.NewServer(config)
+	if e != nil {
+		log.Fatal(e)
+	}
 	mux := x.Mux
 	var staticFS = fs.FS(res)
 	htmlContent, err := fs.Sub(staticFS, "dist")

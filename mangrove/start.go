@@ -2,6 +2,7 @@ package mangrove
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -9,9 +10,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gliderlabs/ssh"
+	"github.com/joho/godotenv"
 	"github.com/kardianos/service"
 	"github.com/pkg/sftp"
 )
@@ -35,23 +38,26 @@ func (p *program) Stop(s service.Service) error {
 }
 
 type Config struct {
-	Key   string `json:"key,omitempty"`
-	Http  string `json:"http,omitempty"`
-	Sftp  string `json:"sftp,omitempty"`
-	Store string `json:"test_root,omitempty"`
-	Ui    embed.FS
+	Connection map[string]*SshConnection `json:"connection,omitempty"`
+
+	Key     string `json:"key,omitempty"`
+	Http    string `json:"http,omitempty"`
+	Sftp    string `json:"sftp,omitempty"`
+	Store   string `json:"test_root,omitempty"`
+	Ui      embed.FS
+	Service service.Config
 }
 type Server struct {
 	*Config
 	Mux *http.ServeMux
 }
 
-func NewServer(opt *Config) *Server {
+func NewServer(opt *Config) (*Server, error) {
 	var staticFS = fs.FS(opt.Ui)
 	// should this be in config?
 	htmlContent, err := fs.Sub(staticFS, "ui/dist")
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	fs := http.FileServer(http.FS(htmlContent))
 	mux := http.NewServeMux()
@@ -60,7 +66,28 @@ func NewServer(opt *Config) *Server {
 	return &Server{
 		Config: opt,
 		Mux:    mux,
+	}, nil
+}
+func DefaultConfig(name string) (*Config, error) {
+	h, _ := os.UserHomeDir()
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
 	}
+	var j Config
+	j.Key = path.Join(h, ".ssh", "id_rsa")
+	b, e := os.ReadFile(".private/" + name + ".json")
+	if e != nil {
+		log.Fatal(e)
+	}
+	json.Unmarshal(b, &j)
+	j.Service = service.Config{
+		Name:        name,
+		DisplayName: name,
+		Description: name,
+	}
+
+	return &j, nil
 }
 
 // start as service
@@ -69,14 +96,8 @@ func (sx *Server) Run() {
 		log.Fatal(http.ListenAndServe(sx.Http, sx.Mux))
 	}()
 
-	svcConfig := &service.Config{
-		Name:        "GoServiceExampleSimple",
-		DisplayName: "Go Service Example",
-		Description: "This is an example Go service.",
-	}
-
 	prg := &program{}
-	s, err := service.New(prg, svcConfig)
+	s, err := service.New(prg, &sx.Config.Service)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -97,15 +118,6 @@ type TaskOption interface {
 }
 
 func (x *Server) Listen() error {
-	return nil
-}
-
-// the hard parts of fetching is avoiding duplicates
-func (x *Server) FetchTask(dir string, config *SftpFetch) error {
-	return nil
-}
-
-func (x *Server) PutTask(dir string, config *SftpPut) error {
 	return nil
 }
 
