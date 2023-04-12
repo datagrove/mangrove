@@ -2,7 +2,6 @@ package mangrove
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -70,6 +69,9 @@ func PutFiles(ctx *Context, cn *SshConnection, fromdir string, todir string) err
 		return e
 	}
 	for _, f := range fs {
+		if f.IsDir() {
+			continue
+		}
 		remoteFile, err := client.Create(path.Join(todir, f.Name()))
 		if err != nil {
 			return err
@@ -102,14 +104,54 @@ func ArchiveFiles(dir string) error {
 	return nil
 
 }
+func EncryptFiles(ctx *Context, dir string, key []string) error {
+	f, e := os.ReadDir(dir)
+	if e != nil {
+		return e
+	}
+	for _, f := range f {
+		if f.IsDir() {
+			continue
+		}
+		fp := path.Join(dir, f.Name())
+		old := path.Join(dir, "old", f.Name())
+		os.Rename(fp, old)
+		e := Encrypt(old, fp, key)
+		if e != nil {
+			return e
+		}
+	}
+	return nil
+}
+func DecryptFiles(ctx *Context, dir string) error {
+	f, e := os.ReadDir(dir)
+	if e != nil {
+		return e
+	}
+	for _, f := range f {
+		if f.IsDir() {
+			continue
+		}
+		plain := path.Join(dir, f.Name())
+		cipher := path.Join(dir, "old", f.Name())
+		os.Rename(plain, cipher)
+		e := Decrypt(cipher, plain, ctx.Container.Gpg)
+		if e != nil {
+			return e
+		}
+	}
+	return nil
+}
 func GetFiles(ctx *Context, s *SshConnection, todir string, frompattern string) error {
 	client, e := Open(s)
 	if e != nil {
 		return e
 	}
-	getFile := func(n string) error {
+
+	getFile := func(in, out string) error {
+
 		// Fetch a remote file
-		remoteFile, err := client.Open("/path/to/remote/file")
+		remoteFile, err := client.Open(in)
 		if err != nil {
 			return err
 		}
@@ -120,7 +162,7 @@ func GetFiles(ctx *Context, s *SshConnection, todir string, frompattern string) 
 			return err
 		}
 		// Write the contents of the remote file to a local file
-		err = ioutil.WriteFile("/path/to/local/file", remoteBytes, 0644)
+		err = ioutil.WriteFile(out, remoteBytes, 0644)
 		if err != nil {
 			return err
 		}
@@ -128,6 +170,7 @@ func GetFiles(ctx *Context, s *SshConnection, todir string, frompattern string) 
 			return err
 		}
 		// delete this file if it's a duplicate, otherwise leave a hash of it to prevent future duplicates.
+		client.Remove(in)
 		return nil
 	}
 	defer client.Close()
@@ -136,12 +179,16 @@ func GetFiles(ctx *Context, s *SshConnection, todir string, frompattern string) 
 		return e
 	}
 	for _, f := range fx {
-		e := getFile(f)
+		e := getFile(f, path.Join(todir, path.Base(f)))
 		if e != nil {
 			return e
 		}
 	}
 
+	return nil
+}
+
+/*
 	// Write a file to the SFTP server
 	localFile, err := os.Open("/path/to/local/file")
 	if err != nil {
@@ -156,21 +203,19 @@ func GetFiles(ctx *Context, s *SshConnection, todir string, frompattern string) 
 		os.Exit(1)
 	}
 
-	return nil
-}
-
+*/
 // writeToSFTP writes a file to an SFTP server using an SFTP client.
-func writeToSFTP(client *sftp.Client, remotePath string, localFile io.Reader) error {
-	remoteFile, err := client.Create(remotePath)
-	if err != nil {
-		return fmt.Errorf("Failed to create remote file: %v", err)
-	}
-	defer remoteFile.Close()
+// func writeToSFTP(client *sftp.Client, remotePath string, localFile io.Reader) error {
+// 	remoteFile, err := client.Create(remotePath)
+// 	if err != nil {
+// 		return fmt.Errorf("Failed to create remote file: %v", err)
+// 	}
+// 	defer remoteFile.Close()
 
-	_, err = io.Copy(remoteFile, localFile)
-	if err != nil {
-		return fmt.Errorf("Failed to write to remote file: %v", err)
-	}
+// 	_, err = io.Copy(remoteFile, localFile)
+// 	if err != nil {
+// 		return fmt.Errorf("Failed to write to remote file: %v", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
