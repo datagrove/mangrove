@@ -11,12 +11,14 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gliderlabs/ssh"
 	"github.com/joho/godotenv"
 	"github.com/kardianos/service"
 	"github.com/pkg/sftp"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
 
@@ -39,8 +41,6 @@ func (p *program) Stop(s service.Service) error {
 }
 
 type Config struct {
-	Connection map[string]*SshConnection `json:"connection,omitempty"`
-
 	Key     string   `json:"key,omitempty"`
 	Http    []string `json:"http,omitempty"`
 	Sftp    string   `json:"sftp,omitempty"`
@@ -48,11 +48,45 @@ type Config struct {
 	Ui      embed.FS
 	Service service.Config
 }
+type Container struct {
+	Gpg        string                    `json:"gpg,omitempty"`
+	Connection map[string]*SshConnection `json:"connection,omitempty"`
+}
 type Server struct {
 	*Config
 	Mux *http.ServeMux
 }
 
+type Context struct {
+	Config    *Config
+	Container *Container
+	Store     string
+	Log       zerolog.Logger
+}
+
+func NewContext(home string, container string) (*Context, error) {
+	config, e := LoadConfig(home)
+	if e != nil {
+		return nil, e
+	}
+	ct, e := LoadContainer(container)
+	if e != nil {
+		return nil, e
+	}
+
+	fn := formatMillisecond(time.Now()) + ".log"
+	h, e := os.Create(path.Join(container, "log", fn))
+	if e != nil {
+		return nil, e
+	}
+	nlog := zerolog.New(h)
+	return &Context{
+		Config:    config,
+		Log:       nlog,
+		Store:     container,
+		Container: ct,
+	}, nil
+}
 func DefaultServer(name string, res embed.FS, launch func(*Server) error) *cobra.Command {
 	// DefaultConfig will look in the current directory for a testview.json file
 	rootCmd := &cobra.Command{}
@@ -103,10 +137,29 @@ func DefaultServer(name string, res embed.FS, launch func(*Server) error) *cobra
 	return rootCmd
 }
 
+func LoadContainer(dir string) (*Container, error) {
+	var j Container
+	b, e := os.ReadFile(path.Join(dir, "index.jsonc"))
+	if e != nil {
+		return nil, e
+	}
+	e = json.Unmarshal(b, &j)
+	if e != nil {
+		return nil, e
+	}
+	j.Gpg = path.Join(dir, j.Gpg)
+	// resolve the files relative to the container
+	for _, v := range j.Connection {
+		v.Gpg = path.Join(dir, v.Gpg)
+	}
+
+	return &j, nil
+
+}
 func LoadConfig(dir string) (*Config, error) {
 	var j Config
 
-	b, e := os.ReadFile(path.Join(dir, "index.json"))
+	b, e := os.ReadFile(path.Join(dir, "index.jsonc"))
 	if e != nil {
 		return nil, e
 	}
@@ -120,7 +173,7 @@ func LoadConfig(dir string) (*Config, error) {
 func initialize(dir string) {
 	os.MkdirAll(dir, 0777) // permissions here are not correct, should be lower
 	os.WriteFile(path.Join(dir, "testview.json"), []byte(`{
-		"Http": ":5078",
+		"Http": [":5078"],
 		"Sftp": ":5079",
 		"Store": "TestResults"
 	}`), 0777)

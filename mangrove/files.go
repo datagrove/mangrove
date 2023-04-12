@@ -7,17 +7,9 @@ import (
 	"path"
 	"strconv"
 	"time"
-
-	"github.com/rs/zerolog"
 )
 
 // Context is for a single container store
-
-type Context struct {
-	Config *Config
-	Store  string
-	Log    zerolog.Logger
-}
 
 func formatMillisecond(t time.Time) string {
 	y, m, d := t.Date()
@@ -27,25 +19,6 @@ func formatMillisecond(t time.Time) string {
 	ms := t.Nanosecond() / int(time.Millisecond)
 	tm := (td*1000000+tc)*1000 + int64(ms)
 	return strconv.FormatInt(tm, 10)
-}
-
-func NewContext(home string, container string) (*Context, error) {
-	config, e := LoadConfig(home)
-	if e != nil {
-		return nil, e
-	}
-
-	fn := formatMillisecond(time.Now()) + ".log"
-	h, e := os.Create(path.Join(config.Store, "log", fn))
-	if e != nil {
-		return nil, e
-	}
-	nlog := zerolog.New(h)
-	return &Context{
-		Config: config,
-		Log:    nlog,
-		Store:  container,
-	}, nil
 }
 
 func FilesDo(ctx *Context, dir string, fn func(ctx *Context, path string) error) error {

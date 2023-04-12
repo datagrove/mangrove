@@ -17,6 +17,7 @@ type SshConnection struct {
 	User     string `json:"user,omitempty"`
 	Password string `json:"password,omitempty"`
 	ssh.PublicKey
+	Gpg string `json:"gpg,omitempty"`
 }
 
 type DeliverFile struct {

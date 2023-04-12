@@ -16,11 +16,11 @@ func Test_one(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	e = Encrypt(".private/test.txt", ".private/test.asc", ".private/joe.asc", ".private/john.asc")
+	e = Encrypt(".private/test.txt", ".private/test.asc", []string{".private/joe.asc", ".private/john.asc"})
 	if e != nil {
 		t.Fatal(e)
 	}
-	e = Decrypt(".private/test.asc", ".private/read.txt", ".private/john.asc", ".private/joe.asc")
+	e = Decrypt(".private/test.asc", ".private/read.txt", ".private/joe.asc")
 	if e != nil {
 		t.Fatal(e)
 	}

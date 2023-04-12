@@ -3,51 +3,67 @@ package mangrove
 import (
 	"os"
 
+	"github.com/ProtonMail/gopenpgp/v2/crypto"
 	"github.com/ProtonMail/gopenpgp/v2/helper"
 )
 
 // https://pkg.go.dev/github.com/ProtonMail/gopenpgp/v2/crypto
 
-func Encrypt(inf, outf string, pubkeyf, privkeyf string) error {
-	pubkey, e := os.ReadFile(pubkeyf)
+func Encrypt(inf, outf string, key []string) error {
+	ring, e := crypto.NewKeyRing(nil)
 	if e != nil {
 		return e
 	}
-	privkey, e := os.ReadFile(privkeyf)
-	if e != nil {
-		return e
+	for _, k := range key {
+		pubkey, e := os.ReadFile(k)
+		if e != nil {
+			return e
+		}
+		pk, e := crypto.NewKeyFromArmored(string(pubkey))
+		if e != nil {
+			return e
+		}
+		ring.AddKey(pk)
 	}
 
 	message, err := os.ReadFile(inf)
 	if err != nil {
 		return err
 	}
-	armor, err := helper.EncryptSignMessageArmored(string(pubkey), string(privkey), nil, string(message))
+	plain := crypto.NewPlainMessage(message)
+	cipher, err := ring.Encrypt(plain, ring)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(outf, []byte(armor), 0644)
+	return os.WriteFile(outf, cipher.GetBinary(), 0644)
 }
-func Decrypt(inf, outf, pubkeyf, privkeyf string) error {
-	pubkey, e := os.ReadFile(pubkeyf)
-	if e != nil {
-		return e
-	}
+func Decrypt(inf, outf, privkeyf string) error {
+	// pubkey, e := os.ReadFile(pubkeyf)
+	// if e != nil {
+	// 	return e
+	// }
 	privkey, e := os.ReadFile(privkeyf)
 	if e != nil {
 		return e
 	}
-
-	// decrypt armored encrypted message using the private key and obtain plain text
-	armor, e := os.ReadFile(inf)
+	pk, e := crypto.NewKeyFromArmored(string(privkey))
 	if e != nil {
 		return e
 	}
-	decrypted, err := helper.DecryptVerifyMessageArmored(string(pubkey), string(privkey), nil, string(armor))
+	ring, e := crypto.NewKeyRing(pk)
+
+	// decrypt armored encrypted message using the private key and obtain plain text
+	b, e := os.ReadFile(inf)
+	if e != nil {
+		return e
+	}
+	//cm := crypto.NewClearTextMessage(b, nil)
+	cm := crypto.NewPGPMessage(b)
+	decrypted, err := ring.Decrypt(cm, nil, 0)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(outf, []byte(decrypted), 0644)
+	return os.WriteFile(outf, decrypted.GetBinary(), 0644)
 }
 
 func GeneratePgpKey(name, email string, outfile string) error {
