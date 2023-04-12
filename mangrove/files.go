@@ -11,10 +11,11 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// how should we manage context?
+// Context is for a single container store
 
 type Context struct {
 	Config *Config
+	Store  string
 	Log    zerolog.Logger
 }
 
@@ -28,7 +29,12 @@ func formatMillisecond(t time.Time) string {
 	return strconv.FormatInt(tm, 10)
 }
 
-func NewContext(config *Config) (*Context, error) {
+func NewContext(home string, container string) (*Context, error) {
+	config, e := LoadConfig(home)
+	if e != nil {
+		return nil, e
+	}
+
 	fn := formatMillisecond(time.Now()) + ".log"
 	h, e := os.Create(path.Join(config.Store, "log", fn))
 	if e != nil {
@@ -38,6 +44,7 @@ func NewContext(config *Config) (*Context, error) {
 	return &Context{
 		Config: config,
 		Log:    nlog,
+		Store:  container,
 	}, nil
 }
 

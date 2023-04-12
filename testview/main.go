@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/datagrove/mangrove/mangrove"
-	"github.com/spf13/cobra"
 )
 
 // testview --port 5078 --sftp localhost:5079 --http localhost:5078 --store ./TestResults
@@ -22,37 +21,19 @@ var (
 
 // main is where we set up the web hooks, file hooks, apis, and reports
 func main() {
-	// I should set up triggers and graphs here.
-	config, e := mangrove.DefaultConfig("TestView", res)
-	if e != nil {
-		log.Fatal(e)
-	}
-	rootCmd := &cobra.Command{
-		Use: "testview ",
-		Run: func(cmd *cobra.Command, args []string) {
-			log.Printf("%v", config)
-			launch(config)
-		}}
-
-	rootCmd.PersistentFlags().StringVar(&config.Http, "http", ":5078", "http address")
-	rootCmd.PersistentFlags().StringVar(&config.Sftp, "sftp", ":5079", "sftp address")
-	rootCmd.PersistentFlags().StringVar(&config.Store, "store", "TestResults", "test result store")
-	rootCmd.Execute()
+	x := mangrove.DefaultServer("testview", res, launch)
+	x.Execute()
 }
 
-func launch(config *mangrove.Config) {
-	x, e := mangrove.NewServer(config)
-	if e != nil {
-		log.Fatal(e)
-	}
+// add apis here
+func launch(x *mangrove.Server) error {
 	mux := x.Mux
-
-	mux.Handle("/TestResults/", http.StripPrefix("/TestResults/", http.FileServer(http.Dir(config.Store))))
+	mux.Handle("/TestResults/", http.StripPrefix("/TestResults/", http.FileServer(http.Dir(x.Config.Store))))
 
 	mux.HandleFunc("/api/runs", func(w http.ResponseWriter, r *http.Request) {
 		dir := []string{}
-		os.Mkdir(config.Store, 0777)
-		d, e := os.ReadDir(config.Store)
+		os.Mkdir(x.Config.Store, 0777)
+		d, e := os.ReadDir(x.Config.Store)
 		if e != nil {
 			return
 		}
@@ -62,7 +43,7 @@ func launch(config *mangrove.Config) {
 		json.NewEncoder(w).Encode(dir)
 	})
 	mux.HandleFunc("/api/run/", func(w http.ResponseWriter, r *http.Request) {
-		batch := path.Join(config.Store, r.URL.Path[8:])
+		batch := path.Join(x.Config.Store, r.URL.Path[8:])
 
 		// index.json written at beginning of each test, it lets us know what files are expected
 		root := []string{}
@@ -106,5 +87,5 @@ func launch(config *mangrove.Config) {
 
 		json.NewEncoder(w).Encode(testcode)
 	})
-	x.Run()
+	return nil
 }

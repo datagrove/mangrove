@@ -17,6 +17,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/kardianos/service"
 	"github.com/pkg/sftp"
+	"github.com/spf13/cobra"
 )
 
 var logger service.Logger
@@ -52,23 +53,77 @@ type Server struct {
 	Mux *http.ServeMux
 }
 
-func NewServer(opt *Config) (*Server, error) {
-	var staticFS = fs.FS(opt.Ui)
-	// should this be in config?
-	htmlContent, err := fs.Sub(staticFS, "ui/dist")
-	if err != nil {
-		return nil, err
-	}
-	fs := http.FileServer(http.FS(htmlContent))
-	mux := http.NewServeMux()
-	mux.Handle("/", fs)
-
-	return &Server{
-		Config: opt,
-		Mux:    mux,
-	}, nil
+func initialize(dir string) {
+	os.MkdirAll(dir, 0777) // permissions here are not correct, should be lower
+	os.WriteFile(path.Join(dir, "testview.json"), []byte(`{
+		"Http": ":5078",
+		"Sftp": ":5079",
+		"Store": "TestResults"
+	}`), 0777)
 }
-func DefaultConfig(name string, res embed.FS) (*Config, error) {
+func DefaultServer(name string, res embed.FS, launch func(*Server) error) *cobra.Command {
+	// DefaultConfig will look in the current directory for a testview.json file
+	rootCmd := &cobra.Command{}
+
+	rootCmd.AddCommand(&cobra.Command{
+		Use: "install [home directory]",
+		Run: func(cmd *cobra.Command, args []string) {
+			// use service to install the service
+			dir := "."
+			if len(args) > 0 {
+				dir = args[0]
+			}
+			x, e := NewServer(name, dir, res)
+			if e != nil {
+				log.Fatal(e)
+			}
+			// how do we add command line paramters?
+			x.Install()
+		}})
+	rootCmd.AddCommand(&cobra.Command{
+		Use: "start [home directory]",
+		Run: func(cmd *cobra.Command, args []string) {
+			dir := "."
+			if len(args) > 0 {
+				dir = args[0]
+			}
+			_ = dir
+			//launch(dir)
+		}})
+	rootCmd.AddCommand(&cobra.Command{
+		Use: "init [home directory]",
+		Run: func(cmd *cobra.Command, args []string) {
+			dir := "."
+			if len(args) > 0 {
+				dir = args[0]
+			}
+			initialize(dir)
+		}})
+	// rootCmd.PersistentFlags().StringVar(&config.Http, "http", ":5078", "http address")
+	// rootCmd.PersistentFlags().StringVar(&config.Sftp, "sftp", ":5079", "sftp address")
+	// rootCmd.PersistentFlags().StringVar(&config.Store, "store", "TestResults", "test result store")
+	rootCmd.Execute()
+	return rootCmd
+}
+
+func LoadConfig(dir string) (*Config, error) {
+	var j Config
+
+	b, e := os.ReadFile(path.Join(dir, "index.json"))
+	if e != nil {
+		return nil, e
+	}
+	json.Unmarshal(b, &j)
+	if len(j.Key) == 0 {
+		h, _ := os.UserHomeDir()
+		j.Key = path.Join(h, ".ssh", "id_rsa")
+	}
+	return &j, nil
+}
+
+// directory should already be initalized
+// maybe the caller should pass a launch function?
+func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 	h, _ := os.UserHomeDir()
 	err := godotenv.Load()
 	if err != nil {
@@ -86,9 +141,37 @@ func DefaultConfig(name string, res embed.FS) (*Config, error) {
 		Name:        name,
 		DisplayName: name,
 		Description: name,
+		Arguments:   []string{"start"},
 	}
 
-	return &j, nil
+	opt := &j
+	if e != nil {
+		log.Fatal(e)
+	}
+
+	var staticFS = fs.FS(opt.Ui)
+	// should this be in config?
+	htmlContent, err := fs.Sub(staticFS, "ui/dist")
+	if err != nil {
+		return nil, err
+	}
+	fs := http.FileServer(http.FS(htmlContent))
+	mux := http.NewServeMux()
+	mux.Handle("/", fs)
+
+	return &Server{
+		Config: opt,
+		Mux:    mux,
+	}, nil
+}
+
+func (sx *Server) Install() {
+	prg := &program{}
+	s, err := service.New(prg, &sx.Config.Service)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s.Install()
 }
 
 // start as service
@@ -102,6 +185,7 @@ func (sx *Server) Run() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	logger, err = s.Logger(nil)
 	if err != nil {
 		log.Fatal(err)
