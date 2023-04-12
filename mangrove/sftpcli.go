@@ -104,7 +104,7 @@ func ArchiveFiles(dir string) error {
 	return nil
 
 }
-func EncryptFiles(ctx *Context, dir string, key []string) error {
+func EncryptFiles(ctx *Context, dir, to string, key []string) error {
 	f, e := os.ReadDir(dir)
 	if e != nil {
 		return e
@@ -116,14 +116,14 @@ func EncryptFiles(ctx *Context, dir string, key []string) error {
 		fp := path.Join(dir, f.Name())
 		old := path.Join(dir, "old", f.Name())
 		os.Rename(fp, old)
-		e := Encrypt(old, fp, key)
+		e := Encrypt(old, path.Join(to, f.Name()+".pgp"), key)
 		if e != nil {
 			return e
 		}
 	}
 	return nil
 }
-func DecryptFiles(ctx *Context, dir string) error {
+func DecryptFiles(ctx *Context, dir, to string) error {
 	f, e := os.ReadDir(dir)
 	if e != nil {
 		return e
@@ -135,7 +135,11 @@ func DecryptFiles(ctx *Context, dir string) error {
 		plain := path.Join(dir, f.Name())
 		cipher := path.Join(dir, "old", f.Name())
 		os.Rename(plain, cipher)
-		e := Decrypt(cipher, plain, ctx.Container.Gpg)
+		tofile := path.Join(to, f.Name())
+		if path.Ext(tofile) == ".pgp" {
+			tofile = tofile[:len(tofile)-4]
+		}
+		e := Decrypt(cipher, tofile, ctx.Container.Gpg)
 		if e != nil {
 			return e
 		}
@@ -155,9 +159,9 @@ func GetFiles(ctx *Context, s *SshConnection, todir string, frompattern string) 
 		if err != nil {
 			return err
 		}
-		defer remoteFile.Close()
 		// Read the contents of the remote file
 		remoteBytes, err := ioutil.ReadAll(remoteFile)
+		remoteFile.Close()
 		if err != nil {
 			return err
 		}
@@ -175,6 +179,7 @@ func GetFiles(ctx *Context, s *SshConnection, todir string, frompattern string) 
 	}
 	defer client.Close()
 	fx, e := client.Glob(frompattern)
+	//fx, e := client.ReadDir(fromdir)
 	if e != nil {
 		return e
 	}
