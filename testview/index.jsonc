@@ -1,0 +1,6 @@
+{
+    "sftp": "127.0.0.1:2222",
+    "http": [":5078"],
+    "app_root": "./ui/results/diff",
+    "store": "./store"
+}

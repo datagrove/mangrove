@@ -1,5 +1,0 @@
-{
-    "sftp": "127.0.0.1:2222",
-    "app_root": "./ui/results/diff",
-    "test_root": "./TestResults"
-}

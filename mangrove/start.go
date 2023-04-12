@@ -41,10 +41,10 @@ func (p *program) Stop(s service.Service) error {
 type Config struct {
 	Connection map[string]*SshConnection `json:"connection,omitempty"`
 
-	Key     string `json:"key,omitempty"`
-	Http    string `json:"http,omitempty"`
-	Sftp    string `json:"sftp,omitempty"`
-	Store   string `json:"test_root,omitempty"`
+	Key     string   `json:"key,omitempty"`
+	Http    []string `json:"http,omitempty"`
+	Sftp    string   `json:"sftp,omitempty"`
+	Store   string   `json:"test_root,omitempty"`
 	Ui      embed.FS
 	Service service.Config
 }
@@ -53,14 +53,6 @@ type Server struct {
 	Mux *http.ServeMux
 }
 
-func initialize(dir string) {
-	os.MkdirAll(dir, 0777) // permissions here are not correct, should be lower
-	os.WriteFile(path.Join(dir, "testview.json"), []byte(`{
-		"Http": ":5078",
-		"Sftp": ":5079",
-		"Store": "TestResults"
-	}`), 0777)
-}
 func DefaultServer(name string, res embed.FS, launch func(*Server) error) *cobra.Command {
 	// DefaultConfig will look in the current directory for a testview.json file
 	rootCmd := &cobra.Command{}
@@ -88,7 +80,12 @@ func DefaultServer(name string, res embed.FS, launch func(*Server) error) *cobra
 				dir = args[0]
 			}
 			_ = dir
-			//launch(dir)
+			x, e := NewServer(name, dir, res)
+			if e != nil {
+				log.Fatal(e)
+			}
+			launch(x)
+			x.Run()
 		}})
 	rootCmd.AddCommand(&cobra.Command{
 		Use: "init [home directory]",
@@ -120,18 +117,28 @@ func LoadConfig(dir string) (*Config, error) {
 	}
 	return &j, nil
 }
+func initialize(dir string) {
+	os.MkdirAll(dir, 0777) // permissions here are not correct, should be lower
+	os.WriteFile(path.Join(dir, "testview.json"), []byte(`{
+		"Http": ":5078",
+		"Sftp": ":5079",
+		"Store": "TestResults"
+	}`), 0777)
+}
 
 // directory should already be initalized
 // maybe the caller should pass a launch function?
 func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 	h, _ := os.UserHomeDir()
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	godotenv.Load()
 	var j Config
 	j.Key = path.Join(h, ".ssh", "id_rsa")
-	b, e := os.ReadFile(".private/" + name + ".json")
+	cf := path.Join(dir, "index.jsonc")
+	_, e := os.Stat(cf)
+	if e != nil {
+		initialize(dir)
+	}
+	b, e := os.ReadFile(cf)
 	if e != nil {
 		log.Fatal(e)
 	}
@@ -176,9 +183,10 @@ func (sx *Server) Install() {
 
 // start as service
 func (sx *Server) Run() {
-	go func() {
-		log.Fatal(http.ListenAndServe(sx.Http, sx.Mux))
-	}()
+	for _, x := range sx.Http {
+		go log.Fatal(http.ListenAndServe(x, sx.Mux))
+		//go log.Fatal(http.ListenAndServeTLS(x, cert, key, nil))
+	}
 
 	prg := &program{}
 	s, err := service.New(prg, &sx.Config.Service)
