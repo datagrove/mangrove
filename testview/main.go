@@ -26,14 +26,22 @@ func main() {
 }
 
 // add apis here
+// authorization has to be in a cookie
+// the cookie is set when they visit the url they get from ssh.
 func launch(x *mangrove.Server) error {
 	mux := x.Mux
-	mux.Handle("/TestResults/", http.StripPrefix("/TestResults/", http.FileServer(http.Dir(x.Config.Store))))
 
+	// this lets us serve the artifacts as static files
+	//mux.Handle("/TestResults/", http.StripPrefix("/TestResults/", http.FileServer(http.Dir(x.Config.Store))))
+
+	mux.HandleFunc("/api/containers", func(w http.ResponseWriter, r *http.Request) {
+	})
+	// runs/{container}
 	mux.HandleFunc("/api/runs", func(w http.ResponseWriter, r *http.Request) {
+		container := ""
 		dir := []string{}
-		os.Mkdir(x.Config.Store, 0777)
-		d, e := os.ReadDir(x.Config.Store)
+		os.Mkdir(container+"/runs", 0777)
+		d, e := os.ReadDir(container + "/runs")
 		if e != nil {
 			return
 		}
@@ -42,8 +50,9 @@ func launch(x *mangrove.Server) error {
 		}
 		json.NewEncoder(w).Encode(dir)
 	})
+	// runs/
 	mux.HandleFunc("/api/run/", func(w http.ResponseWriter, r *http.Request) {
-		batch := path.Join(x.Config.Store, r.URL.Path[8:])
+		batch := "" //path.Join(x.Config.Store, r.URL.Path[8:])
 
 		// index.json written at beginning of each test, it lets us know what files are expected
 		root := []string{}

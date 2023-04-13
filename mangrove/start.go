@@ -1,13 +1,19 @@
 package mangrove
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"embed"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"log"
+	"math/big"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -41,10 +47,10 @@ func (p *program) Stop(s service.Service) error {
 }
 
 type Config struct {
-	Key     string   `json:"key,omitempty"`
-	Http    []string `json:"http,omitempty"`
-	Sftp    string   `json:"sftp,omitempty"`
-	Store   string   `json:"test_root,omitempty"`
+	Key   string `json:"key,omitempty"`
+	Https string `json:"https,omitempty"`
+	Sftp  string `json:"sftp,omitempty"`
+	//Store   string   `json:"test_root,omitempty"`
 	Ui      embed.FS
 	Service service.Config
 }
@@ -54,7 +60,8 @@ type Container struct {
 }
 type Server struct {
 	*Config
-	Mux *http.ServeMux
+	Mux  *http.ServeMux
+	Home string
 }
 
 type Context struct {
@@ -87,19 +94,23 @@ func NewContext(home string, container string) (*Context, error) {
 		Container: ct,
 	}, nil
 }
+
+func HomeDir(args []string) string {
+	if len(args) > 0 {
+		return args[0]
+	} else {
+		return "./store"
+	}
+}
 func DefaultServer(name string, res embed.FS, launch func(*Server) error) *cobra.Command {
+	godotenv.Load()
 	// DefaultConfig will look in the current directory for a testview.json file
 	rootCmd := &cobra.Command{}
-
 	rootCmd.AddCommand(&cobra.Command{
 		Use: "install [home directory]",
 		Run: func(cmd *cobra.Command, args []string) {
 			// use service to install the service
-			dir := "."
-			if len(args) > 0 {
-				dir = args[0]
-			}
-			x, e := NewServer(name, dir, res)
+			x, e := NewServer(name, HomeDir(args), res)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -109,12 +120,7 @@ func DefaultServer(name string, res embed.FS, launch func(*Server) error) *cobra
 	rootCmd.AddCommand(&cobra.Command{
 		Use: "start [home directory]",
 		Run: func(cmd *cobra.Command, args []string) {
-			dir := "."
-			if len(args) > 0 {
-				dir = args[0]
-			}
-			_ = dir
-			x, e := NewServer(name, dir, res)
+			x, e := NewServer(name, HomeDir(args), res)
 			if e != nil {
 				log.Fatal(e)
 			}
@@ -124,11 +130,7 @@ func DefaultServer(name string, res embed.FS, launch func(*Server) error) *cobra
 	rootCmd.AddCommand(&cobra.Command{
 		Use: "init [home directory]",
 		Run: func(cmd *cobra.Command, args []string) {
-			dir := "."
-			if len(args) > 0 {
-				dir = args[0]
-			}
-			initialize(dir)
+			initialize(HomeDir(args))
 		}})
 	// rootCmd.PersistentFlags().StringVar(&config.Http, "http", ":5078", "http address")
 	// rootCmd.PersistentFlags().StringVar(&config.Sftp, "sftp", ":5079", "sftp address")
@@ -172,20 +174,22 @@ func LoadConfig(dir string) (*Config, error) {
 }
 func initialize(dir string) {
 	os.MkdirAll(dir, 0777) // permissions here are not correct, should be lower
-	os.WriteFile(path.Join(dir, "testview.json"), []byte(`{
+	os.WriteFile(path.Join(dir, "index.jsonc"), []byte(`{
 		"Http": [":5078"],
 		"Sftp": ":5079",
-		"Store": "TestResults"
 	}`), 0777)
 }
 
 // directory should already be initalized
 // maybe the caller should pass a launch function?
 func NewServer(name string, dir string, res embed.FS) (*Server, error) {
-	h, _ := os.UserHomeDir()
-	godotenv.Load()
 	var j Config
-	j.Key = path.Join(h, ".ssh", "id_rsa")
+	{
+		// the user creating the server should become the owner of the server
+		h, _ := os.UserHomeDir()
+		j.Key = path.Join(h, ".ssh", "id_rsa")
+	}
+
 	cf := path.Join(dir, "index.jsonc")
 	_, e := os.Stat(cf)
 	if e != nil {
@@ -222,6 +226,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 	return &Server{
 		Config: opt,
 		Mux:    mux,
+		Home:   dir,
 	}, nil
 }
 
@@ -234,13 +239,7 @@ func (sx *Server) Install() {
 	s.Install()
 }
 
-// start as service
-func (sx *Server) Run() {
-	for _, x := range sx.Http {
-		go log.Fatal(http.ListenAndServe(x, sx.Mux))
-		//go log.Fatal(http.ListenAndServeTLS(x, cert, key, nil))
-	}
-
+func (sx *Server) RunService() {
 	prg := &program{}
 	s, err := service.New(prg, &sx.Config.Service)
 	if err != nil {
@@ -256,6 +255,91 @@ func (sx *Server) Run() {
 	if err != nil {
 		logger.Error(err)
 	}
+}
+
+func (sx *Server) Run() {
+	cert := path.Join(sx.Home, "cert.pem")
+	key := path.Join(sx.Home, "key.pem")
+	_, e := os.Stat(cert)
+	if e != nil {
+		name, _ := os.Hostname()
+		// generate a self signed cert
+		// https://golang.org/pkg/crypto/tls/#example_GenerateCert
+		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			panic(err)
+		}
+
+		// define the certificate template
+		template := x509.Certificate{
+			SerialNumber: big.NewInt(1),
+			Subject: pkix.Name{
+				CommonName: name,
+			},
+			NotBefore:             time.Now(),
+			NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+			BasicConstraintsValid: true,
+			IsCA:                  true,
+			KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+			DNSNames:              []string{name, "localhost"},
+			IPAddresses:           []net.IP{net.IPv4(127, 0, 0, 1)},
+		}
+
+		// create a self-signed certificate using the private key and template
+		derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
+		if err != nil {
+			panic(err)
+		}
+
+		// write the private key to a PEM file
+		privateKeyFile, err := os.Create(key)
+		if err != nil {
+			panic(err)
+		}
+		defer privateKeyFile.Close()
+		privateKeyPEM := &pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+		}
+		err = pem.Encode(privateKeyFile, privateKeyPEM)
+		if err != nil {
+			panic(err)
+		}
+
+		// write the certificate to a PEM file
+		certFile, err := os.Create(cert)
+		if err != nil {
+			panic(err)
+		}
+		defer certFile.Close()
+		certPEM := &pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: derBytes,
+		}
+		err = pem.Encode(certFile, certPEM)
+		if err != nil {
+			panic(err)
+		}
+	}
+	go func() {
+		ssh_server := ssh.Server{
+			Addr: sx.Config.Sftp,
+			PublicKeyHandler: func(ctx ssh.Context, key ssh.PublicKey) bool {
+				return true
+			},
+			SubsystemHandlers: map[string]ssh.SubsystemHandler{
+				"sftp": SftpHandlerx,
+			},
+		}
+		kf := ssh.HostKeyFile(sx.Config.Key)
+		kf(&ssh_server)
+		log.Fatal(ssh_server.ListenAndServe())
+	}()
+	//go log.Fatal(http.ListenAndServe(x, sx.Mux))
+	log.Fatal(http.ListenAndServeTLS(sx.Https, cert, key, sx.Mux))
+	//certmagic.HTTPS([]string{"example.com"}, mux)
+
 }
 
 type FileSystem struct {
@@ -315,7 +399,7 @@ func (x *Server) FileTask(dir string, then func(path string) error, opt ...TaskO
 
 // SftpHandler handler for SFTP subsystem
 func SftpHandlerx(sess ssh.Session) {
-	debugStream := ioutil.Discard
+	debugStream := io.Discard
 	serverOptions := []sftp.ServerOption{
 		sftp.WithDebug(debugStream),
 	}
@@ -334,22 +418,4 @@ func SftpHandlerx(sess ssh.Session) {
 	} else if err != nil {
 		fmt.Println("sftp server completed with error:", err)
 	}
-}
-
-func startSftp(config *Config) {
-	go func() {
-
-		ssh_server := ssh.Server{
-			Addr: config.Sftp,
-			PublicKeyHandler: func(ctx ssh.Context, key ssh.PublicKey) bool {
-				return true
-			},
-			SubsystemHandlers: map[string]ssh.SubsystemHandler{
-				"sftp": SftpHandlerx,
-			},
-		}
-		kf := ssh.HostKeyFile(config.Key)
-		kf(&ssh_server)
-		log.Fatal(ssh_server.ListenAndServe())
-	}()
 }

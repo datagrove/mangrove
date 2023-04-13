@@ -11,13 +11,24 @@ require (
 
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
+	github.com/caddyserver/certmagic v0.17.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.1.1 // indirect
 	github.com/kr/fs v0.1.0 // indirect
+	github.com/libdns/libdns v0.2.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
+	github.com/mholt/acmez v1.0.4 // indirect
+	github.com/miekg/dns v1.1.50 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/zap v1.23.0 // indirect
+	golang.org/x/mod v0.8.0 // indirect
+	golang.org/x/net v0.8.0 // indirect
+	golang.org/x/tools v0.6.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

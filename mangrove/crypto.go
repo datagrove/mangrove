@@ -10,7 +10,7 @@ import (
 )
 
 // Generates a private key that will be used by the SFTP server.
-func generatePrivateKey(BasePath string) error {
+func GeneratePrivateKey(BasePath string) error {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return err
