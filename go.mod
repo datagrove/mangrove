@@ -37,6 +37,7 @@ require (
 	github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f // indirect
 	github.com/cloudflare/circl v1.1.0 // indirect
 	github.com/gliderlabs/ssh v0.3.5
+	github.com/google/uuid v1.3.0
 	github.com/kardianos/service v1.2.2
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/pkg/errors v0.9.1 // indirect

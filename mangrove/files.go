@@ -21,7 +21,12 @@ func formatMillisecond(t time.Time) string {
 	return strconv.FormatInt(tm, 10)
 }
 
+// this could use parallel processing which would generate multiple tasks
 func FilesDo(ctx *Context, dir string, fn func(ctx *Context, path string) error) error {
+	task, e := ctx.TaskLog()
+	if e != nil {
+		return e
+	}
 	fs, e := os.ReadDir(dir)
 	if e != nil {
 		return e
@@ -43,17 +48,17 @@ func FilesDo(ctx *Context, dir string, fn func(ctx *Context, path string) error)
 		_, e = os.Stat(path.Join(dir, "out", fchk))
 		if e == nil {
 			// file already exists
-			ctx.Log.Info().Str("file", f.Name()).Msg("file already exists")
+			task.Log.Info().Str("file", f.Name()).Msg("file already exists")
 			os.Remove(pth)
 			continue
 		}
 
 		e = fn(ctx, pth)
 		if e != nil {
-			ctx.Log.Info().Str("file", f.Name()).Err(e)
+			task.Log.Info().Str("file", f.Name()).Err(e)
 			os.Rename(pth, path.Join(dir, "error", f.Name()))
 		} else {
-			ctx.Log.Info().Str("file", f.Name()).Msg("file processed")
+			task.Log.Info().Str("file", f.Name()).Msg("file processed")
 			os.Rename(pth, path.Join(dir, "old", f.Name()))
 		}
 	}

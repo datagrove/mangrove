@@ -17,10 +17,12 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"sync/atomic"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gliderlabs/ssh"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/kardianos/service"
 	"github.com/pkg/sftp"
@@ -68,9 +70,31 @@ type Context struct {
 	Config    *Config
 	Container *Container
 	Store     string
+	Artifacts string
+	// each task can have its own log (since logs are sequential and tasks can be parallel)
+	NextTask int64
+}
+type Task struct {
+	c         *Context
+	Artifacts string
 	Log       zerolog.Logger
 }
 
+func (c *Context) TaskLog() (*Task, error) {
+	n := atomic.AddInt64(&c.NextTask, 1)
+	a := path.Join(c.Artifacts, fmt.Sprintf("%d", n))
+	h, e := os.Create(path.Join(c.Artifacts, "log%d.jsonl"))
+	if e != nil {
+		return nil, e
+	}
+	r := &Task{
+		c: c,
+		// files from this task
+		Artifacts: a,
+		Log:       zerolog.New(h),
+	}
+	return r, nil
+}
 func NewContext(home string, container string) (*Context, error) {
 	config, e := LoadConfig(home)
 	if e != nil {
@@ -80,16 +104,11 @@ func NewContext(home string, container string) (*Context, error) {
 	if e != nil {
 		return nil, e
 	}
+	artifacts := path.Join(home, uuid.NewString())
 
-	fn := formatMillisecond(time.Now()) + ".log"
-	h, e := os.Create(path.Join(container, "log", fn))
-	if e != nil {
-		return nil, e
-	}
-	nlog := zerolog.New(h)
 	return &Context{
 		Config:    config,
-		Log:       nlog,
+		Artifacts: artifacts,
 		Store:     container,
 		Container: ct,
 	}, nil
