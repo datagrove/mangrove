@@ -1,9 +1,8 @@
-import './index.css'
+
 import { Component, For, JSXElement, Switch, Match , Show} from 'solid-js'
 import { chevronLeft } from "solid-heroicons/solid";
 import { Icon } from 'solid-heroicons';
 import { A } from '@solidjs/router';
-import './index.css'
 
 interface Tab {
   name: string,
@@ -39,7 +38,7 @@ export const BackNav: Component<{ children: JSXElement, back: boolean }> = (prop
 }
 
 export function H2(props: { children: JSXElement }) {
-    return <h4 class="mx-2 pt-4 pb-2 text-2xl font-bold dark:text-white">{props.children}</h4>
+    return <h4 class="pt-4 pb-2 text-2xl font-bold dark:text-white">{props.children}</h4>
 }
 export function H3(props: { children: JSXElement }) {
     return <h4 class="pt-4 text-2xl font-bold dark:text-white">{props.children}</h4>
