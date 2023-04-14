@@ -96,7 +96,9 @@ func ArchiveFiles(dir string) error {
 		return e
 	}
 	for _, f := range fs {
-		e := os.Rename(f.Name(), path.Join(dir, "old", f.Name()))
+		dest := path.Join(dir, "old", f.Name())
+		os.Remove(dest)
+		e := os.Rename(f.Name(), dest)
 		if e != nil {
 			return e
 		}
@@ -105,6 +107,10 @@ func ArchiveFiles(dir string) error {
 
 }
 func EncryptFiles(ctx *Context, dir, to string, key []string) error {
+	task, e := ctx.TaskLog()
+	if e != nil {
+		return e
+	}
 	f, e := os.ReadDir(dir)
 	if e != nil {
 		return e
@@ -118,12 +124,19 @@ func EncryptFiles(ctx *Context, dir, to string, key []string) error {
 		os.Rename(fp, old)
 		e := Encrypt(old, path.Join(to, f.Name()+".pgp"), key)
 		if e != nil {
+			task.Log.Error().Str("file", old).Str("to", path.Join(to, f.Name()+".pgp")).Msg("encrypt")
 			return e
+		} else {
+			task.Log.Info().Str("file", old).Str("to", path.Join(to, f.Name()+".pgp")).Msg("encrypt")
 		}
 	}
 	return nil
 }
 func DecryptFiles(ctx *Context, dir, to string) error {
+	task, e := ctx.TaskLog()
+	if e != nil {
+		return e
+	}
 	f, e := os.ReadDir(dir)
 	if e != nil {
 		return e
@@ -141,12 +154,19 @@ func DecryptFiles(ctx *Context, dir, to string) error {
 		}
 		e := Decrypt(cipher, tofile, ctx.Container.Gpg)
 		if e != nil {
+			task.Log.Error().Str("file", cipher).Str("to", tofile).Msg("decrypt")
 			return e
+		} else {
+			task.Log.Info().Str("file", cipher).Str("to", tofile).Msg("decrypt")
 		}
 	}
 	return nil
 }
 func GetFiles(ctx *Context, s *SshConnection, todir string, frompattern string) error {
+	task, e := ctx.TaskLog()
+	if e != nil {
+		return e
+	}
 	client, e := Open(s)
 	if e != nil {
 		return e
@@ -186,7 +206,10 @@ func GetFiles(ctx *Context, s *SshConnection, todir string, frompattern string) 
 	for _, f := range fx {
 		e := getFile(f, path.Join(todir, path.Base(f)))
 		if e != nil {
+			task.Log.Error().Err(e).Str("file", f).Msg("Failed to get file")
 			return e
+		} else {
+			task.Log.Info().Str("file", f).Msg("Got file")
 		}
 	}
 

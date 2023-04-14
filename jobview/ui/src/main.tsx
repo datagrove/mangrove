@@ -133,15 +133,26 @@ function mdate (n: number) : string {
 const Button = (props: {children: JSXElement, onClick: ()=>void}) => {
     return <button class='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'>{props.children}</button>
 }
-const LogPage : Component = () => {
+const JobPage : Component = () => {
     const params = useParams()
     const [log] = createResource(params['id'], cn.get<JobEntry>('log'))
-    const title = () => {
-        return "log description"
+    const title = ():string => {
+        if (log.loading) return "Loading"
+        if (log()?.error) return log()!.error!
+        const v = log()!.value!;
+        return v.name + " " + mdate(v.start)
     }
     return <Page title={title()} back={`/db/${params['db']}`}>
-        <pre>{JSON.stringify(log())}</pre>
-        </Page>
+        <H2>Tasks</H2>
+        <table class='table-auto'>
+            <thead><tr><th>Name</th><th>Start</th><th>Duration</th><th>Output</th></tr></thead>
+            <For each={log()?.value?.task}>{task => <tr>                   
+                    <td class='border px-8 py-4'>{task.name}</td>
+                    <td class='border px-8 py-4'>{mdate(task.start)}</td>
+                    <td  class='border px-8 py-4'>{(task.end-task.end)/1000}</td> 
+                    <td  class='border px-8 py-4'>todo</td></tr>            
+                }</For>
+            </table></Page>
 }
 // we should show primary a list of logs, and maybe a drop down with jobs to run
 // we should show a list of jobs that will be run on a timer
@@ -201,7 +212,7 @@ function App() {
         <Routes>
             <Route path="/" component={DatabaseList} />
             <Route path="/db/:db" component={DatabasePage} />
-            <Route path="/db/:db/log/:id" component={LogPage} />
+            <Route path="/db/:db/log/:id" component={JobPage} />
         </Routes></>
 }
 
