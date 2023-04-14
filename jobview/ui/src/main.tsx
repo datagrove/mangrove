@@ -48,9 +48,21 @@ const mockWs = new MockWs((data: Rpc<any>) => {
         case 'container':
             return ['Production', 'Test']
         case 'jobs':
-            return {
+            // we need to periodically refresh this
+            const jobs : Jobs = {
+                job: {},
+                run: [],
+                schedule: [],
+                history: []
             }
-
+            return jobs
+        case 'search':
+            // we need to set the date range on this
+            // would be nice to filter
+            const more : HistoryEntry[] = []
+            return more
+        default:
+            console.log("unknown method", data)
     }
 })
 const cn = new Cn(mockWs)
