@@ -5,6 +5,7 @@ import { Route, Routes, Router, A, useNavigate, useParams, hashIntegration } fro
 import { BackNav, H2 } from './widget/nav'
 import { Cn, ListView, MockWs, OrError, Page, Rpc, Ws } from './widget/list'
 
+
 //const ws = new Ws('ws://localhost:8080/ws')
 
 interface JobView {
@@ -24,6 +25,7 @@ interface Runnable {
 }
 // each search entry covers a time range
 interface SearchEntry {
+    id: string
     name: string
     summary: string
     type: string
@@ -40,6 +42,21 @@ interface Dash {
     history: SearchEntry[]
 }
 
+export interface JobEntry extends SearchEntry {
+    task: TaskEntry[]
+}
+export interface TaskEntry {
+    start: number
+    end: number
+    name: string
+    output: string
+}
+
+// this is a bit of a mess, but it's a start
+export interface TaskEntry {
+
+}
+
 const mockWs = new MockWs((data: Rpc<any>) => {
 
     
@@ -50,11 +67,32 @@ const mockWs = new MockWs((data: Rpc<any>) => {
         // in general we want to subscribe to this sort of thing? refresh ok, not ideal
         case 'container':
             return ['Production', 'Test']
+        case 'log':
+            data.args = {id: '1234'}
+            const sampleLog : JobEntry = {
+                task: [],
+                id: data.args.id,
+                name: 'process',
+                summary: '',
+                type: '',
+                start: 0,
+                end: 0
+            }
+            for (let i=0; i<12; i++){
+                sampleLog.task.push({
+                    start: Date.now() - i * 1000,
+                    end: Date.now() - i * 1000 + 1000,
+                    name: "process",
+                    output: "ran all tasks"
+                })
+            }
+            return sampleLog
         case 'dash':
             const n = Date.now()
             const h : SearchEntry[] = []
             for (let i = 0; i < 100; i++) {
                 h.push({
+                    id: self.crypto.randomUUID(),
                     name: "process",
                     start: n - i * 1000,
                     end: n - i * 1000 + 1000,
@@ -92,8 +130,18 @@ function mdate (n: number) : string {
     return  new Date(n).toLocaleDateString('en-us', {year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric'})
 }
 
-const Button = (props: {children: JSXElement}) => {
+const Button = (props: {children: JSXElement, onClick: ()=>void}) => {
     return <button class='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'>{props.children}</button>
+}
+const LogPage : Component = () => {
+    const params = useParams()
+    const [log] = createResource(params['id'], cn.get<JobEntry>('log'))
+    const title = () => {
+        return "log description"
+    }
+    return <Page title={title()} back={`/db/${params['db']}`}>
+        <pre>{JSON.stringify(log())}</pre>
+        </Page>
 }
 // we should show primary a list of logs, and maybe a drop down with jobs to run
 // we should show a list of jobs that will be run on a timer
@@ -101,6 +149,10 @@ const Button = (props: {children: JSXElement}) => {
 const DatabasePage : Component = () => {
     const params = useParams()
     const [jobs] = createResource(params['db'], cn.get<Dash>('dash'))
+    const navigate = useNavigate()
+    const run = (name: string) => {}
+    const showLog = (id: string) => navigate(`/db/${params['db']}/log/${id}`)
+
     return <Page title={params['db']} back={'/'} >
         <Switch>
             <Match when={!jobs()}>
@@ -114,10 +166,10 @@ const DatabasePage : Component = () => {
         <table class='table-auto'>
             <thead><tr><th>Name</th><th>Next Run</th><th></th></tr></thead>
             <For each={jobs()!.value!.runnable}>{(e,i) => {
-                return <tr>
+                return <tr class='hover:bg-neutral-500' >
                     <td class='border px-8 py-4'>{e.name}</td>
                     <td class='border px-8 py-4 w-64'>{e.next?mdate(e.next):""}</td>
-                    <td class='border px-8 py-4'><Button>Run</Button></td>
+                    <td class='border px-8 py-4'><Button onClick={()=>run(e.name)}>Run</Button></td>
                 </tr>
             }}</For>
         </table>
@@ -126,7 +178,7 @@ const DatabasePage : Component = () => {
         <table class='table-auto'>
             <thead><tr><th>Start</th><th>End</th><th>Name</th><th>Summary</th></tr></thead>
         <For each={jobs()!.value!.history}>{(e) => {
-            return <tr>
+            return <tr class='hover:bg-neutral-500' onClick={()=>showLog(e.id)}>
                 <td class='border px-8 py-4'>{mdate(e.start)}</td>
                 <td class='border px-8 py-4'>{mdate(e.end)}</td>
                 <td class='border px-8 py-4'>{e.name}</td>
@@ -149,6 +201,7 @@ function App() {
         <Routes>
             <Route path="/" component={DatabaseList} />
             <Route path="/db/:db" component={DatabasePage} />
+            <Route path="/db/:db/log/:id" component={LogPage} />
         </Routes></>
 }
 
