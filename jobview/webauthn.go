@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/go-webauthn/webauthn/webauthn"
 )
 
 const (
@@ -57,8 +58,26 @@ func jsonResponse(w http.ResponseWriter, d interface{}, c int) {
 	fmt.Fprintf(w, "%s", dj)
 }
 
+var (
+	web *webauthn.WebAuthn
+	err error
+)
+
 func Webauthn(mux *http.ServeMux) error {
+	wconfig := &webauthn.Config{
+		RPDisplayName: "Go Webauthn",                               // Display Name for your site
+		RPID:          "go-webauthn.local",                         // Generally the FQDN for your site
+		RPOrigins:     []string{"https://login.go-webauthn.local"}, // The origin URLs allowed for WebAuthn requests
+	}
+
+	if web, err = webauthn.New(wconfig); err != nil {
+		fmt.Println(err)
+	}
+
 	mux.HandleFunc("/api/register", func(w http.ResponseWriter, r *http.Request) {
+		var u webauthn.User
+		options, session, err := web.BeginRegistration(u)
+
 		var cr json.RawMessage
 		json.Unmarshal([]byte(create), &cr)
 		response(w, create, 200)

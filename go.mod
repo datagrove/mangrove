@@ -6,20 +6,27 @@ require (
 	github.com/ProtonMail/gopenpgp/v2 v2.6.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/fsnotify/fsnotify v1.6.0
+	github.com/go-webauthn/webauthn v0.8.2
 	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.8.1
 )
 
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
+	github.com/fxamacker/cbor/v2 v2.4.0 // indirect
+	github.com/go-webauthn/revoke v0.1.9 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
+	github.com/google/go-tpm v0.3.3 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/kr/pretty v0.2.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/x448/float16 v0.8.4 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
