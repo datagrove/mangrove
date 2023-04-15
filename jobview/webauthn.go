@@ -25,16 +25,16 @@ const (
 		  authenticatorSelection: { userVerification: "discouraged" },
 		  extensions: {
 			credProps: true,
-		  },
-		},
+		  }
+		}
 	  }`
 
 	login = ` {
 		publicKey: {
 		  challenge: "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
 		  allowCredentials: registeredCredentials(),
-		  userVerification: "discouraged",
-		},
+		  userVerification: "discouraged"
+		}
 	  }`
 )
 
@@ -42,6 +42,11 @@ type Session struct {
 	Id string `json:"id,omitempty"`
 }
 
+func response(w http.ResponseWriter, d string, c int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(c)
+	fmt.Fprintf(w, "%s", d)
+}
 func jsonResponse(w http.ResponseWriter, d interface{}, c int) {
 	dj, err := json.Marshal(d)
 	if err != nil {
@@ -54,9 +59,9 @@ func jsonResponse(w http.ResponseWriter, d interface{}, c int) {
 
 func Webauthn(mux *http.ServeMux) error {
 	mux.HandleFunc("/api/register", func(w http.ResponseWriter, r *http.Request) {
-		var cr interface{}
+		var cr json.RawMessage
 		json.Unmarshal([]byte(create), &cr)
-		jsonResponse(w, cr, 200)
+		response(w, create, 200)
 	})
 
 	// this should probably return a session id?

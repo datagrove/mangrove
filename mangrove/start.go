@@ -219,6 +219,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		log.Fatal(e)
 	}
 	json.Unmarshal(b, &j)
+	log.Print(string(b))
 	j.Ui = res
 	j.Service = service.Config{
 		Name:        name,

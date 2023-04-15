@@ -1,6 +1,7 @@
 import { defineConfig,searchForWorkspaceRoot } from 'vite';
 import solidPlugin from 'vite-plugin-solid';
 import serveStatic from 'serve-static'
+import mkcert from 'vite-plugin-mkcert'
 
 const x = () => ({
     name: 'TestResults',
@@ -10,16 +11,18 @@ const x = () => ({
   })
 
 export default defineConfig({
-    plugins: [solidPlugin(),x()],
+    plugins: [solidPlugin(),x(),mkcert()],
     server: {
       proxy: {
         '/api': {
-          target: 'http://localhost:5078',
+          target: 'https://localhost:5078',
           changeOrigin: true,
+          secure: false,
         },
         '/TestResults': {
-          target: 'http://localhost:5078',
-          changeOrigin: true
+          target: 'https://localhost:5078',
+          changeOrigin: true,
+          secure: false,
         }
       },
         port: 5783,
