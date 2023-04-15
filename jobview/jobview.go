@@ -35,9 +35,10 @@ func DefaultServer(name string, jobs []Job, launch func(*mangrove.Server) error)
 	return j
 }
 
-func api(svr *mangrove.Server) {
+func api(svr *mangrove.Server) error {
 	// api := svr.Router.PathPrefix("/api").Subrouter()
 	// api.HandleFunc("/job", func(w http.ResponseWriter, r *http.Request) {
 	// 	w.Write([]byte("job"))
 	// })
+	return Webauthn(svr.Mux)
 }

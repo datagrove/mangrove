@@ -4,7 +4,7 @@ import { render } from 'solid-js/web'
 import { Route, Routes, Router, A, useNavigate, useParams, hashIntegration } from "@solidjs/router"
 import RouteGuard, { BackNav, H2, Page } from './widget/nav'
 import { Cn, ListView, MockWs, OrError, Rpc, Ws } from './widget/list'
-import { Center, LoginPage, LoginPassword, LoginUser, PasswordPage } from './widget/login'
+import { Center, LoginPage, PasswordPage } from './widget/login'
 
 const [token,setToken] = createSignal<string>(localStorage.getItem('token') || '')
 //const ws = new Ws('ws://localhost:8080/ws')
