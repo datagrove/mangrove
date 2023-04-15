@@ -44,6 +44,7 @@ require (
 	github.com/pkg/sftp v1.13.5
 	github.com/roylee0704/gron v0.0.0-20160621042432-e78485adab46
 	github.com/rs/zerolog v1.29.0
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/spf13/cobra v1.7.0
 	golang.org/x/crypto v0.7.0
 	golang.org/x/sys v0.7.0 // indirect

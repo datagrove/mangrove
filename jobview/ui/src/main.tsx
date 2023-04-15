@@ -1,11 +1,12 @@
 import './index.css'
-import { JSXElement, Component, createSignal, For, onMount, Show, createResource, Switch, Match } from 'solid-js'
+import { JSXElement, Component, createSignal, For, onMount, Show, createResource, Switch, Match, createEffect } from 'solid-js'
 import { render } from 'solid-js/web'
 import { Route, Routes, Router, A, useNavigate, useParams, hashIntegration } from "@solidjs/router"
-import { BackNav, H2 } from './widget/nav'
-import { Cn, ListView, MockWs, OrError, Page, Rpc, Ws } from './widget/list'
+import RouteGuard, { BackNav, H2, Page } from './widget/nav'
+import { Cn, ListView, MockWs, OrError, Rpc, Ws } from './widget/list'
+import { Center, LoginPage, LoginPassword, LoginUser, PasswordPage } from './widget/login'
 
-
+const [token,setToken] = createSignal<string>(localStorage.getItem('token') || '')
 //const ws = new Ws('ws://localhost:8080/ws')
 
 interface JobView {
@@ -56,7 +57,14 @@ export interface TaskEntry {
 export interface TaskEntry {
 
 }
-
+interface Storage {
+    token: string
+}
+interface Account {
+    name: string
+    email: string
+    database: string[]
+}
 const mockWs = new MockWs((data: Rpc<any>) => {
 
     
@@ -65,8 +73,13 @@ const mockWs = new MockWs((data: Rpc<any>) => {
             return {title: 'Mock Job View'}
 
         // in general we want to subscribe to this sort of thing? refresh ok, not ideal
-        case 'container':
-            return ['Production', 'Test']
+        case 'profile':
+            const r : Account = {
+                name: 'joe',
+                email: 'joe@example.com',
+                database:  ['Production', 'Test']
+            }
+            return r
         case 'log':
             data.args = {id: '1234'}
             const sampleLog : JobEntry = {
@@ -206,13 +219,18 @@ const DatabaseList : Component = () => {
         </ListView >
         </Page>
 }
- 
 function App() {
+    //const [items] =  createResource(props.fetch)
     return <>
+
         <Routes>
-            <Route path="/" component={DatabaseList} />
-            <Route path="/db/:db" component={DatabasePage} />
-            <Route path="/db/:db/log/:id" component={JobPage} />
+        <Route path="/login" component={LoginPage}  />
+            <Route path="/pw" component={PasswordPage}  />
+            <Route path="/" component={RouteGuard}>
+                <Route path="/home" component={DatabaseList} />
+                <Route path="/db/:db" component={DatabasePage} />
+                <Route path="/db/:db/log/:id" component={JobPage} />
+            </Route>
         </Routes></>
 }
 

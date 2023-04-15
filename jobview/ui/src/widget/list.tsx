@@ -5,21 +5,8 @@ import { List } from "postcss/lib/list";
 
 // lists are a common thing, can they be generalized?
 
-export interface PageProps {
-    title: string
-    back?: string
-    children?: JSX.Element
-}
 
-export function Page(props: PageProps) {
-    return <><BackNav back={!!props.back} >
-        { props.title}
-    </BackNav>
-        <div class='m-2'>
-            {props.children}
-        </div>
-    </>
-}
+
 
 
 

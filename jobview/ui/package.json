@@ -19,6 +19,7 @@
     "vite-plugin-solid": "^2.5.0"
   },
   "dependencies": {
+    "@github/webauthn-json": "^2.1.1",
     "@solidjs/router": "^0.8.1",
     "highlight.js": "^11.7.0",
     "serve-static": "^1.15.0",
