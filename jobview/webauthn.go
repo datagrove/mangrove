@@ -5,43 +5,65 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
-)
-
-const (
-	create = `{
-		publicKey: {
-		  challenge: "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
-		  rp: { name: "Localhost, Inc." },
-		  user: {
-			id: "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII",
-			name: "test_user",
-			displayName: "Test User",
-		  },
-		  pubKeyCredParams: [],
-		  excludeCredentials: [],
-		  authenticatorSelection: { userVerification: "discouraged" },
-		  extensions: {
-			credProps: true,
-		  }
-		}
-	  }`
-
-	login = ` {
-		publicKey: {
-		  challenge: "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
-		  allowCredentials: registeredCredentials(),
-		  userVerification: "discouraged"
-		}
-	  }`
 )
 
 type Session struct {
 	Id string `json:"id,omitempty"`
 }
+
+type UserSession struct {
+	Username string
+	Webauthn *webauthn.SessionData
+}
+
+type User struct {
+	ID          string
+	Name        string                `json:"name"`
+	DisplayName string                `json:"display_name"`
+	Icon        string                `json:"icon,omitempty"`
+	Credentials []webauthn.Credential `json:"credentials,omitempty"`
+}
+
+func (u *User) WebAuthnID() []byte {
+	return []byte(u.ID)
+}
+
+// WebAuthnName provides the name attribute of the user account during registration and is a human-palatable name for the user
+// account, intended only for display. For example, "Alex Müller" or "田中倫". The Relying Party SHOULD let the user
+// choose this, and SHOULD NOT restrict the choice more than necessary.
+//
+// Specification: §5.4.3. User Account Parameters for Credential Generation (https://w3c.github.io/webauthn/#dictdef-publickeycredentialuserentity)
+func (u *User) WebAuthnName() string {
+	return u.Name
+}
+
+// WebAuthnDisplayName provides the name attribute of the user account during registration and is a human-palatable
+// name for the user account, intended only for display. For example, "Alex Müller" or "田中倫". The Relying Party
+// SHOULD let the user choose this, and SHOULD NOT restrict the choice more than necessary.
+//
+// Specification: §5.4.3. User Account Parameters for Credential Generation (https://www.w3.org/TR/webauthn/#dom-publickeycredentialuserentity-displayname)
+func (u *User) WebAuthnDisplayName() string {
+	return u.Name
+}
+
+// WebAuthnCredentials provides the list of Credential objects owned by the user.
+func (u *User) WebAuthnCredentials() []webauthn.Credential {
+	return u.Credentials
+}
+
+// WebAuthnIcon is a deprecated option.
+// Deprecated: this has been removed from the specification recommendation. Suggest a blank string.
+func (u *User) WebAuthnIcon() string {
+	return ""
+}
+
+var _ webauthn.User = (*User)(nil)
 
 func response(w http.ResponseWriter, d string, c int) {
 	w.Header().Set("Content-Type", "application/json")
@@ -59,15 +81,24 @@ func jsonResponse(w http.ResponseWriter, d interface{}, c int) {
 }
 
 var (
-	web *webauthn.WebAuthn
-	err error
+	web  *webauthn.WebAuthn
+	data *webauthn.SessionData
+	err  error
+	user = NewUser("test_user")
 )
+
+func NewUser(s string) *User {
+	u := &User{}
+	u.Name = s
+	u.ID = s
+	return u
+}
 
 func Webauthn(mux *http.ServeMux) error {
 	wconfig := &webauthn.Config{
-		RPDisplayName: "Go Webauthn",                               // Display Name for your site
-		RPID:          "go-webauthn.local",                         // Generally the FQDN for your site
-		RPOrigins:     []string{"https://login.go-webauthn.local"}, // The origin URLs allowed for WebAuthn requests
+		RPDisplayName: "Go Webauthn",                      // Display Name for your site
+		RPID:          "localhost",                        // Generally the FQDN for your site
+		RPOrigins:     []string{"https://localhost:5783"}, // The origin URLs allowed for WebAuthn requests
 	}
 
 	if web, err = webauthn.New(wconfig); err != nil {
@@ -75,37 +106,69 @@ func Webauthn(mux *http.ServeMux) error {
 	}
 
 	mux.HandleFunc("/api/register", func(w http.ResponseWriter, r *http.Request) {
-		var u webauthn.User
-		options, session, err := web.BeginRegistration(u)
-
-		var cr json.RawMessage
-		json.Unmarshal([]byte(create), &cr)
-		response(w, create, 200)
+		options, session, err := web.BeginRegistration(user)
+		data = session
+		if err != nil {
+			log.Printf("error: %v", err)
+		}
+		// this might not be enough? we might need to binhex the challenge
+		b, e := json.Marshal(options)
+		if e != nil {
+			log.Printf("error: %v", e)
+			return
+		}
+		response(w, string(b), 200)
 	})
 
 	// this should probably return a session id?
+	// we need to binhex appropriate things.
 	mux.HandleFunc("/api/register2", func(w http.ResponseWriter, r *http.Request) {
-		var v interface{}
-		json.NewDecoder(r.Body).Decode(&v)
+		response, err := protocol.ParseCredentialCreationResponseBody(r.Body)
+		if err != nil {
+			log.Printf("error: %v", err)
+			return
+		}
+		session := data
+		credential, err := web.CreateCredential(user, *session, response)
+		if err != nil {
+			log.Printf("error: %v", err)
+			return
+		}
+		user.Credentials = append(user.Credentials, *credential)
 		x, _ := GenerateRandomString(32)
 		jsonResponse(w, &Session{Id: x}, 200)
 	})
 
 	// take the user name and return a challenge
 	mux.HandleFunc("/api/login", func(w http.ResponseWriter, r *http.Request) {
+		// options.publicKey contain our registration options
 		var v struct {
 			Username string `json:"username"`
 		}
 		json.NewDecoder(r.Body).Decode(&v)
-		var cr interface{}
-		json.Unmarshal([]byte(login), &cr)
-		jsonResponse(w, cr, 200)
+
+		options, session, err := web.BeginLogin(user)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		data = session
+
+		jsonResponse(w, options, http.StatusOK) // return the options generated
 	})
 
 	mux.HandleFunc("/api/login2", func(w http.ResponseWriter, r *http.Request) {
-		var v interface{}
-		json.NewDecoder(r.Body).Decode(&v)
-		spew.Dump(v)
+		response, err := protocol.ParseCredentialRequestResponseBody(r.Body)
+		if err != nil {
+			return
+		}
+		session := data
+
+		credential, err := web.ValidateLogin(user, *session, response)
+		if err != nil {
+			return
+		}
+		spew.Dump(credential)
 		x, _ := GenerateRandomString(32)
 		jsonResponse(w, &Session{Id: x}, 200)
 	})

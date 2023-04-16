@@ -1,0 +1,28 @@
+
+const (
+	create = `{
+		publicKey: {
+		  challenge: "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+		  rp: { name: "Localhost, Inc." },
+		  user: {
+			id: "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII",
+			name: "test_user",
+			displayName: "Test User",
+		  },
+		  pubKeyCredParams: [],
+		  excludeCredentials: [],
+		  authenticatorSelection: { userVerification: "discouraged" },
+		  extensions: {
+			credProps: true,
+		  }
+		}
+	  }`
+
+	login = ` {
+		publicKey: {
+		  challenge: "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+		  allowCredentials: registeredCredentials(),
+		  userVerification: "discouraged"
+		}
+	  }`
+)

@@ -1,4 +1,4 @@
-import { useNavigate } from "@solidjs/router"
+import { A as Ar, useNavigate } from "@solidjs/router"
 import { Component, JSXElement, createEffect, createSignal } from "solid-js"
 import {
     parseCreationOptionsFromJSON,
@@ -122,15 +122,14 @@ export const RegisterPage = () => {
     }
 
     return <Center>
-        <form>
-            <TestUi />
-            <div class="space-y-6">
-                <Input name="user" label="User" value={user()} onchange={setUser} />
-                <BlueButton onClick={() => signin()} >Register</BlueButton>
-            </div>
-        </form>
-        <TextDivider>Or continue with</TextDivider>
-        <LoginWith />
+
+        <TestUi />
+        <div class="space-y-6">
+            <Input name="user" label="User" value={user()} onchange={setUser} />
+            <BlueButton onClick={() => signin()} >Register</BlueButton>
+        </div>
+        {/* <TextDivider>Or continue with</TextDivider>
+        <LoginWith /> */}
         <TextDivider>Or login with phone browser</TextDivider>
         <img class='my-8' alt='' src='qr.png' />
         <div>Scan with your phone camera app and proceed to website to log in. Logging in with your phone is an easy and secure way to keep your passcode available</div>
@@ -144,7 +143,7 @@ export const LoginPage = () => {
         console.log("signin", user())
         localStorage.setItem('user', user())
         loginRemote(user())
-        navigate("/pw", { replace: true })
+        //navigate("/pw", { replace: true })
     }
     createEffect(() => {
         if (sessionStorage.getItem('token')) {
@@ -153,18 +152,25 @@ export const LoginPage = () => {
     })
 
     return <Center>
-        <form>
-            <div class="space-y-6">
-                <Input name="user" label="User" value={user()} onchange={setUser} />
-                <BlueButton onClick={() => signin()} >Sign in</BlueButton>
-            </div>
-        </form>
-        <TextDivider>Or continue with</TextDivider>
-        <LoginWith />
+
+        <div class="space-y-6">
+            <Input name="user" label="User" value={user()} onchange={setUser} />
+            <BlueButton onClick={() => signin()} >Sign in</BlueButton>
+        </div>
+        <P><A href="/register">Register New Account</A></P>
+        <P><A href="/recover">Login with recovery phrase</A></P>
+
         <TextDivider>Or login with phone browser</TextDivider>
         <img class='my-8' alt='' src='qr.png' />
         <div>Scan with your phone camera app and proceed to website to log in. Logging in with your phone is an easy and secure way to keep your passcode available</div>
+
     </Center>
+}
+const A: Component<{ href: string, children: JSXElement }> = (props) => {
+    return <Ar class='text-indigo-600 hover:text-blue-500 hover:underline' href={props.href}>{props.children}</Ar>
+}
+const P: Component<{ children: JSXElement }> = (props) => {
+    return <p class="mt-2"  >{props.children}</p>
 }
 
 const TestUi: Component = () => {
@@ -197,17 +203,27 @@ async function registerRemote(username: string): Promise<string> {
 }
 async function loginRemote(username: string) {
     try {
-        const cro = parseRequestOptionsFromJSON(await (await fetch("/api/login", {
+        const o2 = await (await fetch("/api/login", {
             method: "POST",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: username })
-        })).json())
-        const o = get(cro)
-        const reg = await (await fetch("/api/login2", {})).json()
+        })).json()
+        console.log("o2", o2)
+        const cro = parseRequestOptionsFromJSON(o2)
+        console.log("cro", cro)
+        const o = await get(cro)
+        console.log("o", o)
+        const reg = await (await fetch("/api/login2", {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(o.toJSON())
+        })).json()
+        console.log("reg", reg)
     } catch (e: any) {
-        return e.toString()
+        console.log("error", e.toString())
     }
-    return ""
 }
 
 // demo mostly uses non ponyfill functions
