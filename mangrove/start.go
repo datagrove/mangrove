@@ -28,6 +28,7 @@ import (
 	"github.com/pkg/sftp"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
+	"github.com/tailscale/hujson"
 )
 
 var logger service.Logger
@@ -64,6 +65,26 @@ type Server struct {
 	*Config
 	Mux  *http.ServeMux
 	Home string
+}
+
+func (s *Server) StatUser(name string) error {
+	_, e := os.Stat(path.Join(s.Home, "user", name))
+	return e
+}
+
+func (s *Server) NewUser(name string) error {
+	udir := path.Join(s.Home, "user")
+	target := path.Join(udir, name)
+
+	file, errs := os.CreateTemp(udir, "temp-*.txt")
+	src := path.Join(udir, file.Name())
+	if errs != nil {
+		return errs
+	}
+	fmt.Fprintf(file, "{}")
+	file.Close()
+
+	return os.Rename(src, target)
 }
 
 type Context struct {
@@ -158,13 +179,22 @@ func DefaultServer(name string, res embed.FS, launch func(*Server) error) *cobra
 	return rootCmd
 }
 
+func Unmarshal(b []byte, v interface{}) error {
+	ast, err := hujson.Parse(b)
+	if err != nil {
+		return err
+	}
+	ast.Standardize()
+	return json.Unmarshal(ast.Pack(), v)
+}
+
 func LoadContainer(dir string) (*Container, error) {
 	var j Container
 	b, e := os.ReadFile(path.Join(dir, "index.jsonc"))
 	if e != nil {
 		return nil, e
 	}
-	e = json.Unmarshal(b, &j)
+	e = Unmarshal(b, &j)
 	if e != nil {
 		return nil, e
 	}
@@ -175,8 +205,8 @@ func LoadContainer(dir string) (*Container, error) {
 	}
 
 	return &j, nil
-
 }
+
 func LoadConfig(dir string) (*Config, error) {
 	var j Config
 
@@ -184,7 +214,7 @@ func LoadConfig(dir string) (*Config, error) {
 	if e != nil {
 		return nil, e
 	}
-	json.Unmarshal(b, &j)
+	Unmarshal(b, &j)
 	if len(j.Key) == 0 {
 		h, _ := os.UserHomeDir()
 		j.Key = path.Join(h, ".ssh", "id_rsa")
@@ -218,7 +248,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 	if e != nil {
 		log.Fatal(e)
 	}
-	json.Unmarshal(b, &j)
+	Unmarshal(b, &j)
 	log.Print(string(b))
 	j.Ui = res
 	j.Service = service.Config{

@@ -1,8 +1,8 @@
 import './index.css'
 import { JSXElement, Component, createSignal, For, onMount, Show, createResource, Switch, Match, createEffect } from 'solid-js'
 import { render } from 'solid-js/web'
-import { Route, Routes, Router, A, useNavigate, useParams, hashIntegration } from "@solidjs/router"
-import RouteGuard, { BackNav, H2, Page } from './widget/nav'
+import { Route, Routes, Router, A, useNavigate, useParams, hashIntegration, Outlet } from "@solidjs/router"
+import { BackNav, H2, Page } from './widget/nav'
 import { Cn, ListView, MockWs, OrError, Rpc, Ws } from './widget/list'
 import { Center, LoginPage, PasswordPage, RegisterPage } from './widget/login'
 
@@ -221,6 +221,27 @@ const DatabaseList: Component = () => {
         </ListView >
     </Page>
 }
+
+function RouteGuard () {
+    const navigate = useNavigate();
+    const token = sessionStorage.getItem('token');
+  
+    createEffect(() => {
+      if(!token) {
+        console.log('redirecting to login')
+        navigate('/login', { replace: true });
+      }
+    })
+  
+    return (
+      <div>
+        <Outlet />
+      </div>
+    )
+  }
+function Home() {
+    return <div>Home</div>
+}
 function App() {
     //const [items] =  createResource(props.fetch)
     return <>
@@ -230,7 +251,7 @@ function App() {
             <Route path="/pw" component={PasswordPage} />
             <Route path="/register" component={RegisterPage} />
             <Route path="/" component={RouteGuard}>
-                <Route path="/home" component={DatabaseList} />
+                <Route path="/" component={DatabaseList} />
                 <Route path="/db/:db" component={DatabasePage} />
                 <Route path="/db/:db/log/:id" component={JobPage} />
             </Route>

@@ -10,22 +10,7 @@ export interface PageProps {
   children?: JSXElement
 }
 
-export default function RouteGuard () {
-  const navigate = useNavigate();
-  const token = sessionStorage.getItem('token');
 
-  createEffect(() => {
-    if(!token) {
-      navigate('/login', { replace: true });
-    }
-  })
-
-  return (
-    <div>
-      <Outlet />
-    </div>
-  )
-}
 export function Page(props: PageProps) {
   const navigate = useNavigate()
   const logOut = () => {

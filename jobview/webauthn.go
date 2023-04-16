@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/datagrove/mangrove/mangrove"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -94,7 +95,9 @@ func NewUser(s string) *User {
 	return u
 }
 
-func Webauthn(mux *http.ServeMux) error {
+// make into websockets?
+func Webauthn(mg *mangrove.Server) error {
+	mux := mg.Mux
 	wconfig := &webauthn.Config{
 		RPDisplayName: "Go Webauthn",                      // Display Name for your site
 		RPID:          "localhost",                        // Generally the FQDN for your site
@@ -105,7 +108,63 @@ func Webauthn(mux *http.ServeMux) error {
 		fmt.Println(err)
 	}
 
+	// allow logging in with recovery codes. After logging in you can add new devices
+	mux.HandleFunc("/api/loginR", func(w http.ResponseWriter, r *http.Request) {
+		var v struct {
+			Recovery string `json:"recovery"`
+		}
+		e := json.NewDecoder(r.Body).Decode(&v)
+		if e != nil {
+			log.Printf("error: %v", e)
+			return
+		}
+		// how should we safely confirm the recovery code? It's basically a password.
+	})
+
+	// add is mostly the same as register?
+	mux.HandleFunc("/api/add", func(w http.ResponseWriter, r *http.Request) {
+
+	})
+	mux.HandleFunc("/api/remove", func(w http.ResponseWriter, r *http.Request) {
+
+	})
+
+	mux.HandleFunc("/api/okname", func(w http.ResponseWriter, r *http.Request) {
+		var v struct {
+			Id string `json:"id"`
+		}
+		var rv struct {
+			Available bool `json:"available"`
+		}
+		e := json.NewDecoder(r.Body).Decode(&v)
+		if e != nil {
+			return
+		}
+		ef := mg.StatUser(v.Id)
+		rv.Available = ef != nil
+		jsonResponse(w, &rv, 200)
+	})
+
+	// this requires a unique name
+	// it can return a session id right away if successfull
+	// then the client can try to add a device
 	mux.HandleFunc("/api/register", func(w http.ResponseWriter, r *http.Request) {
+		var v struct {
+			Id string `json:"id"`
+		}
+		e := json.NewDecoder(r.Body).Decode(&v)
+		if e != nil {
+			return
+		}
+		ef := mg.NewUser(v.Id)
+		if ef != nil {
+			response(w, "username already taken", 400)
+			return
+		}
+
+	})
+
+	mux.HandleFunc("/api/register1", func(w http.ResponseWriter, r *http.Request) {
 		options, session, err := web.BeginRegistration(user)
 		data = session
 		if err != nil {

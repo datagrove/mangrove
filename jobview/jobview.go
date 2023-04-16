@@ -40,5 +40,5 @@ func api(svr *mangrove.Server) error {
 	// api.HandleFunc("/job", func(w http.ResponseWriter, r *http.Request) {
 	// 	w.Write([]byte("job"))
 	// })
-	return Webauthn(svr.Mux)
+	return Webauthn(svr)
 }
