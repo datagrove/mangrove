@@ -111,6 +111,8 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/kardianos/service v1.2.2
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
+	github.com/lesismal/llib v1.1.10
+	github.com/lesismal/nbio v1.3.11
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/sftp v1.13.5
 	github.com/roylee0704/gron v0.0.0-20160621042432-e78485adab46
