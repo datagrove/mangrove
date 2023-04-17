@@ -1,0 +1,26 @@
+import { Accessor, Component, For, JSX, Match, Switch, createResource, createSignal, onMount } from "solid-js";
+import { BackNav, H2 } from "./nav";
+import { A } from "@solidjs/router";
+import { List } from "postcss/lib/list";
+import { OrError } from "./socket";
+
+
+export interface ListProps<T> {
+    fetch: () => Promise<OrError<T[]>>
+    children: (item: T,index: Accessor<number>) => JSX.Element
+}
+export function ListView<T>(props: ListProps<T>) {
+    const [items] =  createResource(props.fetch)
+    return <><Switch> 
+            <Match when={items.loading}>
+                Loading
+            </Match>
+            <Match when={true}>
+            <table ><For each={items()?.value} >{
+                props.children
+            }</For></table></Match>
+            </Switch></>
+    
+}
+
+

@@ -16,7 +16,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -25,11 +27,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/kardianos/service"
+	"github.com/lesismal/llib/std/crypto/tls"
+	"github.com/lesismal/nbio/nbhttp"
 	"github.com/lesismal/nbio/nbhttp/websocket"
 	"github.com/pkg/sftp"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/tailscale/hujson"
+	"golang.org/x/exp/slices"
 )
 
 var logger service.Logger
@@ -62,16 +67,30 @@ type Container struct {
 	Gpg        string                    `json:"gpg,omitempty"`
 	Connection map[string]*SshConnection `json:"connection,omitempty"`
 }
+
+type Rpcf = func(a *Rpcp) (any, error)
+
 type Server struct {
 	*Config
 	Mux  *http.ServeMux
 	Home string
+	Ws   *nbhttp.Server
+	Cert string
+	Key  string
 
-	api map[string]func(sock *Socket, msg json.RawMessage, more []byte) (interface{}, error)
+	Api     map[string]Rpcf
+	mu      sync.Mutex
+	Session map[string]*Session
 }
 type Socket struct {
+	// session is separate here because it might be needed in a http handler
+	*Session
 	conn *websocket.Conn
-	svr  *Server
+	Svr  *Server
+}
+
+func (s *Server) AddApi(name string, f Rpcf) {
+	s.Api[name] = f
 }
 
 type Rpc struct {
@@ -79,10 +98,35 @@ type Rpc struct {
 	Params json.RawMessage `json:"params"`
 	Id     int64           `json:"id"`
 }
+type Rpcp struct {
+	Rpc
+	*Session
+}
 
-func (s *Server) StatUser(name string) error {
+func (s *Server) IsAvailableUsername(name string) bool {
 	_, e := os.Stat(path.Join(s.Home, "user", name))
-	return e
+	return e != nil
+}
+
+func (s *Server) GetSession(id string) (*Session, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r, ok := s.Session[id]
+	return r, ok
+}
+func (s *Server) NewSession() (*Session, error) {
+	token, e := GenerateRandomString(32)
+	if e != nil {
+		return nil, e
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	r := &Session{
+		Token: token,
+	}
+	s.Session[token] = r
+	return r, nil
 }
 
 func (s *Server) NewUser(name string) error {
@@ -90,7 +134,7 @@ func (s *Server) NewUser(name string) error {
 	target := path.Join(udir, name)
 
 	file, errs := os.CreateTemp(udir, "temp-*.txt")
-	src := path.Join(udir, file.Name())
+	src := file.Name()
 	if errs != nil {
 		return errs
 	}
@@ -286,45 +330,11 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/", fs)
 
-	return &Server{
-		Config: opt,
-		Mux:    mux,
-		Home:   dir,
-	}, nil
-}
-
-func (sx *Server) Install() {
-	prg := &program{}
-	s, err := service.New(prg, &sx.Config.Service)
-	if err != nil {
-		log.Fatal(err)
-	}
-	s.Install()
-}
-
-func (sx *Server) RunService() {
-	prg := &program{}
-	s, err := service.New(prg, &sx.Config.Service)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	logger, err = s.Logger(nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = s.Run()
-	if err != nil {
-		logger.Error(err)
-	}
-}
-
-func (sx *Server) Run() {
-	cert := path.Join(sx.Home, "cert.pem")
-	key := path.Join(sx.Home, "key.pem")
-	_, e := os.Stat(cert)
+	cert := path.Join(dir, "cert.pem")
+	key := path.Join(dir, "key.pem")
+	_, e = os.Stat(cert)
 	if e != nil {
+		// generate a self signed cert
 		name, _ := os.Hostname()
 		// generate a self signed cert
 		// https://golang.org/pkg/crypto/tls/#example_GenerateCert
@@ -385,6 +395,109 @@ func (sx *Server) Run() {
 			panic(err)
 		}
 	}
+	rsaCertPEM, err := os.ReadFile(cert)
+	if err != nil {
+		return nil, err
+	}
+	rsaKeyPEM, err := os.ReadFile(key)
+	if err != nil {
+		return nil, err
+	}
+
+	certx, err := tls.X509KeyPair((rsaCertPEM), (rsaKeyPEM))
+	if err != nil {
+		log.Fatalf("tls.X509KeyPair failed: %v", err)
+	}
+	tlsConfig := &tls.Config{
+		Certificates:       []tls.Certificate{certx},
+		InsecureSkipVerify: true,
+	}
+	ws := nbhttp.NewServer(nbhttp.Config{
+		Network:   "tcp",
+		AddrsTLS:  []string{"localhost:8888"},
+		TLSConfig: tlsConfig,
+		Handler:   mux,
+	})
+	svr := &Server{
+		Config:  opt,
+		Mux:     mux,
+		Home:    dir,
+		Ws:      ws,
+		Cert:    cert,
+		Key:     key,
+		Api:     map[string]Rpcf{},
+		mu:      sync.Mutex{},
+		Session: map[string]*Session{},
+	}
+
+	onWebsocket := func(w http.ResponseWriter, r *http.Request) {
+
+		sv, e := svr.NewSession()
+		if e != nil {
+			return
+		}
+
+		x := &Socket{
+			Svr:     svr,
+			Session: sv,
+		}
+		u := websocket.NewUpgrader()
+		u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
+			x.recv(data)
+			c.SetReadDeadline(time.Now().Add(nbhttp.DefaultKeepaliveTime))
+		})
+		u.OnClose(func(c *websocket.Conn, err error) {
+
+		})
+		// time.Sleep(time.Second * 5)
+		conn, err := u.Upgrade(w, r, nil)
+		if err != nil {
+			panic(err)
+		}
+		x.conn = conn.(*websocket.Conn)
+	}
+	mux.HandleFunc("/wss", onWebsocket)
+
+	WebauthnSocket(svr)
+	// return unstarted to allow the application to modify the server
+	return svr, nil
+}
+
+func (sx *Server) Install() {
+	prg := &program{}
+	s, err := service.New(prg, &sx.Config.Service)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s.Install()
+}
+
+func (sx *Server) RunService() {
+	prg := &program{}
+	s, err := service.New(prg, &sx.Config.Service)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	logger, err = s.Logger(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = s.Run()
+	if err != nil {
+		logger.Error(err)
+	}
+}
+
+func (sx *Server) Run() error {
+
+	e := sx.Ws.Start()
+	if e != nil {
+		return e
+	}
+	defer sx.Ws.Stop()
+
 	go func() {
 		ssh_server := ssh.Server{
 			Addr: sx.Config.Sftp,
@@ -400,9 +513,13 @@ func (sx *Server) Run() {
 		log.Fatal(ssh_server.ListenAndServe())
 	}()
 	//go log.Fatal(http.ListenAndServe(x, sx.Mux))
-	log.Fatal(http.ListenAndServeTLS(sx.Https, cert, key, sx.Mux))
+	log.Fatal(http.ListenAndServeTLS(sx.Https, sx.Cert, sx.Key, sx.Mux))
 	//certmagic.HTTPS([]string{"example.com"}, mux)
-
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
+	<-interrupt
+	log.Println("exit")
+	return nil
 }
 
 type FileSystem struct {
@@ -481,4 +598,38 @@ func SftpHandlerx(sess ssh.Session) {
 	} else if err != nil {
 		fmt.Println("sftp server completed with error:", err)
 	}
+}
+
+func (s *Socket) recv(data []byte) {
+	i := slices.IndexFunc(data, func(x byte) bool { return x == 10 })
+	var rpc Rpcp
+	rpc.Session = s.Session
+
+	json.Unmarshal(data[:i], &rpc.Rpc)
+	r, ok := s.Svr.Api[rpc.Method]
+	if !ok {
+		log.Printf("bad method %s", rpc.Method)
+		return
+	}
+	rx, err := r(&rpc)
+	if err != nil {
+		var o struct {
+			Id    int64  `json:"id"`
+			Error string `json:"error"`
+		}
+		o.Id = rpc.Id
+		o.Error = err.Error()
+		b, _ := json.Marshal(&o)
+		s.conn.WriteMessage(websocket.BinaryMessage, b)
+	} else {
+		var o struct {
+			Id     int64       `json:"id"`
+			Result interface{} `json:"result"`
+		}
+		o.Id = rpc.Id
+		o.Result = rx
+		b, _ := json.Marshal(&o)
+		s.conn.WriteMessage(websocket.BinaryMessage, b)
+	}
+
 }

@@ -2,9 +2,9 @@ import './index.css'
 import { JSXElement, Component, createSignal, For, onMount, Show, createResource, Switch, Match, createEffect } from 'solid-js'
 import { render } from 'solid-js/web'
 import { Route, Routes, Router, A, useNavigate, useParams, hashIntegration, Outlet } from "@solidjs/router"
-import { BackNav, H2, Page } from './widget/nav'
-import { Cn, ListView, MockWs, OrError, Rpc, Ws } from './widget/list'
-import { Center, LoginPage, PasswordPage, RegisterPage } from './widget/login'
+import { BackNav, H2, Page } from './lib/nav'
+import { OrError, Rpc, ws } from './lib/socket'
+import { Center, LoginPage, PasswordPage, RegisterPage } from './lib/login'
 
 const [token, setToken] = createSignal<string>(localStorage.getItem('token') || '')
 //const ws = new Ws('ws://localhost:8080/ws')
@@ -65,81 +65,81 @@ interface Account {
     email: string
     database: string[]
 }
-const mockWs = new MockWs((data: Rpc<any>) => {
 
 
-    switch (data.method) {
-        case 'init':  // the job runner should define this api to get title, options, etc.
-            return { title: 'Mock Job View' }
-
-        // in general we want to subscribe to this sort of thing? refresh ok, not ideal
-        case 'profile':
-            const r: Account = {
-                name: 'joe',
-                email: 'joe@example.com',
-                database: ['Production', 'Test']
-            }
-            return r
-        case 'log':
-            data.args = { id: '1234' }
-            const sampleLog: JobEntry = {
-                task: [],
-                id: data.args.id,
-                name: 'process',
-                summary: '',
-                type: '',
-                start: 0,
-                end: 0
-            }
-            for (let i = 0; i < 12; i++) {
-                sampleLog.task.push({
-                    start: Date.now() - i * 1000,
-                    end: Date.now() - i * 1000 + 1000,
-                    name: "process",
-                    output: "ran all tasks"
-                })
-            }
-            return sampleLog
-        case 'dash':
-            const n = Date.now()
-            const h: SearchEntry[] = []
-            for (let i = 0; i < 100; i++) {
-                h.push({
-                    id: self.crypto.randomUUID(),
-                    name: "process",
-                    start: n - i * 1000,
-                    end: n - i * 1000 + 1000,
-                    type: "job",
-                    summary: "ran all tasks"
-                })
-            }
-            // we need to periodically refresh this
-            const jobs: Dash = {
-                job: [
-                    {
-                        "name": "process",
-                        "description": "Run all jobs"
-                    }
-                ],
-                runnable: [
-                    {
-                        name: "process",
-                        next: n + 24 * 60 * 60 * 1000
-                    }
-                ],
-                history: h
-            }
-            return jobs
-        case 'search':
-            // we need to set the date range on this
-            // would be nice to filter
-            const more: SearchEntry[] = []
-            return more
-        default:
-            console.log("unknown method", data)
+// define local services, typically mock
+ws.serve('init', () => { title: 'Job View' })
+ws.serve('profile', () => {
+    const r: Account = {
+        name: 'joe',
+        email: 'joe@example.com',
+        database: ['Production', 'Test']
     }
+    return r
 })
-const cn = new Cn(mockWs)
+
+ws.serve('log', (data: any) => {
+    data.args = { id: '1234' }
+    const sampleLog: JobEntry = {
+        task: [],
+        id: data.args.id,
+        name: 'process',
+        summary: '',
+        type: '',
+        start: 0,
+        end: 0
+    }
+    for (let i = 0; i < 12; i++) {
+        sampleLog.task.push({
+            start: Date.now() - i * 1000,
+            end: Date.now() - i * 1000 + 1000,
+            name: "process",
+            output: "ran all tasks"
+        })
+    }
+
+    return sampleLog
+})
+
+ws.serve('dash', (data: any) => {
+    const n = Date.now()
+    const h: SearchEntry[] = []
+    for (let i = 0; i < 100; i++) {
+        h.push({
+            id: self.crypto.randomUUID(),
+            name: "process",
+            start: n - i * 1000,
+            end: n - i * 1000 + 1000,
+            type: "job",
+            summary: "ran all tasks"
+        })
+    }
+    // we need to periodically refresh this
+    const jobs: Dash = {
+        job: [
+            {
+                "name": "process",
+                "description": "Run all jobs"
+            }
+        ],
+        runnable: [
+            {
+                name: "process",
+                next: n + 24 * 60 * 60 * 1000
+            }
+        ],
+        history: h
+    }
+    return jobs
+})
+
+ws.serve('search', (data: any) => {
+    // we need to set the date range on this
+    // would be nice to filter
+    const more: SearchEntry[] = []
+    return more
+})
+
 
 function mdate(n: number): string {
     return new Date(n).toLocaleDateString('en-us', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
@@ -150,18 +150,21 @@ const Button = (props: { children: JSXElement, onClick: () => void }) => {
 }
 const JobPage: Component = () => {
     const params = useParams()
-    const [log] = createResource(params['id'], cn.get<JobEntry>('log'))
+    const getLog = async (s: string) => {
+        return {} as JobEntry  // await cn.get<JobEntry>('log')
+    }
+    const [log] = createResource(() => params['id'], getLog)
     const title = (): string => {
         if (log.loading) return "Loading"
-        if (log()?.error) return log()!.error!
-        const v = log()!.value!;
-        return v.name + " " + mdate(v.start)
+        if (log.error) return log.error
+        const v = log.latest
+        return v!.name + " " + mdate(v!.start)
     }
     return <Page title={title()} back={`/db/${params['db']}`}>
         <H2>Tasks</H2>
         <table class='table-auto'>
             <thead><tr><th>Name</th><th>Start</th><th>Duration</th><th>Output</th></tr></thead>
-            <For each={log()?.value?.task}>{task => <tr>
+            <For each={log.latest!.task}>{task => <tr>
                 <td class='border px-8 py-4'>{task.name}</td>
                 <td class='border px-8 py-4'>{mdate(task.start)}</td>
                 <td class='border px-8 py-4'>{(task.end - task.end) / 1000}</td>
@@ -174,24 +177,27 @@ const JobPage: Component = () => {
 // we should show a list of jobs that have been run
 const DatabasePage: Component = () => {
     const params = useParams()
-    const [jobs] = createResource(params['db'], cn.get<Dash>('dash'))
+    const getDash = async (s: string) => {
+        return await ws.rpc<Dash>('dash', { db: s })
+    }
+    const [jobs] = createResource(() => params['db'], getDash)
     const navigate = useNavigate()
     const run = (name: string) => { }
     const showLog = (id: string) => navigate(`/db/${params['db']}/log/${id}`)
 
     return <Page title={params['db']} back={'/'} >
         <Switch>
-            <Match when={!jobs()}>
+            <Match when={jobs.loading}>
                 Loading
             </Match>
-            <Match when={jobs()!.error}>
-                {jobs()!.error}
+            <Match when={jobs.error}>
+                {jobs.error}
             </Match>
             <Match when={true} >
                 <H2>Jobs</H2>
                 <table class='table-auto'>
                     <thead><tr><th>Name</th><th>Next Run</th><th></th></tr></thead>
-                    <For each={jobs()!.value!.runnable}>{(e, i) => {
+                    <For each={jobs.latest!.runnable}>{(e, i) => {
                         return <tr class='hover:bg-neutral-500' >
                             <td class='border px-8 py-4'>{e.name}</td>
                             <td class='border px-8 py-4 w-64'>{e.next ? mdate(e.next) : ""}</td>
@@ -203,7 +209,7 @@ const DatabasePage: Component = () => {
                 <H2>Recent</H2>
                 <table class='table-auto'>
                     <thead><tr><th>Start</th><th>End</th><th>Name</th><th>Summary</th></tr></thead>
-                    <For each={jobs()!.value!.history}>{(e) => {
+                    <For each={jobs.latest!.history}>{(e) => {
                         return <tr class='hover:bg-neutral-500' onClick={() => showLog(e.id)}>
                             <td class='border px-8 py-4'>{mdate(e.start)}</td>
                             <td class='border px-8 py-4'>{mdate(e.end)}</td>
@@ -215,37 +221,39 @@ const DatabasePage: Component = () => {
 }
 
 const DatabaseList: Component = () => {
+
+    const [lst] = createResource(async () => ws.rpc<string[]>('container'))
     return <Page title={jv.title}>
-        <ListView fetch={cn.get<string[]>('container')}>{(e) => <tr><td>
-            <A href={`/db/${e}`}>{e}</A></td></tr>}
-        </ListView >
+        <table class='table-auto'>
+            <For each={lst.latest!}>{(e) => <tr><td>
+                <A href={`/db/${e}`}>{e}</A></td></tr>}
+            </For >
+        </table>
     </Page>
 }
 
-function RouteGuard () {
+function RouteGuard() {
     const navigate = useNavigate();
-    const token = sessionStorage.getItem('token');
-  
+    
     createEffect(() => {
-      if(!token) {
-        console.log('redirecting to login')
-        navigate('/login', { replace: true });
-      }
+        if (!token()) {
+            console.log('redirecting to login')
+            navigate('/login', { replace: true });
+        }
     })
-  
+
     return (
-      <div>
-        <Outlet />
-      </div>
+        <div>
+            <Outlet />
+        </div>
     )
-  }
+}
 function Home() {
     return <div>Home</div>
 }
 function App() {
     //const [items] =  createResource(props.fetch)
     return <>
-
         <Routes>
             <Route path="/login" component={LoginPage} />
             <Route path="/pw" component={PasswordPage} />
@@ -259,19 +267,14 @@ function App() {
 }
 
 
-function launch(e: OrError<JobView>) {
-    if (e.value) {
-        jv = e.value
-        render(
-            () => (
-                <Router source={hashIntegration()}>
-                    <App></App>
-                </Router>
-            ),
-            document.getElementById("app")!
-        )
-    }
-}
 
-launch(await cn.get<JobView>('init')())
+render(
+    () => (
+        <Router source={hashIntegration()}>
+            <App></App>
+        </Router>
+    ),
+    document.getElementById("app")!
+)
+
 

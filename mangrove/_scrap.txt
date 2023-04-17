@@ -1,0 +1,156 @@
+// make into websockets?
+func oldWebauthn(mg *Server) error {
+	mux := mg.Mux
+	wconfig := &webauthn.Config{
+		RPDisplayName: "Go Webauthn",                      // Display Name for your site
+		RPID:          "localhost",                        // Generally the FQDN for your site
+		RPOrigins:     []string{"https://localhost:5783"}, // The origin URLs allowed for WebAuthn requests
+	}
+
+	if web, err = webauthn.New(wconfig); err != nil {
+		fmt.Println(err)
+	}
+
+	// allow logging in with recovery codes. After logging in you can add new devices
+	mux.HandleFunc("/api/loginR", func(w http.ResponseWriter, r *http.Request) {
+		var v struct {
+			Recovery string `json:"recovery"`
+		}
+		e := json.NewDecoder(r.Body).Decode(&v)
+		if e != nil {
+			log.Printf("error: %v", e)
+			return
+		}
+		// how should we safely confirm the recovery code? It's basically a password.
+	})
+
+	// add is mostly the same as register?
+	mux.HandleFunc("/api/add", func(w http.ResponseWriter, r *http.Request) {
+		options, session, err := web.BeginRegistration(user)
+		data = session
+		if err != nil {
+			log.Printf("error: %v", err)
+		}
+		// this might not be enough? we might need to binhex the challenge
+		b, e := json.Marshal(options)
+		if e != nil {
+			log.Printf("error: %v", e)
+			return
+		}
+		jsonResponse(w, string(b), 200)
+	})
+	mux.HandleFunc("/api/remove", func(w http.ResponseWriter, r *http.Request) {
+
+	})
+
+	mux.HandleFunc("/api/okname", func(w http.ResponseWriter, r *http.Request) {
+		var v struct {
+			Id string `json:"id"`
+		}
+		var rv struct {
+			Available bool `json:"available"`
+		}
+		e := json.NewDecoder(r.Body).Decode(&v)
+		if e != nil {
+			return
+		}
+		rv.Available = mg.IsAvailableUsername(v.Id)
+		jsonResponse(w, &rv, 200)
+	})
+
+	// this requires a unique name
+	// it can return a session id right away if successfull
+	// then the client can try to add a device
+	mux.HandleFunc("/api/register", func(w http.ResponseWriter, r *http.Request) {
+		var v struct {
+			Id string `json:"id"`
+		}
+
+		e := json.NewDecoder(r.Body).Decode(&v)
+		if e != nil {
+			return
+		}
+		ef := mg.NewUser(v.Id)
+		if ef != nil {
+			jsonResponse(w, "username already taken", 400)
+			return
+		}
+		// return a challenge
+		options, session, err := web.BeginRegistration(user)
+		data = session
+
+		type Out struct {
+			Token   string
+			Options *protocol.CredentialCreation
+		}
+		if err != nil {
+			jsonResponse(w, "error", 500)
+		} else {
+			jsonResponse(w, &Out{"", options}, 200)
+		}
+	})
+
+	// this should probably return a session id?
+	// we need to binhex appropriate things.
+	// we need to check that this is the correct user before allowing a write.
+	// so this needs to be protected by the session id.
+	mux.HandleFunc("/api/register2", func(w http.ResponseWriter, r *http.Request) {
+		response, err := protocol.ParseCredentialCreationResponseBody(r.Body)
+		if err != nil {
+			log.Printf("error: %v", err)
+			return
+		}
+		session := data
+		credential, err := web.CreateCredential(user, *session, response)
+		if err != nil {
+			log.Printf("error: %v", err)
+			return
+		}
+		user.Credentials = append(user.Credentials, *credential)
+		x, _ := GenerateRandomString(32)
+		jsonResponse(w, &Session{Token: x}, 200)
+	})
+
+	// take the user name and return a challenge
+	mux.HandleFunc("/api/login", func(w http.ResponseWriter, r *http.Request) {
+		// options.publicKey contain our registration options
+		var v struct {
+			Username string `json:"username"`
+		}
+		json.NewDecoder(r.Body).Decode(&v)
+
+		options, session, err := web.BeginLogin(user)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		data = session
+
+		jsonResponse(w, options, http.StatusOK) // return the options generated
+	})
+
+	mux.HandleFunc("/api/login2", func(w http.ResponseWriter, r *http.Request) {
+		response, err := protocol.ParseCredentialRequestResponseBody(r.Body)
+		if err != nil {
+			return
+		}
+		session := data
+
+		credential, err := web.ValidateLogin(user, *session, response)
+		if err != nil {
+			return
+		}
+		spew.Dump(credential)
+		x, _ := GenerateRandomString(32)
+		jsonResponse(w, &Session{Token: x}, 200)
+	})
+
+	return nil
+
+}
+var (
+// web  *webauthn.WebAuthn
+// data *webauthn.SessionData
+// err  error
+// user = NewUser("test_user")
+)
