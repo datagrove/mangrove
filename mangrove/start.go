@@ -25,6 +25,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/kardianos/service"
+	"github.com/lesismal/nbio/nbhttp/websocket"
 	"github.com/pkg/sftp"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
@@ -65,6 +66,18 @@ type Server struct {
 	*Config
 	Mux  *http.ServeMux
 	Home string
+
+	api map[string]func(sock *Socket, msg json.RawMessage, more []byte) (interface{}, error)
+}
+type Socket struct {
+	conn *websocket.Conn
+	svr  *Server
+}
+
+type Rpc struct {
+	Method string          `json:"method"`
+	Params json.RawMessage `json:"params"`
+	Id     int64           `json:"id"`
 }
 
 func (s *Server) StatUser(name string) error {
