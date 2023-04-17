@@ -4,7 +4,7 @@ import { render } from 'solid-js/web'
 import { Route, Routes, Router, A, useNavigate, useParams, hashIntegration, Outlet } from "@solidjs/router"
 import { BackNav, H2, Page } from './lib/nav'
 import { OrError, Rpc, ws } from './lib/socket'
-import { Center, LoginPage, PasswordPage, RegisterPage, token } from './lib/login'
+import { Center, LoginPage, PasswordPage, RecoveryPage, RegisterPage, token } from './lib/login'
 
 
 //const ws = new Ws('ws://localhost:8080/ws')
@@ -234,7 +234,7 @@ const DatabaseList: Component = () => {
 
 function RouteGuard() {
     const navigate = useNavigate();
-    
+
     createEffect(() => {
         if (!token()) {
             console.log('redirecting to login')
@@ -256,7 +256,7 @@ function App() {
     return <>
         <Routes>
             <Route path="/login" component={LoginPage} />
-            <Route path="/pw" component={PasswordPage} />
+            <Route path="/recovery" component={RecoveryPage} />
             <Route path="/register" component={RegisterPage} />
             <Route path="/" component={RouteGuard}>
                 <Route path="/" component={DatabaseList} />
