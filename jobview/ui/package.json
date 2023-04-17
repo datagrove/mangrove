@@ -22,9 +22,12 @@
   "dependencies": {
     "@github/webauthn-json": "^2.1.1",
     "@solidjs/router": "^0.8.1",
+    "bip39": "^3.1.0",
+    "buffer": "^6.0.3",
     "highlight.js": "^11.7.0",
     "serve-static": "^1.15.0",
     "solid-heroicons": "^3.1.1",
-    "solid-js": "^1.7.0"
+    "solid-js": "^1.7.0",
+    "tweetnacl": "^1.0.3"
   }
 }

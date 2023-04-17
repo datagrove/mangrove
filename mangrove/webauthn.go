@@ -100,7 +100,7 @@ func WebauthnSocket(mg *Server) error {
 	wconfig := &webauthn.Config{
 		RPDisplayName: "Go Webauthn",                      // Display Name for your site
 		RPID:          "localhost",                        // Generally the FQDN for your site
-		RPOrigins:     []string{"https://localhost:5783"}, // The origin URLs allowed for WebAuthn requests
+		RPOrigins:     []string{"https://localhost:5078"}, // The origin URLs allowed for WebAuthn requests
 	}
 
 	web, err := webauthn.New(wconfig)
@@ -154,14 +154,14 @@ func WebauthnSocket(mg *Server) error {
 		if e != nil {
 			return nil, e
 		}
-		ef := mg.NewUser(v.Id)
-		if ef != nil {
+		u, e := mg.NewUser(v.Id)
+		if e != nil {
 			return nil, fmt.Errorf("username already taken")
 		}
-		user := NewUser(v.Id)
+		r.User = *u
 
 		// return a challenge
-		options, session, err := web.BeginRegistration(user)
+		options, session, err := web.BeginRegistration(&r.User)
 		if err != nil {
 			return nil, err
 		}
@@ -179,11 +179,13 @@ func WebauthnSocket(mg *Server) error {
 			return nil, err
 		}
 
+		// when we create this credential we need to also store it to the user file
 		credential, err := web.CreateCredential(&r.User, *r.Session.data, response)
 		if err != nil {
 			return nil, err
 		}
 		r.User.Credentials = append(r.User.Credentials, *credential)
+		mg.SaveUser(&r.User)
 		x, _ := GenerateRandomString(32)
 		return &SessionStatus{Token: x}, nil
 	})
@@ -195,7 +197,9 @@ func WebauthnSocket(mg *Server) error {
 			Username string `json:"username"`
 		}
 		json.Unmarshal(r.Params, &v)
+		mg.LoadUser(v.Username, &r.User)
 
+		// before we call this we need to load the user credentials
 		options, session, err := web.BeginLogin(&r.User)
 		if err != nil {
 

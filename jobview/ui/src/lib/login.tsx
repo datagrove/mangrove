@@ -13,6 +13,24 @@ import { RegistrationPublicKeyCredential } from "@github/webauthn-json/browser-p
 import type { RegistrationResponseExtendedJSON } from "@github/webauthn-json/browser-ponyfill/extended"
 import { ws } from "./socket";
 
+import {Buffer} from 'buffer'
+// @ts-ignore
+window.Buffer = Buffer;
+
+import * as bip39 from 'bip39'
+import * as nacl from 'tweetnacl'
+
+
+export const [token, setToken] = createSignal<string>(localStorage.getItem('token') || '')
+export const [user, setUser] = createSignal<string>(localStorage.getItem('user') || '')
+
+
+export   const logOut = () => {
+    const navigate = useNavigate();
+    sessionStorage.removeItem('token');
+    setToken('')
+    navigate('/login', { replace: true });
+  }
 
 export const Center: Component<{ children: JSXElement }> = (props) => {
     return <div class="grid place-items-center h-screen">
@@ -84,32 +102,21 @@ const [isMobile,setIsMobile] = createSignal(false)
 // skip if we have a token to stay logged in
 export const RegisterPage = () => {
     const navigate = useNavigate();
-    const [user, setUser] = createSignal("")
     const [nameOk, setNameOk] = createSignal(false)
+    const mn = bip39.generateMnemonic()
+    const seed = bip39.mnemonicToSeedSync(mn)
+    console.log("length", seed.toString('hex').length)
+    const kp = nacl.sign.keyPair.fromSeed(seed)
 
    const registerRemote = async () => {
         console.log("registering")
         try {
-            // const o = await (await fetch("/api/register", {
-            //     method: "POST",
-            //     headers: {
-            //         'Content-Type': 'application/json', 
-            //     },
-            //     body: JSON.stringify({id: user()})
-            // })).json()
             const o = await ws.rpc<any>("register", {id: user()})
             console.log(o)
             const cco = parseCreationOptionsFromJSON(o)
             console.log("cco", cco)
             const cred = await create(cco)
             console.log("cred", cred)
-            // const reg = await (await fetch("/api/register2", {
-            //     method: "POST",
-            //     headers: {
-            //         'Content-Type': 'application/json',
-            //     },
-            //     body: JSON.stringify(cred.toJSON())
-            // })).json()
             const reg = await ws.rpc<any>("register2", cred.toJSON())
             console.log("reg", reg)
             localStorage.setItem('user', user())
@@ -134,14 +141,6 @@ export const RegisterPage = () => {
         }
         let ok = false
         try {
-            // const o = await (await fetch("/api/okname",{
-            //        method: "POST",
-            //        headers: {
-            //            'Content-Type': 'application/json'
-            //        },
-            //        body: JSON.stringify({id: x})
-   
-            // })).json()
             const o = await ws.rpc<{available: boolean}>("okname", {id: x})
             console.log("o",o)
             ok =  o.available
@@ -156,7 +155,10 @@ export const RegisterPage = () => {
         <div class="space-y-6">
             <Input autofocus name="user" label="User" value={user()} onInput={validateUsername} />
             <div>{user()?`${user()} is ${nameOk()?"":"not" } available`:""}</div>
-            <BlueButton disabled={!nameOk()} onClick={register} >Register wtf</BlueButton>
+
+            <TextDivider>Secret phrase</TextDivider>
+            <P>{mn}</P>
+            <BlueButton disabled={!nameOk()} onClick={register} >Register</BlueButton>
         </div></form>
         <Show when={!isMobile()}>
             <P>You may want to register on your phone, then use that to login on your computer.</P><P>That would most easily allow you to log into any computer securely as long as you have your phone.</P>
@@ -165,33 +167,25 @@ export const RegisterPage = () => {
 }
 // skip if we have a token to stay logged in
 export const LoginPage = () => {
+    const [error,setError] = createSignal("")
     const navigate = useNavigate();
     const [user, setUser] = createSignal(localStorage.getItem('user') ?? "")
 
     const loginRemote = async (username: string) =>{
         try {
-            // const o2 = await (await fetch("/api/login", {
-            //     method: "POST",
-            //     headers: { 'Content-Type': 'application/json' },
-            //     body: JSON.stringify({ username: username })
-            // })).json()
             const o2 = await ws.rpc<any>("login", {username: username})
             console.log("o2", o2)
             const cro = parseRequestOptionsFromJSON(o2)
             console.log("cro", cro)
             const o = await get(cro)
             console.log("o", o)
-            // const reg = await (await fetch("/api/login2", {
-            //     method: "POST",
-            //     headers: {
-            //         'Content-Type': 'application/json',
-            //     },
-            //     body: JSON.stringify(o.toJSON())
-            // })).json()
             const reg = await ws.rpc<any>("login2", o.toJSON())
+            setToken(reg.token)
             console.log("reg", reg)
+            localStorage.setItem("token", reg.token)
+            navigate("/")
         } catch (e: any) {
-            console.log("error", e.toString())
+            setError(e.toString())        
         }
     }
     
@@ -199,7 +193,6 @@ export const LoginPage = () => {
         console.log("signin", user())
         localStorage.setItem('user', user())
         loginRemote(user())
-        //navigate("/pw", { replace: true })
     }
     createEffect(() => {
         if (sessionStorage.getItem('token')) {
@@ -210,6 +203,7 @@ export const LoginPage = () => {
     return <Center>
         <div class="space-y-6">
             <Input name="user" label="User" value={user()} onInput={setUser} />
+            <P>{error()}</P>
             <BlueButton onClick={() => signin()} >Sign in</BlueButton>
         </div>
         <P><A href="/register">Register New Account</A></P>

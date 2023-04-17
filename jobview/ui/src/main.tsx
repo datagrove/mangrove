@@ -4,9 +4,9 @@ import { render } from 'solid-js/web'
 import { Route, Routes, Router, A, useNavigate, useParams, hashIntegration, Outlet } from "@solidjs/router"
 import { BackNav, H2, Page } from './lib/nav'
 import { OrError, Rpc, ws } from './lib/socket'
-import { Center, LoginPage, PasswordPage, RegisterPage } from './lib/login'
+import { Center, LoginPage, PasswordPage, RegisterPage, token } from './lib/login'
 
-const [token, setToken] = createSignal<string>(localStorage.getItem('token') || '')
+
 //const ws = new Ws('ws://localhost:8080/ws')
 
 interface JobView {

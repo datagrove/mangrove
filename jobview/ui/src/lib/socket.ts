@@ -30,18 +30,23 @@ class Ws {
         try {
             this.ws = new WebSocket(this.url!)
             if (this.ws)
-            this.ws.onmessage = (e) => {
+            this.ws.onmessage = async (e) => {
                 // we need to parse the message.
                 // split at '\n', first part is json, second part is binary
-
                 console.log('got', e)
-                const data = JSON.parse(e.data)
+                const txt = await e.data.text()
+                const data = JSON.parse( txt)
                 if (data.id) {
                     const r = this.reply.get(data.id)
                     if (r) {
                         this.reply.delete(data.id)
-                        console.log("resolved", data.result)
-                        r[0](data.result)
+                        if (data.result) {
+                            console.log("resolved", data.result)
+                            r[0](data.result)
+                        } else {
+                            console.log("error", data.error)
+                            r[1](data.error)
+                        }
                         return
                     } else {
                         console.log("no awaiter", data.id)
@@ -53,6 +58,7 @@ class Ws {
         } catch (e) {
             console.log("no websocket", e)
         }
+        console.log("ws", this.url,this.ws?.readyState)
     }
 
     serve(method: string, fn: (arg: any) => any) {
@@ -60,15 +66,16 @@ class Ws {
     }
 
     // why not just return the promise?
-    async rpc<T>(method: string, args?: any): Promise<T> {
+    async rpc<T>(method: string, params?: any): Promise<T> {
         const o = this.mock.get(method)
         if (o) {
-            return o(args) as T
+            return o(params) as T
         } else {
+            console.log("send", method, params)
             const id = this.nextId++
             return new Promise<T>((resolve, reject) => {
                 this.reply.set(id, [resolve, reject])
-                this.ws?.send(JSON.stringify({ method, args, id: id }))
+                this.ws?.send(JSON.stringify({ method, params, id: id }))
             })
         }
     }

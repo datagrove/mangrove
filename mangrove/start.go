@@ -128,20 +128,46 @@ func (s *Server) NewSession() (*Session, error) {
 	s.Session[token] = r
 	return r, nil
 }
-
-func (s *Server) NewUser(name string) error {
+func (s *Server) RemoveSession(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.Session, id)
+}
+func (s *Server) SaveUser(u *User) error {
+	b, e := json.Marshal(u)
+	if e != nil {
+		return e
+	}
+	return os.WriteFile(path.Join(s.Home, "user", u.ID), b, 0600)
+}
+func (s *Server) LoadUser(name string, u *User) error {
+	b, e := os.ReadFile(path.Join(s.Home, "user", name))
+	if e != nil {
+		return e
+	}
+	return json.Unmarshal(b, u)
+}
+func (s *Server) NewUser(name string) (*User, error) {
 	udir := path.Join(s.Home, "user")
 	target := path.Join(udir, name)
 
 	file, errs := os.CreateTemp(udir, "temp-*.txt")
 	src := file.Name()
 	if errs != nil {
-		return errs
+		return nil, errs
 	}
 	fmt.Fprintf(file, "{}")
 	file.Close()
 
-	return os.Rename(src, target)
+	e := os.Rename(src, target)
+	if e != nil {
+		return nil, e
+	}
+	return &User{
+		ID:          name,
+		Name:        name,
+		DisplayName: name,
+	}, nil
 }
 
 type Context struct {
@@ -281,7 +307,7 @@ func LoadConfig(dir string) (*Config, error) {
 func initialize(dir string) {
 	os.MkdirAll(dir, 0777) // permissions here are not correct, should be lower
 	os.WriteFile(path.Join(dir, "index.jsonc"), []byte(`{
-		"Http": [":5078"],
+		"Https": ":5078",
 		"Sftp": ":5079",
 	}`), 0777)
 }
@@ -414,7 +440,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 	}
 	ws := nbhttp.NewServer(nbhttp.Config{
 		Network:   "tcp",
-		AddrsTLS:  []string{"localhost:8888"},
+		AddrsTLS:  []string{"localhost" + opt.Https},
 		TLSConfig: tlsConfig,
 		Handler:   mux,
 	})
@@ -431,20 +457,51 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 	}
 
 	onWebsocket := func(w http.ResponseWriter, r *http.Request) {
-
 		sv, e := svr.NewSession()
 		if e != nil {
 			return
 		}
-
-		x := &Socket{
+		sock := &Socket{
 			Svr:     svr,
 			Session: sv,
 		}
 		u := websocket.NewUpgrader()
 		u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
-			x.recv(data)
-			c.SetReadDeadline(time.Now().Add(nbhttp.DefaultKeepaliveTime))
+			log.Printf("got message %s", string(data))
+			i := slices.IndexFunc(data, func(x byte) bool { return x == 10 })
+			if i == -1 {
+				i = len(data)
+			}
+			var rpc Rpcp
+			rpc.Session = sock.Session
+			json.Unmarshal(data[:i], &rpc.Rpc)
+			r, ok := sock.Svr.Api[rpc.Method]
+			if !ok {
+				log.Printf("bad method %s", rpc.Method)
+				return
+			}
+			rx, err := r(&rpc)
+			if err != nil {
+				var o struct {
+					Id    int64  `json:"id"`
+					Error string `json:"error"`
+				}
+				o.Id = rpc.Id
+				o.Error = err.Error()
+				b, _ := json.Marshal(&o)
+				sock.conn.WriteMessage(websocket.BinaryMessage, b)
+			} else {
+				var o struct {
+					Id     int64       `json:"id"`
+					Result interface{} `json:"result"`
+				}
+				o.Id = rpc.Id
+				o.Result = rx
+				b, _ := json.Marshal(&o)
+				log.Printf("sending %s", string(b))
+				sock.conn.WriteMessage(websocket.BinaryMessage, b)
+			}
+			sock.conn.SetReadDeadline(time.Now().Add(nbhttp.DefaultKeepaliveTime))
 		})
 		u.OnClose(func(c *websocket.Conn, err error) {
 
@@ -454,8 +511,11 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		if err != nil {
 			panic(err)
 		}
-		x.conn = conn.(*websocket.Conn)
+		sock.conn = conn.(*websocket.Conn)
+		conn.SetReadDeadline(time.Now().Add(nbhttp.DefaultKeepaliveTime))
+		// we can write
 	}
+
 	mux.HandleFunc("/wss", onWebsocket)
 
 	WebauthnSocket(svr)
@@ -491,7 +551,6 @@ func (sx *Server) RunService() {
 }
 
 func (sx *Server) Run() error {
-
 	e := sx.Ws.Start()
 	if e != nil {
 		return e
@@ -513,7 +572,7 @@ func (sx *Server) Run() error {
 		log.Fatal(ssh_server.ListenAndServe())
 	}()
 	//go log.Fatal(http.ListenAndServe(x, sx.Mux))
-	log.Fatal(http.ListenAndServeTLS(sx.Https, sx.Cert, sx.Key, sx.Mux))
+	//log.Fatal(http.ListenAndServeTLS(sx.Https, sx.Cert, sx.Key, sx.Mux))
 	//certmagic.HTTPS([]string{"example.com"}, mux)
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
@@ -598,38 +657,4 @@ func SftpHandlerx(sess ssh.Session) {
 	} else if err != nil {
 		fmt.Println("sftp server completed with error:", err)
 	}
-}
-
-func (s *Socket) recv(data []byte) {
-	i := slices.IndexFunc(data, func(x byte) bool { return x == 10 })
-	var rpc Rpcp
-	rpc.Session = s.Session
-
-	json.Unmarshal(data[:i], &rpc.Rpc)
-	r, ok := s.Svr.Api[rpc.Method]
-	if !ok {
-		log.Printf("bad method %s", rpc.Method)
-		return
-	}
-	rx, err := r(&rpc)
-	if err != nil {
-		var o struct {
-			Id    int64  `json:"id"`
-			Error string `json:"error"`
-		}
-		o.Id = rpc.Id
-		o.Error = err.Error()
-		b, _ := json.Marshal(&o)
-		s.conn.WriteMessage(websocket.BinaryMessage, b)
-	} else {
-		var o struct {
-			Id     int64       `json:"id"`
-			Result interface{} `json:"result"`
-		}
-		o.Id = rpc.Id
-		o.Result = rx
-		b, _ := json.Marshal(&o)
-		s.conn.WriteMessage(websocket.BinaryMessage, b)
-	}
-
 }

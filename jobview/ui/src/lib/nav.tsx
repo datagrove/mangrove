@@ -3,6 +3,8 @@ import { Component, For, JSXElement, Switch, Match , Show, createEffect} from 's
 import { chevronLeft } from "solid-heroicons/solid";
 import { Icon } from 'solid-heroicons';
 import { A, Outlet, useNavigate } from '@solidjs/router';
+import { logOut, user } from './login';
+
 
 export interface PageProps {
   title: string
@@ -13,13 +15,11 @@ export interface PageProps {
 
 export function Page(props: PageProps) {
   const navigate = useNavigate()
-  const logOut = () => {
-      sessionStorage.removeItem('token');
-      navigate('/login', { replace: true });
-    }
+
 
   return <><BackNav back={!!props.back} >
       { props.title}
+      <div class='ml-2'>{ user() }</div>
       <button onClick={logOut} class="ml-2 inline-flex items-center px-2 py-1 border border-transparent text-xs leading-4 font-medium rounded-full text-white bg-red-600 hover:bg-red-500 focus:outline-none focus:border-red-700 focus:shadow-outline-red active:bg-red-700 transition ease-in-out duration-150">Sign out</button>
   </BackNav>
       <div class='m-2'>
