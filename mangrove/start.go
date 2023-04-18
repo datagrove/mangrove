@@ -99,7 +99,14 @@ type Server struct {
 	Api     map[string]Rpcf
 	mu      sync.Mutex
 	Session map[string]*Session
+
+	Job map[string]*Job
 }
+
+func (s *Server) AddJob(job *Job) {
+	s.Job[job.Name] = job
+}
+
 type Socket struct {
 	// session is separate here because it might be needed in a http handler
 	*Session
@@ -284,7 +291,9 @@ func DefaultServer(name string, res embed.FS, launch func(*Server) error) *cobra
 			if e != nil {
 				log.Fatal(e)
 			}
-			launch(x)
+			if launch != nil {
+				launch(x)
+			}
 			x.Run()
 		}})
 	rootCmd.AddCommand(&cobra.Command{
@@ -494,6 +503,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		Api:     map[string]Rpcf{},
 		mu:      sync.Mutex{},
 		Session: map[string]*Session{},
+		Job:     map[string]*Job{},
 	}
 
 	onWebsocket := func(w http.ResponseWriter, r *http.Request) {

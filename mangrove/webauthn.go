@@ -104,6 +104,10 @@ func Filter[T any](ss []T, test func(T) bool) (ret []T) {
 	return
 }
 
+type Update struct {
+}
+
+// cbor messages can begin with 0 - that doesn't make sense for json
 // make into websockets?
 func WebauthnSocket(mg *Server) error {
 	wconfig := &webauthn.Config{
@@ -118,6 +122,32 @@ func WebauthnSocket(mg *Server) error {
 	}
 	mg.AddApi("sessionid", func(r *Rpcp) (any, error) {
 		return r.Session.Token, nil
+	})
+
+	mg.AddApi("query", func(r *Rpcp) (any, error) {
+		var v struct {
+			Snapshot []byte
+			Begin    []byte
+			End      []byte
+		}
+		json.Unmarshal(r.Params, &v)
+
+		var outv struct {
+			Snapshot []byte `json:"snapshot"`
+		}
+		return &outv, nil
+	})
+	mg.AddApi("subscribe", func(r *Rpcp) (any, error) {
+		var v struct {
+			Topic  string `json:"topic"`
+			Filter string `json:"filter"`
+		}
+		json.Unmarshal(r.Params, &v)
+
+		var outv struct {
+			Snapshot []byte `json:"snapshot"`
+		}
+		return &outv, nil
 	})
 
 	// allow logging in with recovery codes. After logging in you can add new devices

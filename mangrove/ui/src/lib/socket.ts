@@ -15,7 +15,7 @@ export interface Rpc<T> {
 type NotifyHandler = (r: Rpc<any>) => void
 type MockHandler = (args: any) => any
 // allow (mock) filter for backend server
-class Ws {
+export class Ws {
     nextId = 1
     reply = new Map<number, [(data: any) => void, (data: any) => void]>()
     onmessage_ = new Map<string, NotifyHandler>()
@@ -80,7 +80,7 @@ class Ws {
 }
 
 //this.url ??=  `wss://${window.location.host}/wss`
-export const ws :Ws = await Ws.connect('ws://localhost:8088/wss')
+
 
 export interface OrError<T> {
     error?: string

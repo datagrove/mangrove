@@ -11,7 +11,6 @@ import {
 import { type PublicKeyCredentialDescriptorJSON } from "@github/webauthn-json";
 import { RegistrationPublicKeyCredential } from "@github/webauthn-json/browser-ponyfill"
 import type { RegistrationResponseExtendedJSON } from "@github/webauthn-json/browser-ponyfill/extended"
-import { ws } from "./socket";
 import { A,P } from './nav'
 
 const isMobile: boolean = (navigator as any)?.userAgentData?.mobile ?? false;
@@ -22,6 +21,9 @@ window.Buffer = Buffer;
 
 import * as bip39 from 'bip39'
 import * as nacl from 'tweetnacl'
+import { Ws } from "./socket";
+import { createWs } from "./db";
+
 
 
 export const [token, setToken] = createSignal<string>(localStorage.getItem('token') || '')
@@ -99,8 +101,11 @@ function bufferToHex(buffer: Uint8Array) {
         .join("");
 }
 
+
+
 // skip if we have a token to stay logged in
 export const RegisterPage = () => {
+    const ws = createWs();
     const navigate = useNavigate();
     const [nameOk, setNameOk] = createSignal(false)
     const mn = bip39.generateMnemonic()
@@ -164,6 +169,7 @@ export const RegisterPage = () => {
 }
 
 export const RecoveryPage = () => {
+    const ws = createWs();
     const [ph, setPh] = createSignal("")
     const navigate = useNavigate();
     const register = async () => {
@@ -197,12 +203,14 @@ export const RecoveryPage = () => {
 //const [user, setUser] = createSignal(localStorage.getItem('user') ?? "")
 const [error, setError] = createSignal("")
 export const LoginPage = () => {
+    const ws = createWs();
     const [error, setError] = createSignal("")
     const navigate = useNavigate();
     const [sessid, setSessid] = createSignal("")
 
     // this might fail if the server doesn't know the user name,  or if their is no credential for that user locally
     const loginRemote = async (username: string) => {
+
         try {
             const o2 = await ws.rpc<any>("login", { username: username })
             const cro = parseRequestOptionsFromJSON(o2)
@@ -235,6 +243,7 @@ export const LoginPage = () => {
 
 // skip if we have a token to stay logged in
 export const LoginPage2 = () => {
+    const ws = createWs();
     const navigate = useNavigate();
     const [sessid, setSessid] = createSignal("")
 

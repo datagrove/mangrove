@@ -3,142 +3,91 @@ import { JSXElement, Component, createSignal, For, onMount, Show, createResource
 import { render } from 'solid-js/web'
 import { Route, Routes, Router,  useNavigate, useParams, hashIntegration, Outlet } from "@solidjs/router"
 import { BackNav, H2, Page , A} from './lib/nav'
-import { OrError, Rpc, ws } from './lib/socket'
+import { OrError, Rpc } from './lib/socket'
 import { Center, LoginPage, LoginPage2, PasswordPage, RecoveryPage, RegisterPage, token, BlueButton } from './lib/login'
+import { createPresentation, createWs } from './lib/db'
+import { Dbref,jobEntry,dash,dbref } from './lib/schema'
+
 
 
 //const ws = new Ws('ws://localhost:8080/ws')
 
-interface JobView {
-    title: string
-}
-var jv: JobView = { title: 'Job View' }
+/*
+if (false) {
+    // define local services, typically mock
+    ws.serve('init', () => { title: 'Job View' })
+    ws.serve('profile', () => {
+        const r: Account = {
+            name: 'joe',
+            email: 'joe@example.com',
+            database: ['Production', 'Test']
+        }
+        return r
+    })
 
-interface Job {
-    name: string
-    description?: string
-    schema?: string
-}
-interface Runnable {
-    name: string
-    args?: string
-    next?: number // unix time
-}
-// each search entry covers a time range
-interface SearchEntry {
-    id: string
-    name: string
-    summary: string
-    type: string
-    start: number // unix time
-    end: number
-}
-
-// return 100 most recent runs, link for more
-// searching should be done for all databases
-// dry run would be a good feature
-interface Dash {
-    job: Job[]
-    runnable: Runnable[]
-    history: SearchEntry[]
-}
-
-export interface JobEntry extends SearchEntry {
-    task: TaskEntry[]
-}
-export interface TaskEntry {
-    start: number
-    end: number
-    name: string
-    output: string
-}
-
-// this is a bit of a mess, but it's a start
-export interface TaskEntry {
-
-}
-interface Storage {
-    token: string
-}
-interface Account {
-    name: string
-    email: string
-    database: string[]
-}
-
-
-// define local services, typically mock
-ws.serve('init', () => { title: 'Job View' })
-ws.serve('profile', () => {
-    const r: Account = {
-        name: 'joe',
-        email: 'joe@example.com',
-        database: ['Production', 'Test']
-    }
-    return r
-})
-
-ws.serve('log', (data: any) => {
-    data.args = { id: '1234' }
-    const sampleLog: JobEntry = {
-        task: [],
-        id: data.args.id,
-        name: 'process',
-        summary: '',
-        type: '',
-        start: 0,
-        end: 0
-    }
-    for (let i = 0; i < 12; i++) {
-        sampleLog.task.push({
-            start: Date.now() - i * 1000,
-            end: Date.now() - i * 1000 + 1000,
-            name: "process",
-            output: "ran all tasks"
-        })
-    }
-
-    return sampleLog
-})
-
-ws.serve('dash', (data: any) => {
-    const n = Date.now()
-    const h: SearchEntry[] = []
-    for (let i = 0; i < 100; i++) {
-        h.push({
-            id: self.crypto.randomUUID(),
-            name: "process",
-            start: n - i * 1000,
-            end: n - i * 1000 + 1000,
-            type: "job",
-            summary: "ran all tasks"
-        })
-    }
-    // we need to periodically refresh this
-    const jobs: Dash = {
-        job: [
-            {
-                "name": "process",
-                "description": "Run all jobs"
-            }
-        ],
-        runnable: [
-            {
+    ws.serve('log', (data: any) => {
+        data.args = { id: '1234' }
+        const sampleLog: JobEntry = {
+            task: [],
+            id: data.args.id,
+            name: 'process',
+            summary: '',
+            type: '',
+            start: 0,
+            end: 0
+        }
+        for (let i = 0; i < 12; i++) {
+            sampleLog.task.push({
+                start: Date.now() - i * 1000,
+                end: Date.now() - i * 1000 + 1000,
                 name: "process",
-                next: n + 24 * 60 * 60 * 1000
-            }
-        ],
-        history: h
-    }
-    return jobs
-})
+                output: "ran all tasks"
+            })
+        }
 
-ws.serve('search', (data: any) => {
-    // we need to set the date range on this
-    // would be nice to filter
-    const more: SearchEntry[] = []
-    return more
-})
+        return sampleLog
+    })
+
+    ws.serve('dash', (data: any) => {
+        const n = Date.now()
+        const h: SearchEntry[] = []
+        for (let i = 0; i < 100; i++) {
+            h.push({
+                id: self.crypto.randomUUID(),
+                name: "process",
+                start: n - i * 1000,
+                end: n - i * 1000 + 1000,
+                type: "job",
+                summary: "ran all tasks"
+            })
+        }
+        // we need to periodically refresh this
+        const jobs: Dash = {
+            job: [
+                {
+                    "name": "process",
+                    "description": "Run all jobs"
+                }
+            ],
+            runnable: [
+                {
+                    name: "process",
+                    next: n + 24 * 60 * 60 * 1000
+                }
+            ],
+            history: h
+        }
+        return jobs
+    })
+
+    ws.serve('search', (data: any) => {
+        // we need to set the date range on this
+        // would be nice to filter
+        const more: SearchEntry[] = []
+        return more
+    })
+}
+*/
 
 
 function mdate(n: number): string {
@@ -148,12 +97,15 @@ function mdate(n: number): string {
 const Button = (props: { children: JSXElement, onClick: () => void }) => {
     return <button class='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'>{props.children}</button>
 }
+
 const JobPage: Component = () => {
     const params = useParams()
-    const getLog = async (s: string) => {
-        return {} as JobEntry  // await cn.get<JobEntry>('log')
-    }
-    const [log] = createResource(() => params['id'], getLog)
+    // const getLog = async (s: string) => {
+    //     return {} as JobEntry  // await cn.get<JobEntry>('log')
+    // }
+    // const [log2] = createResource(() => params['id'], getLog)
+
+    const [log] = createPresentation(jobEntry,{db: params['db']})
     const title = (): string => {
         if (log.loading) return "Loading"
         if (log.error) return log.error
@@ -176,11 +128,12 @@ const JobPage: Component = () => {
 // we should show a list of jobs that will be run on a timer
 // we should show a list of jobs that have been run
 const DatabasePage: Component = () => {
+    const ws = createWs();
     const params = useParams()
-    const getDash = async (s: string) => {
-        return await ws.rpc<Dash>('dash', { db: s })
-    }
-    const [jobs] = createResource(() => params['db'], getDash)
+    // const getDash = async (s: string) => {
+    //     return await ws.rpc<Dash>('dash', { db: s })
+    // }
+    const [jobs] = createPresentation(dash,{db: params['db']})
     const navigate = useNavigate()
     const run = (name: string) => { }
     const showLog = (id: string) => navigate(`/db/${params['db']}/log/${id}`)
@@ -221,11 +174,12 @@ const DatabasePage: Component = () => {
 }
 
 const DatabaseList: Component = () => {
-    const [lst] = createResource(async () => ws.rpc<Account>('profile'))
-    return <Show when={!lst.loading}><Page title={jv.title}>
+    const ws = createWs();
+    const [lst] = createPresentation<Dbref>(dbref)
+    return <Show when={!lst.loading}><Page title={"Database"}>
          
         <table class='table-auto'>
-            <For each={lst.latest!.database}>{(e) => <tr><td>
+            <For each={lst.latest!.name}>{(e) => <tr><td>
                 <A href={`/db/${e}`}>{e}</A></td></tr>}
             </For >
             <A href='/add'>Add</A> <A  class='ml-2' href='/profile'>Profile</A>
@@ -282,6 +236,13 @@ function App() {
             </Route>
         </Routes></>
 }
+
+
+// profile is the global state
+// it never changes server, and is loaded from the home server.
+// we can use iframes and open new tabs for other ones.
+// it could be prerendered
+// it can be provided a shared worker or service worker.
 
 
 
