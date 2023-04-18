@@ -58,6 +58,9 @@ func Open(s *SshConnection) (*sftp.Client, error) {
 //		return nil
 //	}
 func PutFiles(ctx *Context, cn *SshConnection, fromdir string, todir string) error {
+	if cn == nil {
+		return fmt.Errorf("no connection")
+	}
 	client, e := Open(cn)
 	if e != nil {
 		return e
@@ -88,6 +91,7 @@ func PutFiles(ctx *Context, cn *SshConnection, fromdir string, todir string) err
 		}
 	}
 
+	ArchiveFiles(fromdir)
 	return nil
 }
 func ArchiveFiles(dir string) error {
@@ -96,7 +100,7 @@ func ArchiveFiles(dir string) error {
 		return e
 	}
 	for _, f := range fs {
-		dest := path.Join(dir, "old", f.Name())
+		dest := path.Join(dir, "old", path.Base(f.Name()))
 		os.Remove(dest)
 		e := os.Rename(f.Name(), dest)
 		if e != nil {
@@ -107,10 +111,7 @@ func ArchiveFiles(dir string) error {
 
 }
 func EncryptFiles(ctx *Context, dir, to string, key []string) error {
-	task, e := ctx.TaskLog()
-	if e != nil {
-		return e
-	}
+	task := ctx.TaskLog()
 	f, e := os.ReadDir(dir)
 	if e != nil {
 		return e
@@ -133,10 +134,7 @@ func EncryptFiles(ctx *Context, dir, to string, key []string) error {
 	return nil
 }
 func DecryptFiles(ctx *Context, dir, to string) error {
-	task, e := ctx.TaskLog()
-	if e != nil {
-		return e
-	}
+	task := ctx.TaskLog()
 	f, e := os.ReadDir(dir)
 	if e != nil {
 		return e
@@ -163,10 +161,7 @@ func DecryptFiles(ctx *Context, dir, to string) error {
 	return nil
 }
 func GetFiles(ctx *Context, s *SshConnection, todir string, frompattern string) error {
-	task, e := ctx.TaskLog()
-	if e != nil {
-		return e
-	}
+	task := ctx.TaskLog()
 	client, e := Open(s)
 	if e != nil {
 		return e

@@ -219,12 +219,13 @@ type Task struct {
 	Log       zerolog.Logger
 }
 
-func (c *Context) TaskLog() (*Task, error) {
+func (c *Context) TaskLog() *Task {
 	n := atomic.AddInt64(&c.NextTask, 1)
 	a := path.Join(c.Artifacts, fmt.Sprintf("%d", n))
 	h, e := os.Create(path.Join(c.Artifacts, "log%d.jsonl"))
 	if e != nil {
-		return nil, e
+		// we can't continue if we can't create a log file
+		log.Fatal(e)
 	}
 	r := &Task{
 		c: c,
@@ -232,7 +233,7 @@ func (c *Context) TaskLog() (*Task, error) {
 		Artifacts: a,
 		Log:       zerolog.New(h),
 	}
-	return r, nil
+	return r
 }
 func NewContext(home string, container string) (*Context, error) {
 	config, e := LoadConfig(home)
@@ -243,7 +244,8 @@ func NewContext(home string, container string) (*Context, error) {
 	if e != nil {
 		return nil, e
 	}
-	artifacts := path.Join(home, uuid.NewString())
+	artifacts := path.Join(home, "log", uuid.NewString())
+	os.MkdirAll(artifacts, 0700)
 
 	return &Context{
 		Config:    config,

@@ -23,10 +23,8 @@ func formatMillisecond(t time.Time) string {
 
 // this could use parallel processing which would generate multiple tasks
 func FilesDo(ctx *Context, dir string, fn func(ctx *Context, path string) error) error {
-	task, e := ctx.TaskLog()
-	if e != nil {
-		return e
-	}
+	task := ctx.TaskLog()
+
 	fs, e := os.ReadDir(dir)
 	if e != nil {
 		return e
