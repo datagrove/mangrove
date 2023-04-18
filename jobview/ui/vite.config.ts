@@ -14,17 +14,16 @@ export default defineConfig({
     plugins: [solidPlugin(),x(),mkcert()],
     server: {
       proxy: {
-        '/wss': {
-          target: 'https://localhost:5078',
-          changeOrigin: true,
-          secure: false,
-          ws: true
-        }, 
+        // '/wss': {
+        //   target: 'https://localhost:5078/wss',
+        //   changeOrigin: true,
+        //   secure: false,
+        //   ws: true
+        // }, 
         '/api': {
           target: 'https://localhost:5078',
           changeOrigin: true,
           secure: false,
-          ws: true
         },
         '/TestResults': {
           target: 'https://localhost:5078',

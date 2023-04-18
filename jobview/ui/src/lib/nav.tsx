@@ -1,9 +1,9 @@
 
-import { Component, For, JSXElement, Switch, Match , Show, createEffect} from 'solid-js'
+import { Component, For, JSXElement, Switch, Match, Show, createEffect } from 'solid-js'
 import { chevronLeft } from "solid-heroicons/solid";
 import { Icon } from 'solid-heroicons';
 import { A, Outlet, useNavigate } from '@solidjs/router';
-import { logOut, user } from './login';
+import { setToken, user } from './login';
 
 
 export interface PageProps {
@@ -15,16 +15,19 @@ export interface PageProps {
 
 export function Page(props: PageProps) {
   const navigate = useNavigate()
-
+  const logOut = () => {
+    sessionStorage.removeItem('token');
+    setToken('')
+    navigate('/', { replace: true });
+  }
 
   return <><BackNav back={!!props.back} >
-      { props.title}
-      <div class='ml-2'>{ user() }</div>
-      <button onClick={logOut} class="ml-2 inline-flex items-center px-2 py-1 border border-transparent text-xs leading-4 font-medium rounded-full text-white bg-red-600 hover:bg-red-500 focus:outline-none focus:border-red-700 focus:shadow-outline-red active:bg-red-700 transition ease-in-out duration-150">Sign out</button>
+    {props.title}
+    <button onClick={logOut} class="ml-2 inline-flex items-center px-2 py-1 border border-transparent text-xs leading-4 font-medium rounded-full text-white bg-red-600 hover:bg-red-500 focus:outline-none focus:border-red-700 focus:shadow-outline-red active:bg-red-700 transition ease-in-out duration-150">Sign out</button>
   </BackNav>
-      <div class='m-2'>
-          {props.children}
-      </div>
+    <div class='m-2'>
+      {props.children}
+    </div>
   </>
 }
 
@@ -54,7 +57,7 @@ export const BackNav: Component<{ children: JSXElement, back: boolean }> = (prop
   return <nav class="bg-white shadow px-2">
     <div class="flex flex-row h-12 items-center">
       <Show when={props.back}>
-      <Icon onClick={() => history.back()} path={chevronLeft} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' />
+        <Icon onClick={() => history.back()} path={chevronLeft} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' />
       </Show>
       <div class='text-black flex-1  ' >{props.children} </div>
 
@@ -62,21 +65,21 @@ export const BackNav: Component<{ children: JSXElement, back: boolean }> = (prop
 }
 
 export function H2(props: { children: JSXElement }) {
-    return <h4 class="pt-4 pb-2 text-2xl font-bold dark:text-white">{props.children}</h4>
+  return <h4 class="pt-4 pb-2 text-2xl font-bold dark:text-white">{props.children}</h4>
 }
 export function H3(props: { children: JSXElement }) {
-    return <h4 class="pt-4 text-2xl font-bold dark:text-white">{props.children}</h4>
+  return <h4 class="pt-4 text-2xl font-bold dark:text-white">{props.children}</h4>
 }
 export function TagList(props: { each: string[] }) {
-    if (!props.each.length) return <div />
-    else {
-        const [first, ...rest] = props.each
-        return <div>
-            <For each={rest}>{(e, i) => `, ${e}`}</For>
-        </div>
-    }
+  if (!props.each.length) return <div />
+  else {
+    const [first, ...rest] = props.each
+    return <div>
+      <For each={rest}>{(e, i) => `, ${e}`}</For>
+    </div>
+  }
 }
 
 function PictureName(props: { path: string }) {
-    return <a id={props.path.split('/')[1]} ><h4 class="pt-4 text-2xl font-bold dark:text-white">{props.path.split("/").slice(1).join(": ")}</h4></a>
+  return <a id={props.path.split('/')[1]} ><h4 class="pt-4 text-2xl font-bold dark:text-white">{props.path.split("/").slice(1).join(": ")}</h4></a>
 }

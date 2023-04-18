@@ -29,6 +29,7 @@ type User struct {
 	DisplayName string                `json:"display_name"`
 	Icon        string                `json:"icon,omitempty"`
 	Credentials []webauthn.Credential `json:"credentials,omitempty"`
+	RecoveryKey string                `json:"recovery_key,omitempty"`
 }
 
 func (u *User) WebAuthnID() []byte {
@@ -94,19 +95,30 @@ func NewUser(s string) *User {
 	u.ID = s
 	return u
 }
+func Filter[T any](ss []T, test func(T) bool) (ret []T) {
+	for _, s := range ss {
+		if test(s) {
+			ret = append(ret, s)
+		}
+	}
+	return
+}
 
 // make into websockets?
 func WebauthnSocket(mg *Server) error {
 	wconfig := &webauthn.Config{
-		RPDisplayName: "Go Webauthn",                      // Display Name for your site
-		RPID:          "localhost",                        // Generally the FQDN for your site
-		RPOrigins:     []string{"https://localhost:5078"}, // The origin URLs allowed for WebAuthn requests
+		RPDisplayName: "Go Webauthn",                                                                         // Display Name for your site
+		RPID:          "localhost",                                                                           // Generally the FQDN for your site
+		RPOrigins:     []string{"https://localhost:5078", "http://localhost:8088", "https://localhost:5783"}, // The origin URLs allowed for WebAuthn requests
 	}
 
 	web, err := webauthn.New(wconfig)
 	if err != nil {
 		return err
 	}
+	mg.AddApi("sessionid", func(r *Rpcp) (any, error) {
+		return r.Session.Token, nil
+	})
 
 	// allow logging in with recovery codes. After logging in you can add new devices
 	mg.AddApi("loginR", func(r *Rpcp) (any, error) {
@@ -121,10 +133,44 @@ func WebauthnSocket(mg *Server) error {
 
 	// add is mostly the same as register?
 	mg.AddApi("add", func(r *Rpcp) (any, error) {
+		options, session, err := web.BeginRegistration(&r.User)
+		if err != nil {
+			return nil, err
+		}
+		r.Session.data = session
+		return options, nil
 		return nil, nil
 	})
 	mg.AddApi("remove", func(r *Rpcp) (any, error) {
+		r.User.Credentials = Filter(r.User.Credentials, func(e webauthn.Credential) bool {
+			return string(e.ID) == string(r.Params)
+		})
+		mg.SaveUser(&r.User)
 		return nil, nil
+	})
+
+	// this going to be like register; client must follow up with register2 to save a new credential
+	mg.AddApi("recover", func(r *Rpcp) (any, error) {
+		// the signature signs the session id
+		var v struct {
+			Id        string `json:"id"`
+			Signature string `json:"signature"`
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		e = mg.RecoverUser(v.Id, r.Session, v.Signature)
+		if e != nil {
+			return nil, e
+		}
+		// return a challenge
+		options, session, err := web.BeginRegistration(&r.User)
+		if err != nil {
+			return nil, err
+		}
+		r.Session.data = session
+		return options, nil
 	})
 
 	mg.AddApi("okname", func(r *Rpcp) (any, error) {
@@ -147,14 +193,15 @@ func WebauthnSocket(mg *Server) error {
 	// then the client can try to add a device
 	mg.AddApi("register", func(r *Rpcp) (any, error) {
 		var v struct {
-			Id string `json:"id"`
+			Id          string `json:"id"`
+			RecoveryKey string `json:"recovery_key"`
 		}
 
 		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
-		u, e := mg.NewUser(v.Id)
+		u, e := mg.NewUser(v.Id, v.RecoveryKey)
 		if e != nil {
 			return nil, fmt.Errorf("username already taken")
 		}

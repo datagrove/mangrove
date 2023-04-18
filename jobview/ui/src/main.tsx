@@ -221,15 +221,14 @@ const DatabasePage: Component = () => {
 }
 
 const DatabaseList: Component = () => {
-
-    const [lst] = createResource(async () => ws.rpc<string[]>('container'))
-    return <Page title={jv.title}>
+    const [lst] = createResource(async () => ws.rpc<Account>('profile'))
+    return <Show when={!lst.loading}><Page title={jv.title}>
         <table class='table-auto'>
-            <For each={lst.latest!}>{(e) => <tr><td>
+            <For each={lst.latest!.database}>{(e) => <tr><td>
                 <A href={`/db/${e}`}>{e}</A></td></tr>}
             </For >
         </table>
-    </Page>
+    </Page></Show>
 }
 
 function RouteGuard() {
@@ -256,7 +255,7 @@ function App() {
     return <>
         <Routes>
             <Route path="/login" component={LoginPage} />
-            <Route path="/recovery" component={RecoveryPage} />
+            <Route path="/recover" component={RecoveryPage} />
             <Route path="/register" component={RegisterPage} />
             <Route path="/" component={RouteGuard}>
                 <Route path="/" component={DatabaseList} />

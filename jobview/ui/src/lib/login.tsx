@@ -27,12 +27,7 @@ export const [token, setToken] = createSignal<string>(localStorage.getItem('toke
 export const [user, setUser] = createSignal<string>(localStorage.getItem('user') || '')
 
 
-export const logOut = () => {
-    const navigate = useNavigate();
-    sessionStorage.removeItem('token');
-    setToken('')
-    navigate('/login', { replace: true });
-}
+
 
 export const Center: Component<{ children: JSXElement }> = (props) => {
     return <div class="grid place-items-center h-screen">
@@ -97,6 +92,11 @@ export const PasswordPage = () => {
         </div>
     </Center>
 }
+function bufferToHex(buffer: Uint8Array) {
+    return [...new Uint8Array(buffer)]
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+}
 
 // skip if we have a token to stay logged in
 export const RegisterPage = () => {
@@ -104,20 +104,15 @@ export const RegisterPage = () => {
     const [nameOk, setNameOk] = createSignal(false)
     const mn = bip39.generateMnemonic()
     const seed = bip39.mnemonicToSeedSync(mn).subarray(0, 32)
-    console.log("length", seed.toString('hex').length)
     const kp = nacl.sign.keyPair.fromSeed(seed)
 
     const registerRemote = async () => {
-        console.log("registering")
+        console.log("registering", mn)
         try {
-            const o = await ws.rpc<any>("register", { id: user() })
-            console.log(o)
+            const o = await ws.rpc<any>("register", { id: user(), recovery_key: bufferToHex(kp.publicKey) })
             const cco = parseCreationOptionsFromJSON(o)
-            console.log("cco", cco)
             const cred = await create(cco)
-            console.log("cred", cred)
             const reg = await ws.rpc<any>("register2", cred.toJSON())
-            console.log("reg", reg)
             localStorage.setItem('user', user())
             localStorage.setItem("token", reg.token)
             navigate("/")
@@ -168,10 +163,27 @@ export const RegisterPage = () => {
 }
 
 export const RecoveryPage = () => {
-    const register = () => {
-        // generate the keypair and sign the recovery request
-    }
     const [ph, setPh] = createSignal("")
+    const navigate = useNavigate();
+    const register = async () => {
+        try {
+            const sid = await ws.rpc<string>('sessionid')
+            const mn = bip39.generateMnemonic()
+            const seed = bip39.mnemonicToSeedSync(mn).subarray(0, 32)
+            const kp = nacl.sign.keyPair.fromSeed(seed)
+            const sig = nacl.sign(Buffer.from(ph()), kp.secretKey)
+            const o = await ws.rpc<any>("recover", { id: user(), signature: bufferToHex(sig) })
+            const cco = parseCreationOptionsFromJSON(o)
+            const cred = await create(cco)
+            const reg = await ws.rpc<any>("register2", cred.toJSON())
+            localStorage.setItem('user', user())
+            localStorage.setItem("token", reg.token)
+            navigate("/")
+        } catch (e: any) {
+            console.log(e)
+        }
+    }
+
     const ok = () => bip39.validateMnemonic(ph())
     let o: HTMLTextAreaElement
     return <Center> <form><label for='memo'>Recovery Phrase</label><textarea onInput={(e) => setPh(e.target.value)} rows='3' class='text-green-900 w-full my-2' id='memo' placeholder="match cost vague logic negative warrior chimney blanket razor work rebel silk">
@@ -190,14 +202,10 @@ export const LoginPage = () => {
     const loginRemote = async (username: string) => {
         try {
             const o2 = await ws.rpc<any>("login", { username: username })
-            console.log("o2", o2)
             const cro = parseRequestOptionsFromJSON(o2)
-            console.log("cro", cro)
             const o = await get(cro)
-            console.log("o", o)
             const reg = await ws.rpc<any>("login2", o.toJSON())
             setToken(reg.token)
-            console.log("reg", reg)
             localStorage.setItem("token", reg.token)
             navigate("/")
         } catch (e: any) {

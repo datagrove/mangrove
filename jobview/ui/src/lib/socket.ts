@@ -81,7 +81,7 @@ class Ws {
     }
 
 }
-export const ws = new Ws()
+export const ws = new Ws('ws://localhost:8088/wss')
 
 export interface OrError<T> {
     error?: string

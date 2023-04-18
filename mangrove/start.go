@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -32,9 +33,14 @@ import (
 	"github.com/lesismal/nbio/nbhttp/websocket"
 	"github.com/pkg/sftp"
 	"github.com/rs/zerolog"
+	qrcode "github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 	"github.com/tailscale/hujson"
 	"golang.org/x/exp/slices"
+
+	"github.com/twystd/tweetnacl-go/tweetnacl"
+
+	"github.com/rs/cors"
 )
 
 var logger service.Logger
@@ -140,6 +146,22 @@ func (s *Server) SaveUser(u *User) error {
 	}
 	return os.WriteFile(path.Join(s.Home, "user", u.ID), b, 0600)
 }
+func (s *Server) RecoverUser(id string, sess *Session, signature string) error {
+	var signedMessage []byte
+	var key = make([]byte, len(signature)/2)
+	_, e := hex.Decode(key, []byte(sess.RecoveryKey))
+	if e != nil {
+		return e
+	}
+	msg, e := tweetnacl.CryptoSignOpen(signedMessage, key)
+	if e != nil {
+		return e
+	}
+	if string(msg) != id {
+		return fmt.Errorf("invalid signature")
+	}
+	return s.LoadUser(id, &sess.User)
+}
 func (s *Server) LoadUser(name string, u *User) error {
 	b, e := os.ReadFile(path.Join(s.Home, "user", name))
 	if e != nil {
@@ -147,7 +169,7 @@ func (s *Server) LoadUser(name string, u *User) error {
 	}
 	return json.Unmarshal(b, u)
 }
-func (s *Server) NewUser(name string) (*User, error) {
+func (s *Server) NewUser(name, recoveryKey string) (*User, error) {
 	udir := path.Join(s.Home, "user")
 	target := path.Join(udir, name)
 
@@ -167,6 +189,7 @@ func (s *Server) NewUser(name string) (*User, error) {
 		ID:          name,
 		Name:        name,
 		DisplayName: name,
+		RecoveryKey: recoveryKey,
 	}, nil
 }
 
@@ -438,11 +461,14 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		Certificates:       []tls.Certificate{certx},
 		InsecureSkipVerify: true,
 	}
+	_ = tlsConfig
+	handler := cors.Default().Handler(mux)
 	ws := nbhttp.NewServer(nbhttp.Config{
-		Network:   "tcp",
-		AddrsTLS:  []string{"localhost" + opt.Https},
-		TLSConfig: tlsConfig,
-		Handler:   mux,
+		Network: "tcp",
+		Addrs:   []string{"localhost:8088"},
+		//AddrsTLS:  []string{"localhost" + opt.Https},
+		//TLSConfig: tlsConfig,
+		Handler: handler,
 	})
 	svr := &Server{
 		Config:  opt,
@@ -466,6 +492,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 			Session: sv,
 		}
 		u := websocket.NewUpgrader()
+		u.CheckOrigin = func(r *http.Request) bool { return true }
 		u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
 			log.Printf("got message %s", string(data))
 			i := slices.IndexFunc(data, func(x byte) bool { return x == 10 })
@@ -509,7 +536,8 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		// time.Sleep(time.Second * 5)
 		conn, err := u.Upgrade(w, r, nil)
 		if err != nil {
-			panic(err)
+			log.Print(err)
+			return
 		}
 		sock.conn = conn.(*websocket.Conn)
 		conn.SetReadDeadline(time.Now().Add(nbhttp.DefaultKeepaliveTime))
@@ -517,6 +545,27 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 	}
 
 	mux.HandleFunc("/wss", onWebsocket)
+
+	mux.HandleFunc("/qr/", func(w http.ResponseWriter, r *http.Request) {
+		// b, e := r.GetBody()
+		// if e != nil {
+		// 	return
+		// }
+		// bx, e := io.ReadAll(b)
+
+		//sess, ok := svr.GetSession(sessid)
+		// if !ok {
+		// 	return
+		// }
+		data := r.URL.Path[4:]
+		qr, e := qrcode.New(string(data), qrcode.Medium)
+		if e != nil {
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.WriteHeader(200)
+		qr.Write(256, w)
+	})
 
 	WebauthnSocket(svr)
 	// return unstarted to allow the application to modify the server
