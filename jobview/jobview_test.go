@@ -1,15 +1,13 @@
 package jobview
 
 import (
-	"os"
 	"testing"
 
 	"github.com/datagrove/mangrove/mangrove"
 )
 
+// the point of the call back is to allow access during startup, which might be from a service. What about open, run though? variadic?
+
 func Test_web(t *testing.T) {
-	os.Args = []string{"jobview", "start"}
-	DefaultServer("jobview", []Job{}, func(svr *mangrove.Server) error {
-		return nil
-	})
+	mangrove.DefaultServer("Job View", mangrove.Res, nil)
 }

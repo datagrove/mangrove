@@ -43,6 +43,18 @@ import (
 	"github.com/rs/cors"
 )
 
+// a job server needs a list of jobs, not unlike cobra commands, but typically all the parameters need to be resolved since its going off a clock.
+
+// It can also use launch to add api's, but it's not clear that this is useful given that UI won't know anything about them.
+
+// we might want to allow a job to control a frame of the ui, but how?
+// maybe we should have a list of functions that take a bit of json to configure themselves.
+type Job struct {
+	Name   string
+	Schema string
+	Run    func(*Context, string) error
+}
+
 var logger service.Logger
 
 type program struct {
@@ -464,11 +476,11 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 	_ = tlsConfig
 	handler := cors.Default().Handler(mux)
 	ws := nbhttp.NewServer(nbhttp.Config{
-		Network: "tcp",
-		Addrs:   []string{"localhost:8088"},
-		//AddrsTLS:  []string{"localhost" + opt.Https},
-		//TLSConfig: tlsConfig,
-		Handler: handler,
+		Network:   "tcp",
+		Addrs:     []string{"localhost:8088"},
+		AddrsTLS:  []string{"0.0.0.0:8089"},
+		TLSConfig: tlsConfig,
+		Handler:   handler,
 	})
 	svr := &Server{
 		Config:  opt,
@@ -546,7 +558,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 
 	mux.HandleFunc("/wss", onWebsocket)
 
-	mux.HandleFunc("/qr/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/qr/", func(w http.ResponseWriter, r *http.Request) {
 		// b, e := r.GetBody()
 		// if e != nil {
 		// 	return
@@ -557,7 +569,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		// if !ok {
 		// 	return
 		// }
-		data := r.URL.Path[4:]
+		data := r.URL.Path[8:]
 		qr, e := qrcode.New(string(data), qrcode.Medium)
 		if e != nil {
 			return
