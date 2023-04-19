@@ -23,7 +23,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/gliderlabs/ssh"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -40,6 +39,7 @@ import (
 
 	"github.com/twystd/tweetnacl-go/tweetnacl"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/rs/cors"
 )
 
@@ -100,7 +100,95 @@ type Server struct {
 	mu      sync.Mutex
 	Session map[string]*Session
 
-	Job map[string]*Job
+	Job    map[string]*Job
+	Handle int64
+
+	muwatch sync.Mutex
+	Watch   map[string]*Watch
+}
+type Watch struct {
+	mu      sync.Mutex
+	Watcher *fsnotify.Watcher
+	Path    string
+	Session map[*Session]bool
+	Dir     map[string]fs.DirEntry
+}
+
+func (s *Server) RemoveSession(sess *Session) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.Session, sess.SessionSecret)
+
+}
+func (s *Server) RemoveWatch(watchPath string, session *Session) {
+	s.muwatch.Lock()
+	defer s.muwatch.Unlock()
+	w, ok := s.Watch[watchPath]
+	if ok {
+		delete(w.Session, session)
+		if len(w.Session) == 0 {
+			w.Watcher.Close()
+			delete(s.Watch, watchPath)
+		}
+	}
+}
+func (s *Server) AddWatch(watchPath string, session *Session) (*Watch, error) {
+	s.muwatch.Lock()
+	defer s.muwatch.Unlock()
+	w, ok := s.Watch[watchPath]
+	if ok {
+		w.Session[session] = true
+		return w, nil
+	}
+	wd, e := os.ReadDir(watchPath)
+	if e != nil {
+		return nil, e
+	}
+	wdm := make(map[string]fs.DirEntry)
+	for _, v := range wd {
+		wdm[v.Name()] = v
+	}
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, err
+	}
+	w = &Watch{
+		mu:      sync.Mutex{},
+		Watcher: watcher,
+		Path:    watchPath,
+		Session: map[*Session]bool{},
+		Dir:     wdm,
+	}
+	s.Watch[watchPath] = w
+
+	done := make(chan bool)
+	// use goroutine to start the watcher
+	go func() {
+		for {
+			select {
+			case event := <-watcher.Events:
+				// monitor only for write events
+				if event.Op&fsnotify.Write == fsnotify.Write {
+					fmt.Println("Modified file:", event.Name)
+				}
+			case err := <-watcher.Errors:
+				log.Println("Error:", err)
+			}
+		}
+	}()
+
+	// provide the file name along with path to be watched
+	err = watcher.Add("file.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	<-done
+	return w, nil
+}
+
+func (s *Server) NextHandle() int64 {
+	return atomic.AddInt64(&s.Handle, 1)
 }
 
 func (s *Server) AddJob(job *Job) {
@@ -153,11 +241,7 @@ func (s *Server) NewSession() (*Session, error) {
 	s.Session[token] = r
 	return r, nil
 }
-func (s *Server) RemoveSession(id string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.Session, id)
-}
+
 func (s *Server) SaveUser(u *User) error {
 	b, e := json.Marshal(u)
 	if e != nil {

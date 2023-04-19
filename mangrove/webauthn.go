@@ -7,16 +7,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+	"sync"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/fsnotify/fsnotify"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 )
 
 type Session struct {
+	SessionSecret string
 	User
-	Token string
-	data  *webauthn.SessionData
+	Token      string
+	data       *webauthn.SessionData
+	mu         sync.Mutex
+	Watch      []*Watch
+	NotifyFile func(handle int64, ev fsnotify.Event)
 }
 
 type SessionStatus struct {
@@ -137,16 +144,27 @@ func WebauthnSocket(mg *Server) error {
 		}
 		return &outv, nil
 	})
+	// server / organization / database / table-or-directorys
 	mg.AddApi("subscribe", func(r *Rpcp) (any, error) {
 		var v struct {
 			Topic  string `json:"topic"`
 			Filter string `json:"filter"`
 		}
-		json.Unmarshal(r.Params, &v)
-
 		var outv struct {
-			Snapshot []byte `json:"snapshot"`
+			handle int64
 		}
+		json.Unmarshal(r.Params, &v)
+		outv.handle = mg.NextHandle()
+
+		parts := strings.Split(v.Topic, "/")
+		if len(parts) < 4 {
+			return nil, fmt.Errorf("invalid topic")
+		}
+		table := parts[3]
+		if table == "$dir" {
+
+		}
+
 		return &outv, nil
 	})
 

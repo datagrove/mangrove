@@ -1,32 +1,28 @@
 import { Pt } from './db'
 
 export interface Dbref {
-    name: string[]
+    name: string
 }
 export const dbref : Pt<Dbref> = {ptn: "dbref"}
-
- interface Dash {
-    job: Job[]
-    runnable: Runnable[]
-    history: SearchEntry[]
-}
-export const dash : Pt<Dash> = {ptn: "dash"}
-
 interface JobView {
     title: string
 }
-var jv: JobView = { title: 'Job View' }
+export const  jobView: Pt<JobView> = { ptn: 'JobView' }
 
 interface Job {
     name: string
     description?: string
     schema?: string
 }
+export const job: Pt<Job> = { ptn: 'Job' }
+
 interface Runnable {
     name: string
     args?: string
     next?: number // unix time
 }
+export const runnable: Pt<Runnable> = { ptn: 'Runnable' }
+
 // each search entry covers a time range
 interface SearchEntry {
     id: string
@@ -36,6 +32,7 @@ interface SearchEntry {
     start: number // unix time
     end: number
 }
+export const  searchEntry: Pt<SearchEntry> = { ptn: 'SearchEntry' }
 
 // return 100 most recent runs, link for more
 // searching should be done for all databases
@@ -54,16 +51,14 @@ export interface TaskEntry {
     name: string
     output: string
 }
+export const taskEntry: Pt<TaskEntry> = { ptn: 'TaskEntry' }
 
-// this is a bit of a mess, but it's a start
-export interface TaskEntry {
-
-}
 interface Storage {
     token: string
 }
+export const storage: Pt<Storage> = { ptn: 'Storage' }
 interface Account {
     name: string
     email: string
-    database: string[]
 }
+export const account: Pt<Account> = { ptn: 'Account' }

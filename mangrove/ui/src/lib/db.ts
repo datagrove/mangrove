@@ -1,4 +1,4 @@
-import { Resource, createResource } from 'solid-js'
+import { Resource, Setter, createResource, onCleanup } from 'solid-js'
 import { Ws } from './socket'
 
 // when we pop up dialogs they can get a ws for whatever is the current database
@@ -9,7 +9,6 @@ export class Snapshot<T> {
     constructor(public id: Uint8Array){
 
     }
-
 }
 
 export class Query<T> {
@@ -18,12 +17,40 @@ export class Query<T> {
     constructor( snapshotId: Uint8Array) {
         this.sn = new Snapshot<T>(snapshotId)
     }
+}
 
+interface UpdateEvent {
 
 }
 
-export class PresentationCache {
+class TableCache {
 
+}
+export class PresentationCache<T> {
+    snapshot = ""
+    subscribed = false
+    pr : Array<Presentation<T>> = []
+    value: T[] = []
+    constructor(public name: string){
+    }
+    update(ev: UpdateEvent) {
+        // update value
+
+        // update each presentation of the table
+        this.pr.forEach(e => {
+            e.value = this.value!
+             e.mutate!(()=>e) 
+         } )
+    }
+    add(l: Presentation<T>) {
+        this.pr.push(l)
+    }
+    remove(l: Presentation<T>) {
+        this.pr = this.pr.filter( e=> e!==l)
+        if (this.pr.length==0) {
+            profile.present.delete(this.name)
+        }
+    }
 }
 
 // it's not clear that this should have T?
@@ -31,15 +58,20 @@ export class PresentationCache {
 // although this seems unlikely to be helpful
 
 // Presentation is immutable, the wrapped cache may have mutation.
+
+// this is what the resource needs to provide, like code mirror editor for document.
 export class Presentation<T> {
-    loading = true
-    error = ""
-    latest?: T
+
+    cacheKey: string = ""
+    mutate?: Setter<Presentation<T>|undefined>
+    value : T[] = []
     length = 0
     anchor = 0  // this is top of runway, it may not be visible
     top = 0
 
-
+    operator() {
+        return this.value
+    }
 }
 
 // maybe like a store?
@@ -65,7 +97,7 @@ export class Server extends WebSocket {
 
 export class Profile {
     server = new Map<string,Server>()
-    present = new Map<string, Presentation<any>>()
+    present = new Map<string, PresentationCache<any>>()
 
     addDb(url: string, id: string) {
         let svr = this.server.get(url)
@@ -75,12 +107,8 @@ export class Profile {
         svr.addDb(id)
     }
 
-    // should we give some context for creating dialogs? do we need to since window is a global state anyway?
-    // a presentation url is server/org/database/viewset
-    async getPresentation<T>(url: string) {
-        const r = new Presentation<T>()
-
-        return r;
+    async getWs(opt?: Popt) : Promise<Ws>{
+        return ws;
     }
 }
 export const profile = new Profile()
@@ -98,23 +126,47 @@ export function createWs() : Ws {
 export function createUpdater<T>(ud: Upd<T>) {
     return new Updater<T>
 }
+type Popt = {db?: string,server?: string,org?: string}
 
-export function createPresentation<T>(pt: Pt<T>, opt?: {db?: string,server?: string}) {
-
-    const r =  createResource<T>(async ()=> ({} as T))
+function getUrl(x: string, opt?: Popt){
+    return x
+}
+export function createPresentation<T>(pt: Pt<T>, opt?: Popt) {
+    const url = getUrl(pt.ptn, opt)
+    let prc = profile.present.get(url)??new PresentationCache<T>(url)//
+    if (!prc.subscribed) {
+        profile.present.set(url, prc)
+        prc.subscribed = true
+    }
+    const pr = new Presentation<T>()
+    const fn = async ()=> {
+        if (!prc!.value){
+            const ws = await profile.getWs(opt)
+            prc.snapshot = await ws.rpc<any>('subscribe', url)
+        }
+        return pr
+    }
+    
+    const r =  createResource<Presentation<T>>(fn)
     const [_,{mutate}] = r
+    pr.mutate = mutate
+
+    prc.add(pr)
+    onCleanup(async () => {
+        prc.remove(pr)
+        if (prc.pr.length==0) {
+            profile.present.delete(url)
+            const ws = await profile.getWs(opt)
+            await ws.rpc<any>('release', url)
+        }
+
+    })
+
     // call mutate from the websocket notification after we update the presentation.
-
-    mutate(()=>({}as T))
-
     return r
 }
 
-interface Log3 {
-}
 export type Pt<T> = {ptn: string}
 export type Upd<T> = {ptu: string}
-const log3 :Pt<Log3> = {ptn: "log"}
 
-const x = createPresentation(log3)
 
