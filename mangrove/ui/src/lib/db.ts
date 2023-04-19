@@ -96,6 +96,7 @@ export class Server extends WebSocket {
 }
 
 export class Profile {
+    username = ""
     server = new Map<string,Server>()
     present = new Map<string, PresentationCache<any>>()
 
@@ -109,6 +110,13 @@ export class Profile {
 
     async getWs(opt?: Popt) : Promise<Ws>{
         return ws;
+    }
+
+    getUrl(path: string, opt?: Popt){
+        const svr = opt?.server??""
+        const org = opt?.org??"/username"
+        const db = opt?.db??"/"
+        return `${svr}${org}${db}/${path}`
     }
 }
 export const profile = new Profile()
@@ -128,11 +136,9 @@ export function createUpdater<T>(ud: Upd<T>) {
 }
 type Popt = {db?: string,server?: string,org?: string}
 
-function getUrl(x: string, opt?: Popt){
-    return x
-}
+
 export function createPresentation<T>(pt: Pt<T>, opt?: Popt) {
-    const url = getUrl(pt.ptn, opt)
+    const url = profile.getUrl(pt.ptn, opt)
     let prc = profile.present.get(url)??new PresentationCache<T>(url)//
     if (!prc.subscribed) {
         profile.present.set(url, prc)
@@ -142,7 +148,7 @@ export function createPresentation<T>(pt: Pt<T>, opt?: Popt) {
     const fn = async ()=> {
         if (!prc!.value){
             const ws = await profile.getWs(opt)
-            prc.snapshot = await ws.rpc<any>('subscribe', url)
+            prc.snapshot = await ws.rpc<any>('watch', url)
         }
         return pr
     }

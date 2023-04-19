@@ -2,11 +2,12 @@ import './index.css'
 import { JSXElement, Component, createSignal, For, onMount, Show, createResource, Switch, Match, createEffect } from 'solid-js'
 import { render } from 'solid-js/web'
 import { Route, Routes, Router, useNavigate, useParams, hashIntegration, Outlet } from "@solidjs/router"
-import { BackNav, H2, Page, A } from './lib/nav'
+import { BackNav, H2, Page, A, Body, Title } from './lib/nav'
 import { OrError, Rpc } from './lib/socket'
-import { Center, LoginPage, LoginPage2, PasswordPage, RecoveryPage, RegisterPage, token, BlueButton } from './lib/login'
+import {  LoginPage, LoginPage2, PasswordPage, RecoveryPage, RegisterPage, token,  } from './lib/login'
 import { createPresentation, createWs } from './lib/db'
 import { Dbref, jobEntry, dbref, taskEntry, runnable } from './lib/schema'
+import { BlueButton, Center } from './lib/form'
 
 
 function mdate(n: number): string {
@@ -32,7 +33,8 @@ const JobPage: Component = () => {
         const v = log.latest!.value![0]
         return v.name + " " + mdate(v.start)
     }
-    return <Page title={title()} back={`/db/${params['db']}`}>
+    return <Page>
+        <Title back={`/db/${params['db']}`}>{title()}</Title>
         <H2>Tasks</H2>
         <table class='table-auto'>
             <thead><tr><th>Name</th><th>Start</th><th>Duration</th><th>Output</th></tr></thead>
@@ -60,7 +62,8 @@ const DatabasePage: Component = () => {
     const run = (name: string) => { }
     const showLog = (id: string) => navigate(`/db/${params['db']}/log/${id}`)
 
-    return <Page title={params['db']} back={'/'} >
+    return <Page >
+        <Title back={'/'}>{params['db']}</Title>
         <Switch>
             <Match when={runnable2.loading}>
                 Loading
@@ -98,18 +101,20 @@ const DatabasePage: Component = () => {
 const DatabaseList: Component = () => {
     const ws = createWs();
     const [lst] = createPresentation<Dbref>(dbref)
-    return <Show when={!lst.loading}><Page title={"Database"}>
-
+    return <Show when={!lst.loading}><Page >
+        <Title>Home</Title>
+        <Body>
         <table class='table-auto'>
             <For each={lst.latest!.value}>{(e) => <tr><td>
                 <A href={`/db/${e}`}>{e.name}</A></td></tr>}
             </For >
-            <A href='/add'>Add</A> <A class='ml-2' href='/profile'>Profile</A>
+            <A href='/add'>Add</A> <A class='ml-2' href='/profile'>Settings</A>
         </table>
+        </Body>
     </Page></Show>
 }
 const ComingSoon: Component = () => {
-    return <Page title='Coming Soon'>
+    return <Page>
         <Center>
             <H2>Coming Soon</H2>
         </Center>
@@ -133,7 +138,8 @@ function RouteGuard() {
 }
 
 function ProfilePage() {
-    return <Page title='Profile'>
+    return <Page>
+        <Title>Settings</Title>
         <Center>
             <textarea class='w-full' placeholder='Add SSH key'></textarea>
             <BlueButton onClick={() => { }}>Add</BlueButton>

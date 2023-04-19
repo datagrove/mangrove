@@ -6,11 +6,7 @@ import { A as Ar, Outlet, useNavigate } from '@solidjs/router';
 import { setToken, user } from './login';
 
 
-export interface PageProps {
-  title: string
-  back?: string
-  children?: JSXElement
-}
+
 
 export const A: Component<{ href: string, class?: string, children: JSXElement }> = (props) => {
   return <Ar class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`} href={props.href}>{props.children}</Ar>
@@ -18,8 +14,13 @@ export const A: Component<{ href: string, class?: string, children: JSXElement }
 export const P: Component<{ children: JSXElement, class?: string }> = (props) => {
   return <p class={`${props.class ?? ""} mt-2`}  >{props.children}</p>
 }
+ {
 
-export function Page(props: PageProps) {
+}
+export const Title : Component<{
+  back?: string
+  children?: JSXElement
+}> = (props) => {
   const navigate = useNavigate()
   const logOut = () => {
     sessionStorage.removeItem('token');
@@ -28,14 +29,17 @@ export function Page(props: PageProps) {
   }
 
   return <><BackNav back={!!props.back} >
-    {props.title}
-    <button onClick={logOut} class="ml-2 inline-flex items-center px-2 py-1 border border-transparent text-xs leading-4 font-medium rounded-full text-white bg-red-600 hover:bg-red-500 focus:outline-none focus:border-red-700 focus:shadow-outline-red active:bg-red-700 transition ease-in-out duration-150">Sign out</button>
-    
-  </BackNav>
-    <div class='m-2'>
-      {props.children}
-    </div>
-  </>
+  {props.children}
+  <button onClick={logOut} class="ml-2 inline-flex items-center px-2 py-1 border border-transparent text-xs leading-4 font-medium rounded-full text-white bg-red-600 hover:bg-red-500 focus:outline-none focus:border-red-700 focus:shadow-outline-red active:bg-red-700 transition ease-in-out duration-150">Sign out</button>
+    </BackNav></>
+  }
+export const Body : Component<{children: JSXElement}>  = (props)=> {
+  return <div class="m-2">{props.children}</div>
+}
+export const Page : Component<{children: JSXElement}> = (props) =>{
+
+
+  return <>{props.children}</>
 }
 
 interface Tab {

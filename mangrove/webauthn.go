@@ -7,25 +7,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/fsnotify/fsnotify"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 )
 
 type Session struct {
-	SessionSecret string
 	User
-	Token      string
-	data       *webauthn.SessionData
-	mu         sync.Mutex
-	Watch      []*Watch
-	NotifyFile func(handle int64, ev fsnotify.Event)
+	Secret   string
+	data     *webauthn.SessionData
+	mu       sync.Mutex
+	Watch    []*Watch
+	Notifier SessionNotifier
 }
-
+type SessionNotifier interface {
+	Notify(handle int64, data interface{})
+}
 type SessionStatus struct {
 	Token string `json:"token,omitempty"`
 }
@@ -128,7 +127,7 @@ func WebauthnSocket(mg *Server) error {
 		return err
 	}
 	mg.AddApi("sessionid", func(r *Rpcp) (any, error) {
-		return r.Session.Token, nil
+		return r.Session.Secret, nil
 	})
 
 	mg.AddApi("query", func(r *Rpcp) (any, error) {
@@ -144,28 +143,22 @@ func WebauthnSocket(mg *Server) error {
 		}
 		return &outv, nil
 	})
-	// server / organization / database / table-or-directorys
-	mg.AddApi("subscribe", func(r *Rpcp) (any, error) {
+	// server / organization / database / table-or-$ / if $ then $/path
+	mg.AddApi("watch", func(r *Rpcp) (any, error) {
 		var v struct {
-			Topic  string `json:"topic"`
+			Path   string `json:"path"`
 			Filter string `json:"filter"`
 		}
-		var outv struct {
-			handle int64
+		json.Unmarshal(r.Params, &v)
+		return mg.AddWatch(v.Path, r.Session, r.Id, v.Filter)
+	})
+	mg.AddApi("unwatch", func(r *Rpcp) (any, error) {
+		var v struct {
+			Path string `json:"path"`
 		}
 		json.Unmarshal(r.Params, &v)
-		outv.handle = mg.NextHandle()
-
-		parts := strings.Split(v.Topic, "/")
-		if len(parts) < 4 {
-			return nil, fmt.Errorf("invalid topic")
-		}
-		table := parts[3]
-		if table == "$dir" {
-
-		}
-
-		return &outv, nil
+		mg.RemoveWatch(v.Path, r.Session)
+		return nil, nil
 	})
 
 	// allow logging in with recovery codes. After logging in you can add new devices

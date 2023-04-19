@@ -23,56 +23,13 @@ import * as bip39 from 'bip39'
 import * as nacl from 'tweetnacl'
 import { Ws } from "./socket";
 import { createWs } from "./db";
+import { BlueButton, Center, Checkbox, FieldSet, Input, TextDivider, ToggleSection } from "./form";
+import { LoginWith } from "./login_with";
 
-
-
+const [error, setError] = createSignal("")
 export const [token, setToken] = createSignal<string>(localStorage.getItem('token') || '')
 export const [user, setUser] = createSignal<string>(localStorage.getItem('user') || '')
 
-
-
-
-export const Center: Component<{ children: JSXElement }> = (props) => {
-    return <div class="grid place-items-center h-screen">
-        <div class='w-64'>
-            {props.children}
-        </div></div>
-}
-
-export const BlueButton: Component<{ onClick: (e: any) => void, children: JSXElement, disabled?: boolean }> = (props) => {
-    return <button disabled={props.disabled} onClick={props.onClick} class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50">{props.children}</button>
-}
-
-const Input: Component<{
-    name: string,
-    autofocus?: boolean,
-    onInput?: (x: string) => void,
-    onChange?: (x: string) => void,
-    value: string,
-    label: string,
-    placeholder?: string
-}> = (props) => {
-
-    return <div>
-        <label for={props.name} class="block text-sm font-medium leading-6 text-neutral-900 dark:text-white">{props.label}</label>
-        <input value={props.value} autofocus={props.autofocus} onInput={(e) => {
-            if (props.onInput) props.onInput((e.target as HTMLInputElement).value)
-        }} id={props.name} type="text"
-            onchange={(e) => {
-                if (props.onInput)
-                    props.onInput((e.target as HTMLInputElement).value)
-            }} placeholder={props.placeholder} class="px-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-indigo-500 disabled:opacity-50 focus:border-indigo-500" /></div>
-}
-export const TextDivider: Component<{ children: string }> = (props) => {
-    return <div class="relative mt-4">
-        <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-gray-300"></div>
-        </div>
-        <div class="relative flex justify-center text-sm">
-            <span class="bg-white dark:bg-black px-2 text-gray-500">{props.children}</span>
-        </div>
-    </div>
-}
 
 export const PasswordPage = () => {
     const navigate = useNavigate();
@@ -111,16 +68,18 @@ export const RegisterPage = () => {
     const mn = bip39.generateMnemonic()
     const seed = bip39.mnemonicToSeedSync(mn).subarray(0, 32)
     const kp = nacl.sign.keyPair.fromSeed(seed)
+    const [ ruser, setRuser] = createSignal("")
 
     const registerRemote = async () => {
         console.log("registering", mn)
         try {
-            const o = await ws.rpc<any>("register", { id: user(), recovery_key: bufferToHex(kp.publicKey) })
+            const o = await ws.rpc<any>("register", { id: ruser(), recovery_key: bufferToHex(kp.publicKey) })
             const cco = parseCreationOptionsFromJSON(o)
             const cred = await create(cco)
             const reg = await ws.rpc<any>("register2", cred.toJSON())
-            localStorage.setItem('user', user())
+            localStorage.setItem('user', ruser())
             localStorage.setItem("token", reg.token)
+            setUser(ruser())
             navigate("/")
         } catch (e: any) {
             console.log(e)
@@ -134,7 +93,7 @@ export const RegisterPage = () => {
 
     // there is an inherent race here, (two users with the same name), but practically it's not a problem
     const validateUsername = async (x: string) => {
-        setUser(x)
+        setRuser(x)
         if (x.length < 1 || x[0] == "_") {
             setNameOk(false)
             return
@@ -150,21 +109,70 @@ export const RegisterPage = () => {
         setNameOk(ok)
     }
 
+    const [remember,setRemember] = createSignal(false)
+    const [email,setEmail] = createSignal(false)
+    const [phone,setPhone] = createSignal(false)
+    const [password,setPassword] = createSignal(false)
+    const [email2,setEmail2] = createSignal("")
+    const [phone2,setPhone2] = createSignal("")
+    const [password2,setPassword2] = createSignal("")
+    const [pin,setPin] = createSignal(false)
+    const [pin2,setPin2] = createSignal("")
+    const [oauth, setOauth] = createSignal(false)
+    const [totp, setTotp] = createSignal(false)
+
+
     return <Center>
         <form>
             <div class="space-y-6">
-                <Input autofocus name="user" label="User" value={user()} onInput={validateUsername} />
-                <div>{user() ? `${user()} is ${nameOk() ? "" : "not"} available` : ""}</div>
+            <Show when={!isMobile}>
+            <div>You may want to register on your phone, then use that to login on your computer.
+            <ToggleSection header='Tell me more'><P> That would most easily allow you to log into any computer securely as long as you have your phone.</P>
+            </ToggleSection></div>
+        </Show>
+        
+                <Input autofocus name="user" label="User" value='' onInput={validateUsername} />
+                <div>{ruser() ? `${ruser()} is ${nameOk() ? "" : "not"} available` : ""}</div>
 
                 <TextDivider>Secret phrase</TextDivider>
-                <div class='italic'>This is your backup secret phrase. It can be used to regenerate your private key.</div>
+  
                 <P class='text-green-900'>{mn}</P>
-                <div class='italic'>It is not stored anywhere, so if you lose it, you could lose access to your account.</div>
+                <div class='italic'>Write down your secret phrase. It can be used to regenerate your private key. It is not stored anywhere, so if you lose it, you could lose access to your account.</div>
+                <TextDivider>Options</TextDivider>
+                <div ><span >Each recovery option reduces the security of your account but may allow you more convenience. </span>
+                <div class='mt-1'> <A href=''>Tell me more</A> </div></div>
+                <FieldSet>
+                    <Checkbox value={remember} setValue={setRemember} title='Trusted Computer' >Remember your login for 30 days</Checkbox>
+                    <Checkbox value={email} setValue={setEmail} title='Email recovery' >Allow email recovery</Checkbox>
+                    <Show when={email()}>
+                        <Input value={email2()} name="email" placeholder="Email" />
+                    </Show>
+                    <Checkbox value={phone} setValue={setPhone} title='Phone recovery' >Allow phone/text based recovery</Checkbox>
+                    <Show when={phone()}>
+                        <Input value={phone2()} name="phone" placeholder="Phone" />
+                    </Show>
+                    <Checkbox value={password} setValue={setPassword} title='Password Manager' >Allow Password Manger</Checkbox>
+                    <Show when={password()}>
+                        <Input type='password' value={password2()} name="phone" placeholder="Password" />
+                        <Input type='password'  value={password2()} name="phone" placeholder="Confirm" />
+                    </Show>
+                    <Checkbox value={pin} setValue={setPin} title='PIN recovery' >Require PIN for recovery</Checkbox>
+                    <Show when={pin()}>
+                        <Input type='password'  value={pin2()} name="pin" label="PIN" />
+                        <Input type='password'  value={pin2()} name="pin" label="Confirm" />
+                    </Show>
+                    <Checkbox value={totp} setValue={setTotp} title='Phone App recovery' >Store recovery code with Authy, Google Authenticator, or Microsoft Authenticator (Time based code) </Checkbox>
+                    <Show when={totp()}>
+                        <img src='qr.png'></img>
+                    </Show>
+                    <Checkbox value={oauth} setValue={setOauth} title='OAuth login' >Recover account by logging in with Apple, Google, Twitter, or Github</Checkbox>
+                    <Show when={oauth()}>
+                    <LoginWith></LoginWith></Show>
+                </FieldSet>
+                
                 <BlueButton disabled={!nameOk()} onClick={register} >Register</BlueButton>
             </div></form>
-        <Show when={!isMobile}>
-            <P>You may want to register on your phone, then use that to login on your computer.</P><P>That would most easily allow you to log into any computer securely as long as you have your phone.</P>
-        </Show>
+
     </Center>
 }
 
@@ -200,17 +208,16 @@ export const RecoveryPage = () => {
         <BlueButton disabled={!ok()} onClick={register}>Register</BlueButton>
     </form></Center>
 }
-//const [user, setUser] = createSignal(localStorage.getItem('user') ?? "")
-const [error, setError] = createSignal("")
+
 export const LoginPage = () => {
     const ws = createWs();
-    const [error, setError] = createSignal("")
     const navigate = useNavigate();
     const [sessid, setSessid] = createSignal("")
 
     // this might fail if the server doesn't know the user name,  or if their is no credential for that user locally
-    const loginRemote = async (username: string) => {
-
+    const signin = async () => {
+        const username = user()
+        localStorage.setItem('user', user())
         try {
             const o2 = await ws.rpc<any>("login", { username: username })
             const cro = parseRequestOptionsFromJSON(o2)
@@ -221,24 +228,17 @@ export const LoginPage = () => {
             navigate("/")
         } catch (e: any) {
             navigate("/login2")
-            setError(e.message)
+            console.log("error", e)
+            setError(e)
         }
-    }
-
-    const signin = () => {
-        console.log("signin", user())
-        localStorage.setItem('user', user())
-        loginRemote(user())
     }
 
     return <Center>
         <div class="space-y-4">
             <Input name="user" label="User" value={user()} onInput={setUser} />
-            <BlueButton onClick={() => signin()} >Sign in</BlueButton>
+            <BlueButton onClick={signin} >Sign in</BlueButton>
             <div><A href="/login2">More options</A></div>
-        </div>
-        
-    </Center>
+        </div></Center>
 }
 
 // skip if we have a token to stay logged in
@@ -281,20 +281,23 @@ export const LoginPage2 = () => {
     }
 
     return <Center>
+        <Show when={error()}>
+            <P class='text-red-500'>{error()}</P>
+        </Show> 
         <div class="space-y-6">
             <Input name="user" label="User" value={user()} onInput={setUser} />
-            <P>{error()}</P>
             <BlueButton onClick={() => signin()} >Sign in</BlueButton>
         </div>
         <P><A href="/register">Register New Account</A></P>
         <P><A href="/recover">Login with recovery phrase</A></P>
-
-        <TextDivider>Or login with phone browser</TextDivider>
-        <Show when={sessid()}>
+        <TextDivider>Login with phone browser</TextDivider>
+        
         <img class='my-8' alt='' src='qr.png' />
         <div>Scan with your phone camera app and proceed to website to log in. Logging in with your phone is an easy and secure way to keep your passcode available</div>
         <P><button  class='text-indigo-600 hover:text-blue-500 hover:underline' onClick={copyLink}>Copy link to clipboard</button> {copied()?'✅':''}</P>
-        </Show>
+    
+
+        {/* The list of options here depends on the account*/}
     </Center>
 }
 

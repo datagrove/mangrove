@@ -96,49 +96,111 @@ type Server struct {
 	Cert string
 	Key  string
 
-	Api     map[string]Rpcf
-	mu      sync.Mutex
-	Session map[string]*Session
+	Api       map[string]Rpcf
+	muSession sync.Mutex
+	Session   map[string]*Session
 
 	Job    map[string]*Job
 	Handle int64
 
 	muwatch sync.Mutex
 	Watch   map[string]*Watch
+	Watcher *fsnotify.Watcher
 }
 type Watch struct {
-	mu      sync.Mutex
-	Watcher *fsnotify.Watcher
+	mu sync.Mutex
+
 	Path    string
-	Session map[*Session]bool
+	Session map[*Session]int64
 	Dir     map[string]fs.DirEntry
+}
+type WatchState struct {
+	Dir []FileState `json:"dir,omitempty"`
+}
+type FileState struct {
+	Name    string `json:"name,omitempty"`
+	IsDir   bool   `json:"is_dir,omitempty"`
+	Size    int64  `json:"size,omitempty"`
+	ModTime int64  `json:"mod_time,omitempty"`
+}
+
+func (w *Watch) State() (*WatchState, error) {
+	r := &WatchState{
+		Dir: []FileState{},
+	}
+	for _, v := range w.Dir {
+		fi, e := v.Info()
+		if e != nil {
+			continue
+		}
+		r.Dir = append(r.Dir, FileState{
+			Name:    v.Name(),
+			IsDir:   v.IsDir(),
+			Size:    fi.Size(),
+			ModTime: fi.ModTime().Unix(),
+		})
+	}
+
+	return r, nil
+}
+func (w *Watch) Notify(ev fsnotify.Event) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	// notify the sessions
+	for s, key := range w.Session {
+		var j struct {
+			Handle int64  `json:"handle,omitempty"`
+			Path   string `json:"path,omitempty"`
+			Op     string `json:"op,omitempty"`
+		}
+		j.Handle = key
+		j.Path = ev.Name
+		j.Op = ev.Op.String()
+		s.Notifier.Notify(key, &j)
+	}
 }
 
 func (s *Server) RemoveSession(sess *Session) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.Session, sess.SessionSecret)
+	s.muSession.Lock()
+	defer s.muSession.Unlock()
+	delete(s.Session, sess.Secret)
+	for _, w := range sess.Watch {
+		s.RemoveWatch(w.Path, sess)
+	}
 
 }
-func (s *Server) RemoveWatch(watchPath string, session *Session) {
+func (s *Server) GetWatch(watchPath string) (*Watch, bool) {
 	s.muwatch.Lock()
 	defer s.muwatch.Unlock()
 	w, ok := s.Watch[watchPath]
+	if !ok {
+		return nil, false
+	}
+	return w, true
+}
+func (s *Server) RemoveWatch(watchPath string, session *Session) {
+	w, ok := s.GetWatch(watchPath)
+	if !ok {
+		return
+	}
+	defer w.mu.Unlock()
 	if ok {
 		delete(w.Session, session)
 		if len(w.Session) == 0 {
-			w.Watcher.Close()
+			s.Watcher.Remove(watchPath)
 			delete(s.Watch, watchPath)
 		}
 	}
 }
-func (s *Server) AddWatch(watchPath string, session *Session) (*Watch, error) {
+func (s *Server) AddWatch(watchPath string, session *Session, handle int64, filter string) (*WatchState, error) {
 	s.muwatch.Lock()
 	defer s.muwatch.Unlock()
 	w, ok := s.Watch[watchPath]
 	if ok {
-		w.Session[session] = true
-		return w, nil
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		w.Session[session] = handle
+		return w.State()
 	}
 	wd, e := os.ReadDir(watchPath)
 	if e != nil {
@@ -149,42 +211,44 @@ func (s *Server) AddWatch(watchPath string, session *Session) (*Watch, error) {
 		wdm[v.Name()] = v
 	}
 
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return nil, err
+	if s.Watcher == nil {
+		s.Watcher, e = fsnotify.NewWatcher()
+		if e != nil {
+			return nil, e
+		}
+
+		// use goroutine to start the watcher
+		go func() {
+			for {
+				select {
+				case event := <-s.Watcher.Events:
+					// monitor only for write events
+					if event.Op&fsnotify.Write == fsnotify.Write {
+						w, ok := s.GetWatch(watchPath)
+						if ok {
+							w.Notify(event)
+						}
+					}
+				case err := <-s.Watcher.Errors:
+					log.Println("Error:", err)
+				}
+			}
+		}()
+	}
+	e = s.Watcher.Add(watchPath)
+	if e != nil {
+		log.Print(e)
 	}
 	w = &Watch{
 		mu:      sync.Mutex{},
-		Watcher: watcher,
 		Path:    watchPath,
-		Session: map[*Session]bool{},
+		Session: map[*Session]int64{},
 		Dir:     wdm,
 	}
+
 	s.Watch[watchPath] = w
 
-	done := make(chan bool)
-	// use goroutine to start the watcher
-	go func() {
-		for {
-			select {
-			case event := <-watcher.Events:
-				// monitor only for write events
-				if event.Op&fsnotify.Write == fsnotify.Write {
-					fmt.Println("Modified file:", event.Name)
-				}
-			case err := <-watcher.Errors:
-				log.Println("Error:", err)
-			}
-		}
-	}()
-
-	// provide the file name along with path to be watched
-	err = watcher.Add("file.txt")
-	if err != nil {
-		log.Fatal(err)
-	}
-	<-done
-	return w, nil
+	return w.State()
 }
 
 func (s *Server) NextHandle() int64 {
@@ -200,6 +264,25 @@ type Socket struct {
 	*Session
 	conn *websocket.Conn
 	Svr  *Server
+}
+
+var _ SessionNotifier = (*Socket)(nil)
+
+func (s *Socket) Notify(handle int64, data interface{}) {
+	var j struct {
+		Handle int64       `json:"handle,omitempty"`
+		Data   interface{} `json:"data,omitempty"`
+	}
+	j.Handle = handle
+	j.Data = data
+	b, e := json.Marshal(&j)
+	if e != nil {
+		log.Print(e)
+	}
+	e = s.conn.WriteMessage(websocket.BinaryMessage, b)
+	if e != nil {
+		log.Print(e)
+	}
 }
 
 func (s *Server) AddApi(name string, f Rpcf) {
@@ -222,23 +305,29 @@ func (s *Server) IsAvailableUsername(name string) bool {
 }
 
 func (s *Server) GetSession(id string) (*Session, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.muSession.Lock()
+	defer s.muSession.Unlock()
 	r, ok := s.Session[id]
 	return r, ok
 }
-func (s *Server) NewSession() (*Session, error) {
-	token, e := GenerateRandomString(32)
+
+func (s *Server) NewSession(notifier SessionNotifier) (*Session, error) {
+	secret, e := GenerateRandomString(32)
 	if e != nil {
 		return nil, e
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.muSession.Lock()
+	defer s.muSession.Unlock()
 
 	r := &Session{
-		Token: token,
+		User:     User{},
+		Secret:   secret,
+		data:     nil,
+		mu:       sync.Mutex{},
+		Watch:    []*Watch{},
+		Notifier: notifier,
 	}
-	s.Session[token] = r
+	s.Session[secret] = r
 	return r, nil
 }
 
@@ -274,13 +363,14 @@ func (s *Server) LoadUser(name string, u *User) error {
 }
 func (s *Server) NewUser(name, recoveryKey string) (*User, error) {
 	udir := path.Join(s.Home, "user")
+	os.MkdirAll(udir, 0700)
 	target := path.Join(udir, name)
 
 	file, errs := os.CreateTemp(udir, "temp-*.txt")
-	src := file.Name()
 	if errs != nil {
 		return nil, errs
 	}
+	src := file.Name()
 	fmt.Fprintf(file, "{}")
 	file.Close()
 
@@ -578,27 +668,29 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		Handler:   handler,
 	})
 	svr := &Server{
-		Config:  opt,
-		Mux:     mux,
-		Home:    dir,
-		Ws:      ws,
-		Cert:    cert,
-		Key:     key,
-		Api:     map[string]Rpcf{},
-		mu:      sync.Mutex{},
-		Session: map[string]*Session{},
-		Job:     map[string]*Job{},
+		Config:    opt,
+		Mux:       mux,
+		Home:      dir,
+		Ws:        ws,
+		Cert:      cert,
+		Key:       key,
+		Api:       map[string]Rpcf{},
+		muSession: sync.Mutex{},
+		Session:   map[string]*Session{},
+		Job:       map[string]*Job{},
 	}
 
 	onWebsocket := func(w http.ResponseWriter, r *http.Request) {
-		sv, e := svr.NewSession()
+		sock := &Socket{
+			Svr:     svr,
+			Session: nil,
+		}
+		sv, e := svr.NewSession(sock)
 		if e != nil {
 			return
 		}
-		sock := &Socket{
-			Svr:     svr,
-			Session: sv,
-		}
+		sock.Session = sv
+
 		u := websocket.NewUpgrader()
 		u.CheckOrigin = func(r *http.Request) bool { return true }
 		u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
