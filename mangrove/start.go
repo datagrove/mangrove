@@ -403,7 +403,7 @@ type Task struct {
 func (c *Context) TaskLog() *Task {
 	n := atomic.AddInt64(&c.NextTask, 1)
 	a := path.Join(c.Artifacts, fmt.Sprintf("%d", n))
-	h, e := os.Create(path.Join(c.Artifacts, "log%d.jsonl"))
+	h, e := os.Create(path.Join(c.Artifacts, fmt.Sprintf("log%d.jsonl", n)))
 	if e != nil {
 		// we can't continue if we can't create a log file
 		log.Fatal(e)
@@ -425,7 +425,7 @@ func NewContext(home string, container string) (*Context, error) {
 	if e != nil {
 		return nil, e
 	}
-	artifacts := path.Join(home, "log", uuid.NewString())
+	artifacts := path.Join(container, "log", uuid.NewString())
 	os.MkdirAll(artifacts, 0700)
 
 	return &Context{

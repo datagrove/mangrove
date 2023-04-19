@@ -91,8 +91,7 @@ func PutFiles(ctx *Context, cn *SshConnection, fromdir string, todir string) err
 		}
 	}
 
-	ArchiveFiles(fromdir)
-	return nil
+	return ArchiveFiles(fromdir)
 }
 func ArchiveFiles(dir string) error {
 	fs, e := os.ReadDir(dir)
@@ -100,9 +99,10 @@ func ArchiveFiles(dir string) error {
 		return e
 	}
 	for _, f := range fs {
+		src := path.Join(dir, f.Name())
 		dest := path.Join(dir, "old", path.Base(f.Name()))
 		os.Remove(dest)
-		e := os.Rename(f.Name(), dest)
+		e := os.Rename(src, dest)
 		if e != nil {
 			return e
 		}
