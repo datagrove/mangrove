@@ -49,6 +49,7 @@ export class Ws {
 
             //const data = JSON.parse(txt)
             const data = decode(new Uint8Array(b))
+            console.log("decode",data)
             if (data.id) {
                 if (data.id < 0) {
                     const r = this.listen.get(data.id)

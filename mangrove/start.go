@@ -306,7 +306,7 @@ func (s *Server) AddApi(name string, f Rpcf) {
 
 type Rpc struct {
 	Method string          `json:"method"`
-	Params json.RawMessage `json:"params"`
+	Params cbor.RawMessage `json:"params"`
 	Id     int64           `json:"id"`
 }
 type Rpcp struct {
@@ -315,7 +315,8 @@ type Rpcp struct {
 }
 
 func (s *Server) IsAvailableUsername(name string) bool {
-	_, e := os.Stat(path.Join(s.Home, "user", name))
+	d := path.Join(s.Home, "user", name, ".config.json")
+	_, e := os.Stat(d)
 	return e != nil
 }
 
@@ -347,11 +348,13 @@ func (s *Server) NewSession(notifier SessionNotifier) (*Session, error) {
 }
 
 func (s *Server) SaveUser(u *User) error {
-	b, e := sockMarshall(u)
+	b, e := json.MarshalIndent(u, "", " ")
 	if e != nil {
 		return e
 	}
-	return os.WriteFile(path.Join(s.Home, "user", u.ID), b, 0600)
+	d := path.Join(s.Home, "user", u.ID, ".config.json")
+	os.MkdirAll(path.Dir(d), 0700)
+	return os.WriteFile(d, b, 0600)
 }
 func (s *Server) RecoverUser(id string, sess *Session, signature string) error {
 	var signedMessage []byte
@@ -377,13 +380,12 @@ func (s *Server) LoadUser(name string, u *User) error {
 	return json.Unmarshal(b, u)
 }
 func (s *Server) NewUser(name, recoveryKey string) (*User, error) {
-	udir := path.Join(s.Home, "user")
-	target := path.Join(udir, name)
+	target := path.Join(s.Home, "user", name)
 	e := os.MkdirAll(target, 0700)
 	if e != nil {
 		return nil, e
 	}
-	e = os.WriteFile(path.Join(target, ".config"), []byte(""), 0600)
+	e = os.WriteFile(path.Join(target, ".config.json"), []byte(""), 0600)
 	if e != nil {
 		return nil, e
 	}
@@ -733,8 +735,9 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 				}
 				o.Id = rpc.Id
 				o.Result = rx
+				bs, _ := json.MarshalIndent(o, "", "  ")
+				log.Printf("sending %s", string(bs))
 				b, _ := sockMarshall(&o)
-				log.Printf("sending %s", string(b))
 				sock.conn.WriteMessage(websocket.BinaryMessage, b)
 			}
 			sock.conn.SetReadDeadline(time.Now().Add(nbhttp.DefaultKeepaliveTime))
