@@ -12,6 +12,19 @@ export interface Rpc<T> {
 //     onmessage(fn: (e: string)=>void) : void
 // }
 
+export interface Watchable {
+    handle: number
+}
+
+export interface ChangeRow<T> {
+    op: 0|1|2
+    value: Partial<T>  // must contain key
+}
+export interface UpdateRow<T> {
+    handle: number
+    updates: ChangeRow<T>[]
+}
+
 type NotifyHandler = (r: Rpc<any>) => void
 type MockHandler = (args: any) => any
 // allow (mock) filter for backend server
@@ -35,19 +48,28 @@ export class Ws {
             const txt = await e.data.text()
             const data = JSON.parse(txt)
             if (data.id) {
-                const r = this.reply.get(data.id)
-                if (r) {
-                    this.reply.delete(data.id)
-                    if (data.result) {
-                        console.log("resolved", data.result)
-                        r[0](data.result)
+                if (data.id < 0) {
+                    const r = this.listen.get(data.id)
+                    if (r) {
+                        r(data.result)
                     } else {
-                        console.log("error", data.error)
-                        r[1](data.error)
+                        console.log("no listener", data.id)
                     }
-                    return
-                } else {
-                    console.log("no awaiter", data.id)
+                } else  {
+                    const r = this.reply.get(data.id)
+                    if (r) {
+                        this.reply.delete(data.id)
+                        if (data.result) {
+                            console.log("resolved", data.result)
+                            r[0](data.result)
+                        } else {
+                            console.log("error", data.error)
+                            r[1](data.error)
+                        }
+                        return
+                    } else {
+                        console.log("no awaiter", data.id)
+                    }
                 }
             } else {
                 console.log("no id")
@@ -68,6 +90,16 @@ export class Ws {
 
     serve(method: string, fn: (arg: any) => any) {
         this.mock.set(method, fn)
+    }
+
+    listen = new Map<number, (r: UpdateRow<any>[]) => void>()
+    async subscribe<R,A>(method: string, onupdate: (r: UpdateRow<A>[])=>void, params?: any){
+        const o = await this.rpc<Watchable>(method, params)
+        this.listen.set(o.handle, onupdate)
+        return o
+    }
+    release(handle: number) {
+        this.listen.delete(handle)
     }
 
     // why not just return the promise?
@@ -112,3 +144,21 @@ export interface OrError<T> {
     error?: string
     value?: T
 }
+export const ws: Ws = await Ws.connect('ws://localhost:8088/wss')
+const wsCache = new Map<string, Ws>()
+export function getWs(url: string): Ws {
+    const x = new URL(url)
+    const key = `${x.host}:${x.port}`
+    let r = wsCache.get(key)
+    if (!r) {
+        r = new Ws(key)
+        wsCache.set(key, r)
+        return r
+    }
+    return r
+}
+export class Profile {
+    username = ""
+    server = ""
+}
+export const profile = new Profile()

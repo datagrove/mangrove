@@ -1,14 +1,14 @@
 import './index.css'
-import { JSXElement, Component, createSignal, For, onMount, Show, createResource, Switch, Match, createEffect } from 'solid-js'
+import { JSXElement, Component, createSignal, For, onMount, Show, createResource, Switch, Match, createEffect, Accessor } from 'solid-js'
 import { render } from 'solid-js/web'
 import { Route, Routes, Router, useNavigate, useParams, hashIntegration, Outlet } from "@solidjs/router"
 import { BackNav, H2, Page, A, Body, Title } from './lib/nav'
-import { OrError, Rpc } from './lib/socket'
+import { OrError, Rpc, profile } from './lib/socket'
 import { LoginPage, LoginPage2, PasswordPage, RecoveryPage, RegisterPage, token, } from './lib/login'
-import { createPresentation } from './lib/db'
-import { Dbref, jobEntry, dbref, taskEntry, runnable } from './lib/schema'
+import { Datagrove, Presentation, Pt, createPresentation, rows } from './lib/db'
+import { Dbref, dbref, taskEntry,  } from './lib/schema'
 import { BlueButton, Center } from './lib/form'
-
+import { Folder, createWatch, entries } from './lib/dbf'
 
 function mdate(n: number): string {
     return new Date(n).toLocaleDateString('en-us', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
@@ -18,27 +18,52 @@ const Button = (props: { children: JSXElement, onClick: () => void }) => {
     return <button class='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'>{props.children}</button>
 }
 
+// isolate this in case we change the api
+// queries need a return row and a arguments
+// in some cases the arguments can be complex.
+function createQuery<R,A={}>(t: Pt<R,A>,a?:A) {
+    // the db in params needs to be org.db, maybe it should be server.org.db
+    const params = useParams()
+    // $ indicates a schema.table
+    return createPresentation(t, params['schema'],a)
+}
+
+interface JobEntry extends File {
+    path: string
+    next: number
+    recent: number
+    recentLog: string
+}
+const createJobView = () => {
+    return createQuery<JobEntry>({table: 'job'})
+}
+const createDatabaseView = () => {
+    return createWatch('/db')
+}
+function createTuple<T>(t: Pt<T>, key: Partial<T>) {
+    // the db in params needs to be org.db, maybe it should be server.org.db
+    const params = useParams()
+
+    // $ indicates a schema.table
+    return createPresentation(t, params['schema'])
+}
+// the job page should show tasks that are running, and tasks that have run
 const JobPage: Component = () => {
     const params = useParams()
-    // const getLog = async (s: string) => {
-    //     return {} as JobEntry  // await cn.get<JobEntry>('log')
+    const [log] = createQuery(taskEntry)
+    const title = "" // some kind of create tuple
+    // const title = (): string => {
+    //     if (log().loading) return "Loading"
+    //     if (log().error) return log().error
+    //     const v = log().value![0]
+    //     return v.name + " " + mdate(v.start)
     // }
-    // const [log2] = createResource(() => params['id'], getLog)
-
-    const [log] = createPresentation(jobEntry, { db: params['db'] })
-    const [task] = createPresentation(taskEntry, { db: params['db'] })
-    const title = (): string => {
-        if (log.loading) return "Loading"
-        if (log.error) return log.error
-        const v = log.latest!.value![0]
-        return v.name + " " + mdate(v.start)
-    }
     return <Page>
-        <Title back={`/db/${params['db']}`}>{title()}</Title>
+        <Title back={`/db/${params['db']}`}>{title}</Title>
         <H2>Tasks</H2>
         <table class='table-auto'>
             <thead><tr><th>Name</th><th>Start</th><th>Duration</th><th>Output</th></tr></thead>
-            <For each={log.latest!.value}>{task => <tr>
+            <For each={rows(log())}>{task => <tr>
                 <td class='border px-8 py-4'>{task.name}</td>
                 <td class='border px-8 py-4'>{mdate(task.start)}</td>
                 <td class='border px-8 py-4'>{(task.end - task.end) / 1000}</td>
@@ -49,13 +74,14 @@ const JobPage: Component = () => {
 // we should show primary a list of logs, and maybe a drop down with jobs to run
 // we should show a list of jobs that will be run on a timer
 // we should show a list of jobs that have been run
+// a Database page is mostly a view of the database file system
+
+// the jobview has to be a virtual table because of the calculation of the next job
+// eventually we could use an anonymous iframe to do this calcuation, but for custom stuff golang might be easier.
 const DatabasePage: Component = () => {
     const params = useParams()
-    // const getDash = async (s: string) => {
-    //     return await ws.rpc<Dash>('dash', { db: s })
-    // }
-    const [runnable2] = createPresentation(runnable, { db: params['db'] })
-    const [jobs] = createPresentation(jobEntry, { db: params['db'] })
+    // we need a sort signal? parameters of any kind? return these as the setter?
+    const [scripts] = createJobView()
 
     const navigate = useNavigate()
     const run = (name: string) => { }
@@ -64,17 +90,17 @@ const DatabasePage: Component = () => {
     return <Page >
         <Title back={'/'}>{params['db']}</Title>
         <Switch>
-            <Match when={runnable2.loading}>
+            <Match when={scripts().loading}>
                 Loading
             </Match>
-            <Match when={runnable2.error}>
-                {runnable2.error}
+            <Match when={scripts().error}>
+                {scripts().error}
             </Match>
             <Match when={true} >
                 <H2>Jobs</H2>
                 <table class='table-auto'>
                     <thead><tr><th>Name</th><th>Next Run</th><th></th></tr></thead>
-                    <For each={runnable2.latest!.value}>{(e, i) => {
+                    <For each={rows(scripts())}>{(e, i) => {
                         return <tr class='hover:bg-neutral-500' >
                             <td class='border px-8 py-4'>{e.name}</td>
                             <td class='border px-8 py-4 w-64'>{e.next ? mdate(e.next) : ""}</td>
@@ -83,27 +109,18 @@ const DatabasePage: Component = () => {
                     }}</For>
                 </table>
 
-                <H2>Recent</H2>
-                <table class='table-auto'>
-                    <thead><tr><th>Start</th><th>End</th><th>Name</th><th>Summary</th></tr></thead>
-                    <For each={jobs.latest!.value}>{(e) => {
-                        return <tr class='hover:bg-neutral-500' onClick={() => showLog(e.id)}>
-                            <td class='border px-8 py-4'>{mdate(e.start)}</td>
-                            <td class='border px-8 py-4'>{mdate(e.end)}</td>
-                            <td class='border px-8 py-4'>{e.name}</td>
-                            <td class='border px-8 py-4'>{e.summary}</td></tr>
-                    }}</For>
-                </table></Match></Switch>
+        </Match></Switch>
     </Page>
 }
 
+// dbref is a table in ~ database, or should it be a folder of links? por que no los dos?
 const DatabaseList: Component = () => {
-    const [lst] = createPresentation<Dbref>(dbref)
-    return <Show when={!lst.loading}><Page >
+    const [lst] = createDatabaseView()
+    return <Show when={!lst().loading}><Page >
         <Title>Home</Title>
         <Body>
             <table class='table-auto'>
-                <For each={lst.latest!.value}>{(e) => <tr><td>
+                <For each={entries(lst())}>{(e) => <tr><td>
                     <A href={`/db/${e}`}>{e.name}</A></td></tr>}
                 </For >
                 <A href='/add'>Add</A> <A class='ml-2' href='/profile'>Settings</A>
@@ -147,6 +164,7 @@ function ProfilePage() {
 function App() {
     //const [items] =  createResource(props.fetch)
     return <>
+        <Datagrove>
         <Routes>
 
             <Route path="/login" component={LoginPage} />
@@ -160,7 +178,7 @@ function App() {
                 <Route path="/db/:db" component={DatabasePage} />
                 <Route path="/db/:db/log/:id" component={JobPage} />
             </Route>
-        </Routes></>
+        </Routes></Datagrove></>
 }
 
 
