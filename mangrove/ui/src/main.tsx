@@ -4,8 +4,8 @@ import { render } from 'solid-js/web'
 import { Route, Routes, Router, useNavigate, useParams, hashIntegration, Outlet } from "@solidjs/router"
 import { BackNav, H2, Page, A, Body, Title } from './lib/nav'
 import { OrError, Rpc } from './lib/socket'
-import {  LoginPage, LoginPage2, PasswordPage, RecoveryPage, RegisterPage, token,  } from './lib/login'
-import { createPresentation, createWs } from './lib/db'
+import { LoginPage, LoginPage2, PasswordPage, RecoveryPage, RegisterPage, token, } from './lib/login'
+import { createPresentation } from './lib/db'
 import { Dbref, jobEntry, dbref, taskEntry, runnable } from './lib/schema'
 import { BlueButton, Center } from './lib/form'
 
@@ -50,7 +50,6 @@ const JobPage: Component = () => {
 // we should show a list of jobs that will be run on a timer
 // we should show a list of jobs that have been run
 const DatabasePage: Component = () => {
-    const ws = createWs();
     const params = useParams()
     // const getDash = async (s: string) => {
     //     return await ws.rpc<Dash>('dash', { db: s })
@@ -99,17 +98,16 @@ const DatabasePage: Component = () => {
 }
 
 const DatabaseList: Component = () => {
-    const ws = createWs();
     const [lst] = createPresentation<Dbref>(dbref)
     return <Show when={!lst.loading}><Page >
         <Title>Home</Title>
         <Body>
-        <table class='table-auto'>
-            <For each={lst.latest!.value}>{(e) => <tr><td>
-                <A href={`/db/${e}`}>{e.name}</A></td></tr>}
-            </For >
-            <A href='/add'>Add</A> <A class='ml-2' href='/profile'>Settings</A>
-        </table>
+            <table class='table-auto'>
+                <For each={lst.latest!.value}>{(e) => <tr><td>
+                    <A href={`/db/${e}`}>{e.name}</A></td></tr>}
+                </For >
+                <A href='/add'>Add</A> <A class='ml-2' href='/profile'>Settings</A>
+            </table>
         </Body>
     </Page></Show>
 }

@@ -3,10 +3,14 @@ package mangrove
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
+
+	cp "github.com/otiai10/copy"
 )
 
 // Context is for a single container store
@@ -62,3 +66,101 @@ func FilesDo(ctx *Context, dir string, fn func(ctx *Context, path string) error)
 	}
 	return nil
 }
+
+func (s *Server) Mv(from, to string, sess *Session) error {
+	from, e := s.Authorize(&sess.User, from, Read)
+	if e != nil {
+		return e
+	}
+	to, e = s.Authorize(&sess.User, to, Write)
+	if e != nil {
+		return e
+	}
+
+	return nil
+}
+
+func (s *Server) Cp(from, to string, sess *Session) error {
+	from, e := s.Authorize(&sess.User, from, Read)
+	if e != nil {
+		return e
+	}
+	to, e = s.Authorize(&sess.User, to, Write)
+	if e != nil {
+		return e
+	}
+	cp.Copy(from, to)
+	return nil
+}
+
+func (s *Server) Mkdir(to string, sess *Session) error {
+	to, e := s.Authorize(&sess.User, to, Write)
+	if e != nil {
+		return e
+	}
+
+	return os.Mkdir(to, 0755)
+}
+func (s *Server) Rm(to string, sess *Session) error {
+
+	to, e := s.Authorize(&sess.User, to, Write)
+	if e != nil {
+		return e
+	}
+	return os.RemoveAll(to)
+}
+
+func (s *Server) Upload(to string, data []byte, sess *Session) error {
+	to, e := s.Authorize(&sess.User, to, Write)
+	if e != nil {
+		return e
+	}
+	return os.WriteFile(to, data, 0644)
+}
+func (s *Server) Download(to string, sess *Session) ([]byte, error) {
+	to, e := s.Authorize(&sess.User, to, Read)
+	if e != nil {
+		return nil, e
+	}
+	return os.ReadFile(to)
+}
+func (s *Server) Exec(to string, sess *Session) error {
+	to, e := s.Authorize(&sess.User, to, Exec)
+	if e != nil {
+		return e
+	}
+	// the first line of the file should tell us how to execute it.
+	f, e := os.ReadFile(to)
+	if e != nil {
+		return e
+	}
+	ln := strings.Split(string(f), "\n")
+	fexec, ok := s.GetRuntime(ln[0])
+	if ok {
+		ctx, e := NewContext(s.Home, path.Dir(to))
+		if e != nil {
+			return e
+		}
+		return fexec(ctx, string(f))
+	} else {
+		return fmt.Errorf("no runtime for %s", ln[0])
+	}
+}
+
+type Runtime func(*Context, string) error
+
+func (s *Server) GetRuntime(name string) (Runtime, bool) {
+	f, ok := s.Runtime[name]
+	return f, ok
+}
+
+func (s *Server) Authorize(u *User, to string, priv int) (string, error) {
+	return path.Join(u.Home, to), nil
+}
+
+// privileges on folders
+const (
+	Read  = 1
+	Write = 2
+	Exec  = 4
+)

@@ -36,6 +36,7 @@ type User struct {
 	Icon        string                `json:"icon,omitempty"`
 	Credentials []webauthn.Credential `json:"credentials,omitempty"`
 	RecoveryKey string                `json:"recovery_key,omitempty"`
+	Home        string
 }
 
 func (u *User) WebAuthnID() []byte {
@@ -152,6 +153,57 @@ func WebauthnSocket(mg *Server) error {
 		json.Unmarshal(r.Params, &v)
 		return mg.AddWatch(v.Path, r.Session, r.Id, v.Filter)
 	})
+	mg.AddApi("mkdir", func(r *Rpcp) (any, error) {
+		var v struct {
+			Path string `json:"path"`
+		}
+		json.Unmarshal(r.Params, &v)
+		return nil, mg.Mkdir(v.Path, r.Session)
+	})
+	mg.AddApi("rm", func(r *Rpcp) (any, error) {
+		var v struct {
+			Path string `json:"path"`
+		}
+		json.Unmarshal(r.Params, &v)
+
+		return nil, mg.Rm(v.Path, r.Session)
+	})
+	mg.AddApi("mv", func(r *Rpcp) (any, error) {
+		var v struct {
+			From string `json:"from"`
+			To   string `json:"to"`
+		}
+		json.Unmarshal(r.Params, &v)
+
+		return nil, mg.Mv(v.From, v.To, r.Session)
+
+	})
+	mg.AddApi("cp", func(r *Rpcp) (any, error) {
+		var v struct {
+			From string `json:"from"`
+
+			To string `json:"to"`
+		}
+		json.Unmarshal(r.Params, &v)
+		return nil, mg.Cp(v.From, v.To, r.Session)
+	})
+	mg.AddApi("upload", func(r *Rpcp) (any, error) {
+		var v struct {
+			Path string `json:"path"`
+			Data []byte `json:"data"`
+		}
+		json.Unmarshal(r.Params, &v)
+		return nil, mg.Upload(v.Path, v.Data, r.Session)
+	})
+	mg.AddApi("download", func(r *Rpcp) (any, error) {
+		var v struct {
+			Path string `json:"path"`
+		}
+		json.Unmarshal(r.Params, &v)
+
+		return mg.Download(v.Path, r.Session)
+	})
+
 	mg.AddApi("unwatch", func(r *Rpcp) (any, error) {
 		var v struct {
 			Path string `json:"path"`
@@ -173,16 +225,15 @@ func WebauthnSocket(mg *Server) error {
 	// how should we safely confirm the recovery code? It's basically a password.
 
 	// add is mostly the same as register?
-	mg.AddApi("add", func(r *Rpcp) (any, error) {
+	mg.AddApi("addCredential", func(r *Rpcp) (any, error) {
 		options, session, err := web.BeginRegistration(&r.User)
 		if err != nil {
 			return nil, err
 		}
 		r.Session.data = session
 		return options, nil
-		return nil, nil
 	})
-	mg.AddApi("remove", func(r *Rpcp) (any, error) {
+	mg.AddApi("removeCredential", func(r *Rpcp) (any, error) {
 		r.User.Credentials = Filter(r.User.Credentials, func(e webauthn.Credential) bool {
 			return string(e.ID) == string(r.Params)
 		})

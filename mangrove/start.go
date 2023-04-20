@@ -106,6 +106,8 @@ type Server struct {
 	muwatch sync.Mutex
 	Watch   map[string]*Watch
 	Watcher *fsnotify.Watcher
+
+	Runtime map[string]Runtime
 }
 type Watch struct {
 	mu sync.Mutex
@@ -258,6 +260,12 @@ func (s *Server) NextHandle() int64 {
 func (s *Server) AddJob(job *Job) {
 	s.Job[job.Name] = job
 }
+func (s *Server) AddTemplates(fs embed.FS) {
+
+}
+func (s *Server) AddScript(path string, fn func(*Context, string) error) {
+	s.Runtime[path] = fn
+}
 
 type Socket struct {
 	// session is separate here because it might be needed in a http handler
@@ -363,18 +371,12 @@ func (s *Server) LoadUser(name string, u *User) error {
 }
 func (s *Server) NewUser(name, recoveryKey string) (*User, error) {
 	udir := path.Join(s.Home, "user")
-	os.MkdirAll(udir, 0700)
 	target := path.Join(udir, name)
-
-	file, errs := os.CreateTemp(udir, "temp-*.txt")
-	if errs != nil {
-		return nil, errs
+	e := os.MkdirAll(target, 0700)
+	if e != nil {
+		return nil, e
 	}
-	src := file.Name()
-	fmt.Fprintf(file, "{}")
-	file.Close()
-
-	e := os.Rename(src, target)
+	e = os.WriteFile(path.Join(target, ".config"), []byte(""), 0600)
 	if e != nil {
 		return nil, e
 	}
@@ -678,6 +680,11 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		muSession: sync.Mutex{},
 		Session:   map[string]*Session{},
 		Job:       map[string]*Job{},
+		Handle:    0,
+		muwatch:   sync.Mutex{},
+		Watch:     map[string]*Watch{},
+		Watcher:   &fsnotify.Watcher{},
+		Runtime:   map[string]Runtime{},
 	}
 
 	onWebsocket := func(w http.ResponseWriter, r *http.Request) {

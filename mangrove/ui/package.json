@@ -26,6 +26,7 @@
     "buffer": "^6.0.3",
     "highlight.js": "^11.7.0",
     "serve-static": "^1.15.0",
+    "solid-headless": "^0.13.1",
     "solid-heroicons": "^3.1.1",
     "solid-js": "^1.7.0",
     "tweetnacl": "^1.0.3"
