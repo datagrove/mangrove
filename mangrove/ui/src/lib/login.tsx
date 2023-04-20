@@ -11,7 +11,8 @@ import {
 import { type PublicKeyCredentialDescriptorJSON } from "@github/webauthn-json";
 import { RegistrationPublicKeyCredential } from "@github/webauthn-json/browser-ponyfill"
 import type { RegistrationResponseExtendedJSON } from "@github/webauthn-json/browser-ponyfill/extended"
-import { A,P } from './nav'
+import { A, P } from './nav'
+import { createWs } from "./socket";
 
 const isMobile: boolean = (navigator as any)?.userAgentData?.mobile ?? false;
 
@@ -22,7 +23,6 @@ window.Buffer = Buffer;
 import * as bip39 from 'bip39'
 import * as nacl from 'tweetnacl'
 import { Ws } from "./socket";
-import { createWs } from "./db";
 import { BlueButton, Center, Checkbox, FieldSet, Input, TextDivider, ToggleSection } from "./form";
 import { LoginWith } from "./login_with";
 
@@ -68,7 +68,7 @@ export const RegisterPage = () => {
     const mn = bip39.generateMnemonic()
     const seed = bip39.mnemonicToSeedSync(mn).subarray(0, 32)
     const kp = nacl.sign.keyPair.fromSeed(seed)
-    const [ ruser, setRuser] = createSignal("")
+    const [ruser, setRuser] = createSignal("")
 
     const registerRemote = async () => {
         console.log("registering", mn)
@@ -109,15 +109,15 @@ export const RegisterPage = () => {
         setNameOk(ok)
     }
 
-    const [remember,setRemember] = createSignal(false)
-    const [email,setEmail] = createSignal(false)
-    const [phone,setPhone] = createSignal(false)
-    const [password,setPassword] = createSignal(false)
-    const [email2,setEmail2] = createSignal("")
-    const [phone2,setPhone2] = createSignal("")
-    const [password2,setPassword2] = createSignal("")
-    const [pin,setPin] = createSignal(false)
-    const [pin2,setPin2] = createSignal("")
+    const [remember, setRemember] = createSignal(false)
+    const [email, setEmail] = createSignal(false)
+    const [phone, setPhone] = createSignal(false)
+    const [password, setPassword] = createSignal(false)
+    const [email2, setEmail2] = createSignal("")
+    const [phone2, setPhone2] = createSignal("")
+    const [password2, setPassword2] = createSignal("")
+    const [pin, setPin] = createSignal(false)
+    const [pin2, setPin2] = createSignal("")
     const [oauth, setOauth] = createSignal(false)
     const [totp, setTotp] = createSignal(false)
 
@@ -125,22 +125,22 @@ export const RegisterPage = () => {
     return <Center>
         <form>
             <div class="space-y-6">
-            <Show when={!isMobile}>
-            <div>You may want to register on your phone, then use that to login on your computer.
-            <ToggleSection header='Tell me more'><P> That would most easily allow you to log into any computer securely as long as you have your phone.</P>
-            </ToggleSection></div>
-        </Show>
-        
+                <Show when={!isMobile}>
+                    <div>You may want to register on your phone, then use that to login on your computer.
+                        <ToggleSection header='Tell me more'><P> That would most easily allow you to log into any computer securely as long as you have your phone.</P>
+                        </ToggleSection></div>
+                </Show>
+
                 <Input autofocus name="user" label="User" value='' onInput={validateUsername} />
                 <div>{ruser() ? `${ruser()} is ${nameOk() ? "" : "not"} available` : ""}</div>
 
                 <TextDivider>Secret phrase</TextDivider>
-  
+
                 <P class='text-green-900'>{mn}</P>
                 <div class='italic'>Write down your secret phrase. It can be used to regenerate your private key. It is not stored anywhere, so if you lose it, you could lose access to your account.</div>
                 <TextDivider>Options</TextDivider>
                 <div ><span >Each recovery option reduces the security of your account but may allow you more convenience. </span>
-                <div class='mt-1'> <A href=''>Tell me more</A> </div></div>
+                    <div class='mt-1'> <A href=''>Tell me more</A> </div></div>
                 <FieldSet>
                     <Checkbox value={remember} setValue={setRemember} title='Trusted Computer' >Remember your login for 30 days</Checkbox>
                     <Checkbox value={email} setValue={setEmail} title='Email recovery' >Allow email recovery</Checkbox>
@@ -154,12 +154,12 @@ export const RegisterPage = () => {
                     <Checkbox value={password} setValue={setPassword} title='Password Manager' >Allow Password Manger</Checkbox>
                     <Show when={password()}>
                         <Input type='password' value={password2()} name="phone" placeholder="Password" />
-                        <Input type='password'  value={password2()} name="phone" placeholder="Confirm" />
+                        <Input type='password' value={password2()} name="phone" placeholder="Confirm" />
                     </Show>
                     <Checkbox value={pin} setValue={setPin} title='PIN recovery' >Require PIN for recovery</Checkbox>
                     <Show when={pin()}>
-                        <Input type='password'  value={pin2()} name="pin" label="PIN" />
-                        <Input type='password'  value={pin2()} name="pin" label="Confirm" />
+                        <Input type='password' value={pin2()} name="pin" label="PIN" />
+                        <Input type='password' value={pin2()} name="pin" label="Confirm" />
                     </Show>
                     <Checkbox value={totp} setValue={setTotp} title='Phone App recovery' >Store recovery code with Authy, Google Authenticator, or Microsoft Authenticator (Time based code) </Checkbox>
                     <Show when={totp()}>
@@ -167,9 +167,9 @@ export const RegisterPage = () => {
                     </Show>
                     <Checkbox value={oauth} setValue={setOauth} title='OAuth login' >Recover account by logging in with Apple, Google, Twitter, or Github</Checkbox>
                     <Show when={oauth()}>
-                    <LoginWith></LoginWith></Show>
+                        <LoginWith></LoginWith></Show>
                 </FieldSet>
-                
+
                 <BlueButton disabled={!nameOk()} onClick={register} >Register</BlueButton>
             </div></form>
 
@@ -274,7 +274,7 @@ export const LoginPage2 = () => {
         setSessid(sid)
     })
 
-    const [copied,setCopied] = createSignal(false)
+    const [copied, setCopied] = createSignal(false)
     const copyLink = () => {
         navigator.clipboard.writeText(`http://www.datagrove.com/remote/${sessid()}`)
         setCopied(true)
@@ -283,7 +283,7 @@ export const LoginPage2 = () => {
     return <Center>
         <Show when={error()}>
             <P class='text-red-500'>{error()}</P>
-        </Show> 
+        </Show>
         <div class="space-y-6">
             <Input name="user" label="User" value={user()} onInput={setUser} />
             <BlueButton onClick={() => signin()} >Sign in</BlueButton>
@@ -291,11 +291,11 @@ export const LoginPage2 = () => {
         <P><A href="/register">Register New Account</A></P>
         <P><A href="/recover">Login with recovery phrase</A></P>
         <TextDivider>Login with phone browser</TextDivider>
-        
+
         <img class='my-8' alt='' src='qr.png' />
         <div>Scan with your phone camera app and proceed to website to log in. Logging in with your phone is an easy and secure way to keep your passcode available</div>
-        <P><button  class='text-indigo-600 hover:text-blue-500 hover:underline' onClick={copyLink}>Copy link to clipboard</button> {copied()?'✅':''}</P>
-    
+        <P><button class='text-indigo-600 hover:text-blue-500 hover:underline' onClick={copyLink}>Copy link to clipboard</button> {copied() ? '✅' : ''}</P>
+
 
         {/* The list of options here depends on the account*/}
     </Center>

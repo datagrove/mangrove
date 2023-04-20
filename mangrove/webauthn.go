@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -80,7 +79,7 @@ var _ webauthn.User = (*User)(nil)
 //		fmt.Fprintf(w, "%s", d)
 //	}
 func JsonResponse(w http.ResponseWriter, d interface{}, c int) {
-	dj, err := json.Marshal(d)
+	dj, err := sockMarshall(d)
 	if err != nil {
 		http.Error(w, "Error creating JSON response", http.StatusInternalServerError)
 	}
@@ -137,7 +136,7 @@ func WebauthnSocket(mg *Server) error {
 			Begin    []byte
 			End      []byte
 		}
-		json.Unmarshal(r.Params, &v)
+		sockUnmarshall(r.Params, &v)
 
 		var outv struct {
 			Snapshot []byte `json:"snapshot"`
@@ -150,21 +149,21 @@ func WebauthnSocket(mg *Server) error {
 			Path   string `json:"path"`
 			Filter string `json:"filter"`
 		}
-		json.Unmarshal(r.Params, &v)
+		sockUnmarshall(r.Params, &v)
 		return mg.AddWatch(v.Path, r.Session, r.Id, v.Filter)
 	})
 	mg.AddApi("mkdir", func(r *Rpcp) (any, error) {
 		var v struct {
 			Path string `json:"path"`
 		}
-		json.Unmarshal(r.Params, &v)
+		sockUnmarshall(r.Params, &v)
 		return nil, mg.Mkdir(v.Path, r.Session)
 	})
 	mg.AddApi("rm", func(r *Rpcp) (any, error) {
 		var v struct {
 			Path string `json:"path"`
 		}
-		json.Unmarshal(r.Params, &v)
+		sockUnmarshall(r.Params, &v)
 
 		return nil, mg.Rm(v.Path, r.Session)
 	})
@@ -173,7 +172,7 @@ func WebauthnSocket(mg *Server) error {
 			From string `json:"from"`
 			To   string `json:"to"`
 		}
-		json.Unmarshal(r.Params, &v)
+		sockUnmarshall(r.Params, &v)
 
 		return nil, mg.Mv(v.From, v.To, r.Session)
 
@@ -184,7 +183,7 @@ func WebauthnSocket(mg *Server) error {
 
 			To string `json:"to"`
 		}
-		json.Unmarshal(r.Params, &v)
+		sockUnmarshall(r.Params, &v)
 		return nil, mg.Cp(v.From, v.To, r.Session)
 	})
 	mg.AddApi("upload", func(r *Rpcp) (any, error) {
@@ -192,14 +191,14 @@ func WebauthnSocket(mg *Server) error {
 			Path string `json:"path"`
 			Data []byte `json:"data"`
 		}
-		json.Unmarshal(r.Params, &v)
+		sockUnmarshall(r.Params, &v)
 		return nil, mg.Upload(v.Path, v.Data, r.Session)
 	})
 	mg.AddApi("download", func(r *Rpcp) (any, error) {
 		var v struct {
 			Path string `json:"path"`
 		}
-		json.Unmarshal(r.Params, &v)
+		sockUnmarshall(r.Params, &v)
 
 		return mg.Download(v.Path, r.Session)
 	})
@@ -208,7 +207,7 @@ func WebauthnSocket(mg *Server) error {
 		var v struct {
 			Path string `json:"path"`
 		}
-		json.Unmarshal(r.Params, &v)
+		sockUnmarshall(r.Params, &v)
 		mg.RemoveWatch(v.Path, r.Session)
 		return nil, nil
 	})
@@ -218,7 +217,7 @@ func WebauthnSocket(mg *Server) error {
 		var v struct {
 			Recovery string `json:"recovery"`
 		}
-		json.Unmarshal(r.Params, &v)
+		sockUnmarshall(r.Params, &v)
 		return nil, nil
 	})
 
@@ -248,7 +247,7 @@ func WebauthnSocket(mg *Server) error {
 			Id        string `json:"id"`
 			Signature string `json:"signature"`
 		}
-		e := json.Unmarshal(r.Params, &v)
+		e := sockUnmarshall(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
@@ -272,7 +271,7 @@ func WebauthnSocket(mg *Server) error {
 		var rv struct {
 			Available bool `json:"available"`
 		}
-		e := json.Unmarshal(r.Params, &v)
+		e := sockUnmarshall(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
@@ -289,7 +288,7 @@ func WebauthnSocket(mg *Server) error {
 			RecoveryKey string `json:"recovery_key"`
 		}
 
-		e := json.Unmarshal(r.Params, &v)
+		e := sockUnmarshall(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
@@ -335,7 +334,7 @@ func WebauthnSocket(mg *Server) error {
 		var v struct {
 			Username string `json:"username"`
 		}
-		json.Unmarshal(r.Params, &v)
+		sockUnmarshall(r.Params, &v)
 		mg.LoadUser(v.Username, &r.User)
 
 		// before we call this we need to load the user credentials

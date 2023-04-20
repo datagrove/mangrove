@@ -1,4 +1,4 @@
-
+import { encode, decode } from 'cbor-x'
 export interface Rpc<T> {
     method: string
     args: T
@@ -17,7 +17,7 @@ export interface Watchable {
 }
 
 export interface ChangeRow<T> {
-    op: 0|1|2
+    op: 0 | 1 | 2
     value: Partial<T>  // must contain key
 }
 export interface UpdateRow<T> {
@@ -36,17 +36,19 @@ export class Ws {
     ws?: WebSocket
     constructor(public url: string) {
     }
-    connect() : Promise<any>{
+    connect(): Promise<any> {
         this.ws = new WebSocket(this.url)
         this.ws.onclose = (e) => {
             this.ws = undefined
         }
-        this.ws.onmessage = async (e) => {
+        this.ws.onmessage = async (e: MessageEvent) => {
             // we need to parse the message.
             // split at '\n', first part is json, second part is binary
             console.log('got', e)
-            const txt = await e.data.text()
-            const data = JSON.parse(txt)
+            const b = await e.data.arrayBuffer()
+
+            //const data = JSON.parse(txt)
+            const data = decode(new Uint8Array(b))
             if (data.id) {
                 if (data.id < 0) {
                     const r = this.listen.get(data.id)
@@ -55,7 +57,7 @@ export class Ws {
                     } else {
                         console.log("no listener", data.id)
                     }
-                } else  {
+                } else {
                     const r = this.reply.get(data.id)
                     if (r) {
                         this.reply.delete(data.id)
@@ -93,7 +95,7 @@ export class Ws {
     }
 
     listen = new Map<number, (r: UpdateRow<any>[]) => void>()
-    async subscribe<R,A>(method: string, onupdate: (r: UpdateRow<A>[])=>void, params?: any){
+    async subscribe<R, A>(method: string, onupdate: (r: UpdateRow<A>[]) => void, params?: any) {
         const o = await this.rpc<Watchable>(method, params)
         this.listen.set(o.handle, onupdate)
         return o
@@ -114,11 +116,11 @@ export class Ws {
                 await this.connect()
             }
             try {
-                this.ws?.send(JSON.stringify({ method, params, id: id }))
+                this.ws?.send(encode({ method, params, id: id }))
             } catch (e) {
                 this.ws?.close()
                 await this.connect()
-                this.ws?.send(JSON.stringify({ method, params, id: id }))
+                this.ws?.send(encode({ method, params, id: id }))
             }
             return new Promise<T>((resolve, reject) => {
                 this.reply.set(id, [resolve, reject])
@@ -146,19 +148,26 @@ export interface OrError<T> {
 }
 export const ws: Ws = await Ws.connect('ws://localhost:8088/wss')
 const wsCache = new Map<string, Ws>()
-export function getWs(url: string): Ws {
-    const x = new URL(url)
-    const key = `${x.host}:${x.port}`
-    let r = wsCache.get(key)
-    if (!r) {
-        r = new Ws(key)
-        wsCache.set(key, r)
+export function getWs(url?: string): Ws {
+    if (url) {
+        const x = new URL(url)
+        const key = `${x.host}:${x.port}`
+        let r = wsCache.get(key)
+        if (!r) {
+            r = new Ws(key)
+            wsCache.set(key, r)
+            return r
+        }
         return r
     }
-    return r
+    else return ws
 }
 export class Profile {
     username = ""
     server = ""
 }
 export const profile = new Profile()
+
+export function createWs(): Ws {
+    return ws
+}

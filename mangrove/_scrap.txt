@@ -32,7 +32,7 @@ func oldWebauthn(mg *Server) error {
 			log.Printf("error: %v", err)
 		}
 		// this might not be enough? we might need to binhex the challenge
-		b, e := json.Marshal(options)
+		b, e := sockMarshall(options)
 		if e != nil {
 			log.Printf("error: %v", e)
 			return

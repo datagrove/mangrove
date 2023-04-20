@@ -6,7 +6,7 @@ import { BackNav, H2, Page, A, Body, Title } from './lib/nav'
 import { OrError, Rpc, profile } from './lib/socket'
 import { LoginPage, LoginPage2, PasswordPage, RecoveryPage, RegisterPage, token, } from './lib/login'
 import { Datagrove, Presentation, Pt, createPresentation, rows } from './lib/db'
-import { Dbref, dbref, taskEntry,  } from './lib/schema'
+import { Dbref, dbref, taskEntry, } from './lib/schema'
 import { BlueButton, Center } from './lib/form'
 import { Folder, createWatch, entries } from './lib/dbf'
 
@@ -21,11 +21,11 @@ const Button = (props: { children: JSXElement, onClick: () => void }) => {
 // isolate this in case we change the api
 // queries need a return row and a arguments
 // in some cases the arguments can be complex.
-function createQuery<R,A={}>(t: Pt<R,A>,a?:A) {
+function createQuery<R, A = {}>(t: Pt<R, A>, a?: A) {
     // the db in params needs to be org.db, maybe it should be server.org.db
     const params = useParams()
     // $ indicates a schema.table
-    return createPresentation(t, params['schema'],a)
+    return createPresentation(t, params['schema'], a)
 }
 
 interface JobEntry extends File {
@@ -35,7 +35,7 @@ interface JobEntry extends File {
     recentLog: string
 }
 const createJobView = () => {
-    return createQuery<JobEntry>({table: 'job'})
+    return createQuery<JobEntry>({ table: 'job' })
 }
 const createDatabaseView = () => {
     return createWatch('/db')
@@ -109,7 +109,7 @@ const DatabasePage: Component = () => {
                     }}</For>
                 </table>
 
-        </Match></Switch>
+            </Match></Switch>
     </Page>
 }
 
@@ -164,7 +164,7 @@ function ProfilePage() {
 function App() {
     //const [items] =  createResource(props.fetch)
     return <>
-        <Datagrove>
+
         <Routes>
 
             <Route path="/login" component={LoginPage} />
@@ -178,7 +178,7 @@ function App() {
                 <Route path="/db/:db" component={DatabasePage} />
                 <Route path="/db/:db/log/:id" component={JobPage} />
             </Route>
-        </Routes></Datagrove></>
+        </Routes></>
 }
 
 

@@ -35,13 +35,20 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 	"github.com/tailscale/hujson"
-	"golang.org/x/exp/slices"
 
 	"github.com/twystd/tweetnacl-go/tweetnacl"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/rs/cors"
 )
+
+func sockUnmarshall(data []byte, v interface{}) error {
+	return cbor.Unmarshal(data, v)
+}
+func sockMarshall(v interface{}) ([]byte, error) {
+	return cbor.Marshal(v)
+}
 
 // a job server needs a list of jobs, not unlike cobra commands, but typically all the parameters need to be resolved since its going off a clock.
 
@@ -283,7 +290,7 @@ func (s *Socket) Notify(handle int64, data interface{}) {
 	}
 	j.Handle = handle
 	j.Data = data
-	b, e := json.Marshal(&j)
+	b, e := sockMarshall(&j)
 	if e != nil {
 		log.Print(e)
 	}
@@ -340,7 +347,7 @@ func (s *Server) NewSession(notifier SessionNotifier) (*Session, error) {
 }
 
 func (s *Server) SaveUser(u *User) error {
-	b, e := json.Marshal(u)
+	b, e := sockMarshall(u)
 	if e != nil {
 		return e
 	}
@@ -701,14 +708,9 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		u := websocket.NewUpgrader()
 		u.CheckOrigin = func(r *http.Request) bool { return true }
 		u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
-			log.Printf("got message %s", string(data))
-			i := slices.IndexFunc(data, func(x byte) bool { return x == 10 })
-			if i == -1 {
-				i = len(data)
-			}
 			var rpc Rpcp
 			rpc.Session = sock.Session
-			json.Unmarshal(data[:i], &rpc.Rpc)
+			sockUnmarshall(data, &rpc.Rpc)
 			r, ok := sock.Svr.Api[rpc.Method]
 			if !ok {
 				log.Printf("bad method %s", rpc.Method)
@@ -722,7 +724,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 				}
 				o.Id = rpc.Id
 				o.Error = err.Error()
-				b, _ := json.Marshal(&o)
+				b, _ := sockMarshall(&o)
 				sock.conn.WriteMessage(websocket.BinaryMessage, b)
 			} else {
 				var o struct {
@@ -731,7 +733,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 				}
 				o.Id = rpc.Id
 				o.Result = rx
-				b, _ := json.Marshal(&o)
+				b, _ := sockMarshall(&o)
 				log.Printf("sending %s", string(b))
 				sock.conn.WriteMessage(websocket.BinaryMessage, b)
 			}

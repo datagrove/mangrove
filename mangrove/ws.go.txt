@@ -29,7 +29,7 @@ type RpServer interface {
 func (s *Socket) recv(data []byte) {
 	i := slices.IndexFunc(data, func(x byte) bool { return x == 10 })
 	var rpc Rpc
-	json.Unmarshal(data[:i], &rpc)
+	sockUnmarshall(data[:i], &rpc)
 	r, e := s.svr.api[rpc.Method](s, rpc.Params, data[i+1:])
 	if e != nil {
 		log.Printf("error: %v", e)
@@ -40,7 +40,7 @@ func (s *Socket) recv(data []byte) {
 	}
 	o.Id = rpc.Id
 	o.Result = r
-	b, _ := json.Marshal(&o)
+	b, _ := sockMarshall(&o)
 	s.conn.WriteMessage(websocket.BinaryMessage, b)
 }
 
