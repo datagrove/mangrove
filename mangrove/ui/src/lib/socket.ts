@@ -173,19 +173,18 @@ export interface OrError<T> {
     error?: string
     value?: T
 }
-export const ws: Ws = await Ws.connect('ws://localhost:8088/wss')
+let ws: Ws = new Ws('ws://localhost:8088/wss')
 const wsCache = new Map<string, Ws>()
 export function getWs(url?: string): Ws {
-    if (url) {
-        const x = new URL(url)
-        const key = `${x.host}:${x.port}`
-        let r = wsCache.get(key)
-        if (!r) {
-            r = new Ws(key)
-            wsCache.set(key, r)
-            return r
-        }
-        return r
+    if (false) {
+        // const key = url // `${x.host}:${x.port}`,  URL(url)
+        // let r = wsCache.get(key)
+        // if (!r) {
+        //     r = new Ws(key)
+        //     wsCache.set(key, r)
+        //     return r
+        // }
+        // return r
     }
     else return ws
 }

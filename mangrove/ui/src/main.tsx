@@ -115,7 +115,7 @@ const DatabasePage: Component = () => {
 
 // dbref is a table in ~ database, or should it be a folder of links? por que no los dos?
 const DatabaseList: Component = () => {
-    const [lst] = createDatabaseView()
+    const [lst] = createWatch("/")
     return <Show when={!lst().loading}><Page >
         <Title>Home</Title>
         <Body>

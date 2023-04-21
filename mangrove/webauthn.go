@@ -127,11 +127,11 @@ func WebauthnSocket(mg *Server) error {
 	if err != nil {
 		return err
 	}
-	mg.AddApi("sessionid", func(r *Rpcp) (any, error) {
+	mg.AddApi("sessionid", false, func(r *Rpcp) (any, error) {
 		return r.Session.Secret, nil
 	})
 
-	mg.AddApi("query", func(r *Rpcp) (any, error) {
+	mg.AddApi("query", true, func(r *Rpcp) (any, error) {
 		var v struct {
 			Snapshot []byte
 			Begin    []byte
@@ -146,7 +146,7 @@ func WebauthnSocket(mg *Server) error {
 	})
 
 	// server / organization / database / table-or-$ / if $ then $/path
-	mg.AddApi("watch", func(r *Rpcp) (any, error) {
+	mg.AddApi("watch", true, func(r *Rpcp) (any, error) {
 		var v struct {
 			Path   string `json:"path"`
 			Filter string `json:"filter"`
@@ -154,14 +154,14 @@ func WebauthnSocket(mg *Server) error {
 		sockUnmarshall(r.Params, &v)
 		return mg.AddWatch(v.Path, r.Session, r.Id, v.Filter)
 	})
-	mg.AddApi("mkdir", func(r *Rpcp) (any, error) {
+	mg.AddApi("mkdir", true, func(r *Rpcp) (any, error) {
 		var v struct {
 			Path string `json:"path"`
 		}
 		sockUnmarshall(r.Params, &v)
 		return nil, mg.Mkdir(v.Path, r.Session)
 	})
-	mg.AddApi("rm", func(r *Rpcp) (any, error) {
+	mg.AddApi("rm", true, func(r *Rpcp) (any, error) {
 		var v struct {
 			Path string `json:"path"`
 		}
@@ -169,7 +169,7 @@ func WebauthnSocket(mg *Server) error {
 
 		return nil, mg.Rm(v.Path, r.Session)
 	})
-	mg.AddApi("mv", func(r *Rpcp) (any, error) {
+	mg.AddApi("mv", true, func(r *Rpcp) (any, error) {
 		var v struct {
 			From string `json:"from"`
 			To   string `json:"to"`
@@ -179,7 +179,7 @@ func WebauthnSocket(mg *Server) error {
 		return nil, mg.Mv(v.From, v.To, r.Session)
 
 	})
-	mg.AddApi("cp", func(r *Rpcp) (any, error) {
+	mg.AddApi("cp", true, func(r *Rpcp) (any, error) {
 		var v struct {
 			From string `json:"from"`
 
@@ -188,7 +188,7 @@ func WebauthnSocket(mg *Server) error {
 		sockUnmarshall(r.Params, &v)
 		return nil, mg.Cp(v.From, v.To, r.Session)
 	})
-	mg.AddApi("upload", func(r *Rpcp) (any, error) {
+	mg.AddApi("upload", true, func(r *Rpcp) (any, error) {
 		var v struct {
 			Path string `json:"path"`
 			Data []byte `json:"data"`
@@ -196,7 +196,7 @@ func WebauthnSocket(mg *Server) error {
 		sockUnmarshall(r.Params, &v)
 		return nil, mg.Upload(v.Path, v.Data, r.Session)
 	})
-	mg.AddApi("download", func(r *Rpcp) (any, error) {
+	mg.AddApi("download", true, func(r *Rpcp) (any, error) {
 		var v struct {
 			Path string `json:"path"`
 		}
@@ -205,7 +205,7 @@ func WebauthnSocket(mg *Server) error {
 		return mg.Download(v.Path, r.Session)
 	})
 
-	mg.AddApi("unwatch", func(r *Rpcp) (any, error) {
+	mg.AddApi("unwatch", true, func(r *Rpcp) (any, error) {
 		var v struct {
 			Path string `json:"path"`
 		}
@@ -215,7 +215,7 @@ func WebauthnSocket(mg *Server) error {
 	})
 
 	// allow logging in with recovery codes. After logging in you can add new devices
-	mg.AddApij("loginR", func(r *Rpcpj) (any, error) {
+	mg.AddApij("loginR", false, func(r *Rpcpj) (any, error) {
 		var v struct {
 			Recovery string `json:"recovery"`
 		}
@@ -226,7 +226,7 @@ func WebauthnSocket(mg *Server) error {
 	// how should we safely confirm the recovery code? It's basically a password.
 
 	// add is mostly the same as register?
-	mg.AddApij("addCredential", func(r *Rpcpj) (any, error) {
+	mg.AddApij("addCredential", true, func(r *Rpcpj) (any, error) {
 		options, session, err := web.BeginRegistration(&r.User)
 		if err != nil {
 			return nil, err
@@ -234,7 +234,7 @@ func WebauthnSocket(mg *Server) error {
 		r.Session.data = session
 		return options, nil
 	})
-	mg.AddApi("removeCredential", func(r *Rpcp) (any, error) {
+	mg.AddApi("removeCredential", true, func(r *Rpcp) (any, error) {
 		r.User.Credentials = Filter(r.User.Credentials, func(e webauthn.Credential) bool {
 			return string(e.ID) == string(r.Params)
 		})
@@ -243,7 +243,7 @@ func WebauthnSocket(mg *Server) error {
 	})
 
 	// this going to be like register; client must follow up with register2 to save a new credential
-	mg.AddApij("recover", func(r *Rpcpj) (any, error) {
+	mg.AddApij("recover", false, func(r *Rpcpj) (any, error) {
 		// the signature signs the session id
 		var v struct {
 			Id        string `json:"id"`
@@ -266,7 +266,7 @@ func WebauthnSocket(mg *Server) error {
 		return options, nil
 	})
 
-	mg.AddApi("okname", func(r *Rpcp) (any, error) {
+	mg.AddApi("okname", false, func(r *Rpcp) (any, error) {
 		var v struct {
 			Id string `json:"id"`
 		}
@@ -284,7 +284,7 @@ func WebauthnSocket(mg *Server) error {
 	// this requires a unique name
 	// it can return a session id right away if successfull
 	// then the client can try to add a device
-	mg.AddApij("register", func(r *Rpcpj) (any, error) {
+	mg.AddApij("register", false, func(r *Rpcpj) (any, error) {
 		var v struct {
 			Id          string `json:"id"`
 			RecoveryKey string `json:"recovery_key"`
@@ -313,7 +313,7 @@ func WebauthnSocket(mg *Server) error {
 	// we need to binhex appropriate things.
 	// we need to check that this is the correct user before allowing a write.
 	// so this needs to be protected by the session id.
-	mg.AddApij("register2", func(r *Rpcpj) (any, error) {
+	mg.AddApij("register2", false, func(r *Rpcpj) (any, error) {
 		response, err := protocol.ParseCredentialCreationResponseBody(bytes.NewReader(r.Params))
 		if err != nil {
 			return nil, err
@@ -331,7 +331,7 @@ func WebauthnSocket(mg *Server) error {
 	})
 
 	// take the user name and return a challenge
-	mg.AddApi("login", func(r *Rpcp) (any, error) {
+	mg.AddApi("login", false, func(r *Rpcp) (any, error) {
 		// options.publicKey contain our registration options
 		var v struct {
 			Username string `json:"username"`
@@ -349,7 +349,7 @@ func WebauthnSocket(mg *Server) error {
 		return options, nil
 	})
 
-	mg.AddApij("login2", func(r *Rpcpj) (any, error) {
+	mg.AddApij("login2", false, func(r *Rpcpj) (any, error) {
 		response, err := protocol.ParseCredentialRequestResponseBody(bytes.NewReader(r.Params))
 		if err != nil {
 			return nil, err

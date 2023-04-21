@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -19,6 +20,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -203,6 +205,10 @@ func (s *Server) RemoveWatch(watchPath string, session *Session) {
 	}
 }
 func (s *Server) AddWatch(watchPath string, session *Session, handle int64, filter string) (*WatchState, error) {
+
+	watchPath = filepath.Clean(watchPath)
+	udir := path.Join(s.Home, "user", session.User.ID)
+	watchPath = path.Join(udir, watchPath)
 	s.muwatch.Lock()
 	defer s.muwatch.Unlock()
 	w, ok := s.Watch[watchPath]
@@ -301,11 +307,23 @@ func (s *Socket) Notify(handle int64, data interface{}) {
 	}
 }
 
-func (s *Server) AddApi(name string, f Rpcf) {
-	s.Api[name] = f
+func (s *Server) AddApi(name string, login bool, f Rpcf) {
+	fx := func(p *Rpcp) (interface{}, error) {
+		if p.Session.User.ID == "" {
+			return nil, errors.New("not logged in")
+		}
+		return f(p)
+	}
+	s.Api[name] = fx
 }
-func (s *Server) AddApij(name string, f Rpcfj) {
-	s.Apij[name] = f
+func (s *Server) AddApij(name string, login bool, f Rpcfj) {
+	fx := func(p *Rpcpj) (interface{}, error) {
+		if p.Session.User.ID == "" {
+			return nil, errors.New("not logged in")
+		}
+		return f(p)
+	}
+	s.Apij[name] = fx
 }
 
 type Rpcj struct {
