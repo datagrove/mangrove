@@ -93,8 +93,8 @@ type Container struct {
 	Connection map[string]*SshConnection `json:"connection,omitempty"`
 }
 
+type Rpcfj = func(a *Rpcpj) (any, error)
 type Rpcf = func(a *Rpcp) (any, error)
-
 type Server struct {
 	*Config
 	Mux  *http.ServeMux
@@ -104,6 +104,7 @@ type Server struct {
 	Key  string
 
 	Api       map[string]Rpcf
+	Apij      map[string]Rpcfj
 	muSession sync.Mutex
 	Session   map[string]*Session
 
@@ -303,7 +304,15 @@ func (s *Socket) Notify(handle int64, data interface{}) {
 func (s *Server) AddApi(name string, f Rpcf) {
 	s.Api[name] = f
 }
+func (s *Server) AddApij(name string, f Rpcfj) {
+	s.Apij[name] = f
+}
 
+type Rpcj struct {
+	Method string          `json:"method"`
+	Params json.RawMessage `json:"params"`
+	Id     int64           `json:"id"`
+}
 type Rpc struct {
 	Method string          `json:"method"`
 	Params cbor.RawMessage `json:"params"`
@@ -311,6 +320,10 @@ type Rpc struct {
 }
 type Rpcp struct {
 	Rpc
+	*Session
+}
+type Rpcpj struct {
+	Rpcj
 	*Session
 }
 
@@ -686,6 +699,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		Cert:      cert,
 		Key:       key,
 		Api:       map[string]Rpcf{},
+		Apij:      map[string]func(a *Rpcpj) (any, error){},
 		muSession: sync.Mutex{},
 		Session:   map[string]*Session{},
 		Job:       map[string]*Job{},
@@ -710,11 +724,12 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		u := websocket.NewUpgrader()
 		u.CheckOrigin = func(r *http.Request) bool { return true }
 		u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
-			var rpc Rpcp
-			rpc.Session = sock.Session
+
 			if messageType != websocket.BinaryMessage {
-				json.Unmarshal(data, &rpc.Rpc)
-				r, ok := sock.Svr.Api[rpc.Method]
+				var rpc Rpcpj
+				rpc.Session = sock.Session
+				json.Unmarshal(data, &rpc.Rpcj)
+				r, ok := sock.Svr.Apij[rpc.Method]
 				if !ok {
 					log.Printf("bad method %s", rpc.Method)
 					return
@@ -736,11 +751,13 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 					}
 					o.Id = rpc.Id
 					o.Result = rx
-					b, _ := sockMarshall(&o)
+					b, _ := json.Marshal(&o)
 					log.Printf("sending %s", string(b))
 					sock.conn.WriteMessage(websocket.TextMessage, b)
 				}
 			} else {
+				var rpc Rpcp
+				rpc.Session = sock.Session
 				sockUnmarshall(data, &rpc.Rpc)
 				r, ok := sock.Svr.Api[rpc.Method]
 				if !ok {

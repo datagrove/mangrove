@@ -73,10 +73,10 @@ export const RegisterPage = () => {
     const registerRemote = async () => {
         console.log("registering", mn)
         try {
-            const o = await ws.rpc<any>("register", { id: ruser(), recovery_key: bufferToHex(kp.publicKey) })
+            const o = await ws.rpcj<any>("register", { id: ruser(), recovery_key: bufferToHex(kp.publicKey) })
             const cco = parseCreationOptionsFromJSON(o)
             const cred = await create(cco)
-            const reg = await ws.rpc<any>("register2", cred.toJSON())
+            const reg = await ws.rpcj<any>("register2", cred.toJSON())
             localStorage.setItem('user', ruser())
             localStorage.setItem("token", reg.token)
             setUser(ruser())
@@ -182,15 +182,15 @@ export const RecoveryPage = () => {
     const navigate = useNavigate();
     const register = async () => {
         try {
-            const sid = await ws.rpc<string>('sessionid')
+            const sid = await ws.rpcj<string>('sessionid')
             const mn = bip39.generateMnemonic()
             const seed = bip39.mnemonicToSeedSync(mn).subarray(0, 32)
             const kp = nacl.sign.keyPair.fromSeed(seed)
             const sig = nacl.sign(Buffer.from(ph()), kp.secretKey)
-            const o = await ws.rpc<any>("recover", { id: user(), signature: bufferToHex(sig) })
+            const o = await ws.rpcj<any>("recover", { id: user(), signature: bufferToHex(sig) })
             const cco = parseCreationOptionsFromJSON(o)
             const cred = await create(cco)
-            const reg = await ws.rpc<any>("register2", cred.toJSON())
+            const reg = await ws.rpcj<any>("register2", cred.toJSON())
             localStorage.setItem('user', user())
             localStorage.setItem("token", reg.token)
             navigate("/")
@@ -219,10 +219,10 @@ export const LoginPage = () => {
         const username = user()
         localStorage.setItem('user', user())
         try {
-            const o2 = await ws.rpc<any>("login", { username: username })
+            const o2 = await ws.rpcj<any>("login", { username: username })
             const cro = parseRequestOptionsFromJSON(o2)
             const o = await get(cro)
-            const reg = await ws.rpc<any>("login2", o.toJSON())
+            const reg = await ws.rpcj<any>("login2", o.toJSON())
             setToken(reg.token)
             localStorage.setItem("token", reg.token)
             navigate("/")
@@ -249,10 +249,10 @@ export const LoginPage2 = () => {
 
     const loginRemote = async (username: string) => {
         try {
-            const o2 = await ws.rpc<any>("login", { username: username })
+            const o2 = await ws.rpcj<any>("login", { username: username })
             const cro = parseRequestOptionsFromJSON(o2)
             const o = await get(cro)
-            const reg = await ws.rpc<any>("login2", o.toJSON())
+            const reg = await ws.rpcj<any>("login2", o.toJSON())
             setToken(reg.token)
             localStorage.setItem("token", reg.token)
             navigate("/")

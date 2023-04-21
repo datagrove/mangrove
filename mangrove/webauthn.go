@@ -215,7 +215,7 @@ func WebauthnSocket(mg *Server) error {
 	})
 
 	// allow logging in with recovery codes. After logging in you can add new devices
-	mg.AddApi("loginR", func(r *Rpcp) (any, error) {
+	mg.AddApij("loginR", func(r *Rpcpj) (any, error) {
 		var v struct {
 			Recovery string `json:"recovery"`
 		}
@@ -226,7 +226,7 @@ func WebauthnSocket(mg *Server) error {
 	// how should we safely confirm the recovery code? It's basically a password.
 
 	// add is mostly the same as register?
-	mg.AddApi("addCredential", func(r *Rpcp) (any, error) {
+	mg.AddApij("addCredential", func(r *Rpcpj) (any, error) {
 		options, session, err := web.BeginRegistration(&r.User)
 		if err != nil {
 			return nil, err
@@ -243,7 +243,7 @@ func WebauthnSocket(mg *Server) error {
 	})
 
 	// this going to be like register; client must follow up with register2 to save a new credential
-	mg.AddApi("recover", func(r *Rpcp) (any, error) {
+	mg.AddApij("recover", func(r *Rpcpj) (any, error) {
 		// the signature signs the session id
 		var v struct {
 			Id        string `json:"id"`
@@ -284,7 +284,7 @@ func WebauthnSocket(mg *Server) error {
 	// this requires a unique name
 	// it can return a session id right away if successfull
 	// then the client can try to add a device
-	mg.AddApi("register", func(r *Rpcp) (any, error) {
+	mg.AddApij("register", func(r *Rpcpj) (any, error) {
 		var v struct {
 			Id          string `json:"id"`
 			RecoveryKey string `json:"recovery_key"`
@@ -313,7 +313,7 @@ func WebauthnSocket(mg *Server) error {
 	// we need to binhex appropriate things.
 	// we need to check that this is the correct user before allowing a write.
 	// so this needs to be protected by the session id.
-	mg.AddApi("register2", func(r *Rpcp) (any, error) {
+	mg.AddApij("register2", func(r *Rpcpj) (any, error) {
 		response, err := protocol.ParseCredentialCreationResponseBody(bytes.NewReader(r.Params))
 		if err != nil {
 			return nil, err
@@ -349,7 +349,7 @@ func WebauthnSocket(mg *Server) error {
 		return options, nil
 	})
 
-	mg.AddApi("login2", func(r *Rpcp) (any, error) {
+	mg.AddApij("login2", func(r *Rpcpj) (any, error) {
 		response, err := protocol.ParseCredentialRequestResponseBody(bytes.NewReader(r.Params))
 		if err != nil {
 			return nil, err
