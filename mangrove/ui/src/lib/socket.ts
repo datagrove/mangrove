@@ -29,6 +29,7 @@ type NotifyHandler = (r: Rpc<any>) => void
 type MockHandler = (args: any) => any
 // allow (mock) filter for backend server
 export class Ws {
+    challenge?: string
     nextId = 1
     reply = new Map<number, [(data: any) => void, (data: any) => void]>()
     onmessage_ = new Map<string, NotifyHandler>()
@@ -55,6 +56,7 @@ export class Ws {
                 const b = await e.data.arrayBuffer()
                 data = decode(new Uint8Array(b))
             }
+            
             if (data.id) {
                 if (data.id < 0) {
                     const r = this.listen.get(data.id)
@@ -79,6 +81,8 @@ export class Ws {
                         console.log("no awaiter", data.id)
                     }
                 }
+            } else if (data.id===0) {
+                this.challenge = data.result
             } else {
                 console.log("no id")
             }

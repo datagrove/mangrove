@@ -22,9 +22,12 @@
   "dependencies": {
     "@github/webauthn-json": "^2.1.1",
     "@solidjs/router": "^0.8.1",
+    "@ucans/ucans": "^0.11.4",
+    "base-x": "^4.0.0",
     "bip39": "^3.1.0",
     "buffer": "^6.0.3",
     "cbor-x": "^1.5.2",
+    "did-jwt": "^7.0.0",
     "highlight.js": "^11.7.0",
     "serve-static": "^1.15.0",
     "solid-headless": "^0.13.1",

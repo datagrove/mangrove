@@ -3,10 +3,7 @@ import { Component, For, JSXElement, Switch, Match, Show, createEffect } from 's
 import { chevronLeft } from "solid-heroicons/solid";
 import { Icon } from 'solid-heroicons';
 import { A as Ar, Outlet, useNavigate } from '@solidjs/router';
-import { setToken, user } from './login';
-
-
-
+import { setToken } from './crypto';
 
 export const A: Component<{ href: string, class?: string, children: JSXElement }> = (props) => {
   return <Ar class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`} href={props.href}>{props.children}</Ar>
