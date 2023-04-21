@@ -56,7 +56,7 @@ export class Ws {
                 const b = await e.data.arrayBuffer()
                 data = decode(new Uint8Array(b))
             }
-            
+
             if (data.id) {
                 if (data.id < 0) {
                     const r = this.listen.get(data.id)
@@ -81,7 +81,7 @@ export class Ws {
                         console.log("no awaiter", data.id)
                     }
                 }
-            } else if (data.id===0) {
+            } else if (data.id === 0) {
                 this.challenge = data.result
             } else {
                 console.log("no id")
@@ -200,4 +200,7 @@ export const profile = new Profile()
 
 export function createWs(): Ws {
     return ws
+}
+export function createWsAsync(): Promise<Ws> {
+    return ws.connect()
 }
