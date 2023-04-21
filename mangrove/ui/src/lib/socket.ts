@@ -45,11 +45,16 @@ export class Ws {
             // we need to parse the message.
             // split at '\n', first part is json, second part is binary
             console.log('got', e)
-            const b = await e.data.arrayBuffer()
 
-            //const data = JSON.parse(txt)
-            const data = decode(new Uint8Array(b))
-            console.log("decode",data)
+            let data: any
+            if (typeof e.data === "string") {
+                const txt = await e.data
+                data = JSON.parse(txt)
+            }
+            else {
+                const b = await e.data.arrayBuffer()
+                data = decode(new Uint8Array(b))
+            }
             if (data.id) {
                 if (data.id < 0) {
                     const r = this.listen.get(data.id)
@@ -104,7 +109,28 @@ export class Ws {
     release(handle: number) {
         this.listen.delete(handle)
     }
-
+    async rpcj<T>(method: string, params?: any): Promise<T> {
+        const o = this.mock.get(method)
+        if (o) {
+            return o(params) as T
+        } else {
+            console.log("send", method, params)
+            const id = this.nextId++
+            if (!this.ws) {
+                await this.connect()
+            }
+            try {
+                this.ws?.send(JSON.stringify({ method, params, id: id }))
+            } catch (e) {
+                this.ws?.close()
+                await this.connect()
+                this.ws?.send(JSON.stringify({ method, params, id: id }))
+            }
+            return new Promise<T>((resolve, reject) => {
+                this.reply.set(id, [resolve, reject])
+            })
+        }
+    }
     // why not just return the promise?
     async rpc<T>(method: string, params?: any): Promise<T> {
         const o = this.mock.get(method)

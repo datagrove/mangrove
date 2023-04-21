@@ -712,33 +712,63 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
 			var rpc Rpcp
 			rpc.Session = sock.Session
-			sockUnmarshall(data, &rpc.Rpc)
-			r, ok := sock.Svr.Api[rpc.Method]
-			if !ok {
-				log.Printf("bad method %s", rpc.Method)
-				return
-			}
-			rx, err := r(&rpc)
-			if err != nil {
-				var o struct {
-					Id    int64  `json:"id"`
-					Error string `json:"error"`
+			if messageType != websocket.BinaryMessage {
+				json.Unmarshal(data, &rpc.Rpc)
+				r, ok := sock.Svr.Api[rpc.Method]
+				if !ok {
+					log.Printf("bad method %s", rpc.Method)
+					return
 				}
-				o.Id = rpc.Id
-				o.Error = err.Error()
-				b, _ := sockMarshall(&o)
-				sock.conn.WriteMessage(websocket.BinaryMessage, b)
+				rx, err := r(&rpc)
+				if err != nil {
+					var o struct {
+						Id    int64  `json:"id"`
+						Error string `json:"error"`
+					}
+					o.Id = rpc.Id
+					o.Error = err.Error()
+					b, _ := json.Marshal(&o)
+					sock.conn.WriteMessage(websocket.BinaryMessage, b)
+				} else {
+					var o struct {
+						Id     int64       `json:"id"`
+						Result interface{} `json:"result"`
+					}
+					o.Id = rpc.Id
+					o.Result = rx
+					b, _ := sockMarshall(&o)
+					log.Printf("sending %s", string(b))
+					sock.conn.WriteMessage(websocket.TextMessage, b)
+				}
 			} else {
-				var o struct {
-					Id     int64       `json:"id"`
-					Result interface{} `json:"result"`
+				sockUnmarshall(data, &rpc.Rpc)
+				r, ok := sock.Svr.Api[rpc.Method]
+				if !ok {
+					log.Printf("bad method %s", rpc.Method)
+					return
 				}
-				o.Id = rpc.Id
-				o.Result = rx
-				bs, _ := json.MarshalIndent(o, "", "  ")
-				log.Printf("sending %s", string(bs))
-				b, _ := sockMarshall(&o)
-				sock.conn.WriteMessage(websocket.BinaryMessage, b)
+				rx, err := r(&rpc)
+				if err != nil {
+					var o struct {
+						Id    int64  `json:"id"`
+						Error string `json:"error"`
+					}
+					o.Id = rpc.Id
+					o.Error = err.Error()
+					b, _ := sockMarshall(&o)
+					sock.conn.WriteMessage(websocket.BinaryMessage, b)
+				} else {
+					var o struct {
+						Id     int64       `json:"id"`
+						Result interface{} `json:"result"`
+					}
+					o.Id = rpc.Id
+					o.Result = rx
+					bs, _ := json.MarshalIndent(o, "", "  ")
+					log.Printf("sending %s", string(bs))
+					b, _ := sockMarshall(&o)
+					sock.conn.WriteMessage(websocket.BinaryMessage, b)
+				}
 			}
 			sock.conn.SetReadDeadline(time.Now().Add(nbhttp.DefaultKeepaliveTime))
 		})

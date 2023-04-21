@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -143,6 +144,7 @@ func WebauthnSocket(mg *Server) error {
 		}
 		return &outv, nil
 	})
+
 	// server / organization / database / table-or-$ / if $ then $/path
 	mg.AddApi("watch", func(r *Rpcp) (any, error) {
 		var v struct {
@@ -247,7 +249,7 @@ func WebauthnSocket(mg *Server) error {
 			Id        string `json:"id"`
 			Signature string `json:"signature"`
 		}
-		e := sockUnmarshall(r.Params, &v)
+		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
@@ -288,7 +290,7 @@ func WebauthnSocket(mg *Server) error {
 			RecoveryKey string `json:"recovery_key"`
 		}
 
-		e := sockUnmarshall(r.Params, &v)
+		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
