@@ -42,6 +42,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/fxamacker/cbor/v2"
+	"github.com/goombaio/namegenerator"
 	"github.com/rs/cors"
 )
 
@@ -318,7 +319,7 @@ func (s *Server) AddApi(name string, login bool, f Rpcf) {
 }
 func (s *Server) AddApij(name string, login bool, f Rpcfj) {
 	fx := func(p *Rpcpj) (interface{}, error) {
-		if p.Session.User.ID == "" {
+		if p.Session.User.ID == "" && login {
 			return nil, errors.New("not logged in")
 		}
 		return f(p)
@@ -350,7 +351,28 @@ func (s *Server) IsAvailableUsername(name string) bool {
 	_, e := os.Stat(d)
 	return e != nil
 }
+func (s *Server) SuggestName(name string) string {
+	for {
+		if len(name) == 0 {
+			seed := time.Now().UTC().UnixNano()
+			nameGenerator := namegenerator.NewNameGenerator(seed)
+			name = nameGenerator.Generate()
+		}
 
+		for i := 0; i < 10000; i++ {
+			sname := name
+			if i != 0 {
+				sname = fmt.Sprintf("%s%d", name, i)
+			}
+			d := path.Join(s.Home, "user", sname, ".config.json")
+			_, e := os.Stat(d)
+			_ = e
+			return sname
+		}
+		name = ""
+	}
+
+}
 func (s *Server) GetSession(id string) (*Session, bool) {
 	s.muSession.Lock()
 	defer s.muSession.Unlock()

@@ -4,13 +4,13 @@ import { render } from 'solid-js/web'
 import { Route, Routes, Router, useNavigate, useParams, hashIntegration, Outlet } from "@solidjs/router"
 import { BackNav, H2, Page, A, Body, Title } from './lib/nav'
 import { OrError, Rpc, profile } from './lib/socket'
-import { LoginPage, LoginPage2, RecoveryPage} from './pages/login'
+import {  LoginPage2, RecoveryPage} from './pages/login'
 import { Datagrove, Presentation, Pt, createPresentation, rows } from './lib/db'
 import { Dbref, dbref, taskEntry, } from './lib/schema'
 import { BlueButton, Center } from './lib/form'
 import { Folder, createWatch, entries } from './lib/dbf'
-import { RegisterPage } from './pages/register'
-import { token, tryLogin } from './lib/crypto'
+import { StartState, login, startState } from './lib/crypto'
+import { LoginPage } from './pages/one'
 
 function mdate(n: number): string {
     return new Date(n).toLocaleDateString('en-us', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
@@ -145,20 +145,20 @@ function RouteGuard() {
     createEffect(() => {
         // maybe token should be a session token or just a variable even.
         // should each tab need its own id? eventually we should use a sharedworker to log in. this sharedworker will keep a variable.
-        if (tryLogin() ) {
-            if (!token()) {
+        if (startState() ==  StartState.loginNeeded) {
+            if (!login()) {
                 console.log('redirecting to login')
                 navigate('/login', { replace: true });
             }
-        } else {
-            return "Logging in"
-        }
+        } 
     })
 
     return (
+        <Show when={startState() == StartState.active}>
         <div>
             <Outlet />
         </div>
+        </Show>
     )
 }
 
@@ -180,7 +180,7 @@ function App() {
             <Route path="/login" component={LoginPage} />
             <Route path="/login2" component={LoginPage2} />
             <Route path="/recover" component={RecoveryPage} />
-            <Route path="/register" component={RegisterPage} />
+            <Route path="/register" component={LoginPage} />
             <Route path="/" component={RouteGuard}>
                 <Route path="/profile" component={ProfilePage} />
                 <Route path="/add" component={ComingSoon} />

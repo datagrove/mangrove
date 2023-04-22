@@ -22,10 +22,8 @@ import { BlueButton, Center, Checkbox, FieldSet, Input, TextDivider, ToggleSecti
 import { LoginWith } from "../lib/login_with";
 import { Buffer } from 'buffer'
 import { bufferToHex } from "../lib/encode";
-import { error, setError, setToken, setUser, user } from "../lib/crypto";
+import { error, setError, setLogin, setUser, user } from "../lib/crypto";
 // @ts-ignore
-window.Buffer = Buffer;
-
 
 
 export const RecoveryPage = () => {
@@ -44,8 +42,6 @@ export const RecoveryPage = () => {
             const cco = parseCreationOptionsFromJSON(o)
             const cred = await create(cco)
             const reg = await ws.rpcj<any>("register2", cred.toJSON())
-            localStorage.setItem('user', user())
-            localStorage.setItem("token", reg.token)
             navigate("/")
         } catch (e: any) {
             console.log(e)
@@ -62,7 +58,7 @@ export const RecoveryPage = () => {
     </form></Center>
 }
 
-export const LoginPage = () => {
+export const LoginPageOld = () => {
     const ws = createWs();
     const navigate = useNavigate();
     const [sessid, setSessid] = createSignal("")
@@ -70,14 +66,13 @@ export const LoginPage = () => {
     // this might fail if the server doesn't know the user name,  or if their is no credential for that user locally
     const signin = async () => {
         const username = user()
-        localStorage.setItem('user', user())
+
         try {
             const o2 = await ws.rpcj<any>("login", { username: username })
             const cro = parseRequestOptionsFromJSON(o2)
             const o = await get(cro)
             const reg = await ws.rpcj<any>("login2", o.toJSON())
-            setToken(reg.token)
-            localStorage.setItem("token", reg.token)
+            setLogin(true)
             navigate("/")
         } catch (e: any) {
             navigate("/login2")
@@ -106,8 +101,8 @@ export const LoginPage2 = () => {
             const cro = parseRequestOptionsFromJSON(o2)
             const o = await get(cro)
             const reg = await ws.rpcj<any>("login2", o.toJSON())
-            setToken(reg.token)
-            localStorage.setItem("token", reg.token)
+            setLogin(true)
+
             navigate("/")
         } catch (e: any) {
             setError(e.toString())
@@ -115,7 +110,7 @@ export const LoginPage2 = () => {
     }
     const signin = () => {
         console.log("signin", user())
-        localStorage.setItem('user', user())
+
         loginRemote(user())
     }
     createEffect(async () => {

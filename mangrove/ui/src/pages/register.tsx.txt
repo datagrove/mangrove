@@ -25,29 +25,10 @@ export const RegisterPage = () => {
     const navigate = useNavigate();
     const [nameOk, setNameOk] = createSignal(false)
     const mn = generatePassPhrase()
-    const [ruser, setRuser] = createSignal("")
+    const [userPrefix, setUserPrefix] = createSignal("")
+    const [fullUser, setFullUser] = createSignal("")
     const sec = security()
 
-    const registerRemote = async () => {
-        try {
-            // we have our passphrase now, we can create a certificate and register it
-            // then we could finish the setup with webauthn. we could even skip it
-            const cert = ucanFromBip39(mn, sec!.did, await ws.did())
-
-            const o = await ws.rpcj<any>("register", { id: ruser(), recovery_key: cert})
-            const cco = parseCreationOptionsFromJSON(o)
-            const cred = await create(cco)
-            const reg = await ws.rpcj<any>("register2", cred.toJSON())
-
-
-            localStorage.setItem('user', ruser())
-            localStorage.setItem("token", reg.token)
-            setUser(ruser())
-            navigate("/")
-        } catch (e: any) {
-            console.log(e)
-        }
-    }
 
     const register = (e: MessageEvent) => {
         e.preventDefault()
@@ -56,23 +37,20 @@ export const RegisterPage = () => {
 
     // there is an inherent race here, (two users with the same name), but practically it's not a problem
     const validateUsername = async (x: string) => {
-        setRuser(x)
-        if (x.length < 1 || x[0] == "_") {
-            setNameOk(false)
-            return
-        }
+        setUserPrefix(x)
+
         let ok = false
         try {
-            const o = await ws.rpc<{ available: boolean }>("okname", { id: x })
+            const o = await ws.rpc<{ suggest: string }>("okname", { id: x })
             console.log("o", o)
-            ok = o.available
+            setFullUser(o.suggest)
         } catch (e) {
             console.log("error", e)
         }
-        setNameOk(ok)
     }
 
     const [remember, setRemember] = createSignal(false)
+    const [webauthn, setWebauthn] = createSignal(true)
     const [email, setEmail] = createSignal(false)
     const [phone, setPhone] = createSignal(false)
     const [password, setPassword] = createSignal(false)
@@ -85,37 +63,64 @@ export const RegisterPage = () => {
     const [totp, setTotp] = createSignal(false)
     const [device, setDevice] = createSignal("")
     const suggestedName = () => {
-        const u = ruser()
+        const u = userPrefix()
         if (u) {
             return u + "'s computer"
         } else {
             return "My computer"
         }
     }
+    const willuse = () => {
+        return fullUser()?`${fullUser()} is available`:""
+    }
     return <Center>
         <form>
             <div class="space-y-6">
-                <Show when={!isMobile}>
-                    <div>You may want to register on your phone, then use that to login on your computer.
-                        <ToggleSection header='Tell me more'><P> That would most easily allow you to log into any computer securely as long as you have your phone.</P>
-                        </ToggleSection></div>
-                </Show>
 
                 <Input autofocus name="user" label="User" value='' onInput={validateUsername} />
-                <div>{ruser() ? `${ruser()} is ${nameOk() ? "" : "not"} available` : ""}</div>
+                <div>{willuse()}</div>
 
+
+
+                <BlueButton disabled={!fullUser()} onClick={register} >Register</BlueButton>
+            </div>
+        </form>
+    </Center>
+}
+
+/*
                 <Input name="device" placeholder={suggestedName()} label="Device Name" value='' onInput={setDevice} />
-                
 
-                <TextDivider>Secret phrase</TextDivider>
+                <TextDivider>Account recovery</TextDivider>
 
-                <P class='text-green-900'>{mn}</P>
-                <div class='italic'>Write down your secret phrase. It can be used to regenerate your private key. It is not stored anywhere, so if you lose it, you could lose access to your account.</div>
-                <TextDivider>Options</TextDivider>
-                <div ><span >Each recovery option reduces the security of your account but may allow you more convenience. </span>
-                    <div class='mt-1'> <A href=''>Tell me more</A> </div></div>
+                <P class='text-green-300'>{mn}</P>
+                <div class='italic'>Write down your secret phrase. It is not stored anywhere so this is your only opportunity.</div>
+
+
+                <TextDivider>Sign in options</TextDivider>
+                <div class='mt-1'> <A href=''>Tell me more</A> </div>
+
+                <Checkbox value={webauthn} setValue={setWebauthn} title='No password  (Webauthn)' >Webauthn generally uses tokens or biometrics to log in</Checkbox>
+
+
+                    <Checkbox value={remember} setValue={setRemember} title='Trusted Computer' >Remember for 30 days</Checkbox>
+                <Checkbox value={password} setValue={setPassword} title='Password' >Allow Password</Checkbox>
+                    <Show when={password()}>
+                        <Input type='password' value={password2()} name="phone" placeholder="Password" />
+                        <Input type='password' value={password2()} name="phone" placeholder="Confirm" />
+                    </Show>
+                    <Checkbox value={totp} setValue={setTotp} title='Time changing code' >Use Authy, Google Authenticator, or Microsoft Authenticator (Time based code) </Checkbox>
+                    <Show when={totp()}>
+                        <img src='qr.png'></img>
+                    </Show>
+                    <Checkbox value={oauth} setValue={setOauth} title='Sign in with Apple, Google, etc' >Sign in with Apple, Google, Twitter, or Github</Checkbox>
+                    <Show when={oauth()}>
+                        <LoginWith></LoginWith></Show>
+                <TextDivider>RecoveryOptions</TextDivider>
+             
+                    <div class='mt-1'> <A href=''>Tell me more</A> </div>
                 <FieldSet>
-                    <Checkbox value={remember} setValue={setRemember} title='Trusted Computer' >Remember your login for 30 days</Checkbox>
+
                     <Checkbox value={email} setValue={setEmail} title='Email recovery' >Allow email recovery</Checkbox>
                     <Show when={email()}>
                         <Input value={email2()} name="email" placeholder="Email" />
@@ -124,27 +129,18 @@ export const RegisterPage = () => {
                     <Show when={phone()}>
                         <Input value={phone2()} name="phone" placeholder="Phone" />
                     </Show>
-                    <Checkbox value={password} setValue={setPassword} title='Password Manager' >Allow Password Manger</Checkbox>
-                    <Show when={password()}>
-                        <Input type='password' value={password2()} name="phone" placeholder="Password" />
-                        <Input type='password' value={password2()} name="phone" placeholder="Confirm" />
-                    </Show>
+
                     <Checkbox value={pin} setValue={setPin} title='PIN recovery' >Require PIN for recovery</Checkbox>
                     <Show when={pin()}>
                         <Input type='password' value={pin2()} name="pin" label="PIN" />
                         <Input type='password' value={pin2()} name="pin" label="Confirm" />
                     </Show>
-                    <Checkbox value={totp} setValue={setTotp} title='Phone App recovery' >Store recovery code with Authy, Google Authenticator, or Microsoft Authenticator (Time based code) </Checkbox>
-                    <Show when={totp()}>
-                        <img src='qr.png'></img>
-                    </Show>
-                    <Checkbox value={oauth} setValue={setOauth} title='OAuth login' >Recover account by logging in with Apple, Google, Twitter, or Github</Checkbox>
-                    <Show when={oauth()}>
-                        <LoginWith></LoginWith></Show>
+
                 </FieldSet>
 
-                <BlueButton disabled={!nameOk() || !device()} onClick={register} >Register</BlueButton>
+
             </div></form>
 
     </Center>
 }
+*/

@@ -271,13 +271,13 @@ func WebauthnSocket(mg *Server) error {
 			Id string `json:"id"`
 		}
 		var rv struct {
-			Available bool `json:"available"`
+			Suggest string `json:"suggest"`
 		}
 		e := sockUnmarshall(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
-		rv.Available = mg.IsAvailableUsername(v.Id)
+		rv.Suggest = mg.SuggestName(v.Id)
 		return &rv, nil
 	})
 

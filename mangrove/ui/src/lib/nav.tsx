@@ -3,7 +3,7 @@ import { Component, For, JSXElement, Switch, Match, Show, createEffect } from 's
 import { chevronLeft } from "solid-heroicons/solid";
 import { Icon } from 'solid-heroicons';
 import { A as Ar, Outlet, useNavigate } from '@solidjs/router';
-import { setToken } from './crypto';
+import { setLogin } from './crypto';
 
 export const A: Component<{ href: string, class?: string, children: JSXElement }> = (props) => {
   return <Ar class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`} href={props.href}>{props.children}</Ar>
@@ -21,7 +21,7 @@ export const Title : Component<{
   const navigate = useNavigate()
   const logOut = () => {
     sessionStorage.removeItem('token');
-    setToken('')
+    setLogin(false)
     navigate('/', { replace: true });
   }
 
