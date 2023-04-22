@@ -29,7 +29,8 @@ type NotifyHandler = (r: Rpc<any>) => void
 type MockHandler = (args: any) => any
 // allow (mock) filter for backend server
 export class Ws {
-    challenge?: string
+    did_?: string
+    didResolve?: (s: string) => void
     nextId = 1
     reply = new Map<number, [(data: any) => void, (data: any) => void]>()
     onmessage_ = new Map<string, NotifyHandler>()
@@ -37,6 +38,17 @@ export class Ws {
     ws?: WebSocket
     constructor(public url: string) {
     }
+    async did() : Promise<string>{
+        return new Promise((resolve, reject) => {
+            if (this.did_) {
+                resolve(this.did_)
+            } else {
+                this.didResolve = resolve
+            }
+
+        })
+    }
+    
     connect(): Promise<any> {
         this.ws = new WebSocket(this.url)
         this.ws.onclose = (e) => {
@@ -82,7 +94,10 @@ export class Ws {
                     }
                 }
             } else if (data.id === 0) {
-                this.challenge = data.result
+                this.did_ = data.result
+                if (this.didResolve) {
+                    this.didResolve(this.did_!)
+                }
             } else {
                 console.log("no id")
             }
@@ -201,6 +216,4 @@ export const profile = new Profile()
 export function createWs(): Ws {
     return ws
 }
-export function createWsAsync(): Promise<Ws> {
-    return ws.connect()
-}
+

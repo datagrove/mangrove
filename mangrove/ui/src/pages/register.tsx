@@ -17,7 +17,7 @@ import { Ws } from "../lib/socket";
 import { BlueButton, Center, Checkbox, FieldSet, Input, TextDivider, ToggleSection } from "../lib/form";
 import { LoginWith } from "../lib/login_with";
 import { bufferToHex } from "../lib/encode";
-import { CertifyUser, generatePassPhrase, isMobile, setUser } from "../lib/crypto";
+import {  generatePassPhrase, isMobile, security, setUser, ucanFromBip39 } from "../lib/crypto";
 
 // skip if we have a token to stay logged in
 export const RegisterPage = () => {
@@ -26,12 +26,13 @@ export const RegisterPage = () => {
     const [nameOk, setNameOk] = createSignal(false)
     const mn = generatePassPhrase()
     const [ruser, setRuser] = createSignal("")
+    const sec = security()
 
     const registerRemote = async () => {
         try {
             // we have our passphrase now, we can create a certificate and register it
             // then we could finish the setup with webauthn. we could even skip it
-            const cert = CertifyUser(mn)
+            const cert = ucanFromBip39(mn, sec!.did, await ws.did())
 
             const o = await ws.rpcj<any>("register", { id: ruser(), recovery_key: cert})
             const cco = parseCreationOptionsFromJSON(o)
