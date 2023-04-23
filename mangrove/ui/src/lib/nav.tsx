@@ -15,6 +15,7 @@ import {
   Menu,
   MenuItem,
 } from 'solid-headless';
+import Dismiss from 'solid-dismiss'
 function classNames(...classes: (string | boolean | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }
@@ -48,48 +49,59 @@ export const Title: Component<{
   }
   const [x, setX] = createSignal(0);
   const [y, setY] = createSignal(0);
+  let btn: HTMLButtonElement;
   return <>
     <div class='fixed flex left-2 top-2 p-2 border-solid w-96 border-neutral-500 rounded-md bg-neutral-800'>
-      <Icon onClick={() => history.back()} path={bars_3} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' />
+      <button ref={btn!} onClick={()=>setOpenDrawer(true)}> <Icon path={bars_3} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' /></button>
       <input placeholder='Search' type='text' class='bg-transparent focus:outline-none w-full text-white' />
       <Icon path={magnifyingGlass} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' />
     </div>
-
-    <Popover defaultOpen={false} class="fixed right-2 top-2 ">
-      {({ isOpen }) => (
-        <>
-          <PopoverButton
-            class={classNames(
-              isOpen() && 'text-opacity-90',
-              'text-white group bg-neutral-800 px-3 py-2 rounded-full inline-flex items-center text-base font-medium hover:text-opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75',
-            )}
-          >
-
-            <Icon path={user} class='h-6 w-6'></Icon>
-          </PopoverButton>
-          <Transition
-            show={isOpen()}
-            enter="transition duration-200"
-            enterFrom="opacity-0 -translate-y-1 scale-50"
-            enterTo="opacity-100 translate-y-0 scale-100"
-            leave="transition duration-150"
-            leaveFrom="opacity-100 translate-y-0 scale-100"
-            leaveTo="opacity-0 -translate-y-1 scale-50"
-          >
-            <PopoverPanel unmount={false} class="absolute  z-10  mt-3 transform -right-0 sm:px-0 lg:max-w-3xl">
-              <Menu class=" overflow-hidden w-64 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 bg-neutral-800 flex flex-col space-y-1 p-1">
-                <For each={[1, 2, 3, 4, 5, 6, 7, 8, 9]}>{(e, i) => {
-                  return <><MenuItem as="button" class="text-sm p-1 text-left rounded hover:bg-purple-600 hover:text-white focus:outline-none focus:bg-purple-600 focus:text-white">
-                    {i()} </MenuItem></>
-                }}</For>
-              </Menu>
-            </PopoverPanel>
-          </Transition>
-        </>
-      )}
-    </Popover>
+    <Drawer button={btn!}/>
+    <Account/>
   </>
 }
+const [openDrawer, setOpenDrawer] = createSignal(false);
+export const Drawer: Component<{ button: HTMLButtonElement}> = (props ) => {
+  return  <>
+  <Dismiss
+        menuButton={props.button}
+        open={openDrawer}
+        setOpen={setOpenDrawer}
+      >
+       
+    <div class='fixed left-0 top-0 w-96 h-full rounded-md bg-gradient-to-r from-neutral-800 to-neutral-800 '>
+      <table>
+        {/* list of account*/}
+        <tbody>
+        <tr><td></td><td>Add another account</td></tr>
+        <tr><td></td><td>Signout</td></tr></tbody>
+      </table>
+    </div></Dismiss></>
+}
+
+export const Account: Component = () => {
+  const [open, setOpen] = createSignal(false);
+  let btnEl: HTMLButtonElement;
+  return  <><button ref={btnEl!} class='fixed  right-2 top-2 p-2 rounded-full bg-neutral-800' > 
+  <Icon path={user} class='h-6 w-6'></Icon></button>
+  <Dismiss
+        menuButton={btnEl!}
+        open={open}
+        setOpen={setOpen}
+      >
+       
+    <div class='fixed right-2 top-14 w-96 h-96 rounded-md bg-gradient-to-r from-neutral-800 to-neutral-800 '>
+      <table>
+        {/* list of account*/}
+        <tbody>
+        <tr><td></td><td>Add another account</td></tr>
+        <tr><td></td><td>Signout</td></tr></tbody>
+      </table>
+    </div></Dismiss>
+ 
+  </>
+}
+
 
 export const Title2: Component<{
   back?: string

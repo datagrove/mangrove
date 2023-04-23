@@ -30,6 +30,7 @@
     "did-jwt": "^7.0.0",
     "highlight.js": "^11.7.0",
     "serve-static": "^1.15.0",
+    "solid-dismiss": "^1.7.121",
     "solid-headless": "^0.13.1",
     "solid-heroicons": "^3.1.1",
     "solid-js": "^1.7.0",
