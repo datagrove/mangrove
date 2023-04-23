@@ -1,37 +1,38 @@
 import { Component, JSXElement, Show, createSignal } from "solid-js"
 
 
-export const FieldSet: Component<{children: JSXElement}> = (props) => {
+export const FieldSet: Component<{ children: JSXElement }> = (props) => {
     return <fieldset class="relative flex items-start ">
         <div class='space-y-5'>{props.children}</div></fieldset>
 }
 
 export const Checkbox: Component<{
     children: JSXElement,
-    title: string, 
-    value: ()=>boolean, setValue: (checked: boolean) => void}> = (props) => {
-    return     <div class="relative flex items-start">
-    <div class="flex h-6 items-center">
-      <input checked={props.value()} id="comments" aria-describedby="comments-description" onInput={()=>props.setValue(!props.value())} name="comments" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-200 focus:ring-indigo-600"/>
+    title: string,
+    value: () => boolean, setValue: (checked: boolean) => void
+}> = (props) => {
+    return <div class="relative flex items-start">
+        <div class="flex h-6 items-center">
+            <input checked={props.value()} id="comments" aria-describedby="comments-description" onInput={() => props.setValue(!props.value())} name="comments" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-200 focus:ring-indigo-600" />
+        </div>
+        <div class="ml-3 text-sm leading-6">
+            <label for="comments" class="font-medium dark:text-white text-gray-900">{props.title}</label>
+            <p id="comments-description" class="text-gray-500">{props.children}</p>
+        </div>
     </div>
-    <div class="ml-3 text-sm leading-6">
-      <label for="comments" class="font-medium dark:text-white text-gray-900">{props.title}</label>
-      <p id="comments-description" class="text-gray-500">{props.children}</p>
-    </div>
-    </div>
-    
+
 }
 
-export const ToggleSection: Component<{ 
-    children: JSXElement, 
-    header: string, }> = (props) =>
-    {
-        const [show,setShow] = createSignal(false)
+export const ToggleSection: Component<{
+    children: JSXElement,
+    header: string,
+}> = (props) => {
+    const [show, setShow] = createSignal(false)
     return <div>
-        <button class='text-indigo-600 hover:text-blue-500 hover:underline' onClick={()=>setShow(!show())} >{props.header}</button>
+        <div class='flex'><div class='flex-1' /> <button class='text-indigo-600 hover:text-blue-500 hover:underline' onClick={() => setShow(!show())} >{props.header}</button><div class='flex-1' /></div>
         <Show when={show()}>{props.children}</Show>
     </div>
-       
+
 }
 
 
@@ -60,9 +61,9 @@ export const Input: Component<{
 
     return <div>
         <Show when={props.label}><label for={props.name} class="block text-sm font-medium leading-6 text-neutral-900 dark:text-white">{props.label}</label></Show>
-        <input type={props.type??"text"} value={props.value} autofocus={props.autofocus} onInput={(e) => {
+        <input type={props.type ?? "text"} value={props.value} autofocus={props.autofocus} onInput={(e) => {
             if (props.onInput) props.onInput((e.target as HTMLInputElement).value)
-        }} id={props.name} 
+        }} id={props.name}
             onchange={(e) => {
                 if (props.onInput)
                     props.onInput((e.target as HTMLInputElement).value)

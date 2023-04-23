@@ -1,6 +1,6 @@
 import { useNavigate } from "@solidjs/router"
 import { createSignal } from "solid-js"
-import { A } from '../lib/nav'
+import { A, P } from '../lib/nav'
 import { createWs } from "../lib/socket";
 import {
     parseCreationOptionsFromJSON,
@@ -11,13 +11,13 @@ import {
     AuthenticationPublicKeyCredential,
 } from "@github/webauthn-json/browser-ponyfill";
 
-import { BlueButton, Center, Input } from "../lib/form";
+import { BlueButton, Center, Input, ToggleSection } from "../lib/form";
 import { Buffer } from 'buffer'
 import { security, setError, setLogin, setSecurity, setUser, ucanFromBip39, user } from "../lib/crypto";
 
 // we 
 
-  
+
 export const LoginPage = () => {
     const ws = createWs();
     const navigate = useNavigate();
@@ -26,39 +26,16 @@ export const LoginPage = () => {
         if (security().registered) {
             return "Sign in"
         } else {
-            return "Register"
+            return "Create user"
         }
     }
-    const registerRemote = async () => {
-        const sec = security()
-        const opt = {
-            id: sec!.userDid,
-            device: sec!.deviceDid
-        }
-        try {
-            const o = await ws.rpcj<any>("register", opt)
-            const cco = parseCreationOptionsFromJSON(o)
-            const cred = await create(cco)
-            const reg = await ws.rpcj<any>("register2", cred.toJSON())
-            if (reg.token) {
-                setSecurity({
-                    ...sec,
-                    registered: true,
-                })
-                setLogin(true)
-                navigate("/")
-            }
-        } catch (e: any) {
-            console.log(e)
-        }
-      }
+
     // this might fail if the server doesn't know the user name,  or if their is no credential for that user locally
     const signin = async () => {
-        if (security()?.userDid) {
-            const username = user()
-
+        const sec = security()
+        if (sec.registered) {
             try {
-                const o2 = await ws.rpcj<any>("login", { username: username })
+                const o2 = await ws.rpcj<any>("login", { username: sec.userDid })
                 const cro = parseRequestOptionsFromJSON(o2)
                 const o = await get(cro)
                 const reg = await ws.rpcj<any>("login2", o.toJSON())
@@ -70,7 +47,26 @@ export const LoginPage = () => {
                 setError(e)
             }
         } else {
-            registerRemote()
+            const opt = {
+                id: sec.userDid,
+                device: sec.deviceDid
+            }
+            try {
+                const o = await ws.rpcj<any>("register", opt)
+                const cco = parseCreationOptionsFromJSON(o)
+                const cred = await create(cco)
+                const reg = await ws.rpcj<any>("register2", cred.toJSON())
+                if (reg.token) {
+                    setSecurity({
+                        ...sec,
+                        registered: true,
+                    })
+                    setLogin(true)
+                    navigate("/")
+                }
+            } catch (e: any) {
+                console.log(e)
+            }
         }
     }
 
@@ -78,7 +74,11 @@ export const LoginPage = () => {
         <div class="space-y-4">
 
             <BlueButton onClick={signin} >{buttonText()}</BlueButton>
-         
+            <ToggleSection header="Link existing user">
+                <P class='text-center'>Scan from a linked device</P>
+                <img class='w-96 mt-2' src="qr.png" />
+            </ToggleSection>
+
         </div></Center>
 }
 

@@ -331,7 +331,7 @@ func WebauthnSocket(mg *Server) error {
 	})
 
 	// take the user name and return a challenge
-	mg.AddApi("login", false, func(r *Rpcp) (any, error) {
+	mg.AddApi("loginj", false, func(r *Rpcp) (any, error) {
 		// options.publicKey contain our registration options
 		var v struct {
 			Username string `json:"username"`
