@@ -16,6 +16,7 @@ import (
 
 type Session struct {
 	User
+	Device   string // device for this session
 	Secret   string
 	data     *webauthn.SessionData
 	mu       sync.Mutex
@@ -30,13 +31,18 @@ type SessionStatus struct {
 }
 
 type User struct {
-	ID          string
+	ID          string                `json:"id"`
+	Device      map[string]*Device    `json:"device"`
 	Name        string                `json:"name"`
 	DisplayName string                `json:"display_name"`
 	Icon        string                `json:"icon,omitempty"`
 	Credentials []webauthn.Credential `json:"credentials,omitempty"`
 	RecoveryKey string                `json:"recovery_key,omitempty"`
 	Home        string
+}
+type Device struct {
+	Id   string `json:"id"`
+	Name string
 }
 
 func (u *User) WebAuthnID() []byte {
@@ -286,21 +292,33 @@ func WebauthnSocket(mg *Server) error {
 	// then the client can try to add a device
 	mg.AddApij("register", false, func(r *Rpcpj) (any, error) {
 		var v struct {
-			Id          string `json:"id"`
-			RecoveryKey string `json:"recovery_key"`
+			Id     string `json:"id"`
+			Device string `json:"device"`
 		}
 
 		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
-		u, e := mg.NewUser(v.Id, v.RecoveryKey)
-		if e != nil {
-			return nil, fmt.Errorf("username already taken")
-		}
-		r.User = *u
+
+		// don't store the user until we have a credential
+		// u, e := mg.NewUser(v.Id, v.RecoveryKey)
+		// if e != nil {
+		// 	return nil, fmt.Errorf("username already taken")
+		// }
+		// r.User = *u
 
 		// return a challenge
+		// if the user already exists because of a failure?
+		// we can sign the submitted did, that will give us the authority to add the credential
+
+		// should this user be shared with other connections?
+		// currently it is not.
+		r.User.ID = v.Id
+		r.User.DisplayName = "New User"
+		r.User.Name = "New User"
+		r.Device = v.Device
+		// how does this know which device?
 		options, session, err := web.BeginRegistration(&r.User)
 		if err != nil {
 			return nil, err
@@ -309,10 +327,7 @@ func WebauthnSocket(mg *Server) error {
 		return options, nil
 	})
 
-	// this should probably return a session id?
-	// we need to binhex appropriate things.
-	// we need to check that this is the correct user before allowing a write.
-	// so this needs to be protected by the session id.
+	// return the temporary user name
 	mg.AddApij("register2", false, func(r *Rpcpj) (any, error) {
 		response, err := protocol.ParseCredentialCreationResponseBody(bytes.NewReader(r.Params))
 		if err != nil {
@@ -324,19 +339,25 @@ func WebauthnSocket(mg *Server) error {
 		if err != nil {
 			return nil, err
 		}
-		r.User.Credentials = append(r.User.Credentials, *credential)
-		mg.SaveUser(&r.User)
-		x, _ := GenerateRandomString(32)
-		return &SessionStatus{Token: x}, nil
+		r.User.Name = mg.SuggestName("") // fix race
+		r.User.Device = map[string]*Device{
+			r.Device: {
+				Id:   r.Device,
+				Name: r.User.Name,
+			},
+		}
+		r.User.Credentials = append(r.Session.User.Credentials, *credential)
+		mg.SaveUser(&r.Session.User)
+		return r.User.Name, nil
 	})
 
 	// take the user name and return a challenge
-	mg.AddApi("loginj", false, func(r *Rpcp) (any, error) {
+	mg.AddApij("login", false, func(r *Rpcpj) (any, error) {
 		// options.publicKey contain our registration options
 		var v struct {
 			Username string `json:"username"`
 		}
-		sockUnmarshall(r.Params, &v)
+		json.Unmarshal(r.Params, &v)
 		mg.LoadUser(v.Username, &r.User)
 
 		// before we call this we need to load the user credentials

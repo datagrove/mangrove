@@ -9,7 +9,7 @@ import { Datagrove, Presentation, Pt, createPresentation, rows } from './lib/db'
 import { Dbref, dbref, taskEntry, } from './lib/schema'
 import { BlueButton, Center } from './lib/form'
 import { Folder, createWatch, entries } from './lib/dbf'
-import { StartState, login, startState } from './lib/crypto'
+import { StartState, login, setWelcome, startState, welcome } from './lib/crypto'
 import { LoginPage } from './pages/one'
 
 function mdate(n: number): string {
@@ -115,17 +115,29 @@ const DatabasePage: Component = () => {
     </Page>
 }
 
+const Welcome: Component = () => {
+    return <div class='bg-blue-100 border-t border-b border-blue-500 text-blue-700 px-4 py-3' role='alert'>
+        <div class='flex'>
+            <p class='font-bold'>Welcome</p>
+            <div class='flex-1'/>
+            <button onclick={()=>setWelcome(false)}>X</button>
+            </div>
+        <p class='text-sm'>Your security settings can be accessed under the () icon. We have some suggestions for how you can be more secure. Also there are tools there to share your account across multiple devices</p>
+    </div>
+}
+
 // dbref is a table in ~ database, or should it be a folder of links? por que no los dos?
 const DatabaseList: Component = () => {
     const [lst] = createWatch("/")
-    return <Show when={!lst().loading}><Page >
+    return <Show when={true}><Page >
         <Title>Home</Title>
         <Body>
+            <Show when={welcome()}><Welcome /></Show>
             <table class='table-auto'>
                 <For each={entries(lst())}>{(e) => <tr><td>
                     <A href={`/db/${e}`}>{e.name}</A></td></tr>}
                 </For >
-                <A href='/add'>Add</A> <A class='ml-2' href='/profile'>Settings</A>
+                
             </table>
         </Body>
     </Page></Show>
@@ -154,7 +166,7 @@ function RouteGuard() {
     })
 
     return (
-        <Show when={startState() == StartState.active}>
+        <Show when={login()} fallback={<div>Loading...{login()}</div>}>
         <div>
             <Outlet />
         </div>

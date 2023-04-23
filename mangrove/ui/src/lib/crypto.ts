@@ -46,6 +46,11 @@ function init() : Security {
   } 
 }
 
+// true directly after registration
+export const [welcome, setWelcome] = createSignal(true)
+
+// set undefined to false to test without webauthn
+export const [hasWebAuthn, setHasWebAuthn] = createSignal(undefined as boolean|undefined)
 export const [login, setLogin] = createSignal(false)
 export const [user, setUser] = createSignal<string>('')
 export const [security, setSecurity_] = createSignal<Security>( init())
@@ -57,6 +62,16 @@ export const setSecurity = (s: Security) => {
 export const [error, setError] = createSignal("")
 export const isMobile: boolean = (navigator as any)?.userAgentData?.mobile ?? false;
 
+(async ()=>{
+  if (hasWebAuthn()==undefined) {
+  if (typeof(PublicKeyCredential) != "undefined" && typeof(PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) != "undefined"){
+   const b = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+   setHasWebAuthn(b)
+  } else {
+     setHasWebAuthn(false)
+   }
+  }
+})()
 
 
 export enum StartState {

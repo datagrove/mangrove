@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -359,7 +360,7 @@ func (s *Server) SuggestName(name string) string {
 			name = nameGenerator.Generate()
 		}
 
-		for i := 0; i < 10000; i++ {
+		for i := 0; i < 1000; i++ {
 			sname := name
 			if i != 0 {
 				sname = fmt.Sprintf("%s%d", name, i)
@@ -371,7 +372,6 @@ func (s *Server) SuggestName(name string) string {
 		}
 		name = ""
 	}
-
 }
 func (s *Server) GetSession(id string) (*Session, bool) {
 	s.muSession.Lock()
@@ -400,15 +400,6 @@ func (s *Server) NewSession(notifier SessionNotifier) (*Session, error) {
 	return r, nil
 }
 
-func (s *Server) SaveUser(u *User) error {
-	b, e := json.MarshalIndent(u, "", " ")
-	if e != nil {
-		return e
-	}
-	d := path.Join(s.Home, "user", u.ID, ".config.json")
-	os.MkdirAll(path.Dir(d), 0700)
-	return os.WriteFile(d, b, 0600)
-}
 func (s *Server) RecoverUser(id string, sess *Session, signature string) error {
 	var signedMessage []byte
 	var key = make([]byte, len(signature)/2)
@@ -425,29 +416,48 @@ func (s *Server) RecoverUser(id string, sess *Session, signature string) error {
 	}
 	return s.LoadUser(id, &sess.User)
 }
+
+func (s *Server) LinkDevice(sess *Session) error {
+	return nil
+}
+
+// func (s *Server) AddCredential(sess *Session,) (*User, error) {
+
+// 	// check the ucan
+// 	ucan, e := ucan.DecodeUcan(ucanLink)
+// 	_ = ucan
+// 	if e != nil {
+// 		return nil, e
+// 	}
+
+// 	return nil, nil
+// }
+
+// we defer creating new users until we have a credential
+// what if this fails? recover by regenerating a uid? force a signature?
+// maybe before we get here we have already established that we must be the user?
+//
+//	func (s *Server) NewUser(sess *Session, cred *webauthn.Credential) error {
+//		// convert the did to not use ':'
+//		s.SaveUser(&sess.User)
+//	}
+func (s *Server) SaveUser(u *User) error {
+	name := strings.ReplaceAll(u.ID, ":", "_")
+	b, e := json.MarshalIndent(u, "", " ")
+	if e != nil {
+		return e
+	}
+	d := path.Join(s.Home, "user", name, ".config.json")
+	os.MkdirAll(path.Dir(d), 0700)
+	return os.WriteFile(d, b, 0600)
+}
 func (s *Server) LoadUser(name string, u *User) error {
-	b, e := os.ReadFile(path.Join(s.Home, "user", name))
+	name = strings.ReplaceAll(name, ":", "_")
+	b, e := os.ReadFile(path.Join(s.Home, "user", name, ".config.json"))
 	if e != nil {
 		return e
 	}
 	return json.Unmarshal(b, u)
-}
-func (s *Server) NewUser(name, recoveryKey string) (*User, error) {
-	target := path.Join(s.Home, "user", name)
-	e := os.MkdirAll(target, 0700)
-	if e != nil {
-		return nil, e
-	}
-	e = os.WriteFile(path.Join(target, ".config.json"), []byte(""), 0600)
-	if e != nil {
-		return nil, e
-	}
-	return &User{
-		ID:          name,
-		Name:        name,
-		DisplayName: name,
-		RecoveryKey: recoveryKey,
-	}, nil
 }
 
 type Context struct {
