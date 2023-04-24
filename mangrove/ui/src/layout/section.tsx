@@ -79,7 +79,7 @@ export function NavItem(props: {children: JSX.Element, href: string, title: stri
   return (
     <li>
       <NavLink
-        class="p-2 text-base w-full rounded-lg md:(rounded-r-xl rounded-l-none) text-left relative flex items-center justify-between transition"
+        class="p-2 text-base w-full rounded-r-xl rounded-l-none text-left relative flex items-center justify-between transition"
         {...props}
         inactiveClass="hover:bg-solid-light hover:dark:bg-solid-darkbg"
         activeClass="text-white font-semibold bg-solid-accent active"

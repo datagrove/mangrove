@@ -3,15 +3,10 @@ import solidPlugin from 'vite-plugin-solid';
 import serveStatic from 'serve-static'
 import mkcert from 'vite-plugin-mkcert'
 
-const x = () => ({
-    name: 'TestResults',
-    configureServer(server: any) {
-      server.middlewares.use(serveStatic('../RunTest', { index: false }))
-    }
-  })
 
 export default defineConfig({
-    plugins: [solidPlugin(),x(),mkcert()],
+    plugins: [solidPlugin(),mkcert()], //
+    appType: 'spa',
     server: {
       proxy: {
         // '/wss': {

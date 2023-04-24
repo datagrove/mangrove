@@ -16,7 +16,6 @@ export const DarkButton = ()=> {
         isDark()
         ? html.classList.add("dark")
         : html.classList.remove("dark");
-        dgos('dark',isDark())
      } }>
 
     <Show

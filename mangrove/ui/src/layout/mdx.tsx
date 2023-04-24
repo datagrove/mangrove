@@ -1,9 +1,9 @@
 
-import { showToc } from "./store"
 import { createEffect, createSignal, Show } from "solid-js"
 import { chevronLeft, chevronRight } from "solid-heroicons/solid"
 import { Icon } from "solid-heroicons"
 import { buildToc, md2html } from "../md"
+import { showToc } from "./site_menu"
 
 // the content can be a custom app url, or could be some standard app that this program already knows how to read. each concierge site has a menu that picks.
 // the content of Layout must all live in an iframe, unless it is the internal content (settings).

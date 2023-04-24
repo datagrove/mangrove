@@ -10,6 +10,7 @@ import * as ucans from "@ucans/ucans"
 import * as ed25519 from "@stablelib/ed25519"
 import { Buffer } from 'buffer'
 import { EdKeypair } from "@ucans/ucans"
+import { useNavigate } from "@solidjs/router"
 // @ts-ignore
 window.Buffer = Buffer;
 
@@ -29,6 +30,17 @@ export interface Security {
   registered: boolean
   autoconnectUntil: number
 }
+
+// when we logout, should we remove the device key? that would require storing it on the server, a tradeoff.
+export const useLogout = () => {
+  const navigate = useNavigate()
+  return () => {
+    sessionStorage.removeItem('token');
+    setLogin(false)
+    navigate('/', { replace: true });
+  }
+}
+
 function init() : Security {
   const a = localStorage.getItem('security')
   if (a) {
@@ -51,6 +63,7 @@ export const [welcome, setWelcome] = createSignal(true)
 
 // set undefined to false to test without webauthn
 export const [hasWebAuthn, setHasWebAuthn] = createSignal(undefined as boolean|undefined)
+// if login is true we can go to any page.
 export const [login, setLogin] = createSignal(false)
 export const [user, setUser] = createSignal<string>('')
 export const [security, setSecurity_] = createSignal<Security>( init())
@@ -74,12 +87,12 @@ export const isMobile: boolean = (navigator as any)?.userAgentData?.mobile ?? fa
 })()
 
 
-export enum StartState {
-  starting = 0,
-  loginNeeded = 2,
-  active = 3
-}
-export const [startState, setStartState] = createSignal<number>(0)
+// export enum StartState {
+//   starting = 0,
+//   loginNeeded = 2,
+//   active = 3
+// }
+// export const [startState, setStartState] = createSignal<number>(0)
 
 
 export const generatePassPhrase = () => bip39.generateMnemonic()
@@ -130,9 +143,9 @@ export async function tryToLogin() {
     a.userDid = user.did()
     a.userPrivate = await user.export("base58btc")
     setSecurity(a)
-    setStartState(StartState.loginNeeded)
+    setLogin(true)
   } else {
-    if (a.autoconnectUntil > Date.now()) {
+    if (a.autoconnectUntil==0 || a.autoconnectUntil > Date.now()) {
       const ws =  createWs()
       const did = await ws.did()
       const keypair = await ucans.EdKeypair.fromSecretKey(a.devicePrivate)
@@ -141,17 +154,17 @@ export async function tryToLogin() {
         issuer: keypair, // signing key
         capabilities: [ // permissions for ucan
           {
-            with: { scheme: "login", hierPart: did },
-            can: { namespace: "login", segments: ["LOGIN"] }
-          },
+            with: "login://"+a.userDid,
+            can: "*"
+          }
         ]
       })
       const r = await ws.rpc<{ token: string }>('ucanconnect', ucan)
       setLogin(true)
       setUser(a.username)
-      setStartState(StartState.active)
+      setLogin(true)
     } else {
-      setStartState(StartState.loginNeeded)
+      setLogin(true)
     }
   }
 

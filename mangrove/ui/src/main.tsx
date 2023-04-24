@@ -2,16 +2,16 @@ import './index.css'
 import { JSXElement, Component, createSignal, For, onMount, Show, createResource, Switch, Match, createEffect, Accessor } from 'solid-js'
 import { render } from 'solid-js/web'
 import { Route, Routes, Router, useNavigate, useParams, hashIntegration, Outlet } from "@solidjs/router"
-import { BackNav, H2, Page, A, Body, Title, P } from './lib/nav'
+import { BackNav, H2, Page, A, Body, Title, P, PageParams } from './lib/nav'
 import { OrError, Rpc, profile } from './lib/socket'
 import { LoginPage2, RecoveryPage } from './pages/login'
 import { Datagrove, Presentation, Pt, createPresentation, rows } from './lib/db'
 import { Dbref, dbref, taskEntry, } from './lib/schema'
 import { BlueButton, Center } from './lib/form'
 import { Folder, createWatch, entries } from './lib/dbf'
-import { StartState, login, setWelcome, startState, welcome } from './lib/crypto'
+import { login, setWelcome, welcome } from './lib/crypto'
 import { LoginPage } from './pages/one'
-import { Layout } from './layout/layout'
+import { SitePage, SiteStore, setSite } from './layout/site_menu'
 
 function mdate(n: number): string {
     return new Date(n).toLocaleDateString('en-us', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
@@ -152,18 +152,27 @@ const ComingSoon: Component = () => {
     </Page>
 }
 
+function Home() {
+    const navigate = useNavigate();
+    // redirect to current user's home page
+    // this needs to be async to make a decision?
 
+    if (!login())
+        navigate('/~/login')
+    else {
+        navigate('/en/jim.hurd')
+    }
+    return <></>
+}
 function RouteGuard() {
     const navigate = useNavigate();
 
     createEffect(() => {
         // maybe token should be a session token or just a variable even.
         // should each tab need its own id? eventually we should use a sharedworker to log in. this sharedworker will keep a variable.
-        if (startState() == StartState.loginNeeded) {
-            if (!login()) {
-                console.log('redirecting to login')
-                navigate('/login', { replace: true });
-            }
+        if (!login()) {
+            console.log('redirecting to login')
+            navigate('/~/login', { replace: true });
         }
     })
     // when={login()} 
@@ -176,6 +185,9 @@ function RouteGuard() {
     )
 }
 
+
+export const js = (x: any) => JSON.stringify(x, null, 2)
+
 function ProfilePage() {
     return <Page>
         <Title>Settings</Title>
@@ -186,68 +198,67 @@ function ProfilePage() {
     </Page>
 }
 const OrgPage: Component = () => {
-    const params = useParams<{ org: string }>()
+    const params = useParams<PageParams>()
     return <Page>   <Title>Organizations</Title>
         <Center>
-            <H2>{params.org} Organization</H2>
+            <H2>{js(params)} Organization</H2>
         </Center></Page>
 }
 const DbPage: Component = () => {
     const params = useParams<{ org: string, db: string }>()
     return <Page>   <Title>Organizations</Title>
         <Center>
-            <H2>{params.org}/{params.db} Database</H2>
+            <H2>{js(params)} Database</H2>
         </Center></Page>
 }
 const TablePage: Component = () => {
     const params = useParams<{ org: string, db: string, table: string, tag?: string }>()
     return <Page>   <Title>Organizations</Title>
         <Center>
-            <H2>{params.org}/{params.db}/{params.table}#{params.tag ?? "!"} Table</H2>
+            <H2>{js(params)} Table</H2>
         </Center></Page>
 }
 const FilePage: Component = () => {
     const params = useParams<{ org: string, db: string, path: string, tag?: string }>()
     return <Page>   <Title>Organizations</Title>
         <Center>
-            <H2>{params.org}/{params.db}/{params.path}#{params.tag ?? "!"} file</H2>
+            <H2>js(params) file</H2>
         </Center></Page>
 }
 const OrgAccess: Component = () => {
     const params = useParams<{ org: string }>()
     return <Page>   <Title>Organizations</Title>
         <Center>
-            <H2>{params.org} Org Access</H2>
+            <H2>{js(params)} Org Access</H2>
         </Center></Page>
 }
 const DbAccess: Component = () => {
     const params = useParams<{ org: string, db: string }>()
     return <Page>   <Title>Organizations</Title>
         <Center>
-            <H2>{params.org}/{params.db} Db accesss</H2>
+            <H2>{js(params)} Db accesss</H2>
         </Center></Page>
 }
 
-function Home() {
-    const navigate = useNavigate();
-    // redirect to current user's home page
-    navigate('/en/jim.hurd')
-    return <></>
+
+function NotFoundPage() {
+    const p = useParams<{ path: string }>()
+    return <div>Not found {p.path}</div>
 }
-function App() {
+function App2() {
     //const [items] =  createResource(props.fetch)
     return <>
 
         <Routes>
-
-            <Route path="/login" component={LoginPage} />
-            <Route path="/login2" component={LoginPage2} />
-            <Route path="/recover" component={RecoveryPage} />
-            <Route path="/register" component={LoginPage} />
+            <Route path="/" component={Home} />
+            <Route path="/~/login" component={LoginPage} />
+            <Route path="/~/login2" component={LoginPage2} />
+            <Route path="/~/recover" component={RecoveryPage} />
+            <Route path="/~/register" component={LoginPage} />
             <Route path="/" component={RouteGuard}>
-                <Route path="/profile" component={ProfilePage} />
-                <Route path="/add" component={ComingSoon} />
-                <Route path="/" component={Home} />
+                <Route path="/~/profile" component={ProfilePage} />
+                <Route path="/~/add" component={ComingSoon} />
+
                 <Route path="/:ln/:org" component={OrgPage} />
                 <Route path="/:ln/:org/~/access" component={OrgAccess} />
                 <Route path="/:ln/:org/:db/access" component={DbAccess} />
@@ -260,28 +271,108 @@ function App() {
                 <Route path="/:ln/:org/:db/th/:tag/:table" component={TablePage} />
                 <Route path="/:ln/:org/:db/fh/:tag/*path" component={FilePage} />
             </Route>
+            <Route path="/*path" component={NotFoundPage} />
         </Routes></>
 }
 
+function App() {
 
-// profile is the global state
-// it never changes server, and is loaded from the home server.
-// we can use iframes and open new tabs for other ones.
-// it could be prerendered
-// it can be provided a shared worker or service worker.
 
-// source={hashIntegration()}>
 
-// I need to get the site from the server after login.
-// should be a subscription since the site may change as we look at it.
-import { siteStore } from "./site/intro/site"
-import { setSite } from "./layout/store"
-setSite(siteStore, '')
+    return <div>Hello, world</div>
+}
+
+const a = {
+    title: "Aetna 1199",
+    href: "",
+    root: { name: "/", path: "/", children: [] } as SitePage,
+    path: new Map<string, SitePage>(),
+    search: [],
+    sitemap: [
+        {
+            name: 'Tasks', // needs to be localized
+            // we shouldn't have a path to sections, we just pick the first child
+            children: [
+                {
+                    name: 'Periodic Tasks', path: '/en/jim.hurd'
+                    , children: [
+                        {
+                            name: 'Process Files', path: '/en/jim.hurd', children: [
+                                { name: 'All Files', path: '/en/jim.hurd' }]
+                        },
+                    ]
+                },
+                {
+                    name: 'Settings', path: '/en/jim.hurd', children: [
+                        {
+                            name: 'Security', path: '/en/jim.hurd', children: [
+                                { name: 'Login', path: '/en/jim.hurd' },
+                                { name: 'Recover', path: '/en/jim.hurd' },
+                                { name: 'Register', path: '/en/jim.hurd' },
+                            ]
+                        }
+                    ]
+                }
+                ,],
+
+        },
+        {
+            name: 'Learn',
+            children: [
+                {
+                    name: 'Explanation', path: '/en/jim.hurd'
+                    , children: [
+                        {
+                            name: 'Process Files', path: '/en/jim.hurd', children: [
+                                { name: 'All Files', path: '/en/jim.hurd' }]
+                        },
+                    ]
+                },
+                {
+                    name: 'How-to', path: '/en/jim.hurd'
+                    , children: [
+                        {
+                            name: 'Process Files', path: '/en/jim.hurd', children: [
+                                { name: 'All Files', path: '/en/jim.hurd' }]
+                        },
+                    ]
+                },
+                {
+                    name: 'Tutorials', path: '/en/jim.hurd'
+                    , children: [
+                        {
+                            name: 'Process Files', path: '/en/jim.hurd', children: [
+                                { name: 'All Files', path: '/en/jim.hurd' }]
+                        },
+                    ]
+                },
+                {
+                    name: 'Reference', path: '/en/jim.hurd', children: [
+                        {
+                            name: 'Security', path: '/en/jim.hurd', children: [
+                                { name: 'Login', path: '/en/jim.hurd' },
+                                { name: 'Recover', path: '/en/jim.hurd' },
+                                { name: 'Register', path: '/en/jim.hurd' },
+                            ]
+                        }
+                    ]
+                }
+            ],
+        }
+    ],
+    language: {
+        en: 'English',
+        es: 'Español',
+    }
+}
+console.log("s", JSON.stringify(a, null, 2))
+setSite(a, '')
+
 
 render(
     () => (
         <Router >
-            <App></App>
+            <App2 />
         </Router>
     ),
     document.getElementById("app")!
