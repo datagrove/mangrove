@@ -606,6 +606,18 @@ func initialize(dir string) {
 	}`), 0777)
 }
 
+type spaFileSystem struct {
+	root http.FileSystem
+}
+
+func (fs *spaFileSystem) Open(name string) (http.File, error) {
+	f, err := fs.root.Open(name)
+	if os.IsNotExist(err) {
+		return fs.root.Open("index.html")
+	}
+	return f, err
+}
+
 // directory should already be initalized
 // maybe the caller should pass a launch function?
 func NewServer(name string, dir string, res embed.FS) (*Server, error) {
@@ -646,7 +658,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	fs := http.FileServer(http.FS(htmlContent))
+	fs := http.FileServer(&spaFileSystem{http.FS(htmlContent)})
 	mux := http.NewServeMux()
 	mux.Handle("/", fs)
 

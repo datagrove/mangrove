@@ -1,4 +1,3 @@
-
 import { Component, For, JSXElement, Switch, Match, Show, createEffect, createSignal } from 'solid-js'
 import { chevronLeft, chevronDown, bars_3, magnifyingGlass, user } from "solid-heroicons/solid"
 import { Icon } from 'solid-heroicons'
@@ -14,8 +13,12 @@ import {
   Transition,
   Menu,
   MenuItem,
+  Dialog,
 } from 'solid-headless';
 import Dismiss from 'solid-dismiss'
+import { SearchList, SiteMenuContent } from '../layout/site_menu'
+import { pageDescription, searchMode } from '../layout/store'
+import { BlueButton, Center } from './form'
 function classNames(...classes: (string | boolean | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }
@@ -52,54 +55,67 @@ export const Title: Component<{
   let btn: HTMLButtonElement;
   return <>
     <div class='fixed flex left-2 top-2 p-2 border-solid w-96 border-neutral-500 rounded-md bg-neutral-800'>
-      <button ref={btn!} onClick={()=>setOpenDrawer(true)}> <Icon path={bars_3} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' /></button>
+      <button ref={btn!} onClick={() => setOpenDrawer(true)}> <Icon path={bars_3} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' /></button>
       <input placeholder='Search' type='text' class='bg-transparent focus:outline-none w-full text-white' />
       <Icon path={magnifyingGlass} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' />
     </div>
-    <Drawer button={btn!}/>
-    <Account/>
+    <Drawer button={btn!} />
+    <Account />
   </>
 }
 const [openDrawer, setOpenDrawer] = createSignal(false);
-export const Drawer: Component<{ button: HTMLButtonElement}> = (props ) => {
-  return  <>
-  <Dismiss
-        menuButton={props.button}
-        open={openDrawer}
-        setOpen={setOpenDrawer}
-      >
-       
-    <div class='fixed left-0 top-0 w-96 h-full rounded-md bg-gradient-to-r from-neutral-800 to-neutral-800 '>
-      <table>
-        {/* list of account*/}
-        <tbody>
-        <tr><td></td><td>Add another account</td></tr>
-        <tr><td></td><td>Signout</td></tr></tbody>
-      </table>
-    </div></Dismiss></>
+export const Drawer: Component<{ button: HTMLButtonElement }> = (props) => {
+  const pd = pageDescription()
+  return <>
+    <Dismiss
+      menuButton={props.button}
+      open={openDrawer}
+      setOpen={setOpenDrawer}
+    >
+      <div class='transform fixed left-0 top-0 w-96 h-full rounded-md  bg-neutral-800'>
+        <Switch>
+          <Match when={searchMode()}>
+            <SearchList />
+          </Match>
+          <Match when={!searchMode()}>
+            <SiteMenuContent page={pd} /></Match>
+        </Switch>
+      </div></Dismiss></>
 }
 
 export const Account: Component = () => {
+  const logOut = useLogout()
   const [open, setOpen] = createSignal(false);
   let btnEl: HTMLButtonElement;
-  return  <><button ref={btnEl!} class='fixed  right-2 top-2 p-2 rounded-full bg-neutral-800' > 
-  <Icon path={user} class='h-6 w-6'></Icon></button>
-  <Dismiss
-        menuButton={btnEl!}
-        open={open}
-        setOpen={setOpen}
-      >
-       
-    <div class='fixed right-2 top-14 w-96 h-96 rounded-md bg-gradient-to-r from-neutral-800 to-neutral-800 '>
-      <table>
-        {/* list of account*/}
-        <tbody>
-        <tr><td></td><td>Add another account</td></tr>
-        <tr><td></td><td>Signout</td></tr></tbody>
-      </table>
-    </div></Dismiss>
- 
+  const add = () => { }
+
+  const [account, setAccount] = createSignal([]);
+  return <><button title='account' ref={btnEl!} class='fixed  right-2 top-2 p-2 rounded-full bg-neutral-800' >
+    <Icon path={user} class='h-6 w-6'></Icon></button>
+    <Dismiss
+      menuButton={btnEl!}
+      open={open}
+      setOpen={setOpen}
+    >
+
+      <div class='fixed right-2 top-14 w-48  rounded-md bg-gradient-to-r from-neutral-800 to-neutral-800 '>
+        <div class='space-y-2 p-2'>
+          <BlueButton onClick={add}> this account</BlueButton>
+          <For each={account()}>{(a) => <BlueButton onClick={add}>{a}</BlueButton>}</For>
+          <BlueButton onClick={add}> Add another account</BlueButton>
+          <BlueButton onClick={logOut}>Signout</BlueButton>
+        </div>
+      </div></Dismiss>
+
   </>
+}
+export const useLogout = () => {
+  const navigate = useNavigate()
+  return () => {
+    sessionStorage.removeItem('token');
+    setLogin(false)
+    navigate('/', { replace: true });
+  }
 }
 
 
@@ -107,13 +123,8 @@ export const Title2: Component<{
   back?: string
   children?: JSXElement
 }> = (props) => {
-  const navigate = useNavigate()
-  const logOut = () => {
-    sessionStorage.removeItem('token');
-    setLogin(false)
-    navigate('/', { replace: true });
-  }
 
+  const logOut = useLogout()
   return <><BackNav back={!!props.back} >
     {props.children}
     <button onClick={logOut} class="ml-2 inline-flex items-center px-2 py-1 border border-transparent text-xs leading-4 font-medium rounded-full text-white bg-red-600 hover:bg-red-500 focus:outline-none focus:border-red-700 focus:shadow-outline-red active:bg-red-700 transition ease-in-out duration-150">Sign out</button>

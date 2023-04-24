@@ -2,15 +2,16 @@ import './index.css'
 import { JSXElement, Component, createSignal, For, onMount, Show, createResource, Switch, Match, createEffect, Accessor } from 'solid-js'
 import { render } from 'solid-js/web'
 import { Route, Routes, Router, useNavigate, useParams, hashIntegration, Outlet } from "@solidjs/router"
-import { BackNav, H2, Page, A, Body, Title } from './lib/nav'
+import { BackNav, H2, Page, A, Body, Title, P } from './lib/nav'
 import { OrError, Rpc, profile } from './lib/socket'
-import {  LoginPage2, RecoveryPage} from './pages/login'
+import { LoginPage2, RecoveryPage } from './pages/login'
 import { Datagrove, Presentation, Pt, createPresentation, rows } from './lib/db'
 import { Dbref, dbref, taskEntry, } from './lib/schema'
 import { BlueButton, Center } from './lib/form'
 import { Folder, createWatch, entries } from './lib/dbf'
 import { StartState, login, setWelcome, startState, welcome } from './lib/crypto'
 import { LoginPage } from './pages/one'
+import { Layout } from './layout/layout'
 
 function mdate(n: number): string {
     return new Date(n).toLocaleDateString('en-us', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
@@ -119,12 +120,13 @@ const Welcome: Component = () => {
     return <div class='bg-blue-100 border-t border-b border-blue-500 text-blue-700 px-4 py-3' role='alert'>
         <div class='flex'>
             <p class='font-bold'>Welcome</p>
-            <div class='flex-1'/>
-            <button onclick={()=>setWelcome(false)}>X</button>
-            </div>
+            <div class='flex-1' />
+            <button onclick={() => setWelcome(false)}>X</button>
+        </div>
         <p class='text-sm'>Your security settings can be accessed under the () icon. We have some suggestions for how you can be more secure. Also there are tools there to share your account across multiple devices</p>
     </div>
 }
+
 
 // dbref is a table in ~ database, or should it be a folder of links? por que no los dos?
 const DatabaseList: Component = () => {
@@ -132,12 +134,12 @@ const DatabaseList: Component = () => {
     return <Show when={true}><Page >
         <Title>Home</Title>
         <Body>
-            <Show when={welcome()}><Welcome /></Show>
+            <Show when={false && welcome()}><Welcome /></Show>
             <table class='table-auto'>
                 <For each={entries(lst())}>{(e) => <tr><td>
                     <A href={`/db/${e}`}>{e.name}</A></td></tr>}
                 </For >
-                
+
             </table>
         </Body>
     </Page></Show>
@@ -157,19 +159,19 @@ function RouteGuard() {
     createEffect(() => {
         // maybe token should be a session token or just a variable even.
         // should each tab need its own id? eventually we should use a sharedworker to log in. this sharedworker will keep a variable.
-        if (startState() ==  StartState.loginNeeded) {
+        if (startState() == StartState.loginNeeded) {
             if (!login()) {
                 console.log('redirecting to login')
                 navigate('/login', { replace: true });
             }
-        } 
+        }
     })
-
+    // when={login()} 
     return (
-        <Show when={login()} fallback={<div>Loading...{login()}</div>}>
-        <div>
-            <Outlet />
-        </div>
+        <Show when={true} fallback={<div>Loading...{login()}</div>}>
+            <div>
+                <Outlet />
+            </div>
         </Show>
     )
 }
@@ -182,6 +184,55 @@ function ProfilePage() {
             <BlueButton onClick={() => { }}>Add</BlueButton>
         </Center>
     </Page>
+}
+const OrgPage: Component = () => {
+    const params = useParams<{ org: string }>()
+    return <Page>   <Title>Organizations</Title>
+        <Center>
+            <H2>{params.org} Organization</H2>
+        </Center></Page>
+}
+const DbPage: Component = () => {
+    const params = useParams<{ org: string, db: string }>()
+    return <Page>   <Title>Organizations</Title>
+        <Center>
+            <H2>{params.org}/{params.db} Database</H2>
+        </Center></Page>
+}
+const TablePage: Component = () => {
+    const params = useParams<{ org: string, db: string, table: string, tag?: string }>()
+    return <Page>   <Title>Organizations</Title>
+        <Center>
+            <H2>{params.org}/{params.db}/{params.table}#{params.tag ?? "!"} Table</H2>
+        </Center></Page>
+}
+const FilePage: Component = () => {
+    const params = useParams<{ org: string, db: string, path: string, tag?: string }>()
+    return <Page>   <Title>Organizations</Title>
+        <Center>
+            <H2>{params.org}/{params.db}/{params.path}#{params.tag ?? "!"} file</H2>
+        </Center></Page>
+}
+const OrgAccess: Component = () => {
+    const params = useParams<{ org: string }>()
+    return <Page>   <Title>Organizations</Title>
+        <Center>
+            <H2>{params.org} Org Access</H2>
+        </Center></Page>
+}
+const DbAccess: Component = () => {
+    const params = useParams<{ org: string, db: string }>()
+    return <Page>   <Title>Organizations</Title>
+        <Center>
+            <H2>{params.org}/{params.db} Db accesss</H2>
+        </Center></Page>
+}
+
+function Home() {
+    const navigate = useNavigate();
+    // redirect to current user's home page
+    navigate('/en/jim.hurd')
+    return <></>
 }
 function App() {
     //const [items] =  createResource(props.fetch)
@@ -196,9 +247,18 @@ function App() {
             <Route path="/" component={RouteGuard}>
                 <Route path="/profile" component={ProfilePage} />
                 <Route path="/add" component={ComingSoon} />
-                <Route path="/" component={DatabaseList} />
-                <Route path="/db/:db" component={DatabasePage} />
-                <Route path="/db/:db/log/:id" component={JobPage} />
+                <Route path="/" component={Home} />
+                <Route path="/:ln/:org" component={OrgPage} />
+                <Route path="/:ln/:org/~/access" component={OrgAccess} />
+                <Route path="/:ln/:org/:db/access" component={DbAccess} />
+                <Route path="/:ln/:org/:db" component={DbPage} />
+
+                <Route path="/:ln/:org/:db/t/:table" component={TablePage} />
+                <Route path="/:ln/:org/:db/f/*path" component={FilePage} />
+                <Route path="/:ln/:org/:db/log/:id" component={JobPage} />
+
+                <Route path="/:ln/:org/:db/th/:tag/:table" component={TablePage} />
+                <Route path="/:ln/:org/:db/fh/:tag/*path" component={FilePage} />
             </Route>
         </Routes></>
 }
@@ -210,11 +270,17 @@ function App() {
 // it could be prerendered
 // it can be provided a shared worker or service worker.
 
+// source={hashIntegration()}>
 
+// I need to get the site from the server after login.
+// should be a subscription since the site may change as we look at it.
+import { siteStore } from "./site/intro/site"
+import { setSite } from "./layout/store"
+setSite(siteStore, '')
 
 render(
     () => (
-        <Router source={hashIntegration()}>
+        <Router >
             <App></App>
         </Router>
     ),

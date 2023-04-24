@@ -1,4 +1,4 @@
-import { Component, JSXElement, Show, createSignal } from "solid-js"
+import { Component, JSX, JSXElement, Show, createSignal } from "solid-js"
 
 
 export const FieldSet: Component<{ children: JSXElement }> = (props) => {
@@ -36,9 +36,9 @@ export const ToggleSection: Component<{
 }
 
 
-export const Center: Component<{ children: JSXElement }> = (props) => {
+export const Center: Component<JSX.AnchorHTMLAttributes<HTMLDivElement>> = (props) => {
     return <div class="grid place-items-center h-screen">
-        <div class='w-96'>
+        <div {...props} class='w-96'>
             {props.children}
         </div></div>
 }
