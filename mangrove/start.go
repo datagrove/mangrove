@@ -441,6 +441,21 @@ func (s *Server) LinkDevice(sess *Session) error {
 //		// convert the did to not use ':'
 //		s.SaveUser(&sess.User)
 //	}
+func (s *Server) NewUser(u *User) error {
+	name := strings.ReplaceAll(u.ID, ":", "_")
+	d := path.Join(s.Home, "user", name)
+	os.Mkdir(d, 0700)
+	a := Asset
+	fs.WalkDir(a, "pkg/~", func(p string, de fs.DirEntry, e error) error {
+		f, e := fs.ReadFile(a, p)
+		if e != nil {
+			return e
+		}
+		os.WriteFile(path.Join(d, p), f, 0600)
+		return nil
+	})
+	return nil
+}
 func (s *Server) SaveUser(u *User) error {
 	name := strings.ReplaceAll(u.ID, ":", "_")
 	b, e := json.MarshalIndent(u, "", " ")
@@ -450,6 +465,7 @@ func (s *Server) SaveUser(u *User) error {
 	d := path.Join(s.Home, "user", name, ".config.json")
 	os.MkdirAll(path.Dir(d), 0700)
 	return os.WriteFile(d, b, 0600)
+
 }
 func (s *Server) LoadUser(name string, u *User) error {
 	name = strings.ReplaceAll(name, ":", "_")

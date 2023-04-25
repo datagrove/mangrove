@@ -347,7 +347,8 @@ func WebauthnSocket(mg *Server) error {
 			},
 		}
 		r.User.Credentials = append(r.Session.User.Credentials, *credential)
-		mg.SaveUser(&r.Session.User)
+		mg.NewUser(&r.Session.User)
+		// return the user name
 		return r.User.Name, nil
 	})
 

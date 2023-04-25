@@ -1,0 +1,139 @@
+{
+    "title": "Aetna 1199",
+    "href": "",
+    "root": {
+      "name": "/",
+      "path": "/",
+      "children": []
+    },
+    "path": {},
+    "search": [],
+    "sitemap": [
+      {
+        "name": "Tasks",
+        "children": [
+          {
+            "name": "Periodic Tasks",
+            "path": "/en/jim.hurd",
+            "children": [
+              {
+                "name": "Process Files",
+                "path": "/en/jim.hurd",
+                "children": [
+                  {
+                    "name": "All Files",
+                    "path": "/en/jim.hurd"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Settings",
+            "path": "/en/jim.hurd",
+            "children": [
+              {
+                "name": "Security",
+                "path": "/en/jim.hurd",
+                "children": [
+                  {
+                    "name": "Login",
+                    "path": "/en/jim.hurd"
+                  },
+                  {
+                    "name": "Recover",
+                    "path": "/en/jim.hurd"
+                  },
+                  {
+                    "name": "Register",
+                    "path": "/en/jim.hurd"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Learn",
+        "children": [
+          {
+            "name": "Explanation",
+            "path": "/en/jim.hurd",
+            "children": [
+              {
+                "name": "Process Files",
+                "path": "/en/jim.hurd",
+                "children": [
+                  {
+                    "name": "All Files",
+                    "path": "/en/jim.hurd"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "How-to",
+            "path": "/en/jim.hurd",
+            "children": [
+              {
+                "name": "Process Files",
+                "path": "/en/jim.hurd",
+                "children": [
+                  {
+                    "name": "All Files",
+                    "path": "/en/jim.hurd"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Tutorials",
+            "path": "/en/jim.hurd",
+            "children": [
+              {
+                "name": "Process Files",
+                "path": "/en/jim.hurd",
+                "children": [
+                  {
+                    "name": "All Files",
+                    "path": "/en/jim.hurd"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Reference",
+            "path": "/en/jim.hurd",
+            "children": [
+              {
+                "name": "Security",
+                "path": "/en/jim.hurd",
+                "children": [
+                  {
+                    "name": "Login",
+                    "path": "/en/jim.hurd"
+                  },
+                  {
+                    "name": "Recover",
+                    "path": "/en/jim.hurd"
+                  },
+                  {
+                    "name": "Register",
+                    "path": "/en/jim.hurd"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "language": {
+      "en": "English",
+      "es": "Español"
+    }
+  }
