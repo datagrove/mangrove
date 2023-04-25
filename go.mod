@@ -21,6 +21,8 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/google/go-tpm v0.3.3 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
+	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
 	github.com/kr/fs v0.1.0 // indirect
@@ -46,6 +48,9 @@ require (
 	github.com/go-test/deep v1.1.0
 	github.com/google/uuid v1.3.0
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
+	github.com/jackc/pgconn v1.14.0
+	github.com/jackc/pglogrepl v0.0.0-20230318140337-5ef673a9d169
+	github.com/jackc/pgproto3/v2 v2.3.2
 	github.com/jackc/pgx/v5 v5.3.1
 	github.com/kardianos/service v1.2.2
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51

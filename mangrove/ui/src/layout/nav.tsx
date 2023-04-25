@@ -1,8 +1,8 @@
 import { Component, For, JSXElement, Switch, Match, Show, createEffect, createSignal } from 'solid-js'
-import { chevronLeft, chevronDown, bars_3, magnifyingGlass, user } from "solid-heroicons/solid"
+import { pencil, chevronLeft, chevronDown, bars_3, magnifyingGlass, user } from "solid-heroicons/solid"
 import { Icon } from 'solid-heroicons'
 import { AnchorProps, A as Ar, Outlet, useNavigate } from '@solidjs/router'
-import { setLogin, useLogout } from './crypto'
+import { setLogin, useLogout } from '../lib/crypto'
 import {
   Popover,
   PopoverButton,
@@ -16,8 +16,8 @@ import {
   Dialog,
 } from 'solid-headless';
 import Dismiss from 'solid-dismiss'
-import { SearchList, SiteMenuContent, searchMode, setSearchMode } from '../layout/site_menu'
-import { BlueButton, Center } from './form'
+import { SearchList, SiteMenuContent, searchMode, setSearchMode } from './site_menu'
+import { BlueButton, Center } from '../lib/form'
 function classNames(...classes: (string | boolean | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }
@@ -74,12 +74,15 @@ export const Title: Component<{
 const [openDrawer, setOpenDrawer] = createSignal(false);
 
 export const Drawer: Component<{ button: HTMLButtonElement }> = (props) => {
-
+  const nav = useNavigate()
   createEffect(() => {
     if (!openDrawer()) {
       setSearchMode(false)
     }
   })
+  const editSite = () => {
+
+  }
   return <>
     <Dismiss
       menuButton={props.button}
@@ -88,6 +91,7 @@ export const Drawer: Component<{ button: HTMLButtonElement }> = (props) => {
     >
       <div class='transform fixed left-0 top-0 w-96 h-full rounded-md dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'>
         <SiteMenuContent></SiteMenuContent>
+        <button onClick={ editSite} class='z-60 fixed p-2 bottom-2 right-2 rounded-full text-blue-700 hover:text-blue-500'><Icon class='h-6 w-6' path={pencil}/></button>
       </div></Dismiss></>
 }
 
@@ -101,6 +105,7 @@ export const Account: Component = () => {
   const [account, setAccount] = createSignal([]);
   return <><button title='account' ref={btnEl!} class='fixed  right-2 top-2 p-2 rounded-full bg-neutral-800' >
     <Icon path={user} class='h-6 w-6'></Icon></button>
+    <button class='z-60 fixed p-2 bottom-2 right-2 rounded-full bg-neutral-900'><Icon class='h-6 w-6' path={pencil}/></button>
     <Dismiss
       menuButton={btnEl!}
       open={open}
@@ -134,7 +139,9 @@ export const Title2: Component<{
 
 
 export const Body: Component<{ children: JSXElement }> = (props) => {
-  return <div class="m-2">{props.children}</div>
+  return <div class="m-2">{props.children}
+          
+  </div>
 }
 export const Page: Component<{ children: JSXElement }> = (props) => {
 

@@ -10,7 +10,7 @@ import { createStore, produce } from 'solid-js/store'
 import { useLocation, Location, useParams } from "@solidjs/router";
 import { negotiateLanguages } from "@fluent/langneg";
 import { Mdx } from "./mdx";
-import { PageParams } from "../lib/nav";
+import { PageParams } from "./nav";
 import { Icon } from "solid-heroicons"
 import { chevronRight, sun, moon, cog_6Tooth as gear, language } from "solid-heroicons/solid"
 import { createSignal, ParentComponent, Show } from "solid-js";
@@ -129,6 +129,7 @@ export interface SiteStore {
   title: string // = () => (<div class='flex justify-center items-center'><code>Datagrove</code></div>)
   href: string // = "https://www.datagrove.com"
   sitemap: SitePage[] //= []
+  defaultLanguage: string
   language: {
     [key: string]: string
   } //= {}
@@ -207,9 +208,12 @@ export const rtlLanguages = new Set(['ar']);
 // don't we need to set the site and the language together?
 // we are compiling and translating the site at this point
 // maybe we should do more AOT?
-export function setSite(s: SiteStore, lang: string) {
+
+// the site should set its default language, which might be "whatever the browser wants"
+export function setSite(s: SiteStore) {
   console.log("set site", s)
-  if (!lang) {
+  let lang = s.defaultLanguage 
+  if (!s.defaultLanguage) {
     // 0. lang is not preselected; so pick it here
     // 1. somehow we may have store a preference for this site
     // 2. the browser will tell us what user normally prefers
@@ -221,7 +225,6 @@ export function setSite(s: SiteStore, lang: string) {
     );
     lang = supportedLocales[0];
   }
-  console.log('locale', lang)
   const firstLeaf = (p: SitePage): SitePage => {
     if (p?.children) {
       return firstLeaf(p.children[0])

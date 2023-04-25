@@ -1,6 +1,6 @@
 import { useNavigate } from "@solidjs/router"
 import { Show, createSignal } from "solid-js"
-import { A, P } from '../lib/nav'
+import { A, P } from '../layout/nav'
 import { createWs } from "../lib/socket";
 import {
     parseCreationOptionsFromJSON,
@@ -14,9 +14,16 @@ import {
 import { BlueButton, Center, Input, ToggleSection } from "../lib/form";
 import { Buffer } from 'buffer'
 import { error, hasWebAuthn, security, setError, setLogin, setSecurity, setUser, setWelcome, ucanFromBip39, user } from "../lib/crypto";
+import { SiteStore, setSite } from "../layout/site_menu";
 
 // we 
 
+async function  loadSite() {
+    const ws = createWs()
+    // can this be sent back from login though?
+    const site = await ws.rpcj<any>("getUser", {})
+   
+}
 
 export const LoginPage = () => {
     const ws = createWs();
@@ -35,14 +42,19 @@ export const LoginPage = () => {
         try {
             const sec = security()
             if (sec.registered) {
+                // LOGIN
                 const o2 = await ws.rpcj<any>("login", { username: sec.userDid })
                 const cro = parseRequestOptionsFromJSON(o2)
                 const o = await get(cro)
-                const reg = await ws.rpcj<any>("login2", o.toJSON())
+                const reg = await ws.rpcj<SiteStore>("login2", o.toJSON())
+                setSite(reg)
                 setLogin(true)
-                navigate("/")
+                // instead of navigate we need get the site first
+                // then we can navigate in it. the site might tell us the first url
+                loadSite()
 
             } else {
+                // REGISTRATION
                 const o = await ws.rpcj<any>("register", {
                     id: sec.userDid,
                     device: sec.deviceDid

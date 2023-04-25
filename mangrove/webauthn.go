@@ -26,8 +26,11 @@ type Session struct {
 type SessionNotifier interface {
 	Notify(handle int64, data interface{})
 }
+
+// returns a handle to the home session
+// we should also return a client diff if they ask for an update.
 type SessionStatus struct {
-	Token string `json:"token,omitempty"`
+	Home int32 `json:"token,omitempty"`
 }
 
 type User struct {
@@ -158,8 +161,17 @@ func WebauthnSocket(mg *Server) error {
 			Filter string `json:"filter"`
 		}
 		sockUnmarshall(r.Params, &v)
-		return mg.AddWatch(v.Path, r.Session, r.Id, v.Filter)
+		return nil, nil // mg.AddWatch(v.Path, r.Session, r.Id, "", 0)
 	})
+	mg.AddApi("unwatch", true, func(r *Rpcp) (any, error) {
+		var v struct {
+			Path string `json:"path"`
+		}
+		sockUnmarshall(r.Params, &v)
+		mg.RemoveWatch(v.Path, r.Session)
+		return nil, nil
+	})
+
 	mg.AddApi("mkdir", true, func(r *Rpcp) (any, error) {
 		var v struct {
 			Path string `json:"path"`
@@ -209,15 +221,6 @@ func WebauthnSocket(mg *Server) error {
 		sockUnmarshall(r.Params, &v)
 
 		return mg.Download(v.Path, r.Session)
-	})
-
-	mg.AddApi("unwatch", true, func(r *Rpcp) (any, error) {
-		var v struct {
-			Path string `json:"path"`
-		}
-		sockUnmarshall(r.Params, &v)
-		mg.RemoveWatch(v.Path, r.Session)
-		return nil, nil
 	})
 
 	// allow logging in with recovery codes. After logging in you can add new devices
@@ -382,8 +385,15 @@ func WebauthnSocket(mg *Server) error {
 			return nil, err
 		}
 		spew.Dump(credential)
-		x, _ := GenerateRandomString(32)
-		return &SessionStatus{Token: x}, nil
+
+		// we already have a challenge before now. return the user site
+		// or potentially return a hash of the document (latest commit?)
+		// we are going to subscribe to this document and always get updates
+		// so we can return a subscription handle to it? this could be a random handle
+		// we could also use the did as a handle. we could use 64 bit int, and keep it in a local map. basically watch handle for a recursive directory.
+		//ws, e := mg.AddWatch(v.Path, r.Session, r.Id, v.Filter, 0)
+		// the handle returned is specific to the session.
+		return &SessionStatus{Home: 0}, nil
 	})
 
 	return nil

@@ -2,7 +2,7 @@ import './index.css'
 import { JSXElement, Component, createSignal, For, onMount, Show, createResource, Switch, Match, createEffect, Accessor } from 'solid-js'
 import { render } from 'solid-js/web'
 import { Route, Routes, Router, useNavigate, useParams, hashIntegration, Outlet } from "@solidjs/router"
-import { BackNav, H2, Page, A, Body, Title, P, PageParams } from './lib/nav'
+import { BackNav, H2, Page, A, Body, Title, P, PageParams } from './layout/nav'
 import { OrError, Rpc, profile } from './lib/socket'
 import { LoginPage2, RecoveryPage } from './pages/login'
 import { Datagrove, Presentation, Pt, createPresentation, rows } from './lib/db'
@@ -281,92 +281,6 @@ function App() {
 
     return <div>Hello, world</div>
 }
-
-const a = {
-    title: "Aetna 1199",
-    href: "",
-    root: { name: "/", path: "/", children: [] } as SitePage,
-    path: new Map<string, SitePage>(),
-    search: [],
-    sitemap: [
-        {
-            name: 'Tasks', // needs to be localized
-            // we shouldn't have a path to sections, we just pick the first child
-            children: [
-                {
-                    name: 'Periodic Tasks', path: '/en/jim.hurd'
-                    , children: [
-                        {
-                            name: 'Process Files', path: '/en/jim.hurd', children: [
-                                { name: 'All Files', path: '/en/jim.hurd' }]
-                        },
-                    ]
-                },
-                {
-                    name: 'Settings', path: '/en/jim.hurd', children: [
-                        {
-                            name: 'Security', path: '/en/jim.hurd', children: [
-                                { name: 'Login', path: '/en/jim.hurd' },
-                                { name: 'Recover', path: '/en/jim.hurd' },
-                                { name: 'Register', path: '/en/jim.hurd' },
-                            ]
-                        }
-                    ]
-                }
-                ,],
-
-        },
-        {
-            name: 'Learn',
-            children: [
-                {
-                    name: 'Explanation', path: '/en/jim.hurd'
-                    , children: [
-                        {
-                            name: 'Process Files', path: '/en/jim.hurd', children: [
-                                { name: 'All Files', path: '/en/jim.hurd' }]
-                        },
-                    ]
-                },
-                {
-                    name: 'How-to', path: '/en/jim.hurd'
-                    , children: [
-                        {
-                            name: 'Process Files', path: '/en/jim.hurd', children: [
-                                { name: 'All Files', path: '/en/jim.hurd' }]
-                        },
-                    ]
-                },
-                {
-                    name: 'Tutorials', path: '/en/jim.hurd'
-                    , children: [
-                        {
-                            name: 'Process Files', path: '/en/jim.hurd', children: [
-                                { name: 'All Files', path: '/en/jim.hurd' }]
-                        },
-                    ]
-                },
-                {
-                    name: 'Reference', path: '/en/jim.hurd', children: [
-                        {
-                            name: 'Security', path: '/en/jim.hurd', children: [
-                                { name: 'Login', path: '/en/jim.hurd' },
-                                { name: 'Recover', path: '/en/jim.hurd' },
-                                { name: 'Register', path: '/en/jim.hurd' },
-                            ]
-                        }
-                    ]
-                }
-            ],
-        }
-    ],
-    language: {
-        en: 'English',
-        es: 'Español',
-    }
-}
-console.log("s", JSON.stringify(a, null, 2))
-setSite(a, '')
 
 
 render(

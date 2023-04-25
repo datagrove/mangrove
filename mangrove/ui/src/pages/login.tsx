@@ -11,7 +11,7 @@ import {
 import { type PublicKeyCredentialDescriptorJSON } from "@github/webauthn-json";
 import { RegistrationPublicKeyCredential } from "@github/webauthn-json/browser-ponyfill"
 import type { RegistrationResponseExtendedJSON } from "@github/webauthn-json/browser-ponyfill/extended"
-import { A, P } from '../lib/nav'
+import { A, P } from '../layout/nav'
 import { createWs } from "../lib/socket";
 
 
