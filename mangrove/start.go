@@ -99,6 +99,7 @@ type Container struct {
 type Rpcfj = func(a *Rpcpj) (any, error)
 type Rpcf = func(a *Rpcp) (any, error)
 type Server struct {
+	*Db
 	*FileWatcher
 	*Config
 	Mux  *http.ServeMux
@@ -634,7 +635,12 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		TLSConfig: tlsConfig,
 		Handler:   handler,
 	})
+	db, e := NewDb(" ")
+	if e != nil {
+		return nil, e
+	}
 	svr := &Server{
+		Db:          db,
 		Config:      opt,
 		Mux:         mux,
 		Home:        dir,

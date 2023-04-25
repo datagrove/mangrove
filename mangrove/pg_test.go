@@ -94,7 +94,7 @@ func Test_pglog(t *testing.T) {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 	c := "postgres://mangrove:mangrove@localhost:5432/mangrover?replication=database"
-	conn, err := pgconn.Connect(ctx, CONN)
+	conn, err := pgconn.Connect(ctx, c)
 	if err != nil {
 		panic(err)
 	}
