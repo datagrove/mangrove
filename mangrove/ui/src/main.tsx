@@ -8,9 +8,10 @@ import { Pt, createPresentation, rows } from './lib/db'
 import { taskEntry, } from './lib/schema'
 import { BlueButton, Center, ToggleSection } from './lib/form'
 import { createWatch, entries } from './lib/dbf'
-import { createUser, login, security, welcome } from './lib/crypto'
+import { createUser, generatePassPhrase, login, security, welcome } from './lib/crypto'
 import { LoginPage } from './pages/one'
 import { Settings } from './lib/secure'
+import { PasswordManager } from './pages/pass'
 
 function mdate(n: number): string {
     return new Date(n).toLocaleDateString('en-us', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
@@ -155,15 +156,15 @@ function Home2() {
 
     if (!login())
         navigate('/~/login')
-    else if (a.defaultUser){
+    else if (a.defaultUser) {
         navigate(`/en/${a.defaultUser}`)
-    } 
+    }
     return <>
         <Center>
             <BlueButton onClick={createUser}>New User</BlueButton>
             <ToggleSection class='mt-2' header="Link user">
-                    <P class='text-center'>Scan from a linked device</P>
-                    <img class='w-96 mt-2' src="qr.png" />
+                <P class='text-center'>Scan from a linked device</P>
+                <img class='w-96 mt-2' src="qr.png" />
             </ToggleSection>
         </Center>
     </>
@@ -201,21 +202,21 @@ function ProfilePage() {
         </Center>
     </Page>
 }
-const [lang,setLang] = createSignal('en')
+const [lang, setLang] = createSignal('en')
 
 const OrgPage = () => {
     const nav = useNavigate()
-    createEffect(() =>{
+    createEffect(() => {
         const a = security()
-        console.log("security",a)
-        if (welcome()){
+        console.log("security", a)
+        if (welcome()) {
             nav(`/${lang()}/${a.defaultUser}/~settings`)
-        }   
+        }
     })
     const params = useParams<PageParams>()
     return <Page>   <Title>Organizations</Title>
-            Home page 
-            This should show a list of databases linked to the user.
+        Home page
+        This should show a list of databases linked to the user.
     </Page>
 }
 const DbPage: Component = () => {
@@ -259,8 +260,15 @@ function NotFoundPage() {
     const p = useParams<{ path: string }>()
     return <div>Not found {p.path}</div>
 }
+
 function App2() {
     //const [items] =  createResource(props.fetch)
+
+
+    return <Routes>
+        <Route path="/" component={PasswordManager} />
+    </Routes>
+
     return <>
 
         <Routes>
@@ -274,7 +282,7 @@ function App2() {
             <Route path="/~/add" component={ComingSoon} />
 
             <Route path="/:ln/:org/~settings" component={Settings} />
-            <Route path="/:ln/:org/~access" component={OrgAccess} /> 
+            <Route path="/:ln/:org/~access" component={OrgAccess} />
             <Route path="/:ln/:org" component={OrgPage} />
 
             <Route path="/:ln/:org/:db/access" component={DbAccess} />
@@ -286,7 +294,7 @@ function App2() {
 
             <Route path="/:ln/:org/:db/th/:tag/:table" component={TablePage} />
             <Route path="/:ln/:org/:db/fh/:tag/*path" component={FilePage} />
-         
+
             <Route path="/*path" component={NotFoundPage} />
         </Routes></>
 }

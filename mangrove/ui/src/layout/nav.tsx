@@ -73,7 +73,7 @@ export const Title: Component<{
     <Show when={false}>
       <div class='fixed flex left-[50] top-2 p-2 border-solid w-48 border-neutral-500 rounded-md bg-neutral-800'>
         <button ref={btn!} onClick={() => setOpenDrawer(true)}> <Icon path={bars_3} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' /></button>
-        <input readOnly placeholder='Search' type='text' class='bg-transparent focus:outline-none w-full text-white' onClick={startSearch}/>
+        <input readOnly placeholder='Search' type='text' class='bg-transparent focus:outline-none w-full text-white' onClick={startSearch} />
         <Icon path={magnifyingGlass} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' />
       </div>
       <Drawer button={btn!} />
@@ -101,7 +101,7 @@ export const Drawer: Component<{ button: HTMLButtonElement }> = (props) => {
     >
       <div class=''>
         <SiteMenuContent></SiteMenuContent>
-        <button onClick={ editSite} class='z-60 fixed p-2 bottom-2 right-2 rounded-full text-blue-700 hover:text-blue-500'><Icon class='h-6 w-6' path={pencil}/></button>
+        <button onClick={editSite} class='z-60 fixed p-2 bottom-2 right-2 rounded-full text-blue-700 hover:text-blue-500'><Icon class='h-6 w-6' path={pencil} /></button>
       </div></Dismiss></>
 }
 
@@ -111,11 +111,11 @@ export const Account: Component = () => {
   const [open, setOpen] = createSignal(false);
   let btnEl: HTMLButtonElement;
   const add = () => { }
-  const modify = () => { nav('/en/me/~/access') } 
+  const modify = () => { nav('/en/me/~/access') }
   const [account, setAccount] = createSignal([]);
   return <><button title='account' ref={btnEl!} class='fixed  right-2 top-2 p-2 rounded-full bg-neutral-800' >
     <Icon path={user} class='h-6 w-6'></Icon></button>
-    <button class='z-60 fixed p-2 bottom-2 right-2 rounded-full bg-neutral-900'><Icon class='h-6 w-6' path={pencil}/></button>
+    <button class='z-60 fixed p-2 bottom-2 right-2 rounded-full bg-neutral-900'><Icon class='h-6 w-6' path={pencil} /></button>
     <Dismiss
       menuButton={btnEl!}
       open={open}
@@ -136,15 +136,15 @@ export const Account: Component = () => {
 
 export const Body: Component<{ children: JSXElement }> = (props) => {
   return <div class="m-2">{props.children}
-          
+
   </div>
 }
 const [small, setSmall] = createSignal(false)
 export const Page: Component<{ children: JSXElement }> = (props) => {
-  return <div class='flex h-screen'>
-      <div class='w-64'><SiteMenuContent></SiteMenuContent></div>
-      <div class='flex-1 p-2'><div class={small()?'h-12':''}></div>{props.children}</div>
-       </div>
+  return <div class='flex h-screen v-screen '>
+    <div class='w-64 h-full overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><SiteMenuContent></SiteMenuContent></div>
+    <div class='flex-1 p-2 h-full overflow-auto '><div class={small() ? 'h-12' : ''}></div>{props.children}</div>
+  </div>
 }
 
 interface Tab {
