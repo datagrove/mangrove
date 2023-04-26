@@ -7,38 +7,47 @@ package mangrove_sql
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getCredential = `-- name: GetCredential :many
-select did, name, webauthn from credential
-where name = $1
+const approveDevice = `-- name: ApproveDevice :exec
+insert into mg.device_org (device,org) values ($1, $2)
 `
 
-func (q *Queries) GetCredential(ctx context.Context, name string) ([]Credential, error) {
-	rows, err := q.db.QueryContext(ctx, getCredential, name)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Credential
-	for rows.Next() {
-		var i Credential
-		if err := rows.Scan(&i.Did, &i.Name, &i.Webauthn); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+type ApproveDeviceParams struct {
+	Device string
+	Org    string
+}
+
+func (q *Queries) ApproveDevice(ctx context.Context, arg ApproveDeviceParams) error {
+	_, err := q.db.Exec(ctx, approveDevice, arg.Device, arg.Org)
+	return err
+}
+
+const deleteDevice = `-- name: DeleteDevice :exec
+delete from mg.device where device = $1
+`
+
+func (q *Queries) DeleteDevice(ctx context.Context, device string) error {
+	_, err := q.db.Exec(ctx, deleteDevice, device)
+	return err
+}
+
+const getDevice = `-- name: GetDevice :one
+select device, webauthn from mg.device
+where device = $1
+`
+
+func (q *Queries) GetDevice(ctx context.Context, device string) (MgDevice, error) {
+	row := q.db.QueryRow(ctx, getDevice, device)
+	var i MgDevice
+	err := row.Scan(&i.Device, &i.Webauthn)
+	return i, err
 }
 
 const getSegment = `-- name: GetSegment :many
-select fid, start, data, ts from segment 
+select fid, start, data, ts, mt from mg.segment 
 where fid = $1 and start > $2
 `
 
@@ -47,30 +56,72 @@ type GetSegmentParams struct {
 	Start int64
 }
 
-func (q *Queries) GetSegment(ctx context.Context, arg GetSegmentParams) ([]Segment, error) {
-	rows, err := q.db.QueryContext(ctx, getSegment, arg.Fid, arg.Start)
+func (q *Queries) GetSegment(ctx context.Context, arg GetSegmentParams) ([]MgSegment, error) {
+	rows, err := q.db.Query(ctx, getSegment, arg.Fid, arg.Start)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Segment
+	var items []MgSegment
 	for rows.Next() {
-		var i Segment
+		var i MgSegment
 		if err := rows.Scan(
 			&i.Fid,
 			&i.Start,
 			&i.Data,
 			&i.Ts,
+			&i.Mt,
 		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return items, nil
+}
+
+const insertDevice = `-- name: InsertDevice :exec
+insert into mg.device (device, webauthn) values ($1, $2)
+`
+
+type InsertDeviceParams struct {
+	Device   string
+	Webauthn string
+}
+
+func (q *Queries) InsertDevice(ctx context.Context, arg InsertDeviceParams) error {
+	_, err := q.db.Exec(ctx, insertDevice, arg.Device, arg.Webauthn)
+	return err
+}
+
+const insertOrg = `-- name: InsertOrg :exec
+insert into mg.org (org, name, is_user) 
+values ($1, $2, $3)
+`
+
+type InsertOrgParams struct {
+	Org    string
+	Name   pgtype.Text
+	IsUser bool
+}
+
+func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) error {
+	_, err := q.db.Exec(ctx, insertOrg, arg.Org, arg.Name, arg.IsUser)
+	return err
+}
+
+const revokeDevice = `-- name: RevokeDevice :exec
+delete from mg.device_org where device = $1 and org = $2
+`
+
+type RevokeDeviceParams struct {
+	Device string
+	Org    string
+}
+
+func (q *Queries) RevokeDevice(ctx context.Context, arg RevokeDeviceParams) error {
+	_, err := q.db.Exec(ctx, revokeDevice, arg.Device, arg.Org)
+	return err
 }

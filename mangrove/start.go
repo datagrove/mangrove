@@ -42,7 +42,6 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/fxamacker/cbor/v2"
-	"github.com/goombaio/namegenerator"
 	"github.com/rs/cors"
 )
 
@@ -177,7 +176,7 @@ func (s *Socket) Notify(handle int64, data interface{}) {
 
 func (s *Server) AddApi(name string, login bool, f Rpcf) {
 	fx := func(p *Rpcp) (interface{}, error) {
-		if p.Session.User.ID == "" {
+		if p.Session.UserDevice.ID == "" {
 			return nil, errors.New("not logged in")
 		}
 		return f(p)
@@ -186,7 +185,7 @@ func (s *Server) AddApi(name string, login bool, f Rpcf) {
 }
 func (s *Server) AddApij(name string, login bool, f Rpcfj) {
 	fx := func(p *Rpcpj) (interface{}, error) {
-		if p.Session.User.ID == "" && login {
+		if p.Session.UserDevice.ID == "" && login {
 			return nil, errors.New("not logged in")
 		}
 		return f(p)
@@ -213,32 +212,6 @@ type Rpcpj struct {
 	*Session
 }
 
-func (s *Server) IsAvailableUsername(name string) bool {
-	d := path.Join(s.Home, "user", name, ".config.json")
-	_, e := os.Stat(d)
-	return e != nil
-}
-func (s *Server) SuggestName(name string) string {
-	for {
-		if len(name) == 0 {
-			seed := time.Now().UTC().UnixNano()
-			nameGenerator := namegenerator.NewNameGenerator(seed)
-			name = nameGenerator.Generate()
-		}
-
-		for i := 0; i < 1000; i++ {
-			sname := name
-			if i != 0 {
-				sname = fmt.Sprintf("%s%d", name, i)
-			}
-			d := path.Join(s.Home, "user", sname, ".config.json")
-			_, e := os.Stat(d)
-			_ = e
-			return sname
-		}
-		name = ""
-	}
-}
 func (s *Server) GetSession(id string) (*Session, bool) {
 	s.muSession.Lock()
 	defer s.muSession.Unlock()
@@ -255,12 +228,12 @@ func (s *Server) NewSession(notifier SessionNotifier) (*Session, error) {
 	defer s.muSession.Unlock()
 
 	r := &Session{
-		User:     User{},
-		Secret:   secret,
-		data:     nil,
-		mu:       sync.Mutex{},
-		Watch:    []*Watch{},
-		Notifier: notifier,
+		UserDevice: UserDevice{},
+		Secret:     secret,
+		data:       nil,
+		mu:         sync.Mutex{},
+		Watch:      []*Watch{},
+		Notifier:   notifier,
 	}
 	s.Session[secret] = r
 	return r, nil
@@ -280,7 +253,7 @@ func (s *Server) RecoverUser(id string, sess *Session, signature string) error {
 	if string(msg) != id {
 		return fmt.Errorf("invalid signature")
 	}
-	return s.LoadUser(id, &sess.User)
+	return s.LoadUser(id, &sess.UserDevice)
 }
 
 func (s *Server) LinkDevice(sess *Session) error {
@@ -307,7 +280,7 @@ func (s *Server) LinkDevice(sess *Session) error {
 //		// convert the did to not use ':'
 //		s.SaveUser(&sess.User)
 //	}
-func (s *Server) NewUser(u *User) error {
+func (s *Server) NewUser(u *UserDevice) error {
 	name := strings.ReplaceAll(u.ID, ":", "_")
 	d := path.Join(s.Home, "user", name)
 	os.Mkdir(d, 0700)
@@ -321,25 +294,6 @@ func (s *Server) NewUser(u *User) error {
 		return nil
 	})
 	return nil
-}
-func (s *Server) SaveUser(u *User) error {
-	name := strings.ReplaceAll(u.ID, ":", "_")
-	b, e := json.MarshalIndent(u, "", " ")
-	if e != nil {
-		return e
-	}
-	d := path.Join(s.Home, "user", name, ".config.json")
-	os.MkdirAll(path.Dir(d), 0700)
-	return os.WriteFile(d, b, 0600)
-
-}
-func (s *Server) LoadUser(name string, u *User) error {
-	name = strings.ReplaceAll(name, ":", "_")
-	b, e := os.ReadFile(path.Join(s.Home, "user", name, ".config.json"))
-	if e != nil {
-		return e
-	}
-	return json.Unmarshal(b, u)
 }
 
 type Context struct {

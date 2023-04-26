@@ -68,11 +68,11 @@ func FilesDo(ctx *Context, dir string, fn func(ctx *Context, path string) error)
 }
 
 func (s *Server) Mv(from, to string, sess *Session) error {
-	from, e := s.Authorize(&sess.User, from, Read)
+	from, e := s.Authorize(&sess.UserDevice, from, Read)
 	if e != nil {
 		return e
 	}
-	to, e = s.Authorize(&sess.User, to, Write)
+	to, e = s.Authorize(&sess.UserDevice, to, Write)
 	if e != nil {
 		return e
 	}
@@ -81,11 +81,11 @@ func (s *Server) Mv(from, to string, sess *Session) error {
 }
 
 func (s *Server) Cp(from, to string, sess *Session) error {
-	from, e := s.Authorize(&sess.User, from, Read)
+	from, e := s.Authorize(&sess.UserDevice, from, Read)
 	if e != nil {
 		return e
 	}
-	to, e = s.Authorize(&sess.User, to, Write)
+	to, e = s.Authorize(&sess.UserDevice, to, Write)
 	if e != nil {
 		return e
 	}
@@ -94,7 +94,7 @@ func (s *Server) Cp(from, to string, sess *Session) error {
 }
 
 func (s *Server) Mkdir(to string, sess *Session) error {
-	to, e := s.Authorize(&sess.User, to, Write)
+	to, e := s.Authorize(&sess.UserDevice, to, Write)
 	if e != nil {
 		return e
 	}
@@ -103,7 +103,7 @@ func (s *Server) Mkdir(to string, sess *Session) error {
 }
 func (s *Server) Rm(to string, sess *Session) error {
 
-	to, e := s.Authorize(&sess.User, to, Write)
+	to, e := s.Authorize(&sess.UserDevice, to, Write)
 	if e != nil {
 		return e
 	}
@@ -111,21 +111,21 @@ func (s *Server) Rm(to string, sess *Session) error {
 }
 
 func (s *Server) Upload(to string, data []byte, sess *Session) error {
-	to, e := s.Authorize(&sess.User, to, Write)
+	to, e := s.Authorize(&sess.UserDevice, to, Write)
 	if e != nil {
 		return e
 	}
 	return os.WriteFile(to, data, 0644)
 }
 func (s *Server) Download(to string, sess *Session) ([]byte, error) {
-	to, e := s.Authorize(&sess.User, to, Read)
+	to, e := s.Authorize(&sess.UserDevice, to, Read)
 	if e != nil {
 		return nil, e
 	}
 	return os.ReadFile(to)
 }
 func (s *Server) Exec(to string, sess *Session) error {
-	to, e := s.Authorize(&sess.User, to, Exec)
+	to, e := s.Authorize(&sess.UserDevice, to, Exec)
 	if e != nil {
 		return e
 	}
@@ -154,7 +154,7 @@ func (s *Server) GetRuntime(name string) (Runtime, bool) {
 	return f, ok
 }
 
-func (s *Server) Authorize(u *User, to string, priv int) (string, error) {
+func (s *Server) Authorize(u *UserDevice, to string, priv int) (string, error) {
 	return path.Join(u.Home, to), nil
 }
 

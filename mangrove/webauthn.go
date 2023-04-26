@@ -15,7 +15,7 @@ import (
 )
 
 type Session struct {
-	User
+	UserDevice
 	Device   string // device for this session
 	Secret   string
 	data     *webauthn.SessionData
@@ -33,22 +33,35 @@ type SessionStatus struct {
 	Home int32 `json:"token,omitempty"`
 }
 
+// Device      map[string]*Device    `json:"device"`
 type User struct {
+	Alias  []*UserAlias
+	Device []*UserDevice
+}
+type UserAlias struct {
+	Id string `json:"id"`
+}
+
+type UserDevice struct {
 	ID          string                `json:"id"`
-	Device      map[string]*Device    `json:"device"`
 	Name        string                `json:"name"`
 	DisplayName string                `json:"display_name"`
 	Icon        string                `json:"icon,omitempty"`
 	Credentials []webauthn.Credential `json:"credentials,omitempty"`
 	RecoveryKey string                `json:"recovery_key,omitempty"`
 	Home        string
+	User        *User
+	LoginUcan   string `json:"login_ucan,omitempty"`
 }
+
+var _ webauthn.User = (*UserDevice)(nil)
+
 type Device struct {
 	Id   string `json:"id"`
 	Name string
 }
 
-func (u *User) WebAuthnID() []byte {
+func (u *UserDevice) WebAuthnID() []byte {
 	return []byte(u.ID)
 }
 
@@ -57,7 +70,7 @@ func (u *User) WebAuthnID() []byte {
 // choose this, and SHOULD NOT restrict the choice more than necessary.
 //
 // Specification: §5.4.3. User Account Parameters for Credential Generation (https://w3c.github.io/webauthn/#dictdef-publickeycredentialuserentity)
-func (u *User) WebAuthnName() string {
+func (u *UserDevice) WebAuthnName() string {
 	return u.Name
 }
 
@@ -66,22 +79,22 @@ func (u *User) WebAuthnName() string {
 // SHOULD let the user choose this, and SHOULD NOT restrict the choice more than necessary.
 //
 // Specification: §5.4.3. User Account Parameters for Credential Generation (https://www.w3.org/TR/webauthn/#dom-publickeycredentialuserentity-displayname)
-func (u *User) WebAuthnDisplayName() string {
+func (u *UserDevice) WebAuthnDisplayName() string {
 	return u.Name
 }
 
 // WebAuthnCredentials provides the list of Credential objects owned by the user.
-func (u *User) WebAuthnCredentials() []webauthn.Credential {
+func (u *UserDevice) WebAuthnCredentials() []webauthn.Credential {
 	return u.Credentials
 }
 
 // WebAuthnIcon is a deprecated option.
 // Deprecated: this has been removed from the specification recommendation. Suggest a blank string.
-func (u *User) WebAuthnIcon() string {
+func (u *UserDevice) WebAuthnIcon() string {
 	return ""
 }
 
-var _ webauthn.User = (*User)(nil)
+var _ webauthn.User = (*UserDevice)(nil)
 
 //	func response(w http.ResponseWriter, d string, c int) {
 //		w.Header().Set("Content-Type", "application/json")
@@ -105,8 +118,8 @@ var (
 // user = NewUser("test_user")
 )
 
-func NewUser(s string) *User {
-	u := &User{}
+func NewUser(s string) *UserDevice {
+	u := &UserDevice{}
 	u.Name = s
 	u.ID = s
 	return u
@@ -223,20 +236,10 @@ func WebauthnSocket(mg *Server) error {
 		return mg.Download(v.Path, r.Session)
 	})
 
-	// allow logging in with recovery codes. After logging in you can add new devices
-	mg.AddApij("loginR", false, func(r *Rpcpj) (any, error) {
-		var v struct {
-			Recovery string `json:"recovery"`
-		}
-		sockUnmarshall(r.Params, &v)
-		return nil, nil
-	})
-
 	// how should we safely confirm the recovery code? It's basically a password.
-
 	// add is mostly the same as register?
 	mg.AddApij("addCredential", true, func(r *Rpcpj) (any, error) {
-		options, session, err := web.BeginRegistration(&r.User)
+		options, session, err := web.BeginRegistration(&r.UserDevice)
 		if err != nil {
 			return nil, err
 		}
@@ -244,10 +247,10 @@ func WebauthnSocket(mg *Server) error {
 		return options, nil
 	})
 	mg.AddApi("removeCredential", true, func(r *Rpcp) (any, error) {
-		r.User.Credentials = Filter(r.User.Credentials, func(e webauthn.Credential) bool {
+		r.UserDevice.Credentials = Filter(r.UserDevice.Credentials, func(e webauthn.Credential) bool {
 			return string(e.ID) == string(r.Params)
 		})
-		mg.SaveUser(&r.User)
+		mg.SaveUser(&r.UserDevice)
 		return nil, nil
 	})
 
@@ -267,7 +270,7 @@ func WebauthnSocket(mg *Server) error {
 			return nil, e
 		}
 		// return a challenge
-		options, session, err := web.BeginRegistration(&r.User)
+		options, session, err := web.BeginRegistration(&r.UserDevice)
 		if err != nil {
 			return nil, err
 		}
@@ -290,39 +293,34 @@ func WebauthnSocket(mg *Server) error {
 		return &rv, nil
 	})
 
+	// don't store the user until we have a credential
+	// u, e := mg.NewUser(v.Id, v.RecoveryKey)
+	// if e != nil {
+	// 	return nil, fmt.Errorf("username already taken")
+	// }
+	// r.User = *u
+
+	// return a challenge
+	// if the user already exists because of a failure?
+	// we can sign the submitted did, that will give us the authority to add the credential
+
+	// should this user be shared with other connections?
+	// currently it is not.
 	// this requires a unique name
 	// it can return a session id right away if successfull
 	// then the client can try to add a device
 	mg.AddApij("register", false, func(r *Rpcpj) (any, error) {
 		var v struct {
-			Id     string `json:"id"`
-			Device string `json:"device"`
+			Id string `json:"id"`
 		}
-
 		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
-
-		// don't store the user until we have a credential
-		// u, e := mg.NewUser(v.Id, v.RecoveryKey)
-		// if e != nil {
-		// 	return nil, fmt.Errorf("username already taken")
-		// }
-		// r.User = *u
-
-		// return a challenge
-		// if the user already exists because of a failure?
-		// we can sign the submitted did, that will give us the authority to add the credential
-
-		// should this user be shared with other connections?
-		// currently it is not.
-		r.User.ID = v.Id
-		r.User.DisplayName = "New User"
-		r.User.Name = "New User"
-		r.Device = v.Device
-		// how does this know which device?
-		options, session, err := web.BeginRegistration(&r.User)
+		r.UserDevice.ID = v.Id
+		r.UserDevice.DisplayName = "New User"
+		r.UserDevice.Name = "New User"
+		options, session, err := web.BeginRegistration(&r.UserDevice)
 		if err != nil {
 			return nil, err
 		}
@@ -330,29 +328,45 @@ func WebauthnSocket(mg *Server) error {
 		return options, nil
 	})
 
+	// we take the approach of generating a new user, then merging this into the user set.
 	// return the temporary user name
 	mg.AddApij("register2", false, func(r *Rpcpj) (any, error) {
-		response, err := protocol.ParseCredentialCreationResponseBody(bytes.NewReader(r.Params))
+		var v struct {
+			Ucan       string          `json:"ucan"`
+			Credential json.RawMessage `json:"credential"`
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		e = mg.checkCanLogin(r.ID, v.Ucan)
+		if e != nil {
+			return nil, e
+		}
+		response, err := protocol.ParseCredentialCreationResponseBody(bytes.NewReader(v.Credential))
 		if err != nil {
 			return nil, err
 		}
-
 		// when we create this credential we need to also store it to the user file
-		credential, err := web.CreateCredential(&r.User, *r.Session.data, response)
+		credential, err := web.CreateCredential(&r.UserDevice, *r.Session.data, response)
 		if err != nil {
 			return nil, err
 		}
-		r.User.Name = mg.SuggestName("") // fix race
-		r.User.Device = map[string]*Device{
-			r.Device: {
-				Id:   r.Device,
-				Name: r.User.Name,
-			},
+		// r.UserDevice.Name = mg.SuggestName("") // fix race
+		// r.UserDevice.Device = map[string]*Device{
+		// 	r.Device: {
+		// 		Id:   r.Device,
+		// 		Name: r.UserDevice.Name,
+		// 	},
+		// }
+		e = mg.LoadDevice(&r.UserDevice, r.ID)
+		if e != nil {
+			return nil, e
 		}
-		r.User.Credentials = append(r.Session.User.Credentials, *credential)
-		mg.NewUser(&r.Session.User)
+		r.UserDevice.LoginUcan = v.Ucan
+		r.UserDevice.Credentials = append(r.Session.UserDevice.Credentials, *credential)
+		return mg.NewDevice(&r.Session.UserDevice)
 		// return the user name
-		return r.User.Name, nil
 	})
 
 	// take the user name and return a challenge
@@ -362,10 +376,10 @@ func WebauthnSocket(mg *Server) error {
 			Username string `json:"username"`
 		}
 		json.Unmarshal(r.Params, &v)
-		mg.LoadUser(v.Username, &r.User)
+		mg.LoadUser(v.Username, &r.UserDevice)
 
 		// before we call this we need to load the user credentials
-		options, session, err := web.BeginLogin(&r.User)
+		options, session, err := web.BeginLogin(&r.UserDevice)
 		if err != nil {
 
 			return nil, err
@@ -380,7 +394,7 @@ func WebauthnSocket(mg *Server) error {
 			return nil, err
 		}
 
-		credential, err := web.ValidateLogin(&r.User, *r.Session.data, response)
+		credential, err := web.ValidateLogin(&r.UserDevice, *r.Session.data, response)
 		if err != nil {
 			return nil, err
 		}

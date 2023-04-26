@@ -5,42 +5,71 @@
 package mangrove_sql
 
 import (
-	"database/sql"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Credential struct {
-	Did      string
-	Name     string
-	Webauthn sql.NullString
-}
-
-type Db struct {
+type MgDb struct {
 	Db   int32
-	Name sql.NullString
+	Name string
 }
 
-type Dbfile struct {
+type MgDbfile struct {
 	Db    int64
 	Count int16
 	Path  string
-	Fid   sql.NullInt64
-	Size  sql.NullInt64
-	Mime  sql.NullString
+	Fid   pgtype.Int8
+	Size  pgtype.Int8
+	Mime  string
+	Mt    pgtype.Timestamp
 }
 
-type Org struct {
-	Did  string
-	Name sql.NullString
+type MgDbfileh struct {
+	Db    int64
+	Count int16
+	Path  string
+	Fid   int64
+	Size  pgtype.Int8
+	Mime  string
+	Mt    pgtype.Timestamp
 }
 
-type Segment struct {
+type MgDevice struct {
+	Device   string
+	Webauthn string
+}
+
+type MgDeviceOrg struct {
+	Device string
+	Org    string
+	Ucan   string
+}
+
+type MgNameprefix struct {
+	Name  string
+	Count int64
+}
+
+type MgOrg struct {
+	Org    string
+	Name   pgtype.Text
+	IsUser bool
+}
+
+type MgOrgDb struct {
+	Org string
+	Db  int64
+}
+
+type MgOrgMember struct {
+	Org    interface{}
+	Member string
+	Ucan   pgtype.Text
+}
+
+type MgSegment struct {
 	Fid   int32
 	Start int64
 	Data  []byte
 	Ts    interface{}
-}
-
-type UserDb struct {
-	Uid string
-	Db  int64
+	Mt    pgtype.Timestamp
 }

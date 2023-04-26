@@ -7,3 +7,5 @@ sql:
       go:
         package: "mangrove_sql"
         out: "mangrove_sql"
+        sql_package: "pgx/v5"
+        
