@@ -152,7 +152,7 @@ export async function tryToLogin() {
   let a = security()
   if (a.deviceDid == "") {
     await createDevice()
-  } 
+  }
   setLogin(true)
   // else {
   //   if (a.autoconnectUntil == 0 || a.autoconnectUntil > Date.now()) {
@@ -198,9 +198,10 @@ export async function createUser() {
     issuer: user, // signing key
     capabilities: [ // permissions for ucan
       {
-        with: "login://" + user.did(),
-        can: "*"
-      }
+        with: {
+          "login://" + user.did(),
+          can: "*"
+        }
     ]
   })
 
