@@ -12,6 +12,7 @@ import { createUser, generatePassPhrase, login, security, welcome } from './lib/
 import { LoginPage } from './pages/one'
 import { Settings } from './lib/secure'
 import { PasswordManager } from './pages/pass'
+import { PassworOrBip39 } from './pages/pass2'
 
 function mdate(n: number): string {
     return new Date(n).toLocaleDateString('en-us', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
@@ -142,53 +143,6 @@ const ComingSoon: Component = () => {
     </Page>
 }
 
-function Home() {
-    const navigate = useNavigate();
-    const a = security()
-    navigate(`/en/${a.defaultUser}`)
-    return <div>Loading...</div>
-}
-function Home2() {
-    const navigate = useNavigate();
-    const a = security()
-    // redirect to current user's home page
-    // this needs to be async to make a decision?
-
-    if (!login())
-        navigate('/~/login')
-    else if (a.defaultUser) {
-        navigate(`/en/${a.defaultUser}`)
-    }
-    return <>
-        <Center>
-            <BlueButton onClick={createUser}>New User</BlueButton>
-            <ToggleSection class='mt-2' header="Link user">
-                <P class='text-center'>Scan from a linked device</P>
-                <img class='w-96 mt-2' src="qr.png" />
-            </ToggleSection>
-        </Center>
-    </>
-}
-function RouteGuard() {
-    const navigate = useNavigate();
-
-    createEffect(() => {
-        // maybe token should be a session token or just a variable even.
-        // should each tab need its own id? eventually we should use a sharedworker to log in. this sharedworker will keep a variable.
-        if (!login()) {
-            console.log('redirecting to login')
-            navigate('/~/login', { replace: true });
-        }
-    })
-    // when={login()} 
-    return (
-        <Show when={true} fallback={<div>Loading...{login()}</div>}>
-            <div>
-                <Outlet />
-            </div>
-        </Show>
-    )
-}
 
 
 export const js = (x: any) => JSON.stringify(x, null, 2)
@@ -210,7 +164,7 @@ const OrgPage = () => {
         const a = security()
         console.log("security", a)
         if (welcome()) {
-            nav(`/${lang()}/${a.defaultUser}/~settings`)
+            nav(`/${lang()}/${a.user?.did}/~settings`)
         }
     })
     const params = useParams<PageParams>()
@@ -261,44 +215,58 @@ function NotFoundPage() {
     return <div>Not found {p.path}</div>
 }
 
+function RouteGuard() {
+    const navigate = useNavigate();
+
+    createEffect(() => {
+        // maybe token should be a session token or just a variable even.
+        // should each tab need its own id? eventually we should use a sharedworker to log in. this sharedworker will keep a variable.
+        if (!login()) {
+            console.log('redirecting to login')
+            navigate('/~/register', { replace: true });
+        }
+    })
+    // when={login()} 
+    return (
+        <Show when={true} fallback={<div>Loading...{login()}</div>}>
+            <div>
+                <Outlet />
+            </div>
+        </Show>
+    )
+}
+
 function App2() {
     //const [items] =  createResource(props.fetch)
 
-
-    return <Routes>
-        <Route path="/" component={PasswordManager} />
-    </Routes>
-
     return <>
-
         <Routes>
-            <Route path="/" component={Home} />
             <Route path="/~/login" component={LoginPage} />
             <Route path="/~/login2" component={LoginPage2} />
             <Route path="/~/recover" component={RecoveryPage} />
-            <Route path="/~/register" component={LoginPage} />
+            <Route path="/~/register" component={PassworOrBip39} />
+            <Route path="/" component={RouteGuard}>
+                <Route path="/~/profile" component={ProfilePage} />
+                <Route path="/~/add" component={ComingSoon} />
 
-            <Route path="/~/profile" component={ProfilePage} />
-            <Route path="/~/add" component={ComingSoon} />
+                <Route path="/:ln/:org/~settings" component={Settings} />
+                <Route path="/:ln/:org/~access" component={OrgAccess} />
+                <Route path="/:ln/:org" component={OrgPage} />
 
-            <Route path="/:ln/:org/~settings" component={Settings} />
-            <Route path="/:ln/:org/~access" component={OrgAccess} />
-            <Route path="/:ln/:org" component={OrgPage} />
+                <Route path="/:ln/:org/:db/access" component={DbAccess} />
+                <Route path="/:ln/:org/:db" component={DbPage} />
 
-            <Route path="/:ln/:org/:db/access" component={DbAccess} />
-            <Route path="/:ln/:org/:db" component={DbPage} />
+                <Route path="/:ln/:org/:db/t/:table" component={TablePage} />
+                <Route path="/:ln/:org/:db/f/*path" component={FilePage} />
+                <Route path="/:ln/:org/:db/log/:id" component={JobPage} />
 
-            <Route path="/:ln/:org/:db/t/:table" component={TablePage} />
-            <Route path="/:ln/:org/:db/f/*path" component={FilePage} />
-            <Route path="/:ln/:org/:db/log/:id" component={JobPage} />
-
-            <Route path="/:ln/:org/:db/th/:tag/:table" component={TablePage} />
-            <Route path="/:ln/:org/:db/fh/:tag/*path" component={FilePage} />
-
-            <Route path="/*path" component={NotFoundPage} />
+                <Route path="/:ln/:org/:db/th/:tag/:table" component={TablePage} />
+                <Route path="/:ln/:org/:db/fh/:tag/*path" component={FilePage} />
+                <Route path="/*path" component={NotFoundPage} />
+            </Route>
         </Routes></>
 }
-//             <Route path="/" component={RouteGuard}>
+            
 function App() {
 
 
@@ -317,3 +285,32 @@ render(
 )
 
 
+/*
+function Home() {
+    const navigate = useNavigate();
+    const a = security()
+    navigate(`/en/${a.defaultUser}`)
+    return <div>Loading...</div>
+}
+function Home2() {
+    const navigate = useNavigate();
+    const a = security()
+    // redirect to current user's home page
+    // this needs to be async to make a decision?
+
+    if (!login())
+        navigate('/~/login')
+    else if (a.defaultUser) {
+        navigate(`/en/${a.defaultUser}`)
+    }
+    return <>
+        <Center>
+            <BlueButton onClick={createUser}>New User</BlueButton>
+            <ToggleSection class='mt-2' header="Link user">
+                <P class='text-center'>Scan from a linked device</P>
+                <img class='w-96 mt-2' src="qr.png" />
+            </ToggleSection>
+        </Center>
+    </>
+}
+*/

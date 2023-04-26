@@ -32,6 +32,7 @@ module.exports = {
           lightaction: colorScheme["400"],
           accent: "#1D4ED8",
           accentlight: "#1D4ED8",
+
         }
       }
     }
@@ -42,7 +43,7 @@ module.exports = {
     },
   },
   plugins: [
-
+    require('@tailwindcss/forms'),
     require('@tailwindcss/typography'),
   ],
 

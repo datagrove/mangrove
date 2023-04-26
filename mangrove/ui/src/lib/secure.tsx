@@ -37,18 +37,7 @@ export const Settings: Component = () => {
 }
 
 // if we are displaying this page, the user should already exist
-const u = () => {
-    const s = security().defaultUser
-    if (!s) {
-        console.log("s", security())
-        throw "no user "
-    }
-    if (!security().user[s]) {
-        console.log("s", security())
-        throw "no user entry"
-    }
-    return security().user[security().defaultUser]
-}
+
 // show a list of devices and allow them to be revoked.
 export const ListUsers: Component = () => {
     const [edit,setEdit] = createSignal(false)
@@ -57,9 +46,9 @@ export const ListUsers: Component = () => {
     return <FieldSet>
         <TextDivider>User Identity</TextDivider>
         <table><tbody>
-            <For each={Object.values(security().user)}>{(us, i) => {
-                return <tr><td><InlineButton>edit</InlineButton></td><td>{us.name}</td>
-                    <td class='text-green-300'>{us.bip39}</td></tr>
+            <For each={[]}>{(us, i) => {
+                return <tr><td><InlineButton>edit</InlineButton></td><td>{"name"}</td>
+                    <td class='text-green-300'>{""}</td></tr>
             }}</For>
         </tbody></table>
         <InlineButton>Add Identity</InlineButton>
@@ -99,7 +88,7 @@ export const Secure: Component = () => {
 
         Your identity is not protected by a password.
 
-        
+
 
         <Checkbox value={webauthn} setValue={setWebauthn} title='No password  (Webauthn)' >Webauthn generally uses tokens or biometrics to log in</Checkbox>
 

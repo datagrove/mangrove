@@ -34,19 +34,14 @@ export interface Security {
 
   registered: boolean
   autoconnectUntil: number
-  defaultUser: string
-  user:
-  {
-    [key: string]: User
-  }
-
+  user?: User
 }
 type User = {
   name: string,
   did: string
   private: string
   ucanLogin: string
-  bip39: string
+  bip39: boolean
 }
 
 
@@ -66,13 +61,11 @@ function init(): Security {
     return JSON.parse(a) as Security
   } else {
     return {
-      defaultUser: "",
       deviceName: "",
       deviceDid: "",
       devicePrivate: "",
       autoconnectUntil: 0,
       registered: false,
-      user: {}
     }
   }
 }
@@ -153,7 +146,6 @@ export async function tryToLogin() {
   if (a.deviceDid == "") {
     await createDevice()
   }
-  setLogin(true)
   // else {
   //   if (a.autoconnectUntil == 0 || a.autoconnectUntil > Date.now()) {
   //     setLogin(true)
@@ -171,7 +163,6 @@ export async function createDevice() {
   a.deviceName = keypair.did()
   a.devicePrivate = await keypair.export("base58btc")
   a.deviceDid = keypair.did()
-  createUser()
   setWelcome(true)
   setSecurity(a)
 }
@@ -179,39 +170,39 @@ export async function createDevice() {
 
 
 export const generatePassPhrase = () => bip39.generateMnemonic()
+
 // given a secret bip39, we can generate a user identity 
-export async function keypairFromBip39(bip: string) {
-  const s = security()
-  const seed = bip39.mnemonicToSeedSync(bip).subarray(0, 32)
-  const kp = ed25519.generateKeyPairFromSeed(seed)
-  return new EdKeypair(kp.secretKey, kp.publicKey, true)
+export async function bip39seed(bip: string) {
+  return bip39.mnemonicToSeedSync(bip).subarray(0, 32)
+}
+export async function passwordSeed(password: string)  {
+  return bip39.mnemonicToSeedSync(password).subarray(0, 32)
 }
 
-export async function createUser() {
+// we need to create the user deterministically from the seed
+export async function createUser(seed: string,bip39: boolean) {
+  const b = bip39 ? await bip39seed(seed.toString()) : await passwordSeed(seed.toString())
+  const kp = ed25519.generateKeyPairFromSeed(b)
+  const user =  new EdKeypair(kp.secretKey, kp.publicKey, true)
   const a = security()
-  const ws = createWs()
-
-  const mn = generatePassPhrase()
-  const user = await keypairFromBip39(mn)
   const ucan = await ucans.build({
     audience: a.deviceDid, // recipient DID
     issuer: user, // signing key
     capabilities: [ // permissions for ucan
       {
-        with: {
-          "login://" + user.did(),
-          can: "*"
-        }
+        with: "login://" + user.did(),
+        can: "*"
+      }
     ]
   })
 
-  a.defaultUser = user.did()
-  a.user[a.defaultUser] = {
+  a.user = {
     name: 'Anonymous',
-    bip39: mn,
-    did: a.defaultUser,
+    did: user.did(),
     private: await user.export("base58btc"),
-    ucanLogin: ucans.encode(ucan)
+    ucanLogin: ucans.encode(ucan),
+    bip39: bip39
   }
   setSecurity(a)
+  setLogin(true)
 }
