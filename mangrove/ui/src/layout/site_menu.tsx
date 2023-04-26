@@ -15,10 +15,11 @@ import { Icon } from "solid-heroicons"
 import { chevronRight, sun, moon, cog_6Tooth as gear, language } from "solid-heroicons/solid"
 import { createSignal, ParentComponent, Show } from "solid-js";
 import { Select } from "../core/select";
+import { orgsite } from "./orgsite";
 
 export const [searchMode, setSearchMode] = createSignal(false)
 export const [innerContent, setInnerContent] = createSignal(<div />)
-export const [site, setSite2] = createSignal<SiteStore>();
+export const [site, setSite2] = createSignal<SiteStore>(prepSite(orgsite));
 
 const [isDark, setIsDark] = createSignal(true)
 export enum ShowPagemap {
@@ -125,23 +126,29 @@ export const SitePreference = (props: { page: PageDescription }) => {
 
 // all the bits of info we can get from the route
 // we can keep cache of languages.
-export interface SiteStore {
+
+export interface SiteDefinition {
   title: string // = () => (<div class='flex justify-center items-center'><code>Datagrove</code></div>)
+  root: SitePage //= { name: "/", path: "/", children: [] }  
   href: string // = "https://www.datagrove.com"
   sitemap: SitePage[] //= []
   defaultLanguage: string
   language: {
     [key: string]: string
   } //= {}
+}
+export interface SiteStore extends SiteDefinition {
 
   // computed things
   // this could build the entire path in one go.
   // the location will be /en/path#subtitle
-  root: SitePage //= { name: "/", path: "/", children: [] }
+
   path: Map<string, SitePage> // = new Map()
   home?: SitePage
   search: SearchResult[] // = []
 }
+
+
 export type SitePage = {
   name: string
   path?: string
@@ -210,7 +217,15 @@ export const rtlLanguages = new Set(['ar']);
 // maybe we should do more AOT?
 
 // the site should set its default language, which might be "whatever the browser wants"
-export function setSite(s: SiteStore) {
+export function setSite(s: SiteDefinition) {
+  setSite2(prepSite(s))
+}
+
+export function prepSite(sx: SiteDefinition): SiteStore {
+  const s : SiteStore = { ...sx
+    , path: new Map()
+    , search: []
+ }
   console.log("set site", s)
   let lang = s.defaultLanguage 
   if (!s.defaultLanguage) {
@@ -253,8 +268,7 @@ export function setSite(s: SiteStore) {
   s.home = s.home ?? firstLeaf(s.root);
   for (let i = 0; i < s.root.children!.length; i++)
     indexPaths(s.root.children![i], i)
-  setSite2(s)
-  console.log(s)
+  return s
 }
 
 // if we are in an iframe this passes to the parent.
@@ -352,9 +366,9 @@ export const SiteMenuContent: Component<{}> = (props) => {
   })
 
 
-  return  <Switch>
+  return  <div class='transform w-full h-full dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><Switch>
     <Match when={!pd()}>
-      <div>No site loaded</div>
+      Error
     </Match>
   <Match when={searchMode()}>
     <SearchList />
@@ -371,7 +385,7 @@ export const SiteMenuContent: Component<{}> = (props) => {
         <SectionNav page={pd()!} />
       </div>
     </div></Match>
-  </Switch>
+  </Switch></div>
 }
 export function SectionNav(props: { page: PageDescription }) {
   // this needs be recursive, starting from the 

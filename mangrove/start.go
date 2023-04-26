@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"embed"
-	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -37,8 +36,6 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 	"github.com/tailscale/hujson"
-
-	"github.com/twystd/tweetnacl-go/tweetnacl"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/fxamacker/cbor/v2"
@@ -237,23 +234,6 @@ func (s *Server) NewSession(notifier SessionNotifier) (*Session, error) {
 	}
 	s.Session[secret] = r
 	return r, nil
-}
-
-func (s *Server) RecoverUser(id string, sess *Session, signature string) error {
-	var signedMessage []byte
-	var key = make([]byte, len(signature)/2)
-	_, e := hex.Decode(key, []byte(sess.RecoveryKey))
-	if e != nil {
-		return e
-	}
-	msg, e := tweetnacl.CryptoSignOpen(signedMessage, key)
-	if e != nil {
-		return e
-	}
-	if string(msg) != id {
-		return fmt.Errorf("invalid signature")
-	}
-	return s.LoadUser(id, &sess.UserDevice)
 }
 
 func (s *Server) LinkDevice(sess *Session) error {
@@ -589,7 +569,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		TLSConfig: tlsConfig,
 		Handler:   handler,
 	})
-	db, e := NewDb(" ")
+	db, e := NewDb("postgres://mangrove:mangrove@localhost:5432/mangrove")
 	if e != nil {
 		return nil, e
 	}
@@ -644,7 +624,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 					o.Id = rpc.Id
 					o.Error = err.Error()
 					b, _ := json.Marshal(&o)
-					sock.conn.WriteMessage(websocket.BinaryMessage, b)
+					sock.conn.WriteMessage(websocket.TextMessage, b)
 				} else {
 					var o struct {
 						Id     int64       `json:"id"`

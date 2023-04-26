@@ -154,3 +154,16 @@ var (
 // err  error
 // user = NewUser("test_user")
 )
+
+
+		// for i := 0; i < 1000; i++ {
+		// 	sname := name
+		// 	if i != 0 {
+		// 		sname = fmt.Sprintf("%s%d", name, i)
+		// 	}
+		// 	d := path.Join(s.Home, "user", sname, ".config.json")
+		// 	_, e := os.Stat(d)
+		// 	_ = e
+		// 	return sname
+		// }
+		// name = ""

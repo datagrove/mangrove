@@ -26,10 +26,11 @@ export const Checkbox: Component<{
 export const ToggleSection: Component<{
     children: JSXElement,
     header: string,
+    class?: string
 }> = (props) => {
     const [show, setShow] = createSignal(false)
-    return <div>
-        <div class='flex'><div class='flex-1' /> <button class='text-indigo-600 hover:text-blue-500 hover:underline' onClick={() => setShow(!show())} >{props.header}</button><div class='flex-1' /></div>
+    return <div class={props.class}>
+        <div class='flex'> <button class='text-indigo-600 hover:text-blue-500 hover:underline' onClick={() => setShow(!show())} >{props.header}</button></div>
         <Show when={show()}>{props.children}</Show>
     </div>
 
@@ -70,11 +71,11 @@ export const Input: Component<{
             }} placeholder={props.placeholder} class="px-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-indigo-500 disabled:opacity-50 focus:border-indigo-500" /></div>
 }
 export const TextDivider: Component<{ children: string }> = (props) => {
-    return <div class="relative mt-4">
-        <div class="absolute inset-0 flex items-center">
+    return <div class="relative mt-4 w-full">
+        <div class="absolute inset-0 flex items-center w-full">
             <div class="w-full border-t border-gray-300"></div>
         </div>
-        <div class="relative flex justify-center text-sm">
+        <div class="relative flex justify-center text-sm w-full">
             <span class="bg-white dark:bg-black px-2 text-gray-500">{props.children}</span>
         </div>
     </div>

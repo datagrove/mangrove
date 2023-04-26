@@ -1,5 +1,5 @@
 -- name: GetSegment :many
-select * from mg.segment 
+select * from mg.segment
 where fid = $1 and start > $2;
 
 -- name: GetDevice :one
@@ -19,8 +19,16 @@ insert into mg.device_org (device,org) values ($1, $2);
 delete from mg.device_org where device = $1 and org = $2;
 
 -- name: InsertOrg :exec
-insert into mg.org (org, name, is_user) 
+insert into mg.org (org, name, is_user)
 values ($1, $2, $3);
 
 -- insert: UpdateOrg :exec
 update mg.org set name = $1;
+
+-- name: NamePrefix :one
+select * from mg.namePrefix where name = $1;
+
+-- name: InsertPrefix :exec
+insert into mg.namePrefix (name,count) values ($1,0) on conflict do nothing;
+-- name: UpdatePrefix :one
+update mg.namePrefix set count=count+1 where name = $1 returning count;

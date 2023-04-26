@@ -47,7 +47,7 @@ func (q *Queries) GetDevice(ctx context.Context, device string) (MgDevice, error
 }
 
 const getSegment = `-- name: GetSegment :many
-select fid, start, data, ts, mt from mg.segment 
+select fid, start, data, ts, mt from mg.segment
 where fid = $1 and start > $2
 `
 
@@ -97,7 +97,7 @@ func (q *Queries) InsertDevice(ctx context.Context, arg InsertDeviceParams) erro
 }
 
 const insertOrg = `-- name: InsertOrg :exec
-insert into mg.org (org, name, is_user) 
+insert into mg.org (org, name, is_user)
 values ($1, $2, $3)
 `
 
@@ -112,6 +112,26 @@ func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) error {
 	return err
 }
 
+const insertPrefix = `-- name: InsertPrefix :exec
+insert into mg.namePrefix (name,count) values ($1,0) on conflict do nothing
+`
+
+func (q *Queries) InsertPrefix(ctx context.Context, name string) error {
+	_, err := q.db.Exec(ctx, insertPrefix, name)
+	return err
+}
+
+const namePrefix = `-- name: NamePrefix :one
+select name, count from mg.namePrefix where name = $1
+`
+
+func (q *Queries) NamePrefix(ctx context.Context, name string) (MgNameprefix, error) {
+	row := q.db.QueryRow(ctx, namePrefix, name)
+	var i MgNameprefix
+	err := row.Scan(&i.Name, &i.Count)
+	return i, err
+}
+
 const revokeDevice = `-- name: RevokeDevice :exec
 delete from mg.device_org where device = $1 and org = $2
 `
@@ -124,4 +144,15 @@ type RevokeDeviceParams struct {
 func (q *Queries) RevokeDevice(ctx context.Context, arg RevokeDeviceParams) error {
 	_, err := q.db.Exec(ctx, revokeDevice, arg.Device, arg.Org)
 	return err
+}
+
+const updatePrefix = `-- name: UpdatePrefix :one
+update mg.namePrefix set count=count+1 where name = $1 returning count
+`
+
+func (q *Queries) UpdatePrefix(ctx context.Context, name string) (int64, error) {
+	row := q.db.QueryRow(ctx, updatePrefix, name)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }

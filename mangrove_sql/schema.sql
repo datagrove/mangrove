@@ -11,7 +11,7 @@ create table mg.dbfile(
     mime text not null,  
     mt timestamp,
     primary key (db, count, path),
-    foreign key (db) references db(db) on delete cascade
+    foreign key (db) references mg.db(db) on delete cascade
 );
 
 create table mg.segment(
@@ -21,7 +21,7 @@ create table mg.segment(
     ts tsvector, 
     mt timestamp,
     primary key (fid, start),
-    foreign key (fid) references dbfile(fid) on delete cascade
+    foreign key (fid) references mg.dbfile(fid) on delete cascade
 );
 
 create table mg.dbfileh(
@@ -33,7 +33,7 @@ create table mg.dbfileh(
     mime text not null,  
     mt timestamp,
     primary key (db, count, path, fid),
-    foreign key (db) references db(db) on delete cascade
+    foreign key (db) references mg.db(db) on delete cascade
 );
 
 create table mg.namePrefix(
@@ -46,11 +46,12 @@ create table  mg.org(
     name text unique, 
     is_user boolean not null
 );
-create table mg.org_db(org text not null, 
+create table mg.org_db(
+    org text not null, 
     db bigint not null,  
     primary key (org, db),
-    foreign key (db) references db(db) on delete cascade,
-    foreign key (uid) references org(org) on delete cascade );
+    foreign key (db) references mg.db(db) on delete cascade,
+    foreign key (org) references mg.org(org) on delete cascade );
 
 create table mg.org_member(
     org org, 

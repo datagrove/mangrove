@@ -254,72 +254,18 @@ func WebauthnSocket(mg *Server) error {
 		return nil, nil
 	})
 
-	// this going to be like register; client must follow up with register2 to save a new credential
-	mg.AddApij("recover", false, func(r *Rpcpj) (any, error) {
-		// the signature signs the session id
-		var v struct {
-			Id        string `json:"id"`
-			Signature string `json:"signature"`
-		}
-		e := json.Unmarshal(r.Params, &v)
-		if e != nil {
-			return nil, e
-		}
-		e = mg.RecoverUser(v.Id, r.Session, v.Signature)
-		if e != nil {
-			return nil, e
-		}
-		// return a challenge
-		options, session, err := web.BeginRegistration(&r.UserDevice)
-		if err != nil {
-			return nil, err
-		}
-		r.Session.data = session
-		return options, nil
-	})
-
-	mg.AddApi("okname", false, func(r *Rpcp) (any, error) {
-		var v struct {
-			Id string `json:"id"`
-		}
-		var rv struct {
-			Suggest string `json:"suggest"`
-		}
-		e := sockUnmarshall(r.Params, &v)
-		if e != nil {
-			return nil, e
-		}
-		rv.Suggest = mg.SuggestName(v.Id)
-		return &rv, nil
-	})
-
-	// don't store the user until we have a credential
-	// u, e := mg.NewUser(v.Id, v.RecoveryKey)
-	// if e != nil {
-	// 	return nil, fmt.Errorf("username already taken")
-	// }
-	// r.User = *u
-
-	// return a challenge
-	// if the user already exists because of a failure?
-	// we can sign the submitted did, that will give us the authority to add the credential
-
-	// should this user be shared with other connections?
-	// currently it is not.
-	// this requires a unique name
-	// it can return a session id right away if successfull
-	// then the client can try to add a device
 	mg.AddApij("register", false, func(r *Rpcpj) (any, error) {
 		var v struct {
-			Id string `json:"id"`
+			Device string `json:"device"`
 		}
 		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
-		r.UserDevice.ID = v.Id
-		r.UserDevice.DisplayName = "New User"
-		r.UserDevice.Name = "New User"
+		r.UserDevice.ID = v.Device
+		// does this get baked into credential? that would be an argument for getting a name first.
+		r.UserDevice.DisplayName = "Authorized Device"
+		r.UserDevice.Name = "Authorized Device"
 		options, session, err := web.BeginRegistration(&r.UserDevice)
 		if err != nil {
 			return nil, err
@@ -331,19 +277,8 @@ func WebauthnSocket(mg *Server) error {
 	// we take the approach of generating a new user, then merging this into the user set.
 	// return the temporary user name
 	mg.AddApij("register2", false, func(r *Rpcpj) (any, error) {
-		var v struct {
-			Ucan       string          `json:"ucan"`
-			Credential json.RawMessage `json:"credential"`
-		}
-		e := json.Unmarshal(r.Params, &v)
-		if e != nil {
-			return nil, e
-		}
-		e = mg.checkCanLogin(r.ID, v.Ucan)
-		if e != nil {
-			return nil, e
-		}
-		response, err := protocol.ParseCredentialCreationResponseBody(bytes.NewReader(v.Credential))
+		var e error
+		response, err := protocol.ParseCredentialCreationResponseBody(bytes.NewReader(r.Params))
 		if err != nil {
 			return nil, err
 		}
@@ -352,36 +287,33 @@ func WebauthnSocket(mg *Server) error {
 		if err != nil {
 			return nil, err
 		}
-		// r.UserDevice.Name = mg.SuggestName("") // fix race
-		// r.UserDevice.Device = map[string]*Device{
-		// 	r.Device: {
-		// 		Id:   r.Device,
-		// 		Name: r.UserDevice.Name,
-		// 	},
-		// }
-		e = mg.LoadDevice(&r.UserDevice, r.ID)
+		// may not exist yet, that's not an error
+		_ = mg.LoadDevice(&r.UserDevice, r.ID)
+		r.UserDevice.Credentials = append(r.Session.UserDevice.Credentials, *credential)
+		e = mg.NewDevice(&r.Session.UserDevice)
 		if e != nil {
 			return nil, e
 		}
-		r.UserDevice.LoginUcan = v.Ucan
-		r.UserDevice.Credentials = append(r.Session.UserDevice.Credentials, *credential)
-		return mg.NewDevice(&r.Session.UserDevice)
-		// return the user name
+		return true, nil
 	})
 
 	// take the user name and return a challenge
+	// we might want to allow this to log directly into a user?
 	mg.AddApij("login", false, func(r *Rpcpj) (any, error) {
 		// options.publicKey contain our registration options
 		var v struct {
-			Username string `json:"username"`
+			Device string `json:"device"`
+			User   string `json:"user"`
 		}
 		json.Unmarshal(r.Params, &v)
-		mg.LoadUser(v.Username, &r.UserDevice)
+		e := mg.LoadDevice(&r.UserDevice, v.Device)
+		if e != nil {
+			return nil, e
+		}
 
 		// before we call this we need to load the user credentials
 		options, session, err := web.BeginLogin(&r.UserDevice)
 		if err != nil {
-
 			return nil, err
 		}
 		r.Session.data = session
@@ -438,3 +370,20 @@ func GenerateRandomString(s int) (string, error) {
 	b, err := GenerateRandomBytes(s)
 	return base64.URLEncoding.EncodeToString(b), err
 }
+
+// don't store the user until we have a credential
+// u, e := mg.NewUser(v.Id, v.RecoveryKey)
+// if e != nil {
+// 	return nil, fmt.Errorf("username already taken")
+// }
+// r.User = *u
+
+// return a challenge
+// if the user already exists because of a failure?
+// we can sign the submitted did, that will give us the authority to add the credential
+
+// should this user be shared with other connections?
+// currently it is not.
+// this requires a unique name
+// it can return a session id right away if successfull
+// then the client can try to add a device

@@ -1,17 +1,16 @@
 import './index.css'
-import { JSXElement, Component, createSignal, For, onMount, Show, createResource, Switch, Match, createEffect, Accessor } from 'solid-js'
+import { JSXElement, Component, createSignal, For, Show, Switch, Match, createEffect } from 'solid-js'
 import { render } from 'solid-js/web'
-import { Route, Routes, Router, useNavigate, useParams, hashIntegration, Outlet } from "@solidjs/router"
-import { BackNav, H2, Page, A, Body, Title, P, PageParams } from './layout/nav'
-import { OrError, Rpc, profile } from './lib/socket'
+import { Route, Routes, Router, useNavigate, useParams, Outlet } from "@solidjs/router"
+import { H2, Page, A, Body, Title, P, PageParams } from './layout/nav'
 import { LoginPage2, RecoveryPage } from './pages/login'
-import { Datagrove, Presentation, Pt, createPresentation, rows } from './lib/db'
-import { Dbref, dbref, taskEntry, } from './lib/schema'
-import { BlueButton, Center } from './lib/form'
-import { Folder, createWatch, entries } from './lib/dbf'
-import { login, setWelcome, welcome } from './lib/crypto'
+import { Pt, createPresentation, rows } from './lib/db'
+import { taskEntry, } from './lib/schema'
+import { BlueButton, Center, ToggleSection } from './lib/form'
+import { createWatch, entries } from './lib/dbf'
+import { createUser, login, security, welcome } from './lib/crypto'
 import { LoginPage } from './pages/one'
-import { SitePage, SiteStore, setSite } from './layout/site_menu'
+import { Settings } from './lib/secure'
 
 function mdate(n: number): string {
     return new Date(n).toLocaleDateString('en-us', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
@@ -116,16 +115,6 @@ const DatabasePage: Component = () => {
     </Page>
 }
 
-const Welcome: Component = () => {
-    return <div class='bg-blue-100 border-t border-b border-blue-500 text-blue-700 px-4 py-3' role='alert'>
-        <div class='flex'>
-            <p class='font-bold'>Welcome</p>
-            <div class='flex-1' />
-            <button onclick={() => setWelcome(false)}>X</button>
-        </div>
-        <p class='text-sm'>Your security settings can be accessed under the () icon. We have some suggestions for how you can be more secure. Also there are tools there to share your account across multiple devices</p>
-    </div>
-}
 
 
 // dbref is a table in ~ database, or should it be a folder of links? por que no los dos?
@@ -134,7 +123,7 @@ const DatabaseList: Component = () => {
     return <Show when={true}><Page >
         <Title>Home</Title>
         <Body>
-            <Show when={false && welcome()}><Welcome /></Show>
+
             <table class='table-auto'>
                 <For each={entries(lst())}>{(e) => <tr><td>
                     <A href={`/db/${e}`}>{e.name}</A></td></tr>}
@@ -154,15 +143,30 @@ const ComingSoon: Component = () => {
 
 function Home() {
     const navigate = useNavigate();
+    const a = security()
+    navigate(`/en/${a.defaultUser}`)
+    return <div>Loading...</div>
+}
+function Home2() {
+    const navigate = useNavigate();
+    const a = security()
     // redirect to current user's home page
     // this needs to be async to make a decision?
 
     if (!login())
         navigate('/~/login')
-    else {
-        navigate('/en/jim.hurd')
-    }
-    return <></>
+    else if (a.defaultUser){
+        navigate(`/en/${a.defaultUser}`)
+    } 
+    return <>
+        <Center>
+            <BlueButton onClick={createUser}>New User</BlueButton>
+            <ToggleSection class='mt-2' header="Link user">
+                    <P class='text-center'>Scan from a linked device</P>
+                    <img class='w-96 mt-2' src="qr.png" />
+            </ToggleSection>
+        </Center>
+    </>
 }
 function RouteGuard() {
     const navigate = useNavigate();
@@ -197,12 +201,22 @@ function ProfilePage() {
         </Center>
     </Page>
 }
-const OrgPage: Component = () => {
+const [lang,setLang] = createSignal('en')
+
+const OrgPage = () => {
+    const nav = useNavigate()
+    createEffect(() =>{
+        const a = security()
+        console.log("security",a)
+        if (welcome()){
+            nav(`/${lang()}/${a.defaultUser}/~settings`)
+        }   
+    })
     const params = useParams<PageParams>()
     return <Page>   <Title>Organizations</Title>
-        <Center>
-            <H2>{js(params)} Organization</H2>
-        </Center></Page>
+            Home page 
+            This should show a list of databases linked to the user.
+    </Page>
 }
 const DbPage: Component = () => {
     const params = useParams<{ org: string, db: string }>()
@@ -255,26 +269,28 @@ function App2() {
             <Route path="/~/login2" component={LoginPage2} />
             <Route path="/~/recover" component={RecoveryPage} />
             <Route path="/~/register" component={LoginPage} />
-            <Route path="/" component={RouteGuard}>
-                <Route path="/~/profile" component={ProfilePage} />
-                <Route path="/~/add" component={ComingSoon} />
 
-                <Route path="/:ln/:org" component={OrgPage} />
-                <Route path="/:ln/:org/~/access" component={OrgAccess} />
-                <Route path="/:ln/:org/:db/access" component={DbAccess} />
-                <Route path="/:ln/:org/:db" component={DbPage} />
+            <Route path="/~/profile" component={ProfilePage} />
+            <Route path="/~/add" component={ComingSoon} />
 
-                <Route path="/:ln/:org/:db/t/:table" component={TablePage} />
-                <Route path="/:ln/:org/:db/f/*path" component={FilePage} />
-                <Route path="/:ln/:org/:db/log/:id" component={JobPage} />
+            <Route path="/:ln/:org/~settings" component={Settings} />
+            <Route path="/:ln/:org/~access" component={OrgAccess} /> 
+            <Route path="/:ln/:org" component={OrgPage} />
 
-                <Route path="/:ln/:org/:db/th/:tag/:table" component={TablePage} />
-                <Route path="/:ln/:org/:db/fh/:tag/*path" component={FilePage} />
-            </Route>
+            <Route path="/:ln/:org/:db/access" component={DbAccess} />
+            <Route path="/:ln/:org/:db" component={DbPage} />
+
+            <Route path="/:ln/:org/:db/t/:table" component={TablePage} />
+            <Route path="/:ln/:org/:db/f/*path" component={FilePage} />
+            <Route path="/:ln/:org/:db/log/:id" component={JobPage} />
+
+            <Route path="/:ln/:org/:db/th/:tag/:table" component={TablePage} />
+            <Route path="/:ln/:org/:db/fh/:tag/*path" component={FilePage} />
+         
             <Route path="/*path" component={NotFoundPage} />
         </Routes></>
 }
-
+//             <Route path="/" component={RouteGuard}>
 function App() {
 
 

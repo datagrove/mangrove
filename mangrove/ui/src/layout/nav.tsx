@@ -14,6 +14,7 @@ import {
   Menu,
   MenuItem,
   Dialog,
+  ButtonProps,
 } from 'solid-headless';
 import Dismiss from 'solid-dismiss'
 import { SearchList, SiteMenuContent, searchMode, setSearchMode } from './site_menu'
@@ -38,6 +39,9 @@ function Separator() {
   );
 }
 
+export const InlineButton: Component<ButtonProps> = (props) => {
+  return <button {...props} class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`}>{props.children}</button>
+}
 export const A: Component<AnchorProps> = (props) => {
   return <Ar {...props} class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`} href={props.href}>{props.children}</Ar>
 }
@@ -47,6 +51,10 @@ export const P: Component<{ children: JSXElement, class?: string }> = (props) =>
 {
 
 }
+
+// the drawer can be
+// full screen | overlay | side
+
 export const Title: Component<{
   back?: string
   children?: JSXElement
@@ -62,12 +70,14 @@ export const Title: Component<{
   const [y, setY] = createSignal(0);
   let btn: HTMLButtonElement;
   return <>
-    <div class='fixed flex left-2 top-2 p-2 border-solid w-48 border-neutral-500 rounded-md bg-neutral-800'>
-      <button ref={btn!} onClick={() => setOpenDrawer(true)}> <Icon path={bars_3} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' /></button>
-      <input readOnly placeholder='Search' type='text' class='bg-transparent focus:outline-none w-full text-white' onClick={startSearch}/>
-      <Icon path={magnifyingGlass} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' />
-    </div>
-    <Drawer button={btn!} />
+    <Show when={false}>
+      <div class='fixed flex left-[50] top-2 p-2 border-solid w-48 border-neutral-500 rounded-md bg-neutral-800'>
+        <button ref={btn!} onClick={() => setOpenDrawer(true)}> <Icon path={bars_3} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' /></button>
+        <input readOnly placeholder='Search' type='text' class='bg-transparent focus:outline-none w-full text-white' onClick={startSearch}/>
+        <Icon path={magnifyingGlass} class='mr-2 h-6 w-6  text-blue-700 hover:text-blue-500' />
+      </div>
+      <Drawer button={btn!} />
+    </Show>
     <Account />
   </>
 }
@@ -89,7 +99,7 @@ export const Drawer: Component<{ button: HTMLButtonElement }> = (props) => {
       open={openDrawer}
       setOpen={setOpenDrawer}
     >
-      <div class='transform fixed left-0 top-0 w-96 h-full rounded-md dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'>
+      <div class=''>
         <SiteMenuContent></SiteMenuContent>
         <button onClick={ editSite} class='z-60 fixed p-2 bottom-2 right-2 rounded-full text-blue-700 hover:text-blue-500'><Icon class='h-6 w-6' path={pencil}/></button>
       </div></Dismiss></>
@@ -124,29 +134,17 @@ export const Account: Component = () => {
   </>
 }
 
-
-export const Title2: Component<{
-  back?: string
-  children?: JSXElement
-}> = (props) => {
-
-  const logOut = useLogout()
-  return <><BackNav back={!!props.back} >
-    {props.children}
-    <button onClick={logOut} class="ml-2 inline-flex items-center px-2 py-1 border border-transparent text-xs leading-4 font-medium rounded-full text-white bg-red-600 hover:bg-red-500 focus:outline-none focus:border-red-700 focus:shadow-outline-red active:bg-red-700 transition ease-in-out duration-150">Sign out</button>
-  </BackNav></>
-}
-
-
 export const Body: Component<{ children: JSXElement }> = (props) => {
   return <div class="m-2">{props.children}
           
   </div>
 }
+const [small, setSmall] = createSignal(false)
 export const Page: Component<{ children: JSXElement }> = (props) => {
-
-
-  return <><div class='h-12'></div>{props.children}</>
+  return <div class='flex h-screen'>
+      <div class='w-64'><SiteMenuContent></SiteMenuContent></div>
+      <div class='flex-1 p-2'><div class={small()?'h-12':''}></div>{props.children}</div>
+       </div>
 }
 
 interface Tab {
