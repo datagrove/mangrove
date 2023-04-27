@@ -54,7 +54,7 @@ create table mg.org_db(
     foreign key (org) references mg.org(org) on delete cascade );
 
 create table mg.org_member(
-    org org, 
+    org text, 
     member text, 
     ucan text, 
     primary key (org, member) );

@@ -8,11 +8,11 @@ import { Pt, createPresentation, rows } from './lib/db'
 import { taskEntry, } from './lib/schema'
 import { BlueButton, Center, ToggleSection } from './lib/form'
 import { createWatch, entries } from './lib/dbf'
-import { createUser, generatePassPhrase, login, security, welcome } from './lib/crypto'
+import { createUser, generatePassPhrase, login, security, welcome, profile, Site } from './lib/crypto'
 import { LoginPage } from './pages/one'
 import { Settings } from './lib/secure'
 import { PasswordManager } from './pages/pass'
-import { PassworOrBip39 } from './pages/pass2'
+import { LoginPass, PassworOrBip39 } from './pages/pass2'
 
 function mdate(n: number): string {
     return new Date(n).toLocaleDateString('en-us', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
@@ -160,13 +160,6 @@ const [lang, setLang] = createSignal('en')
 
 const OrgPage = () => {
     const nav = useNavigate()
-    createEffect(() => {
-        const a = security()
-        console.log("security", a)
-        if (welcome()) {
-            nav(`/${lang()}/${a.user?.did}/~settings`)
-        }
-    })
     const params = useParams<PageParams>()
     return <Page>   <Title>Organizations</Title>
         Home page
@@ -214,6 +207,47 @@ function NotFoundPage() {
     const p = useParams<{ path: string }>()
     return <div>Not found {p.path}</div>
 }
+interface FieldDesc {
+    header: string
+}
+function DbTable<T>(fields: (string | FieldDesc)[]) {
+    return (props: { for: T[] }) => {
+        return <table>
+            <tbody>
+                <For each={props.for}>{(e: any) => {
+                    return <tr>
+                        <For each={fields}>{(f) => {
+                            if (typeof f == 'string') {
+                                return <td>{e[f]}</td>
+                            } else {
+                                return <td>{f.header}</td>
+                            }
+                        }}</For>
+                    </tr>
+                }}</For>
+            </tbody>
+        </table>
+    }
+}
+const SiteTable = DbTable<Site>(['name'])
+
+// displays the users root profile: orgs, dbs, files, etc
+function Home() {
+    return <Page>
+        <Title>Home</Title>
+        <Body>
+            <H2>Web Sites</H2>
+            <SiteTable for={profile().site} />
+        </Body>
+    </Page>
+}
+/*
+            <H2>Activity</H2>
+
+            <H2>Organizations</H2>
+            <H2>Identities</H2>
+            <H2>Devices</H2>
+            */
 
 function RouteGuard() {
     const navigate = useNavigate();
@@ -223,7 +257,9 @@ function RouteGuard() {
         // should each tab need its own id? eventually we should use a sharedworker to log in. this sharedworker will keep a variable.
         if (!login()) {
             console.log('redirecting to login')
-            navigate('/~/register', { replace: true });
+            navigate('/login', { replace: true });
+        } else {
+            navigate(`/${lang()}`, { replace: true });
         }
     })
     // when={login()} 
@@ -241,14 +277,10 @@ function App2() {
 
     return <>
         <Routes>
-            <Route path="/~/login" component={LoginPage} />
-            <Route path="/~/login2" component={LoginPage2} />
-            <Route path="/~/recover" component={RecoveryPage} />
-            <Route path="/~/register" component={PassworOrBip39} />
+            <Route path="/login" component={LoginPass} />
+            <Route path="/register" component={PassworOrBip39} />
             <Route path="/" component={RouteGuard}>
-                <Route path="/~/profile" component={ProfilePage} />
-                <Route path="/~/add" component={ComingSoon} />
-
+                <Route path="/:ln/" component={Home} />
                 <Route path="/:ln/:org/~settings" component={Settings} />
                 <Route path="/:ln/:org/~access" component={OrgAccess} />
                 <Route path="/:ln/:org" component={OrgPage} />
@@ -266,14 +298,6 @@ function App2() {
             </Route>
         </Routes></>
 }
-            
-function App() {
-
-
-
-    return <div>Hello, world</div>
-}
-
 
 render(
     () => (

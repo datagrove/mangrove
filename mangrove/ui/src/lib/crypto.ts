@@ -44,6 +44,37 @@ type User = {
   bip39: boolean
 }
 
+// loaded from the user's home database.
+export interface Profile {
+  user: {
+    [key: string]: User
+  },
+  device: {
+    [key: string]: Device
+  },
+  site: Site[]
+  server: {
+    [key: string]: Server
+  }
+}
+export const [profile, setProfile] = createSignal<Profile>({
+  user: {},
+  device: {},
+  site: [],
+  server: {},
+})
+interface Server {
+  url: string
+
+}
+interface Device {
+  username: string
+  deviceName: string
+  publicKey: JsonWebKey
+  expires: number
+  usefor: string[]
+}
+
 
 // when we logout, should we remove the device key? that would require storing it on the server, a tradeoff.
 export const useLogout = () => {
@@ -112,16 +143,7 @@ export const isMobile: boolean = (navigator as any)?.userAgentData?.mobile ?? fa
 // otherwise it won't be unique.
 // we could simply use the hash of the private key, but then it could never be changed or revoked. certificate transparency offers solutions here? can datagrove sign the domain?
 // 
-export interface xx {
-  username: string
-}
-export interface DeviceCertificate {
-  username: string
-  deviceName: string
-  publicKey: JsonWebKey
-  expires: number
-  usefor: string[]
-}
+
 
 
 export async function AuthorizeDevice(keypair: EdKeypair, device: string) {
@@ -175,22 +197,22 @@ export const generatePassPhrase = () => bip39.generateMnemonic()
 export async function bip39seed(bip: string) {
   return bip39.mnemonicToSeedSync(bip).subarray(0, 32)
 }
-export async function passwordSeed(password: string)  {
+export async function passwordSeed(password: string) {
   return bip39.mnemonicToSeedSync(password).subarray(0, 32)
 }
 
 // we need to create the user deterministically from the seed
-export async function createUser(seed: string,bip39: boolean) {
+export async function createUser(seed: string, bip39: boolean) {
   const b = bip39 ? await bip39seed(seed.toString()) : await passwordSeed(seed.toString())
   const kp = ed25519.generateKeyPairFromSeed(b)
-  const user =  new EdKeypair(kp.secretKey, kp.publicKey, true)
+  const user = new EdKeypair(kp.secretKey, kp.publicKey, true)
   const a = security()
   const ucan = await ucans.build({
     audience: a.deviceDid, // recipient DID
     issuer: user, // signing key
     capabilities: [ // permissions for ucan
       {
-        with: "login://" + user.did(),
+        with: "login://" + user.did() as any,
         can: "*"
       }
     ]
