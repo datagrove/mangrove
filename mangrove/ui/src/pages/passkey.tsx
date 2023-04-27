@@ -16,35 +16,21 @@ export const LoginPasskey = () => {
     return <Passkey login={true} />
 }
 
-let isCMA = false;
-if (window.PublicKeyCredential &&
-    PublicKeyCredential.isConditionalMediationAvailable) {
-    // Check if conditional mediation is available.  
-    isCMA = await PublicKeyCredential.isConditionalMediationAvailable();
-}
+
 // To abort a WebAuthn call, instantiate an `AbortController`.  
-const abortController = new AbortController();
-
-
 
 
 export const Passkey: Component<{ login?: boolean }> = (props) => {
+    const abortController = new AbortController();
     const ws = createWs()
     const nav = useNavigate()
     const [hide, setHide] = createSignal(true)
     const [bip39, setBip39] = createSignal(false)
 
     const fn = async () => {
-        // const publicKeyCredentialRequestOptions = {
-        //     // Server generated challenge  
-        //     challenge: new Uint8Array(0),
-        //     // The same RP ID as used during registration  
-        //     rpId: 'example.com',
-        // };
         const sec = security()
         const o2 = await ws.rpcj<any>("login", {
             device: sec.deviceDid,
-            //username: sec.userDid // maybe empty
         })
         const cro = parseRequestOptionsFromJSON(o2)
 
@@ -52,24 +38,26 @@ export const Passkey: Component<{ login?: boolean }> = (props) => {
         const o = await get({
             publicKey: cro.publicKey,
             signal: abortController.signal,
-            // Specify 'conditional' to activate conditional UI  
             mediation: 'conditional'
         })
         console.log("got sign")
-        // const o = await navigator.credentials.get({
-        //     publicKey: o2,
-        //     signal: abortController.signal,
-        //     // Specify 'conditional' to activate conditional UI  
-        //     mediation: 'conditional'
-        // });
-        // send the credential to the server for validation
+
         const reg = await ws.rpcj<SiteStore>("login2", o.toJSON())
         setLogin(true)
         // instead of navigate we need get the site first
         // then we can navigate in it. the site might tell us the first url
         nav("/")
     }
-    fn()
+
+    if (props.login) (async () => {
+        if (window.PublicKeyCredential &&
+            PublicKeyCredential.isConditionalMediationAvailable) {
+            // Check if conditional mediation is available.  
+            let isCMA = await PublicKeyCredential.isConditionalMediationAvailable();
+            if (isCMA)
+                fn()
+        }
+    })()
 
     let el: HTMLInputElement
     function togglePassword() {
