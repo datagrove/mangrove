@@ -13,6 +13,7 @@ import { LoginPage } from './pages/one'
 import { Settings } from './lib/secure'
 import { PasswordManager } from './pages/pass'
 import { LoginPass, PassworOrBip39 } from './pages/pass2'
+import { LoginPasskey, Passkey } from './pages/passkey'
 
 function mdate(n: number): string {
     return new Date(n).toLocaleDateString('en-us', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
@@ -277,8 +278,8 @@ function App2() {
 
     return <>
         <Routes>
-            <Route path="/login" component={LoginPass} />
-            <Route path="/register" component={PassworOrBip39} />
+            <Route path="/login" component={LoginPasskey} />
+            <Route path="/register" component={Passkey} />
             <Route path="/" component={RouteGuard}>
                 <Route path="/:ln/" component={Home} />
                 <Route path="/:ln/:org/~settings" component={Settings} />
