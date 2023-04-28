@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "@solidjs/router";
 import { Select } from "../core/select";
 import { Icon } from "solid-heroicons";
 import { language } from "solid-heroicons/solid";
+import { negotiateLanguages } from "@fluent/langneg";
 
 type Lang = { [key: string]: string }
 
@@ -14,7 +15,8 @@ const [lang, setLang] = createSignal<Lang>({
     "iw": "עברית"
 })
 export const rtlLang = {
-    "iw": true
+    "iw": true,
+    'ar': true
 }
 
 export const LanguageSelect: ParentComponent<{}> = (props) => {
@@ -26,5 +28,12 @@ export const LanguageSelect: ParentComponent<{}> = (props) => {
         nav(`/${e}/${window.location.pathname.slice(4)}`)
     }
     return (<Select entries={lang()} value={p.ln} onchange={update}>
-        <Icon class='p-2 h-5 w-5' path={language} /></Select>)
+        <Icon class='h-6 w-6' path={language} /></Select>)
 }
+
+// const supportedLocales = negotiateLanguages(
+//     navigator.languages, // requested locales
+//     Object.keys(s.language), // available locales
+//     { defaultLocale: "en", strategy: 'lookup' },
+//     lang = supportedLocales[0];
+//   );

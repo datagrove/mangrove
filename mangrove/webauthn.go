@@ -264,8 +264,8 @@ func WebauthnSocket(mg *Server) error {
 		}
 		r.UserDevice.ID = v.Device
 		// does this get baked into credential? that would be an argument for getting a name first.
-		r.UserDevice.DisplayName = "Authorized Device"
-		r.UserDevice.Name = "Authorized Device"
+		r.UserDevice.DisplayName = v.Device
+		r.UserDevice.Name = v.Device
 		options, session, err := web.BeginRegistration(&r.UserDevice)
 		if err != nil {
 			return nil, err
@@ -339,7 +339,8 @@ func WebauthnSocket(mg *Server) error {
 		// we could also use the did as a handle. we could use 64 bit int, and keep it in a local map. basically watch handle for a recursive directory.
 		//ws, e := mg.AddWatch(v.Path, r.Session, r.Id, v.Filter, 0)
 		// the handle returned is specific to the session.
-		return &SessionStatus{Home: 0}, nil
+		s, e := GenerateRandomString(16)
+		return s, e
 	})
 	// take the user name and return a challenge
 	// we might want to allow this to log directly into a user?

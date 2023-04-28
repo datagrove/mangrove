@@ -8,7 +8,7 @@ import { createWindowSize } from "@solid-primitives/resize-observer";
 import { createEffect } from "solid-js";
 import { createStore, produce } from 'solid-js/store'
 import { useLocation, Location, useParams } from "@solidjs/router";
-import { negotiateLanguages } from "@fluent/langneg";
+
 import { Mdx } from "./mdx";
 import { PageParams } from "./nav";
 import { Icon } from "solid-heroicons"
@@ -67,8 +67,6 @@ export const DarkButton = () => {
 }
 
 // language selector
-
-
 export const SitePreference = (props: { page: PageDescription }) => {
   const [collapsed, setCollapsed] = createSignal(true);
 
@@ -132,17 +130,12 @@ export interface SiteDefinition {
     [key: string]: string
   } //= {}
 }
-export interface SiteStore extends SiteDefinition {
-
   // computed things
-  // this could build the entire path in one go.
-  // the location will be /en/path#subtitle
-
+export interface SiteStore extends SiteDefinition {
   path: Map<string, SitePage> // = new Map()
   home?: SitePage
   search: SearchResult[] // = []
 }
-
 
 export type SitePage = {
   name: string
@@ -150,7 +143,10 @@ export type SitePage = {
   children?: SitePage[]
   parent?: SitePage
 };
-
+export class BrowseState {
+  // for each tab we need a most recent url visited
+  recent: string[] = []
+}
 
 
 export interface SearchResult {
@@ -193,25 +189,6 @@ export function fetchResults(site: SiteStore, sp: string): SearchResult[] {
   const a = site.search.filter((e) => e.title.indexOf(sp) != -1)
   return a
 }
-
-export class BrowseState {
-  // for each tab we need a most recent url visited
-  recent: string[] = []
-}
-
-export const rtlLanguages = new Set(['ar']);
-
-// we get this in layout and just pass it down. Not very fine grained?
-// is this where we want to set the translation? how do we memoize things?
-
-// there are special locationd {lang}/{toptab} that mean to restore the state to whatever was most recently viewed in that tab. if there is no prior state then pick the first page on that tab. 
-
-
-// don't we need to set the site and the language together?
-// we are compiling and translating the site at this point
-// maybe we should do more AOT?
-
-// the site should set its default language, which might be "whatever the browser wants"
 export function setSite(s: SiteDefinition) {
   setSite2(prepSite(s))
 }
@@ -223,19 +200,7 @@ export function prepSite(sx: SiteDefinition): SiteStore {
     , search: []
   }
   console.log("set site", s)
-  let lang = s.defaultLanguage
-  if (!s.defaultLanguage) {
-    // 0. lang is not preselected; so pick it here
-    // 1. somehow we may have store a preference for this site
-    // 2. the browser will tell us what user normally prefers
-    const supportedLocales = negotiateLanguages(
-      navigator.languages, // requested locales
-      Object.keys(s.language), // available locales
-      { defaultLocale: "en", strategy: 'lookup' },
 
-    );
-    lang = supportedLocales[0];
-  }
   const firstLeaf = (p: SitePage): SitePage => {
     if (p?.children) {
       return firstLeaf(p.children[0])
@@ -246,7 +211,7 @@ export function prepSite(sx: SiteDefinition): SiteStore {
   // note that we 
   const indexPaths = (o: SitePage, tab: number) => {
     if (o.path) {
-      let lc = "/" + lang + `/${tab}` + o.path
+      let lc =  `/${tab}` + o.path
       s.search.push({
         title: o.name.toLocaleLowerCase(),
         href: lc
@@ -267,16 +232,6 @@ export function prepSite(sx: SiteDefinition): SiteStore {
   return s
 }
 
-// if we are in an iframe this passes to the parent.
-export function dgos(method: string, params: any) {
-  window?.top?.postMessage({ method: method, params: params }, '*')
-}
-// message from dgos - what?
-window.onmessage = function (e) {
-  if (e.data == 'hello') {
-    alert('It works!');
-  }
-};
 
 // what are the transitions?
 // none -> adaptive | overlay depending on sitemap and 
@@ -309,16 +264,6 @@ export const togglePagemap = () => {
   // once flipped, it can't be adaptive again. Is there a a better approach?
   setPagemap(showToc() ? ShowPagemap.none : ShowPagemap.display)
 }
-
-export class Query<T> {
-  length: number = 0
-}
-export class Cursor<T> {
-  query: Query<T> = new Query<T>()
-  anchor: number = 0
-  runway: T[] = []
-}
-
 
 
 export interface PageDescription {

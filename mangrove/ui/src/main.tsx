@@ -13,7 +13,8 @@ import { LoginPage } from './pages/one'
 import { Settings } from './lib/secure'
 import { PasswordManager } from './pages/pass'
 import { LoginPass, PassworOrBip39 } from './pages/pass2'
-import { LoginPasskey, Passkey } from './pages/passkey'
+import { LoginPasskey,Register as RegisterPasskey } from './pages/passkey'
+import { TestPage } from './pages/test'
 
 function mdate(n: number): string {
     return new Date(n).toLocaleDateString('en-us', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
@@ -157,7 +158,6 @@ function ProfilePage() {
         </Center>
     </Page>
 }
-const [lang, setLang] = createSignal('en')
 
 const OrgPage = () => {
     const nav = useNavigate()
@@ -251,6 +251,8 @@ function Home() {
             */
 
 function RouteGuard() {
+    const params = useParams<PageParams>()
+    
     const navigate = useNavigate();
 
     createEffect(() => {
@@ -258,9 +260,10 @@ function RouteGuard() {
         // should each tab need its own id? eventually we should use a sharedworker to log in. this sharedworker will keep a variable.
         if (!login()) {
             console.log('redirecting to login')
-            navigate('/login', { replace: true });
-        } else {
-            navigate(`/${lang()}`, { replace: true });
+            navigate(`${params.ln??"en"}/login`, { replace: true });
+        }
+         else {
+            navigate(`/${params.ln??"en"}`, { replace: true });
         }
     })
     // when={login()} 
@@ -278,8 +281,9 @@ function App2() {
 
     return <>
         <Routes>
+            <Route path="/test" element={<TestPage />} />
             <Route path="/:ln/login" component={LoginPasskey} />
-            <Route path="/:ln/register" component={Passkey} />
+            <Route path="/:ln/register" component={RegisterPasskey} />
             <Route path="/" component={RouteGuard}>
                 <Route path="/:ln/" component={Home} />
                 <Route path="/:ln/:org/~settings" component={Settings} />

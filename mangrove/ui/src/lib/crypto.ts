@@ -35,6 +35,7 @@ export interface Security {
   registered: boolean
   autoconnectUntil: number
   user?: User
+  token?: string
 }
 type User = {
   name: string,
@@ -75,13 +76,13 @@ interface Device {
   usefor: string[]
 }
 
-
 // when we logout, should we remove the device key? that would require storing it on the server, a tradeoff.
+
+// log out of all tabs
 export const useLogout = () => {
   const navigate = useNavigate()
   return () => {
     sessionStorage.removeItem('token');
-    setLogin(false)
     navigate('/', { replace: true });
   }
 }
@@ -107,14 +108,20 @@ export const [welcome, setWelcome] = createSignal(true)
 // set undefined to false to test without webauthn
 export const [hasWebAuthn, setHasWebAuthn] = createSignal(undefined as boolean | undefined)
 // if login is true we can go to any page.
-export const [login, setLogin] = createSignal(false)
-export const [user, setUser] = createSignal<string>('')
+// export const [login, setLogin] = createSignal(false)
+// export const [user, setUser] = createSignal<string>('')
 export const [security, setSecurity_] = createSignal<Security>(init())
 export const setSecurity = (s: Security) => {
   localStorage.setItem('security', JSON.stringify(s));
   setSecurity_(s)
 }
-
+export const login = () =>   !!security().token
+export const setLogin = (s: string) => { 
+  setSecurity({
+    ...security(),
+    token: s
+  })
+}
 export const [error, setError] = createSignal("")
 export const isMobile: boolean = (navigator as any)?.userAgentData?.mobile ?? false;
 
@@ -226,5 +233,4 @@ export async function createUser(seed: string, bip39: boolean) {
     bip39: bip39
   }
   setSecurity(a)
-  setLogin(true)
 }

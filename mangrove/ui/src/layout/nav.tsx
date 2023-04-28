@@ -22,6 +22,9 @@ import { BlueButton, Center } from '../lib/form'
 function classNames(...classes: (string | boolean | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }
+// this should probably be a media query
+const [small, setSmall] = createSignal(false)
+
 export type PageParams = Partial<{
   ln: string
   org: string
@@ -105,6 +108,7 @@ export const Drawer: Component<{ button: HTMLButtonElement }> = (props) => {
       </div></Dismiss></>
 }
 
+// todo!! this is ugly
 export const Account: Component = () => {
   const nav = useNavigate()
   const logOut = useLogout()
@@ -139,10 +143,10 @@ export const Body: Component<{ children: JSXElement }> = (props) => {
 
   </div>
 }
-const [small, setSmall] = createSignal(false)
+
 export const Page: Component<{ children: JSXElement }> = (props) => {
   return <div class='flex h-screen v-screen '>
-    <div class='w-64 h-full overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><SiteMenuContent></SiteMenuContent></div>
+    <div class='w-80 h-full overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><SiteMenuContent></SiteMenuContent></div>
     <div class='flex-1 p-2 h-full overflow-auto '><div class={small() ? 'h-12' : ''}></div>{props.children}</div>
   </div>
 }

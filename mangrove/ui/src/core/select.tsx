@@ -7,9 +7,10 @@ export const Select: ParentComponent<{
 	onchange: (e: string) => void
 }> = (props) => {
 
-	return (<div class='flex text-black dark:text-white p-2 mr-2 rounded-md'>
-		{props.children}
+	return (<div class='flex text-black dark:text-white p-2 mr-2 rounded-md items-center space-x-2'>
+		<label for='ln'>{props.children}</label> 
 		<select
+			id='ln'
 			value={props.value}
 			aria-label="Select language"
 			class='flex-1  rounded-md dark:bg-neutral-900 text-black dark:text-white '
