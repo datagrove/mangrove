@@ -7,12 +7,12 @@ export const Select: ParentComponent<{
 	onchange: (e: string) => void
 }> = (props) => {
 
-	return (<div class='flex text-black dark:bg-solid-darkitem dark:text-white p-2 mr-2 rounded-md'>
+	return (<div class='flex text-black dark:text-white p-2 mr-2 rounded-md'>
 		{props.children}
 		<select
 			value={props.value}
 			aria-label="Select language"
-			class='flex-1  dark:bg-solid-darkitem text-black dark:text-white '
+			class='flex-1  rounded-md dark:bg-neutral-900 text-black dark:text-white '
 			oninput={(e) => {
 				const newLang = e.currentTarget.value
 				props.onchange(newLang)

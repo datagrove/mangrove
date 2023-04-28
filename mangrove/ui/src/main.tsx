@@ -278,8 +278,8 @@ function App2() {
 
     return <>
         <Routes>
-            <Route path="/login" component={LoginPasskey} />
-            <Route path="/register" component={Passkey} />
+            <Route path="/:ln/login" component={LoginPasskey} />
+            <Route path="/:ln/register" component={Passkey} />
             <Route path="/" component={RouteGuard}>
                 <Route path="/:ln/" component={Home} />
                 <Route path="/:ln/:org/~settings" component={Settings} />

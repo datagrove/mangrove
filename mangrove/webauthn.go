@@ -296,6 +296,9 @@ func WebauthnSocket(mg *Server) error {
 		}
 		return true, nil
 	})
+	mg.AddApij("username", false, func(r *Rpcpj) (any, error) {
+		return mg.SuggestName("")
+	})
 	// take the user name and return a challenge
 	// we might want to allow this to log directly into a user?
 	mg.AddApij("login", false, func(r *Rpcpj) (any, error) {

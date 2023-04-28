@@ -14,8 +14,9 @@ import { PageParams } from "./nav";
 import { Icon } from "solid-heroicons"
 import { chevronRight, sun, moon, cog_6Tooth as gear, language } from "solid-heroicons/solid"
 import { createSignal, ParentComponent, Show } from "solid-js";
-import { Select } from "../core/select";
+
 import { orgsite } from "./orgsite";
+import { LanguageSelect } from "./i18";
 
 export const [searchMode, setSearchMode] = createSignal(false)
 export const [innerContent, setInnerContent] = createSignal(<div />)
@@ -67,13 +68,7 @@ export const DarkButton = () => {
 
 // language selector
 
-const LanguageSelect: ParentComponent<{ page: PageDescription }> = (props) => {
-  // change the language has to change the route. It doesn't change the store
-  const update = (e: string) => {
-  }
-  return (<Select entries={props.page.site.language} value={props.page.lang} onchange={update}>
-    {props.children}</Select>)
-}
+
 export const SitePreference = (props: { page: PageDescription }) => {
   const [collapsed, setCollapsed] = createSignal(true);
 
@@ -99,7 +94,7 @@ export const SitePreference = (props: { page: PageDescription }) => {
       <Show when={!collapsed()}>
         <div aria-label="preferences" class="p-4 border-t border-solid-lightitem dark:border-solid-darkitem">
 
-          <div class='flex items-center'><div class='flex-1'><LanguageSelect page={props.page}>
+          <div class='flex items-center'><div class='flex-1'><LanguageSelect>
             <Icon class='h-5 w-5' path={language} />
           </LanguageSelect></div><div class='flex-none'><DarkButton /></div></div>
           <div class='flex'><div class='flex-1'></div></div>
@@ -222,12 +217,13 @@ export function setSite(s: SiteDefinition) {
 }
 
 export function prepSite(sx: SiteDefinition): SiteStore {
-  const s : SiteStore = { ...sx
+  const s: SiteStore = {
+    ...sx
     , path: new Map()
     , search: []
- }
+  }
   console.log("set site", s)
-  let lang = s.defaultLanguage 
+  let lang = s.defaultLanguage
   if (!s.defaultLanguage) {
     // 0. lang is not preselected; so pick it here
     // 1. somehow we may have store a preference for this site
@@ -340,57 +336,57 @@ export interface PageDescription {
 export const SiteMenuContent: Component<{}> = (props) => {
   const [pd, setPd] = createSignal<PageDescription>()
 
-  createEffect( () => {
+  createEffect(() => {
     const loc = useLocation<Location>()
     const params = useParams<PageParams>()
 
     // a derivative of a location change. May require subscribing to the database
-      const s = site()
-      if (!s) {
-        return undefined
-      }
-      const h = loc.hash
-      const ts = loc.hash=="#1"?1:0
-      params.ln ?? 'en'
-      const p = s.path.get(params.path ?? "") ?? s.home
-      const r: PageDescription = {
-        site: s,
-        param: params,
-        lang: "",
-        page: p!,
-        topSection: ts,
-        loc: loc,
-      }
-      console.log('page',loc,params, r)
-      setPd(r)
+    const s = site()
+    if (!s) {
+      return undefined
+    }
+    const h = loc.hash
+    const ts = loc.hash == "#1" ? 1 : 0
+    params.ln ?? 'en'
+    const p = s.path.get(params.path ?? "") ?? s.home
+    const r: PageDescription = {
+      site: s,
+      param: params,
+      lang: "",
+      page: p!,
+      topSection: ts,
+      loc: loc,
+    }
+    console.log('page', loc, params, r)
+    setPd(r)
   })
 
 
-  return  <div class='transform w-full h-full dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><Switch>
+  return <div class='transform w-full h-full dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><Switch>
     <Match when={!pd()}>
       Error
     </Match>
-  <Match when={searchMode()}>
-    <SearchList />
-  </Match>
-  <Match when={!searchMode()}>
-    <div class='pb-16 pt-2 px-2'>
-      {pd()!.site.title}
-      <div class='flex items-center'>
-        <div class='flex-1 '><SiteTabs page={pd()!} /></div>
-      </div>
-      <SitePreference page={pd()!} />
-      <SiteSearchButton />
-      <div class='mt-4'>
-        <SectionNav page={pd()!} />
-      </div>
-    </div></Match>
+    <Match when={searchMode()}>
+      <SearchList />
+    </Match>
+    <Match when={!searchMode()}>
+      <div class='pb-16 pt-2 px-2'>
+        {pd()!.site.title}
+        <div class='flex items-center'>
+          <div class='flex-1 '><SiteTabs page={pd()!} /></div>
+        </div>
+        <SitePreference page={pd()!} />
+        <SiteSearchButton />
+        <div class='mt-4'>
+          <SectionNav page={pd()!} />
+        </div>
+      </div></Match>
   </Switch></div>
 }
 export function SectionNav(props: { page: PageDescription }) {
   // this needs be recursive, starting from the 
-  const tabs = () : SitePage[] => {
-    return (props.page.site.root.children![props.page.topSection].children)??[]
+  const tabs = (): SitePage[] => {
+    return (props.page.site.root.children![props.page.topSection].children) ?? []
   }
   return (
     <ul class="flex flex-col gap-4">
