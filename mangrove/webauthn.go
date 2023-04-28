@@ -296,10 +296,51 @@ func WebauthnSocket(mg *Server) error {
 		}
 		return true, nil
 	})
-
 	// take the user name and return a challenge
 	// we might want to allow this to log directly into a user?
 	mg.AddApij("login", false, func(r *Rpcpj) (any, error) {
+
+		// before we call this we need to load the user credentials
+		options, session, err := web.BeginDiscoverableLogin()
+		if err != nil {
+			return nil, err
+		}
+		r.Session.data = session
+		return options, nil
+	})
+
+	mg.AddApij("login2", false, func(r *Rpcpj) (any, error) {
+		response, err := protocol.ParseCredentialRequestResponseBody(bytes.NewReader(r.Params))
+		if err != nil {
+			return nil, err
+		}
+
+		handler := func(rawID, userHandle []byte) (webauthn.User, error) {
+			e := mg.LoadDevice(&r.UserDevice, string(userHandle))
+			if e != nil {
+				return nil, e
+			} else {
+				return &r.UserDevice, nil
+			}
+		}
+		credential, err := web.ValidateDiscoverableLogin(handler, *r.Session.data, response)
+		if err != nil {
+			return nil, err
+		}
+		spew.Dump(credential)
+
+		// we already have a challenge before now. return the user site
+		// or potentially return a hash of the document (latest commit?)
+		// we are going to subscribe to this document and always get updates
+		// so we can return a subscription handle to it? this could be a random handle
+		// we could also use the did as a handle. we could use 64 bit int, and keep it in a local map. basically watch handle for a recursive directory.
+		//ws, e := mg.AddWatch(v.Path, r.Session, r.Id, v.Filter, 0)
+		// the handle returned is specific to the session.
+		return &SessionStatus{Home: 0}, nil
+	})
+	// take the user name and return a challenge
+	// we might want to allow this to log directly into a user?
+	mg.AddApij("loginx", false, func(r *Rpcpj) (any, error) {
 		// options.publicKey contain our registration options
 		var v struct {
 			Device string `json:"device"`
@@ -320,7 +361,7 @@ func WebauthnSocket(mg *Server) error {
 		return options, nil
 	})
 
-	mg.AddApij("login2", false, func(r *Rpcpj) (any, error) {
+	mg.AddApij("loginx2", false, func(r *Rpcpj) (any, error) {
 		response, err := protocol.ParseCredentialRequestResponseBody(bytes.NewReader(r.Params))
 		if err != nil {
 			return nil, err
