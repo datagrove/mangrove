@@ -2,6 +2,7 @@ import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import solidPlugin from 'vite-plugin-solid';
 import serveStatic from 'serve-static'
 import mkcert from 'vite-plugin-mkcert'
+import { resolve } from 'path';
 
 
 export default defineConfig({
@@ -28,5 +29,25 @@ export default defineConfig({
       }
     },
     port: 5783,
+  },
+  build: {
+    lib: {
+      // Could also be a dictionary or array of multiple entry points
+      entry: resolve(__dirname, 'src/index.js'),
+      name: '@datagrove/ui',
+      // the proper extensions will be added
+      fileName: 'index',
+    },
+    rollupOptions: {
+      // make sure to externalize deps that shouldn't be bundled
+      // into your library
+      external: ['solid-js'],
+      output: {
+        // Provide global variables to use in the UMD build
+        // for externalized deps
+        globals: {
+        },
+      },
+    },
   },
 });

@@ -1,11 +1,11 @@
 import { useNativeColorScheme } from "solid-headless"
-import { ParentComponent, createSignal } from "solid-js"
+import { Component, JSXElement, ParentComponent, createSignal } from "solid-js"
 import { PageDescription } from "./site_menu"
 import { useNavigate, useParams } from "@solidjs/router";
-import { Select } from "../core/select";
 import { Icon } from "solid-heroicons";
 import { language } from "solid-heroicons/solid";
 import { negotiateLanguages } from "@fluent/langneg";
+import { createContext, useContext } from "solid-js";
 
 type Lang = { [key: string]: string }
 
@@ -18,7 +18,33 @@ export const rtlLang = {
     "iw": true,
     'ar': true
 }
+const Select: ParentComponent<{
+    entries: object
+    value: string
+    onChange: (e: string) => void
+}> = (props) => {
 
+    return (<div class='flex text-black dark:text-white p-2 mr-2 rounded-md items-center space-x-2'>
+        <label for='ln'>{props.children}</label>
+        <select
+            id='ln'
+            value={props.value}
+            aria-label="Select language"
+            class='flex-1  rounded-md dark:bg-neutral-900 text-black dark:text-white '
+            oninput={(e) => {
+                const newLang = e.currentTarget.value
+                props.onChange(newLang)
+            }}
+        >
+            {Object.entries(props.entries).map(([code, name]) => (
+                <option value={code}>
+                    {name}&nbsp;&nbsp;&nbsp;
+                </option>
+            ))}
+        </select>
+    </div>
+    );
+};
 export const LanguageSelect: ParentComponent<{}> = (props) => {
     const p = useParams<{ ln: string }>();
     const nav = useNavigate()
@@ -27,13 +53,7 @@ export const LanguageSelect: ParentComponent<{}> = (props) => {
     const update = (e: string) => {
         nav(`/${e}/${window.location.pathname.slice(4)}`)
     }
-    return (<Select entries={lang()} value={p.ln} onchange={update}>
+    return (<Select entries={lang()} value={p.ln} onChange={update}>
         <Icon class='h-6 w-6' path={language} /></Select>)
 }
 
-// const supportedLocales = negotiateLanguages(
-//     navigator.languages, // requested locales
-//     Object.keys(s.language), // available locales
-//     { defaultLocale: "en", strategy: 'lookup' },
-//     lang = supportedLocales[0];
-//   );

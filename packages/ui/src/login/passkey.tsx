@@ -23,8 +23,8 @@ type LoginPolicy = typeof defaultLogin
 const [policy, setPolicy] = createSignal(defaultLogin)
 
 export const SimplePage: Component<{ children: JSXElement }> = (props) => {
-    const [ln, dir] = useLn()
-    return <div dir={dir()}>
+    const ln = useLn()
+    return <div dir={ln().dir}>
         <div class='flex flex-row items-center mr-4'>
             <div class='flex-1' />
             <div class='w-48'><LanguageSelect /></div>
@@ -37,8 +37,8 @@ export const SimplePage: Component<{ children: JSXElement }> = (props) => {
 
 export const Register = () => {
     const ws = createWs()
-    const [user,setUser] = createSignal("")
-    const [ln, dir] = useLn()
+    const [user, setUser] = createSignal("")
+    const ln = useLn()
 
     // passkeys are portable so this can be a user id? random though? numeric?
     // the problem with not having a name here is that name is how passkey tracks the key
@@ -58,17 +58,17 @@ export const Register = () => {
     }
 
     return <SimplePage>
-        <form onSubmit={ submit }>  
-        <div class='space-y-6'>
-        <Username onInput={setUser} />
-        <BlueButton disabled={!user()} >{ln().register}</BlueButton>
-        </div>
+        <form onSubmit={submit}>
+            <div class='space-y-6'>
+                <Username onInput={setUser} />
+                <BlueButton disabled={!user()} >{ln().register}</BlueButton>
+            </div>
         </form>
     </SimplePage>
 }
 
 export const LoginPasskey: Component<{ login?: boolean }> = (props) => {
-    const [ln, dir] = useLn()
+    const ln = useLn()
     const abortController = new AbortController();
     const ws = createWs()
     const nav = useNavigate()
@@ -103,7 +103,7 @@ export const LoginPasskey: Component<{ login?: boolean }> = (props) => {
         setLogin("token")
         // instead of navigate we need get the site first
         // then we can navigate in it. the site might tell us the first url
-        nav(`/${ln()}/`,{replace:true})
+        nav(`/${ln()}/`, { replace: true })
     }
 
     // conditional mediation
@@ -152,7 +152,7 @@ export const LoginPasskey: Component<{ login?: boolean }> = (props) => {
                     </Show>
                 </Match>
                 <Match when={true}>
-                    <Username onInput={setUser}/>
+                    <Username onInput={setUser} />
 
                     <Show when={policy().password}>
                         <Password /></Show>
@@ -171,13 +171,13 @@ export const LoginPasskey: Component<{ login?: boolean }> = (props) => {
 
 // make this look like a button?
 export const PasskeyOnly = () => {
-    const [ln] = useLn()
+    const ln = useLn()
     return <div class="mt-2">
         <input placeholder={ln().enterPasskey} autofocus id="username" name="username" type="text" autocomplete="username webauthn" class="block w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset dark:ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6" />
     </div>
 }
-const Username: Component<{ generate?: boolean , onInput: (s: string)=>void }> = (props) => {
-    const [ln] = useLn()
+const Username: Component<{ generate?: boolean, onInput: (s: string) => void }> = (props) => {
+    const ln = useLn()
     const ws = createWs()
 
     const inp = (e: InputEvent) => {
@@ -189,14 +189,14 @@ const Username: Component<{ generate?: boolean , onInput: (s: string)=>void }> =
             <label for="username" class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{ln().username}</label>
         </div>
         <div class="mt-2">
-            <input  onInput={inp} placeholder={ln().enterUsername} autofocus id="username"  name="username" type="text" autocomplete="username webauthn" class="block w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset dark:ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6" />
+            <input onInput={inp} placeholder={ln().enterUsername} autofocus id="username" name="username" type="text" autocomplete="username webauthn" class="block w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset dark:ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6" />
         </div>
     </div>
 }
 
 
 const Password: Component = (props) => {
-    const [ln] = useLn()
+    const ln = useLn()
     const [hide, setHide] = createSignal(false)
     let el: HTMLInputElement
 

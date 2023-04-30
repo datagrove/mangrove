@@ -1,5 +1,7 @@
 
 import { useNavigate, useParams } from "@solidjs/router"
+import { all } from "@ucans/ucans"
+import { JSX } from "solid-js/web/types/jsx"
 // interface Ln {
 //     signin: string
 //     register: string
@@ -7,14 +9,21 @@ import { useNavigate, useParams } from "@solidjs/router"
 //     notNow: string
 //     notEver: string
 // }
+const LTR = {
+    dir: "ltr" as JSX.HTMLAttributes<HTMLHtmlElement>['dir'],
+}
+const RTL = {
+    dir: "rtl" as JSX.HTMLAttributes<HTMLHtmlElement>['dir'],
+}
 const en = {
+    ...LTR,
     signin: "Sign in",
     register: "Create account",
     addPasskey1: "Would you like to add a passkey to your account?",
     addPasskey2: "Passkeys are safer than passwords and can be used to sign in to your account.",
     add: "Add",
-    notNow: "Not now",
-    notEver: "Not ever",
+    notNow: "Later",
+    notEver: "No",
     username: "Username",
     password: "Password",
     show: "Show",
@@ -22,6 +31,7 @@ const en = {
     enterUsername: "Enter username",
     enterPasskey: "Choose passkey",
     choosePasskey: "Choose passkey",
+    more2fa: "Pick a different factor"
 }
 type Ln = typeof en
 const es: Ln = {
@@ -32,11 +42,12 @@ const es: Ln = {
     password: "contraseña",
     show: "mostrar",
     hide: "ocultar",
-    register:   "crear cuenta",
+    register: "crear cuenta",
 
 }
 const iw: Ln = {
     ...en,
+    ...RTL,
     signin: "התחברות",
     username: "שם משתמש",
     password: "סיסמה",
@@ -50,10 +61,9 @@ const allLn: { [key: string]: Ln } = {
     iw
 }
 
-type LnDir = () => "rtl" | "ltr"
 type LnFn = () => Ln
-export const useLn = (): [LnFn, LnDir] => {
+export const useLn = (): LnFn => {
     const p = useParams<{ ln: string }>();
-    return [() => allLn[p.ln??'en'], () => p.ln == "iw" ? "rtl" : "ltr"]
+    return () => allLn[p.ln] ?? allLn['en']
 }
 

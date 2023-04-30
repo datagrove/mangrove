@@ -1,5 +1,5 @@
 import { ButtonProps } from "solid-headless"
-import { Component, JSX, JSXElement, Show, createSignal } from "solid-js"
+import { Component, For, JSX, JSXElement, Show, createSignal } from "solid-js"
 
 
 export const FieldSet: Component<{ children: JSXElement }> = (props) => {
@@ -7,18 +7,21 @@ export const FieldSet: Component<{ children: JSXElement }> = (props) => {
         <div class='space-y-5'>{props.children}</div></fieldset>
 }
 
+export const CheckboxSubtitle = (props: { children: JSXElement }) => {
+    return <p class="text-gray-500">{props.children}</p>
+}
 export const Checkbox: Component<{
     children: JSXElement,
-    title: string,
-    value: () => boolean, setValue: (checked: boolean) => void
+    //title: string,
+    checked: () => boolean, onChange: (checked: boolean) => void
 }> = (props) => {
     return <div class="relative flex items-start">
         <div class="flex h-6 items-center">
-            <input checked={props.value()} id="comments" aria-describedby="comments-description" onInput={() => props.setValue(!props.value())} name="comments" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-200 focus:ring-indigo-600" />
+            <input checked={props.checked()} id="comments" aria-describedby="comments-description" onInput={() => props.onChange(!props.checked())} name="comments" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-200 focus:ring-indigo-600" />
         </div>
         <div class="ml-3 text-sm leading-6">
-            <label for="comments" class="font-medium dark:text-white text-gray-900">{props.title}</label>
-            <p id="comments-description" class="text-gray-500">{props.children}</p>
+            <label for="comments" class="font-medium dark:text-white text-gray-900">{props.children}</label>
+
         </div>
     </div>
 
@@ -46,10 +49,10 @@ export const Center: Component<JSX.AnchorHTMLAttributes<HTMLDivElement>> = (prop
 }
 
 export const BlueButton: Component<ButtonProps> = (props) => {
-    return <button {...props} disabled={props.disabled} onClick={props.onClick} class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50">{props.children}</button>
+    return <button {...props} disabled={props.disabled} onClick={props.onClick} class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-indigo-600 disabled:opacity-50">{props.children}</button>
 }
 export const LightButton: Component<ButtonProps> = (props) => {
-    return <button disabled={props.disabled} onClick={props.onClick} class="flex w-full justify-center rounded-md bg-neutral-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-neutral-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50">{props.children}</button>
+    return <button {...props} disabled={props.disabled} onClick={props.onClick} class="flex w-full justify-center rounded-md bg-neutral-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-neutral-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50">{props.children}</button>
 }
 export const Input: Component<{
     name: string,
@@ -82,4 +85,21 @@ export const TextDivider: Component<{ children: string }> = (props) => {
             <span class="bg-white dark:bg-black px-2 text-gray-500">{props.children}</span>
         </div>
     </div>
+}
+
+type KeyValue = [string, string]
+export type StringSet = { [key: string]: boolean }
+const CheckboxSet: Component<{ opts: KeyValue[], value: StringSet, onChange: (x: StringSet) => void }> = (props) => {
+    const set = (key: string, value: boolean) => {
+
+    }
+    const get = (key: string): boolean => {
+        return true
+    }
+    return <>
+        <fieldset>
+            <For each={props.opts}>{(e, i) => {
+                return <Checkbox checked={() => true} onChange={(x: boolean) => { }} >{e[1]}</Checkbox>
+            }}</For></fieldset>
+    </>
 }

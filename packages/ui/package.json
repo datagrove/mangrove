@@ -1,5 +1,5 @@
 {
-  "name": "results",
+  "name": "@datagrove/ui",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -25,6 +25,7 @@
     "@github/webauthn-json": "^2.1.1",
     "@solid-primitives/resize-observer": "^2.0.15",
     "@solid-primitives/scheduled": "^1.3.2",
+    "@solid-primitives/storage": "^1.3.9",
     "@solidjs/router": "^0.8.1",
     "@tailwindcss/forms": "^0.5.3",
     "@tailwindcss/typography": "^0.5.9",
