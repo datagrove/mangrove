@@ -9,6 +9,29 @@ import { JSX } from "solid-js/web/types/jsx"
 //     notNow: string
 //     notEver: string
 // }
+
+type KeyValue = [string, string]
+export const factors: KeyValue[] = [
+    ["passkey", "Passkey"],
+    ["passkey+", "Passkey and Password"],
+    ["totp", "Time Based Code"],
+    ["sms", "Text Message"],
+    ["email", "Email"],
+    ["app", "Phone App"],
+    ["voice", "Voice Call"],
+]
+
+export const codeBased = (x: string) => {
+    return x === "totp" || x === "sms" || x === "email" || x === "voice"
+}
+export const socketBased = (x: string) => {
+    return x === "app"
+}
+export const webauthnBased = (x: string) => {
+    return x === "passkey" || x === "passkey+"
+}
+
+
 const LTR = {
     dir: "ltr" as JSX.HTMLAttributes<HTMLHtmlElement>['dir'],
 }

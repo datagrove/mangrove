@@ -11,8 +11,8 @@ import {
 } from "@github/webauthn-json/browser-ponyfill";
 import { DarkButton, SiteStore } from "../layout/site_menu"
 import { createWs } from "../lib/socket"
-import { LanguageSelect } from "../layout/i18"
 import { useLn } from "./passkey_i18n"
+import { LanguageSelect } from "../i18n/i18"
 
 const defaultLogin = {
     passkeyOnly: true,

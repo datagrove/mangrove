@@ -1,11 +1,7 @@
-import { useNativeColorScheme } from "solid-headless"
-import { Component, JSXElement, ParentComponent, createSignal } from "solid-js"
-import { PageDescription } from "./site_menu"
+import { ParentComponent, createSignal } from "solid-js"
 import { useNavigate, useParams } from "@solidjs/router";
 import { Icon } from "solid-heroicons";
 import { language } from "solid-heroicons/solid";
-import { negotiateLanguages } from "@fluent/langneg";
-import { createContext, useContext } from "solid-js";
 
 type Lang = { [key: string]: string }
 

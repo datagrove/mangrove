@@ -5,26 +5,12 @@ import { Body, Center, Page, Title } from "..";
 import { Component, Show, createSignal, getListener } from "solid-js";
 import { useLn } from "./passkey_i18n";
 import { DarkButton } from "../layout/site_menu";
-import { LanguageSelect } from "../layout/i18";
 import { BlueButton } from "../lib/form";
-import { AddPasskey, GetSecret, Input, getLoginChoice, loginChoice } from "./passkey_add";
+import { AddPasskey, GetSecret, Input, InputLabel, getLoginChoice, loginChoice } from "./passkey_add";
+import { LanguageSelect } from "../i18n/i18";
 
 
 
-
-const [factor, setFactor_] = createSignal(localStorage.getItem("factor") || "passkey")
-const setFactor = (x: string) => {
-    localStorage.setItem("factor", x)
-    setFactor_(x)
-}
-
-
-
-
-
-const InputLabel = (props: any) => {
-    return <label {...props} class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</label>
-}
 const Username: Component<{}> = (props) => {
     const ln = useLn()
 
@@ -72,9 +58,14 @@ export const LoginPage: Component<{}> = (props) => {
     const ln = useLn()
     const [open, setOpen] = createSignal(false)
     const [getSecret, setGetSecret] = createSignal(false)
-    getLoginChoice()
-    const submit = (e: any) => {
+    const [user, setUser] = createSignal("")
+    const [password, setPassword] = createSignal("")
+    const [error, setError] = createSignal("")
+
+    const submit = async (e: any) => {
         e.preventDefault()
+        await getLoginChoice(user(), password())
+        setError(loginChoice()?.error ?? "")
         if (loginChoice()?.factor == "") {
             setOpen(true)// we need to add a passkey
         } else {
@@ -87,9 +78,12 @@ export const LoginPage: Component<{}> = (props) => {
     const confirmSecret = (ok: boolean) => {
         setGetSecret(false)
     }
+    const validate = async (secret: string) => {
+        return secret == "1234"
+    }
     return <>
         <AddPasskey when={open} onChange={onChange} /><div dir={ln().dir}>
-            <GetSecret when={getSecret()} onChange={confirmSecret} />
+            <GetSecret validate={validate} when={getSecret} onChange={confirmSecret} />
             <div class='fixed w-screen flex flex-row items-center pr-4'>
                 <div class='flex-1' />
                 <div class='w-48'><LanguageSelect /></div>
@@ -97,9 +91,10 @@ export const LoginPage: Component<{}> = (props) => {
             <Center>
                 <Show when={!open() && !getSecret()}>
                     <form class='space-y-6' onSubmit={submit} >
+                        <Show when={error()}> <div>{error()}</div></Show>
                         <Username />
                         <Password />
-                        <BlueButton disabled={loginChoice() == null} >{ln().signin}</BlueButton>
+                        <BlueButton >{ln().signin}</BlueButton>
                     </form></Show>
             </Center>
         </div></>

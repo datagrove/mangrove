@@ -16,7 +16,7 @@ import { chevronRight, sun, moon, cog_6Tooth as gear, language } from "solid-her
 import { createSignal, ParentComponent, Show } from "solid-js";
 
 import { orgsite } from "./orgsite";
-import { LanguageSelect } from "./i18";
+import { LanguageSelect } from "../i18n/i18";
 
 export const [searchMode, setSearchMode] = createSignal(false)
 export const [innerContent, setInnerContent] = createSignal(<div />)
@@ -130,7 +130,7 @@ export interface SiteDefinition {
     [key: string]: string
   } //= {}
 }
-  // computed things
+// computed things
 export interface SiteStore extends SiteDefinition {
   path: Map<string, SitePage> // = new Map()
   home?: SitePage
@@ -211,7 +211,7 @@ export function prepSite(sx: SiteDefinition): SiteStore {
   // note that we 
   const indexPaths = (o: SitePage, tab: number) => {
     if (o.path) {
-      let lc =  `/${tab}` + o.path
+      let lc = `/${tab}` + o.path
       s.search.push({
         title: o.name.toLocaleLowerCase(),
         href: lc
