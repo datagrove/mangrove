@@ -1,0 +1,22 @@
+export const PasswordPage = () => {
+    const navigate = useNavigate();
+    const [inp, setInp] = createSignal("")
+    const login = () => {
+        sessionStorage.setItem('token', 'mytokenisawesome');
+        navigate('/home');
+    };
+
+    return <Center>
+        <div class="space-y-6">
+            <div>
+                <label for="password" class="block text-sm font-medium leading-6 text-neutral-900 dark:text-white">Password</label>
+                <div class="mt-2">
+                    <Input value={inp() ?? ""} onInput={setInp} name="password" label="Password" />
+                </div>
+            </div><div>
+                <BlueButton onClick={login} >Sign in</BlueButton>
+            </div>
+        </div>
+    </Center>
+}
+

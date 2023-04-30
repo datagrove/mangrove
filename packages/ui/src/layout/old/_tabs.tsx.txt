@@ -1,0 +1,93 @@
+import { For, JSX, ParentComponent, Show } from 'solid-js'
+import {useLocation, Location as SolidLocation} from '@solidjs/router'
+import { Page, PageDescription, site } from './site_store';
+
+// app.datagrove.com/section1/section2/section3/xxx.page
+
+export const TabItem: ParentComponent<{
+    active?: boolean;
+    class?: string;
+}> = (props) => {
+    return (
+        <li
+            class={`border-brand-default relative inline-flex items-center overflow-hidden border-b-2 bg-slate-500 bg-opacity-0 font-sans text-sm leading-snug transition hover:bg-opacity-5 dark:border-gray-200 ${props.class || ''
+                }`}
+            classList={{
+                'border-opacity-90 dark:border-opacity-90 hover:border-opacity-100': props.active || false,
+                'border-opacity-0 dark:border-opacity-0 hover:border-opacity-10 dark:hover:border-opacity-10': !props.active,
+            }}
+        >
+            {props.children}
+        </li>
+    );
+};
+
+export const TabList: ParentComponent = (props) => {
+    return <ul class="tabs m-0 flex list-none flex-wrap items-center">{props.children}</ul>;
+};
+
+// the normal router has a simplistic view of matching, it adds "active" if the link
+// completely matches the url. that won't work here.
+
+// use location ties into the router
+// this lets us deep link into the tab of the menu.
+// maybe tailwind className helper ?
+// but it ties to the router.
+
+// 
+function ActiveLink(props: {children: JSX.Element, href: string, isActive: (l: SolidLocation)=>boolean, class: string, activeClass: string, }) {
+    const location = useLocation();
+    return (
+      <a
+        href={props.href}
+        classList={{
+          [props.class]: true,
+          [props.activeClass]: props.isActive(location),
+          //[props.inactiveClass]: !props.isActive(location),
+        }}
+      >
+        {props.children}
+      </a>
+    );
+  }
+
+  
+export const SiteTabs = (props: {page: PageDescription})=>{
+    const href = () => "";
+    // the first piece of the 
+    const location = useLocation();
+    const sections = () => site.root.children
+    // this should always give us a lang?
+    const path = (e: Page) => props.page.lang + "/" + e.path??""
+    // maybe we should limit this to four some how? maybe we should adaptively change the representation (chips?) if we have too many.
+    return  (<div           class="w-full mt-2 flex border border-solid-lightborder dark:border-solid-darkitem rounded-md"
+>    <For each={sections()}>{(e,index)=>(
+      <ActiveLink
+        isActive={(loc: SolidLocation) =>
+          index()==props.page.selected /*||loc.pathname.startsWith(e.href) &&
+          !loc.pathname.includes(e.href)*/
+        }
+        activeClass="bg-solid-light dark:bg-solid-dark font-semibold"
+        class="flex-1 inline-flex w-full p-2 items-center justify-center whitespace-nowrap first:rounded-l-md border-r border-solid-lightborder dark:border-solid-darkitem hover:text-blue-500 hover:underline last:(rounded-r-md border-0)"
+        href={path(e)}
+      >
+        {e.name}
+      </ActiveLink>)
+    }</For></div>)
+}
+
+
+/*
+
+      <ActiveLink
+        isActive={(loc: SolidLocation) =>
+          loc.pathname.startsWith(sections[1].href)
+        }
+        activeClass="bg-solid-light dark:bg-solid-dark font-semibold"
+        class="flex-1 inline-flex w-full p-2 items-center justify-center whitespace-nowrap first:rounded-l-md border-r border-solid-lightborder dark:border-solid-darkitem last:(rounded-r-md border-0)"
+        href={sections[1].href}
+      >
+        {sections[1].title}
+      </ActiveLink>
+    </div>
+    */

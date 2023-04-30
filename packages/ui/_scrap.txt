@@ -1,0 +1,67 @@
+
+import './index.css'
+import { For, JSXElement } from 'solid-js'
+import { H3, TagList } from './widget'
+import feature from './feature.json'
+import { Feature } from './data'
+
+// this probably goes away
+const features = new Map<string, Feature>()
+
+export function Features(props: {}) {
+    return <div>
+        <For each={feature}>{(e, i) => <div>
+            <H3>{e.name}</H3>
+            <p>{e.description}</p>
+            <div >
+                <For each={e.test}>{(ex, i) => <div class='text-neutral-200 py-2' >
+                    <table>
+                        <tbody>
+                            <tr>
+                                <td class='text-green-400 pr-2'>Name</td><td>
+                                    <a href={'#' + ex.name} class='text-blue-500 hover:text-blue-700'>{ex.name}</a></td></tr>
+
+                            <tr>
+                                <td class='text-green-400 pr-2'>Scenario</td><td>{ex.scenario}</td></tr>
+                            <tr> <td class='text-green-400 pr-2'>Given</td><td>{ex.given}</td></tr>
+                            <tr><td class='text-green-400 pr-2'>When</td><td>{ex.when}</td></tr>
+                            <tr><td class='text-green-400 pr-2'>Then</td><td>{ex.then}</td></tr>
+                        </tbody></table>
+
+
+                    <TagList each={ex.tag} />
+
+                </div>}</For>
+            </div>
+        </div>
+        }</For>
+    </div>
+}
+
+// One  set of test results.
+const TestTable: Component<{ test: TestData[] }> = (props) => {
+    const navigate = useNavigate()
+    return <>
+        <div class='pl-2 pr-2 mt-2 overflow-hidden'>
+            <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
+                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">
+                                Test
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <For each={props.test}>{(e, i) => {
+                            return <tr onClick={() => navigate('/test/' + e.test_name)} class="cursor-pointer bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                    <A href={"/test/" + e.test_name}>{e.test_name}</A>
+                                </td>
+                            </tr>
+                        }}</For>
+                    </tbody>
+                </table>
+            </div>
+        </div></>
+}

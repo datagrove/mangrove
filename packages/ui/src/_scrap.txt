@@ -1,0 +1,66 @@
+<label for="username" class="block text-sm font-medium leading-6 text-neutral-900 dark:text-white">User name</label>
+            <div class="mt-2">
+              <input ref={inp!} value={user} id="username" name="username" type="username" required class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-2" />
+            </div>
+
+  const TestUi: Component = () => {
+    return <div>  {supported() ? <div>Supported</div> : <div>Not supported</div>}
+        <button onClick={register}>Register</button>
+        <button onClick={() => authenticate()}>Authenticate</button>
+        <button onClick={() => setRegistrations([])}>Clear</button></div>
+}
+
+// demo mostly uses non ponyfill functions
+function registeredCredentials(): PublicKeyCredentialDescriptorJSON[] {
+    return getRegistrations().map((reg) => ({
+        id: reg.rawId,
+        type: reg.type,
+    }));
+}
+async function register(): Promise<void> {
+    const cco = parseCreationOptionsFromJSON({
+        publicKey: {
+            challenge: "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+            rp: { name: "Localhost, Inc." },
+            user: {
+                id: "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII",
+                name: "test_user",
+                displayName: "Test User",
+            },
+            pubKeyCredParams: [],
+            excludeCredentials: registeredCredentials(),
+            authenticatorSelection: { userVerification: "discouraged" },
+            extensions: {
+                credProps: true,
+            },
+        },
+    });
+    addRegistration(await create(cco));
+}
+
+async function authenticate(options?: {
+    conditionalMediation?: boolean;
+}): Promise<AuthenticationPublicKeyCredential> {
+    const cro = parseRequestOptionsFromJSON({
+        publicKey: {
+            challenge: "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+            allowCredentials: registeredCredentials(),
+            userVerification: "discouraged",
+        },
+    });
+    return get(cro);
+}
+
+// use localStorage to save registrations.
+const getRegistrations = () => JSON.parse(localStorage.webauthnExampleRegistrations || "[]") as RegistrationResponseExtendedJSON[];
+function setRegistrations(registrations: RegistrationResponseExtendedJSON[]): void {
+    localStorage.webauthnExampleRegistrations = JSON.stringify(registrations, null, "  ",
+    );
+}
+function addRegistration(registration: RegistrationPublicKeyCredential): void {
+    const registrations = getRegistrations();
+    registrations.push(registration.toJSON());
+    setRegistrations(registrations);
+}
+
+
