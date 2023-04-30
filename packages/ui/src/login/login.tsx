@@ -2,12 +2,12 @@ import { Route, Router, Routes, useNavigate } from "@solidjs/router";
 import { effect, render } from "solid-js/web";
 
 import { Body, Center, Page, Title } from "..";
-import { Component, createSignal } from "solid-js";
+import { Component, Show, createSignal, getListener } from "solid-js";
 import { useLn } from "./passkey_i18n";
 import { DarkButton } from "../layout/site_menu";
 import { LanguageSelect } from "../layout/i18";
 import { BlueButton } from "../lib/form";
-import { AddPasskey , Input} from "./passkey_add";
+import { AddPasskey, GetSecret, Input, getLoginChoice, loginChoice } from "./passkey_add";
 
 
 
@@ -67,30 +67,42 @@ const Password: Component = (props) => {
     </div>
 }
 
+
 export const LoginPage: Component<{}> = (props) => {
     const ln = useLn()
-    const [open, setOpen] = createSignal(true)
-
+    const [open, setOpen] = createSignal(false)
+    const [getSecret, setGetSecret] = createSignal(false)
+    getLoginChoice()
     const submit = (e: any) => {
         e.preventDefault()
-        setOpen(true)
+        if (loginChoice()?.factor == "") {
+            setOpen(true)// we need to add a passkey
+        } else {
+            setGetSecret(true)
+        }
     }
-    const onChange = () => {
-       // setOpen(false)
+    const onChange = (e: any) => {
+        setOpen(false)
     }
-    return <><AddPasskey when={open} onChange={onChange} /><div dir={ln().dir}>
-        <div class='fixed w-screen flex flex-row items-center pr-4'>
-            <div class='flex-1' />
-            <div class='w-48'><LanguageSelect /></div>
-            <DarkButton /></div>
-        <Center>
-            <form class='space-y-6' onSubmit={submit} >
-                <Username />
-                <Password />
-                <BlueButton  >{ln().signin}</BlueButton>
-            </form>
-        </Center>
-    </div></>
+    const confirmSecret = (ok: boolean) => {
+        setGetSecret(false)
+    }
+    return <>
+        <AddPasskey when={open} onChange={onChange} /><div dir={ln().dir}>
+            <GetSecret when={getSecret()} onChange={confirmSecret} />
+            <div class='fixed w-screen flex flex-row items-center pr-4'>
+                <div class='flex-1' />
+                <div class='w-48'><LanguageSelect /></div>
+                <DarkButton /></div>
+            <Center>
+                <Show when={!open() && !getSecret()}>
+                    <form class='space-y-6' onSubmit={submit} >
+                        <Username />
+                        <Password />
+                        <BlueButton disabled={loginChoice() == null} >{ln().signin}</BlueButton>
+                    </form></Show>
+            </Center>
+        </div></>
 }
 
 function Register() {
