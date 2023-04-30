@@ -2,39 +2,35 @@ create schema if not exists mg;
 
 create table  mg.db(db serial  primary key, name text not null);
 
-create table mg.dbfile(
+-- each stream is written by a single device, did="" means shared stream written
+create table mg.dbstream(
     db bigint, 
-    count smallint, 
-    path text, 
-    fid bigint unique, 
-    size bigint, 
-    mime text not null,  
-    mt timestamp,
-    primary key (db, count, path),
+    fid bigint,
+    did text ,
+    primary key (db, fid),
     foreign key (db) references mg.db(db) on delete cascade
 );
 
-create table mg.segment(
-    fid integer, 
+create table mg.dblock(
+    db bigint,
+    name bytea,
+    serial bigint,
+    primary key (db, name),
+    foreign key (db) references mg.db(db) on delete cascade
+);
+
+
+-- not ideal for postgres, needs key compression to be efficient
+-- eventually having this clustered will be useful
+create table mg.dbentry(
+    db bigint,
+    fid bigint,
     start bigint, 
     data bytea, 
-    ts tsvector, 
-    mt timestamp,
-    primary key (fid, start),
-    foreign key (fid) references mg.dbfile(fid) on delete cascade
+    primary key (db, fid, start),
+    foreign key (db,fid) references mg.dbfile(db,fid) on delete cascade
 );
 
-create table mg.dbfileh(
-    db bigint, 
-    count smallint, 
-    path text, 
-    fid bigint unique, 
-    size bigint, 
-    mime text not null,  
-    mt timestamp,
-    primary key (db, count, path, fid),
-    foreign key (db) references mg.db(db) on delete cascade
-);
 
 create table mg.namePrefix(
     name text primary key,

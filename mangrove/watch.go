@@ -150,20 +150,21 @@ func (s *FileWatcher) RemoveWatch(watchPath string, session *Session) {
 		}
 	}
 }
-func (s *Server) RemoveWatch(watchPath string, session *Session) {
-	w, ok := s.GetWatch(watchPath)
-	if !ok {
-		return
-	}
-	defer w.mu.Unlock()
-	if ok {
-		delete(w.Session, session)
-		if len(w.Session) == 0 {
-			s.Watcher.Remove(watchPath)
-			delete(s.Watch, watchPath)
-		}
-	}
-}
+
+// func (s *Server) RemoveWatch(watchPath string, session *Session) {
+// 	w, ok := s.GetWatch(watchPath)
+// 	if !ok {
+// 		return
+// 	}
+// 	defer w.mu.Unlock()
+// 	if ok {
+// 		delete(w.Session, session)
+// 		if len(w.Session) == 0 {
+// 			s.Watcher.Remove(watchPath)
+// 			delete(s.Watch, watchPath)
+// 		}
+// 	}
+// }
 
 func (s *FileWatcher) AddWatch(watchPath string, handle int64, filter string, lastState int64) (*WatchState, error) {
 	s.muwatch.Lock()

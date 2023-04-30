@@ -13,24 +13,17 @@ type MgDb struct {
 	Name string
 }
 
-type MgDbfile struct {
+type MgDbentry struct {
 	Db    int64
-	Count int16
-	Path  string
-	Fid   pgtype.Int8
-	Size  pgtype.Int8
-	Mime  string
-	Mt    pgtype.Timestamp
+	Fid   int64
+	Start int64
+	Data  []byte
 }
 
-type MgDbfileh struct {
-	Db    int64
-	Count int16
-	Path  string
-	Fid   int64
-	Size  pgtype.Int8
-	Mime  string
-	Mt    pgtype.Timestamp
+type MgDbstream struct {
+	Db  int64
+	Fid int64
+	Did pgtype.Text
 }
 
 type MgDevice struct {
@@ -61,15 +54,7 @@ type MgOrgDb struct {
 }
 
 type MgOrgMember struct {
-	Org    interface{}
+	Org    string
 	Member string
 	Ucan   pgtype.Text
-}
-
-type MgSegment struct {
-	Fid   int32
-	Start int64
-	Data  []byte
-	Ts    interface{}
-	Mt    pgtype.Timestamp
 }

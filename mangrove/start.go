@@ -42,7 +42,7 @@ import (
 	"github.com/rs/cors"
 )
 
-func sockUnmarshall(data []byte, v interface{}) error {
+func sockUnmarshal(data []byte, v interface{}) error {
 	return cbor.Unmarshal(data, v)
 }
 func sockMarshall(v interface{}) ([]byte, error) {
@@ -112,25 +112,22 @@ type Server struct {
 	Job    map[string]*Job
 	Handle int64
 
+	muStream sync.Mutex
+	Stream   map[int64]*Stream
+
 	Runtime map[string]Runtime
 }
 
 func (s *Server) RemoveSession(sess *Session) {
+	for h := range sess.Handle {
+		s.Close(sess, h)
+	}
+
 	s.muSession.Lock()
 	defer s.muSession.Unlock()
 	delete(s.Session, sess.Secret)
-	for _, w := range sess.Watch {
-		s.RemoveWatch(w.Path, sess)
-	}
+}
 
-}
-func (s *Server) AddWatch(watchPath string, handle int64, filter string, lastState int64) (*WatchState, error) {
-	// udir := path.Join(s.Home, "user", session.User.ID)
-	// watchPath = filepath.Clean(watchPath)
-	// _ = udir
-	// w.Session[session] = handle
-	return nil, nil
-}
 func (s *Server) NextHandle() int64 {
 	return atomic.AddInt64(&s.Handle, 1)
 }
@@ -226,10 +223,11 @@ func (s *Server) NewSession(notifier SessionNotifier) (*Session, error) {
 
 	r := &Session{
 		UserDevice: UserDevice{},
+		Device:     "",
 		Secret:     secret,
 		data:       nil,
 		mu:         sync.Mutex{},
-		Watch:      []*Watch{},
+		Handle:     map[int64]StreamHandle{},
 		Notifier:   notifier,
 	}
 	s.Session[secret] = r
@@ -639,7 +637,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 			} else {
 				var rpc Rpcp
 				rpc.Session = sock.Session
-				sockUnmarshall(data, &rpc.Rpc)
+				sockUnmarshal(data, &rpc.Rpc)
 				r, ok := sock.Svr.Api[rpc.Method]
 				if !ok {
 					log.Printf("bad method %s", rpc.Method)

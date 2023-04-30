@@ -1,6 +1,22 @@
--- name: GetSegment :many
-select * from mg.segment
-where fid = $1 and start > $2;
+
+-- name: Read :many
+select * from mg.dbentry where db = $1 and fid = $2 and start between $3 and $4 order by start;
+
+-- name: Write :exec
+insert into mg.dbentry (db, fid, start, data) values ($1, $2, $3, $4);
+
+-- name: Trim :exec
+delete from mg.dbentry where db = $1 and fid = $2 and start between $3 and $4;
+
+-- name: Lock :exec
+update serial from mg.dblock where db = $1 and name = $2 and serial=$3 set serial=serial+1;
+
+-- if value is 1, then we need to insert
+-- name: InsertLock :exec
+insert into mg.dblock (db, name, serial) values ($1, $2, 1);
+
+-- name: UpdateLock :exec
+update mg.dblock set serial = $3 where db = $1 and name = $2;
 
 -- name: GetDevice :one
 select * from mg.device

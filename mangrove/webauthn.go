@@ -16,12 +16,25 @@ import (
 
 type Session struct {
 	UserDevice
-	Device   string // device for this session
-	Secret   string
-	data     *webauthn.SessionData
-	mu       sync.Mutex
-	Watch    []*Watch
+	Device string // device for this session
+	Secret string
+	data   *webauthn.SessionData
+	mu     sync.Mutex
+	//Watch    []*Watch
+	// maps a fid to a stream handle
+	Handle   map[int64]StreamHandle
 	Notifier SessionNotifier
+}
+type StreamHandle struct {
+	*Stream
+	flags int
+}
+type Stream struct {
+	mu        sync.Mutex
+	db        int64
+	fid       int64
+	openCount int64
+	listen    map[*Session]int64
 }
 type SessionNotifier interface {
 	Notify(handle int64, data interface{})
@@ -159,7 +172,7 @@ func WebauthnSocket(mg *Server) error {
 			Begin    []byte
 			End      []byte
 		}
-		sockUnmarshall(r.Params, &v)
+		sockUnmarshal(r.Params, &v)
 
 		var outv struct {
 			Snapshot []byte `json:"snapshot"`
@@ -167,36 +180,18 @@ func WebauthnSocket(mg *Server) error {
 		return &outv, nil
 	})
 
-	// server / organization / database / table-or-$ / if $ then $/path
-	mg.AddApi("watch", true, func(r *Rpcp) (any, error) {
-		var v struct {
-			Path   string `json:"path"`
-			Filter string `json:"filter"`
-		}
-		sockUnmarshall(r.Params, &v)
-		return nil, nil // mg.AddWatch(v.Path, r.Session, r.Id, "", 0)
-	})
-	mg.AddApi("unwatch", true, func(r *Rpcp) (any, error) {
-		var v struct {
-			Path string `json:"path"`
-		}
-		sockUnmarshall(r.Params, &v)
-		mg.RemoveWatch(v.Path, r.Session)
-		return nil, nil
-	})
-
 	mg.AddApi("mkdir", true, func(r *Rpcp) (any, error) {
 		var v struct {
 			Path string `json:"path"`
 		}
-		sockUnmarshall(r.Params, &v)
+		sockUnmarshal(r.Params, &v)
 		return nil, mg.Mkdir(v.Path, r.Session)
 	})
 	mg.AddApi("rm", true, func(r *Rpcp) (any, error) {
 		var v struct {
 			Path string `json:"path"`
 		}
-		sockUnmarshall(r.Params, &v)
+		sockUnmarshal(r.Params, &v)
 
 		return nil, mg.Rm(v.Path, r.Session)
 	})
@@ -205,7 +200,7 @@ func WebauthnSocket(mg *Server) error {
 			From string `json:"from"`
 			To   string `json:"to"`
 		}
-		sockUnmarshall(r.Params, &v)
+		sockUnmarshal(r.Params, &v)
 
 		return nil, mg.Mv(v.From, v.To, r.Session)
 
@@ -216,7 +211,7 @@ func WebauthnSocket(mg *Server) error {
 
 			To string `json:"to"`
 		}
-		sockUnmarshall(r.Params, &v)
+		sockUnmarshal(r.Params, &v)
 		return nil, mg.Cp(v.From, v.To, r.Session)
 	})
 	mg.AddApi("upload", true, func(r *Rpcp) (any, error) {
@@ -224,14 +219,14 @@ func WebauthnSocket(mg *Server) error {
 			Path string `json:"path"`
 			Data []byte `json:"data"`
 		}
-		sockUnmarshall(r.Params, &v)
+		sockUnmarshal(r.Params, &v)
 		return nil, mg.Upload(v.Path, v.Data, r.Session)
 	})
 	mg.AddApi("download", true, func(r *Rpcp) (any, error) {
 		var v struct {
 			Path string `json:"path"`
 		}
-		sockUnmarshall(r.Params, &v)
+		sockUnmarshal(r.Params, &v)
 
 		return mg.Download(v.Path, r.Session)
 	})

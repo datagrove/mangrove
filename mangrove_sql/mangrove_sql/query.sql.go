@@ -46,42 +46,6 @@ func (q *Queries) GetDevice(ctx context.Context, device string) (MgDevice, error
 	return i, err
 }
 
-const getSegment = `-- name: GetSegment :many
-select fid, start, data, ts, mt from mg.segment
-where fid = $1 and start > $2
-`
-
-type GetSegmentParams struct {
-	Fid   int32
-	Start int64
-}
-
-func (q *Queries) GetSegment(ctx context.Context, arg GetSegmentParams) ([]MgSegment, error) {
-	rows, err := q.db.Query(ctx, getSegment, arg.Fid, arg.Start)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []MgSegment
-	for rows.Next() {
-		var i MgSegment
-		if err := rows.Scan(
-			&i.Fid,
-			&i.Start,
-			&i.Data,
-			&i.Ts,
-			&i.Mt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const insertDevice = `-- name: InsertDevice :exec
 insert into mg.device (device, webauthn) values ($1, $2)
 `
@@ -132,6 +96,47 @@ func (q *Queries) NamePrefix(ctx context.Context, name string) (MgNameprefix, er
 	return i, err
 }
 
+const read = `-- name: Read :many
+select db, fid, start, data from mg.dbentry where db = $1 and fid = $2 and start between $3 and $4 order by start
+`
+
+type ReadParams struct {
+	Db      int64
+	Fid     int64
+	Start   int64
+	Start_2 int64
+}
+
+func (q *Queries) Read(ctx context.Context, arg ReadParams) ([]MgDbentry, error) {
+	rows, err := q.db.Query(ctx, read,
+		arg.Db,
+		arg.Fid,
+		arg.Start,
+		arg.Start_2,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MgDbentry
+	for rows.Next() {
+		var i MgDbentry
+		if err := rows.Scan(
+			&i.Db,
+			&i.Fid,
+			&i.Start,
+			&i.Data,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const revokeDevice = `-- name: RevokeDevice :exec
 delete from mg.device_org where device = $1 and org = $2
 `
@@ -146,6 +151,27 @@ func (q *Queries) RevokeDevice(ctx context.Context, arg RevokeDeviceParams) erro
 	return err
 }
 
+const trim = `-- name: Trim :exec
+delete from mg.dbentry where db = $1 and fid = $2 and start between $3 and $4
+`
+
+type TrimParams struct {
+	Db      int64
+	Fid     int64
+	Start   int64
+	Start_2 int64
+}
+
+func (q *Queries) Trim(ctx context.Context, arg TrimParams) error {
+	_, err := q.db.Exec(ctx, trim,
+		arg.Db,
+		arg.Fid,
+		arg.Start,
+		arg.Start_2,
+	)
+	return err
+}
+
 const updatePrefix = `-- name: UpdatePrefix :one
 update mg.namePrefix set count=count+1 where name = $1 returning count
 `
@@ -155,4 +181,25 @@ func (q *Queries) UpdatePrefix(ctx context.Context, name string) (int64, error) 
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const write = `-- name: Write :exec
+insert into mg.dbentry (db, fid, start, data) values ($1, $2, $3, $4)
+`
+
+type WriteParams struct {
+	Db    int64
+	Fid   int64
+	Start int64
+	Data  []byte
+}
+
+func (q *Queries) Write(ctx context.Context, arg WriteParams) error {
+	_, err := q.db.Exec(ctx, write,
+		arg.Db,
+		arg.Fid,
+		arg.Start,
+		arg.Data,
+	)
+	return err
 }
