@@ -6,7 +6,7 @@ import { LoginPage } from "./login/login"
 function Home() {
     const nav = useNavigate()
     effect(() => {
-        nav("/en/admin")
+        nav("/en/login")
     })
     return <></>
 
@@ -18,8 +18,7 @@ function App() {
         <Route path="/:ln/login" component={LoginPage} />
     </Routes>
 }
-render(
-    () => (
+render(() => (
         <Router >
             <App />
         </Router>

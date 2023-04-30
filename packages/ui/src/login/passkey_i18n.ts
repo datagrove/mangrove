@@ -31,7 +31,7 @@ const en = {
     enterUsername: "Enter username",
     enterPasskey: "Choose passkey",
     choosePasskey: "Choose passkey",
-    more2fa: "Pick a different factor"
+    more2fa: "More choices"
 }
 type Ln = typeof en
 const es: Ln = {

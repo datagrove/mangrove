@@ -7,7 +7,7 @@ import { useLn } from "./passkey_i18n";
 import { DarkButton } from "../layout/site_menu";
 import { LanguageSelect } from "../layout/i18";
 import { BlueButton } from "../lib/form";
-import { AddPasskey } from "./passkey_add";
+import { AddPasskey , Input} from "./passkey_add";
 
 
 
@@ -22,9 +22,6 @@ const setFactor = (x: string) => {
 
 
 
-const Input = (props: any) => {
-    return <input {...props} class="block w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset dark:ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6" />
-}
 const InputLabel = (props: any) => {
     return <label {...props} class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</label>
 }
@@ -72,13 +69,16 @@ const Password: Component = (props) => {
 
 export const LoginPage: Component<{}> = (props) => {
     const ln = useLn()
-    const [open, setOpen] = createSignal(false)
+    const [open, setOpen] = createSignal(true)
 
     const submit = (e: any) => {
         e.preventDefault()
         setOpen(true)
     }
-    return <><AddPasskey when={open} onChange={(a) => setOpen(false)} /><div dir={ln().dir}>
+    const onChange = () => {
+       // setOpen(false)
+    }
+    return <><AddPasskey when={open} onChange={onChange} /><div dir={ln().dir}>
         <div class='fixed w-screen flex flex-row items-center pr-4'>
             <div class='flex-1' />
             <div class='w-48'><LanguageSelect /></div>
