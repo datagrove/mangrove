@@ -30,7 +30,7 @@ export const Settings: Component = () => {
                 <Show when={welcome()}><p>Welcome to {site().name}.</p></Show>
                 <ListUsers />
                 <ListDevices />
-                <Secure />
+                
 
             </div>
         </div></Page>
@@ -79,6 +79,7 @@ export const LinkDevice: Component = () => {
     return <img src='qr.png' class='w-96' />
 }
 
+/*
 export const Secure: Component = () => {
 
 
@@ -127,3 +128,4 @@ export const Secure: Component = () => {
 
     </FieldSet>
 }
+*/

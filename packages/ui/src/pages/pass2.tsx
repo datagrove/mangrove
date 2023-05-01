@@ -46,8 +46,8 @@ export const PassworOrBip39: Component<{ login?: boolean }> = (props) => {
                 })
                 const cro = parseRequestOptionsFromJSON(o2)
                 const o = await get(cro)
-                const reg = await ws.rpcj<SiteStore>("login2", o.toJSON())
-                setLogin(true)
+                const reg = await ws.rpcj<string>("login2", o.toJSON())
+                setLogin(reg)
                 // instead of navigate we need get the site first
                 // then we can navigate in it. the site might tell us the first url
                 nav("/")
@@ -64,7 +64,7 @@ export const PassworOrBip39: Component<{ login?: boolean }> = (props) => {
                         ...sec,
                         registered: true,
                     })
-                    setLogin(true)
+                    setLogin(tempName)
                     nav("/")
                 } else {
                     setError("Registration failed")

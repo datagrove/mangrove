@@ -114,7 +114,7 @@ type OpenDb struct {
 }
 
 func (mg *Server) Open(sess *Session, w *OpenDb) (int64, error) {
-	ucan.Parse(w.Auth)
+	//ucan.Parse(w.Auth)
 	return 0, nil
 }
 

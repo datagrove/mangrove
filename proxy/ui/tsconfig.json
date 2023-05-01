@@ -12,8 +12,14 @@
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
     "noEmit": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "paths": {
+      "@datagrove/ui": [
+          "../../packages/ui/src"
+      ],
   },
+  },
+
   "includes": [
     "src/*.tsx",
     "src/*.ts"

@@ -39,8 +39,8 @@ export const LoginPage = () => {
                 })
                 const cro = parseRequestOptionsFromJSON(o2)
                 const o = await get(cro)
-                const reg = await ws.rpcj<SiteStore>("login2", o.toJSON())
-                setLogin(true)
+                const reg = await ws.rpcj<string>("login2", o.toJSON())
+                setLogin(reg)
                 // instead of navigate we need get the site first
                 // then we can navigate in it. the site might tell us the first url
                 navigate("/")
@@ -57,7 +57,7 @@ export const LoginPage = () => {
                         ...sec,
                         registered: true,
                     })
-                    setLogin(true)
+                    setLogin(tempName)
                     navigate("/")
                 } else {
                     setError("Registration failed")

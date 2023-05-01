@@ -22,10 +22,10 @@ import { BlueButton, Center, Checkbox, FieldSet, Input, TextDivider, ToggleSecti
 import { LoginWith } from "../lib/login_with";
 import { Buffer } from 'buffer'
 import { bufferToHex } from "../lib/encode";
-import { error, setError, setLogin, setUser, user } from "../lib/crypto";
+import { error, setError, setLogin } from "../lib/crypto";
 // @ts-ignore
 
-
+const [user,setUser] = createSignal("")
 export const RecoveryPage = () => {
     const ws = createWs();
     const [ph, setPh] = createSignal("")
@@ -72,7 +72,7 @@ export const LoginPageOld = () => {
             const cro = parseRequestOptionsFromJSON(o2)
             const o = await get(cro)
             const reg = await ws.rpcj<any>("login2", o.toJSON())
-            setLogin(true)
+            setLogin(reg)
             navigate("/")
         } catch (e: any) {
             navigate("/login2")
@@ -101,7 +101,7 @@ export const LoginPage2 = () => {
             const cro = parseRequestOptionsFromJSON(o2)
             const o = await get(cro)
             const reg = await ws.rpcj<any>("login2", o.toJSON())
-            setLogin(true)
+            setLogin(reg)
 
             navigate("/")
         } catch (e: any) {

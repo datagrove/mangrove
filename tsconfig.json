@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "baseUrl": ".",
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "node",
+        "allowSyntheticDefaultImports": true,
+        "forceConsistentCasingInFileNames": true,
+        "esModuleInterop": true,
+        "jsx": "preserve",
+        "jsxImportSource": "solid-js",
+        "types": [
+            "vite/client"
+        ],
+        "noEmit": true,
+        "isolatedModules": true,
+        "paths": {
+            "@datagrove/dglib": [
+                "packages/dglib/src"
+            ],
+        },
+    },
+}
