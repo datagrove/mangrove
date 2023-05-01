@@ -30,13 +30,15 @@ func (fs *spaFileSystem) Open(name string) (http.File, error) {
 	return f, err
 }
 
+// should we dynamically look up the passwords or transfer them in bulk?
+// does it make sense to use a PAKE? Pake needs argon2 to run on the client?
 func main() {
 
 	// we can offer a hook to process; the hook returns the url
 	// or we could have a dictionary of mapping the url?
 	// a function seems more flexible, could take a variety of arguments
 	opt := &mangrove.MangroveServer{
-		Name:     "imisgo",
+		Name:     "sample",
 		Res:      Res,
 		Launch:   nil,
 		Root:     "",
@@ -47,6 +49,10 @@ func main() {
 		OnLogin: func() string {
 			return "https://www.google.com"
 		},
+
+		// this provides a transition, if nil then use dataabase
+		PasswordLogin: nil,
+		EmailSource:   "",
 	}
 	cmd := mangrove.DefaultCommands(opt)
 	cmd.Execute()
