@@ -24,9 +24,29 @@ type MangroveServer struct {
 	ProxyTo string
 	Embed   string
 
-	AddrsTLS []string //terrible name
-	Addrs    []string
-	OnLogin  func() string
+	AddrsTLS      []string //terrible name
+	Addrs         []string
+	OnLogin       func() string
+	PasswordLogin func(user, password string, info *ChallengeInfo) bool
+	EmailSource   string
+}
+
+type LoginInfo struct {
+	Error  int
+	Cookie string `json:"cookie,omitempty"`
+	Home   string `json:"home,omitempty"` // where to go after login
+}
+
+// challenge type can be "optional" or "required" to indicate that the user may or should add a key
+type ChallengeNotify struct {
+	ChallengeType   string `json:"challenge_type,omitempty"`
+	ChallengeSentTo string `json:"challenge_sent_to,omitempty"`
+}
+type ChallengeInfo struct {
+	// either login or challenge info
+	LoginInfo *LoginInfo `json:"login_info,omitempty"`
+	ChallengeNotify
+	Challenge string `json:"challenge,omitempty"`
 }
 
 func HomeDir(opt *MangroveServer, args []string) {

@@ -5,10 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
 
+	"github.com/datagrove/mangrove/message"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -22,8 +24,9 @@ type Session struct {
 	mu     sync.Mutex
 	//Watch    []*Watch
 	// maps a fid to a stream handle
-	Handle   map[int64]StreamHandle
-	Notifier SessionNotifier
+	Handle        map[int64]StreamHandle
+	Notifier      SessionNotifier
+	ChallengeInfo ChallengeInfo
 }
 type StreamHandle struct {
 	*Stream
@@ -294,6 +297,68 @@ func WebauthnSocket(mg *Server) error {
 	mg.AddApij("username", false, func(r *Rpcpj) (any, error) {
 		return mg.SuggestName("")
 	})
+
+	// the ChallegeNotify could also be used to trigger an offer (or requirement) for MFA
+	mg.AddApij("loginpassword", false, func(r *Rpcpj) (any, error) {
+		var v struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+		}
+
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		code, e := message.CreateCode()
+		if e != nil {
+			return nil, e
+		}
+		rx := &r.Session.ChallengeInfo
+		r.Session.data.Challenge = code
+		ok := mg.PasswordLogin(v.Username, v.Password, rx)
+		if !ok {
+			return nil, errors.New("invalid password")
+		}
+
+		msg := fmt.Sprintf("The security code for %s is %s", mg.Name, code)
+		switch rx.ChallengeType {
+		case "sms":
+			e = message.Sms(rx.ChallengeSentTo, msg)
+		case "voice":
+			e = message.Sms(rx.ChallengeSentTo, msg)
+		case "email":
+			subj := fmt.Sprintf("Security code for %s", mg.Name)
+			o := &message.Email{
+				Sender:    mg.EmailSource,
+				Recipient: rx.ChallengeSentTo,
+				Subject:   subj,
+				Html:      "",
+				Text:      msg,
+			}
+			e = o.Send()
+		case "app":
+			// ?
+		}
+		if e != nil {
+			return nil, e
+		}
+		return &rx.ChallengeNotify, nil
+	})
+	mg.AddApij("loginpassword2", false, func(r *Rpcpj) (any, error) {
+		var v struct {
+			Challenge string
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		if v.Challenge != r.Session.data.Challenge {
+			return nil, errors.New("invalid challenge")
+		}
+
+		return r.Session.ChallengeInfo.LoginInfo, nil
+	})
+
 	// take the user name and return a challenge
 	// we might want to allow this to log directly into a user?
 	mg.AddApij("login", false, func(r *Rpcpj) (any, error) {

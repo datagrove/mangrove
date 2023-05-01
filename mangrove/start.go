@@ -96,6 +96,7 @@ type Container struct {
 type Rpcfj = func(a *Rpcpj) (any, error)
 type Rpcf = func(a *Rpcp) (any, error)
 type Server struct {
+	*MangroveServer
 	*Db
 	*FileWatcher
 	*Config
@@ -533,21 +534,22 @@ func NewServer(opt *MangroveServer) (*Server, error) {
 		return nil, e
 	}
 	svr := &Server{
-		Db:          db,
-		Config:      optc,
-		Mux:         mux,
-		Home:        dir,
-		Ws:          ws,
-		Cert:        cert,
-		Key:         key,
-		Api:         map[string]Rpcf{},
-		Apij:        map[string]func(a *Rpcpj) (any, error){},
-		muSession:   sync.Mutex{},
-		Session:     map[string]*Session{},
-		Job:         map[string]*Job{},
-		Handle:      0,
-		FileWatcher: NewFileWatcher(),
-		Runtime:     map[string]Runtime{},
+		MangroveServer: opt,
+		Db:             db,
+		Config:         optc,
+		Mux:            mux,
+		Home:           dir,
+		Ws:             ws,
+		Cert:           cert,
+		Key:            key,
+		Api:            map[string]Rpcf{},
+		Apij:           map[string]func(a *Rpcpj) (any, error){},
+		muSession:      sync.Mutex{},
+		Session:        map[string]*Session{},
+		Job:            map[string]*Job{},
+		Handle:         0,
+		FileWatcher:    NewFileWatcher(),
+		Runtime:        map[string]Runtime{},
 	}
 
 	mux.HandleFunc("/wss", svr.onWebSocket())
