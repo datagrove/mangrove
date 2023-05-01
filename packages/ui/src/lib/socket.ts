@@ -192,28 +192,21 @@ export interface OrError<T> {
     error?: string
     value?: T
 }
-let ws: Ws = new Ws('ws://localhost:8088/wss')
+// by default this should be the same as the server
+// 
+let ws: Ws //= new Ws('ws://localhost:8088/wss')
 const wsCache = new Map<string, Ws>()
-export function getWs(url?: string): Ws {
-    if (false) {
-        // const key = url // `${x.host}:${x.port}`,  URL(url)
-        // let r = wsCache.get(key)
-        // if (!r) {
-        //     r = new Ws(key)
-        //     wsCache.set(key, r)
-        //     return r
-        // }
-        // return r
-    }
-    else return ws
-}
+
 export class Profile {
     username = ""
     server = ""
 }
 export const profile = new Profile()
 
-export function createWs(): Ws {
+export function createWs(url?: string): Ws {
+    if (!ws) {
+        ws = new Ws(url ?? `wss://${window.location.host}/wss`)
+    }
     return ws
 }
 

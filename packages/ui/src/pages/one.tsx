@@ -1,4 +1,4 @@
-import { useNavigate } from "@solidjs/router"
+import { useNavigate} from "../core/dg"
 import { Show } from "solid-js"
 import { A, P } from '../layout/nav'
 import { createWs } from "../lib/socket";
@@ -11,20 +11,13 @@ import {
 
 import { BlueButton, Center } from "../lib/form";
 import { error, hasWebAuthn, security, setError, setLogin, setSecurity, setWelcome } from "../lib/crypto";
-import { SiteStore, setSite } from "../layout/site_menu";
-
-// we 
-
-
 
 export const LoginPage = () => {
     const ws = createWs();
     const navigate = useNavigate();
 
     const buttonText = () => {
-
             return "Sign in"
-
     }
 
     // this might fail if the server doesn't know the user name,  or if their is no credential for that user locally

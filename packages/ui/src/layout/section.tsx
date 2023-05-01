@@ -1,4 +1,4 @@
-import { NavLink } from "@solidjs/router";
+
 import { Icon } from "solid-heroicons";
 import { chevronRight } from "solid-heroicons/solid";
 
@@ -6,6 +6,7 @@ import { chevronRight } from "solid-heroicons/solid";
 // solid docs use an hr, but general design principal is to avoid this if not needed? e.g. how to make a perfect table
 
 import { Show, createSignal, ParentProps, createUniqueId, JSX } from "solid-js";
+import { NavLink } from "../core/dg";
 
 export function CollapsedIcon(props: {class: string}) {
   return <div class={"duration-100 ease-in transition" + props.class}>▼</div>;
@@ -74,6 +75,7 @@ function SectionPanel(props: ParentProps<{ id: string }>) {
     </ul>
   );
 }
+
 
 export function NavItem(props: {children: JSX.Element, href: string, title: string}) {
   return (

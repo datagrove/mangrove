@@ -7,6 +7,7 @@ import mkcert from 'vite-plugin-mkcert'
 export default defineConfig({
   plugins: [solidPlugin(), mkcert()], //
   appType: 'spa',
+  base: './',
   server: {
     host: true,
     proxy: {

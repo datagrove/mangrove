@@ -76,6 +76,8 @@ export const GetSecret: Component<{
     validate: (secret: string) => Promise<boolean>,
     onChange: (ok: boolean) => void
 }> = (props) => {
+    const ln = useLn()
+
     const [error, setError] = createSignal("")
     let btn: HTMLButtonElement | null = null;
     const [inp, setInp] = createSignal("")
@@ -93,7 +95,7 @@ export const GetSecret: Component<{
         e.preventDefault()
         props.validate(inp()).then(ok => {
             if (!ok) {
-                setError("Invalid code.")
+                setError(ln().invalidCode)
             } else {
                 props.onChange(true)
             }
@@ -116,17 +118,22 @@ export const GetSecret: Component<{
     </>
 }
 
-export const AddPasskey: Component<{ when: () => boolean, required?: boolean, onChange: (u: UserMfa) => void }> = (props) => {
+export const AddPasskey: Component<{ 
+    when: () => boolean, required?: boolean, 
+    onChange: (u: UserMfa) => void 
+    allow?: string[],
+    validate: (secret: string) => Promise<boolean>,
+    }> = (props) => {
     const ln = useLn()
     let btnSaveEl: HTMLButtonElement | null = null;
     let btnNot: HTMLButtonElement | null = null;
     const [more, setMore] = createSignal(false)
     const [factor, setFactor] = createSignal("passkey")
-    let secret = "1234"
-    const [open, setOpen] = createSignal(false)
+    const [isOpenGetSecret, openGetSecret] = createSignal(false)
 
     createEffect(() => {
         if (props.when()) {
+            console.log("open add passkey")
             btnSaveEl?.focus()
         }
     })
@@ -134,7 +141,7 @@ export const AddPasskey: Component<{ when: () => boolean, required?: boolean, on
     const add = () => {
         if (factor() == "passkey" || factor() == "passkey+") {
         } else {
-            setOpen(true)
+            openGetSecret(true)
         }
     }
     const notNow = () => { props.onChange({}) }
@@ -143,12 +150,10 @@ export const AddPasskey: Component<{ when: () => boolean, required?: boolean, on
     const changeFactor = (e: any) => {
         setFactor(e.target.value)
     }
-    const validate = async (secret: string) => {
-        return secret == "1234"
-    }
+
     return <>
-        <GetSecret when={open} onChange={setOpen} validate={validate} />
-        <Show when={props.when() && !open()}>
+        <GetSecret when={isOpenGetSecret} onChange={openGetSecret} validate={props.validate} />
+        <Show when={props.when() && !isOpenGetSecret()}>
             <Dialog>
                 <Center>
                     <DialogPage >

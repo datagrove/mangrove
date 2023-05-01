@@ -1,7 +1,6 @@
 import { Component, For, JSXElement, Switch, Match, Show, createEffect, createSignal } from 'solid-js'
 import { pencil, chevronLeft, chevronDown, bars_3, magnifyingGlass, user } from "solid-heroicons/solid"
 import { Icon } from 'solid-heroicons'
-import { AnchorProps, A as Ar, Outlet, useNavigate } from '@solidjs/router'
 import { setLogin, useLogout } from '../lib/crypto'
 import {
   Popover,
@@ -19,6 +18,7 @@ import {
 import Dismiss from 'solid-dismiss'
 import { SearchList, SiteMenuContent, searchMode, setSearchMode } from './site_menu'
 import { BlueButton, Center } from '../lib/form'
+import { AnchorProps, A as Ar, useNavigate } from '../core/dg';
 function classNames(...classes: (string | boolean | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }

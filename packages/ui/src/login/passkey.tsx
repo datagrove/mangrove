@@ -2,7 +2,6 @@ import { Component, JSXElement, Match, Show, Switch, createSignal } from "solid-
 import { A } from "../layout/nav"
 import { BlueButton, Center } from "../lib/form"
 import { generatePassPhrase, security, setError, setLogin, setSecurity } from "../lib/crypto"
-import { useNavigate } from "@solidjs/router"
 import {
     parseCreationOptionsFromJSON,
     create,
@@ -13,6 +12,80 @@ import { DarkButton, SiteStore } from "../layout/site_menu"
 import { createWs } from "../lib/socket"
 import { useLn } from "./passkey_i18n"
 import { LanguageSelect } from "../i18n/i18"
+import { useNavigate } from "../core/dg";
+
+// if password is empty, then this is for a new
+// const register = async (user: string, password: string) => {
+//     const ws = createWs()
+//     const o = await ws.rpcj<any>("register", {
+//         device: user() // sec.deviceDid
+//     })
+//     const cco = parseCreationOptionsFromJSON(o)
+//     const cred = await create(cco)
+//     const token = await ws.rpcj<any>("register2", cred.toJSON())
+//     setLogin(token)
+// }
+
+// for transition; login with password before asking to add a passkey.
+// not called if they login with a passkey (that's handled in initPasskey)
+// any advantage here to a PAKE like OPAQUE?
+const login = async (user: string, password: string) => {
+    const ws = createWs()
+    const o = await ws.rpcj<string>("bypassword", {
+        user: user,
+        password: password
+    })
+    return 
+}
+// this blocks a promise waiting for the user to offer a passkey
+export async function initPasskey(setError: (e: string) => void) {
+    if (!window.PublicKeyCredential
+        // @ts-ignore
+        || !PublicKeyCredential.isConditionalMediationAvailable
+        || !await PublicKeyCredential.isConditionalMediationAvailable()
+        ) {
+        return false
+    }
+
+    const ws = createWs()
+    const abortController = new AbortController();   
+    const sec = security()
+
+    // if we loop here, do we need to do first  part twice
+    // this will return nil if the user is not registered?
+    // that doesn't seem right
+    while (true) {
+        try {
+            const o2 = await ws.rpcj<any>("login", {
+                device: sec.deviceDid,
+            })
+            const cro = parseRequestOptionsFromJSON(o2)
+
+            console.log("waiting for sign")
+            const o = await get({
+                publicKey: cro.publicKey,
+                signal: abortController.signal,
+                // @ts-ignore
+                mediation: 'conditional'
+            })
+            console.log("got sign")
+
+            // token is not the socket challenge, it can be shared across tabs.
+            // we need to get back the site store here, does it also keep a token?
+            // we will eventually write the store into opfs
+            // rejected if the key is not registered. loop back then to get another?
+            const reg = await ws.rpcj<string>("login2", o.toJSON())
+            setLogin("token")
+            return true
+        } catch (e: any) {
+            setError(e.message)
+        }
+    }
+    // instead of navigate we need get the site first
+    // then we can navigate in it. the site might tell us the first url
+
+}
+
 
 const defaultLogin = {
     passkeyOnly: true,
@@ -43,18 +116,10 @@ export const Register = () => {
     // passkeys are portable so this can be a user id? random though? numeric?
     // the problem with not having a name here is that name is how passkey tracks the key
     // so we really need to get a name, even if we don't use it
-    const register = async () => {
-        const o = await ws.rpcj<any>("register", {
-            device: user() // sec.deviceDid
-        })
-        const cco = parseCreationOptionsFromJSON(o)
-        const cred = await create(cco)
-        const token = await ws.rpcj<any>("register2", cred.toJSON())
-        setLogin(token)
-    }
+
     const submit = (e: Event) => {
         e.preventDefault()
-        register()
+        //register()
     }
 
     return <SimplePage>
@@ -67,73 +132,45 @@ export const Register = () => {
     </SimplePage>
 }
 
+// we only use this if browser supports webauthn but not passkey?
+const webAuthnLogin = async (id: string) => {
+
+const ws = createWs()
+    // LOGIN
+    const o2 = await ws.rpcj<any>("loginx", {
+        device: id,
+        //username: sec.userDid // maybe empty
+    })
+    const cro = parseRequestOptionsFromJSON(o2)
+    const o = await get(cro)
+    const reg = await ws.rpcj<string>("loginx2", o.toJSON())
+    setLogin(reg)
+    // instead of navigate we need get the site first
+    // then we can navigate in it. the site might tell us the first url
+
+}
+
+
 export const LoginPasskey: Component<{ login?: boolean }> = (props) => {
     const ln = useLn()
-    const abortController = new AbortController();
+
     const ws = createWs()
     const nav = useNavigate()
     const [user, setUser] = createSignal("")
+    const [error, setError] = createSignal("")
 
     const [bip39, setBip39] = createSignal(false)
 
-    async function initPasskey() {
-        let isCMA = await PublicKeyCredential.isConditionalMediationAvailable();
-        if (!isCMA) return
-        const sec = security()
-        // this will return nil if the user is not registered?
-        // that doesn't seem right
-        const o2 = await ws.rpcj<any>("login", {
-            device: sec.deviceDid,
-        })
-        const cro = parseRequestOptionsFromJSON(o2)
+    initPasskey(setError).then((ok)=>{
 
-        console.log("waiting for sign")
-        const o = await get({
-            publicKey: cro.publicKey,
-            signal: abortController.signal,
-            // @ts-ignore
-            mediation: 'conditional'
-        })
-        console.log("got sign")
+    })
 
-        // token is not the socket challenge, it can be shared across tabs.
-        // we need to get back the site store here, does it also keep a token?
-        // we will eventually write the store into opfs
-        const reg = await ws.rpcj<string>("login2", o.toJSON())
-        setLogin("token")
-        // instead of navigate we need get the site first
-        // then we can navigate in it. the site might tell us the first url
-        nav(`/${ln()}/`, { replace: true })
-    }
-
-    // conditional mediation
-    if (window.PublicKeyCredential
-        // @ts-ignore
-        && PublicKeyCredential.isConditionalMediationAvailable) {
-        initPasskey()
-    }
 
     // this is for a bip39 option
     const [mn, setMn] = createSignal(generatePassPhrase())
     const generate = (e: any) => {
         e.preventDefault()
         setMn(generatePassPhrase())
-    }
-
-    // we only use this if browser supports webauthn but not passkey?
-    const webAuthnLogin = async (id: string) => {
-        // LOGIN
-        const o2 = await ws.rpcj<any>("loginx", {
-            device: id,
-            //username: sec.userDid // maybe empty
-        })
-        const cro = parseRequestOptionsFromJSON(o2)
-        const o = await get(cro)
-        const reg = await ws.rpcj<string>("loginx2", o.toJSON())
-        setLogin(reg)
-        // instead of navigate we need get the site first
-        // then we can navigate in it. the site might tell us the first url
-        nav("/")
     }
 
 

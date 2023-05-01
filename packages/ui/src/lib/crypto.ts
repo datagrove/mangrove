@@ -10,7 +10,8 @@ import * as ucans from "@ucans/ucans"
 import * as ed25519 from "@stablelib/ed25519"
 import { Buffer } from 'buffer'
 import { EdKeypair } from "@ucans/ucans"
-import { useNavigate } from "@solidjs/router"
+import { useNavigate } from "../core/dg"
+
 // @ts-ignore
 window.Buffer = Buffer;
 

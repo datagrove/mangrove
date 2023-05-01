@@ -1,27 +1,18 @@
 import "./index.css"
-import { Route, Router, Routes, useNavigate } from "@solidjs/router"
-import { effect, render } from "solid-js/web"
-import { LoginPage } from "./login/login"
+import { render } from "solid-js/web"
+import { simpleRouter } from "./core/dg"
+import { LoginPage } from "./login"
 
-function Home() {
-    const nav = useNavigate()
-    effect(() => {
-        nav("/en/login")
-    })
-    return <></>
+function HomePage() {
+    simpleRouter()
 
+    // act like a router; event for when the route changes
+    // initial choice of "page" is based on the route
+
+    return <div>
+        <LoginPage/>
+    </div>
 }
-function App() {
-    // return <div> WTF?</div>
-    return <Routes>
-        <Route path="/" component={Home} />
-        <Route path="/:ln/login" component={LoginPage} />
-    </Routes>
-}
-render(() => (
-        <Router >
-            <App />
-        </Router>
-    ),
-    document.getElementById("app")!
-)
+
+render(() => <HomePage />,document.getElementById("app")!)
+

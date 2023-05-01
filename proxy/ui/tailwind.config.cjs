@@ -5,7 +5,8 @@ const defaultTheme = require('tailwindcss/defaultTheme')
 const colorScheme = colors.neutral
 
 module.exports = {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  mode: 'jit',
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}','../../packages/ui/src/**/*.{js,ts,jsx,tsx}'],
   darkMode: 'class', // or 'media' or 'class'
   theme: {
     extend: {

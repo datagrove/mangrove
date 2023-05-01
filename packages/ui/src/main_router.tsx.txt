@@ -1,0 +1,46 @@
+
+
+/*
+function Home() {
+    const nav = useNavigate()
+    effect(() => {
+        nav("/en/login")
+    })
+    return <></>
+
+}
+function App() {
+    // return <div> WTF?</div>
+    return <Routes>
+        <Route path="/" component={Home} />
+        <Route path="/:ln/login" component={LoginPage} />
+    </Routes>
+}
+
+
+render(() => (
+        <Router >
+            <App />
+        </Router>
+    ),
+    document.getElementById("app")!
+)
+*/
+
+// globally we need the language and the ability to move to other pages
+
+
+
+// interface DgState {
+//     ln: ()=>string
+//     nav: (path: string) => void
+// }
+// // we need language to be a signal?
+// function useDg() : DgState {
+//     return {
+//         ln: ()=>"en",
+//         nav: (path: string) => {}
+//     }
+// }
+
+

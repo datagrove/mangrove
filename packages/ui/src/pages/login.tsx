@@ -1,4 +1,4 @@
-import { A as Ar, useNavigate } from "@solidjs/router"
+
 import { Component, JSXElement, Show, createEffect, createSignal, onMount } from "solid-js"
 import {
     parseCreationOptionsFromJSON,
@@ -23,6 +23,7 @@ import { LoginWith } from "../lib/login_with";
 import { Buffer } from 'buffer'
 import { bufferToHex } from "../lib/encode";
 import { error, setError, setLogin } from "../lib/crypto";
+import { useNavigate } from "../core/dg";
 // @ts-ignore
 
 const [user,setUser] = createSignal("")

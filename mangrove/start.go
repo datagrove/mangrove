@@ -26,7 +26,6 @@ import (
 
 	"github.com/gliderlabs/ssh"
 	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"github.com/kardianos/service"
 	"github.com/lesismal/llib/std/crypto/tls"
 	"github.com/lesismal/nbio/nbhttp"
@@ -34,13 +33,15 @@ import (
 	"github.com/pkg/sftp"
 	"github.com/rs/zerolog"
 	qrcode "github.com/skip2/go-qrcode"
-	"github.com/spf13/cobra"
 	"github.com/tailscale/hujson"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/rs/cors"
 )
+
+// for embedded use we want to make it easy to start a websocket server that we can then leverage for various apis supporting the ui library
+// we need to be able mount the server on a subpath
 
 func sockUnmarshal(data []byte, v interface{}) error {
 	return cbor.Unmarshal(data, v)
@@ -324,51 +325,9 @@ func NewContext(home string, container string) (*Context, error) {
 	}, nil
 }
 
-func HomeDir(args []string) string {
-	if len(args) > 0 {
-		return args[0]
-	} else {
-		return "./store"
-	}
-}
-func DefaultServer(name string, res embed.FS, launch func(*Server) error) *cobra.Command {
-	godotenv.Load()
-	// DefaultConfig will look in the current directory for a testview.json file
-	rootCmd := &cobra.Command{}
-	rootCmd.AddCommand(&cobra.Command{
-		Use: "install [home directory]",
-		Run: func(cmd *cobra.Command, args []string) {
-			// use service to install the service
-			x, e := NewServer(name, HomeDir(args), res)
-			if e != nil {
-				log.Fatal(e)
-			}
-			// how do we add command line paramters?
-			x.Install()
-		}})
-	rootCmd.AddCommand(&cobra.Command{
-		Use: "start [home directory]",
-		Run: func(cmd *cobra.Command, args []string) {
-			x, e := NewServer(name, HomeDir(args), res)
-			if e != nil {
-				log.Fatal(e)
-			}
-			if launch != nil {
-				launch(x)
-			}
-			x.Run()
-		}})
-	rootCmd.AddCommand(&cobra.Command{
-		Use: "init [home directory]",
-		Run: func(cmd *cobra.Command, args []string) {
-			initialize(HomeDir(args))
-		}})
-	// rootCmd.PersistentFlags().StringVar(&config.Http, "http", ":5078", "http address")
-	// rootCmd.PersistentFlags().StringVar(&config.Sftp, "sftp", ":5079", "sftp address")
-	// rootCmd.PersistentFlags().StringVar(&config.Store, "store", "TestResults", "test result store")
-	rootCmd.Execute()
-	return rootCmd
-}
+// the idea here is to add a few different commands for standalone bespoke servers
+//	should this return a cobra command?
+// maybe there should be a default proxy server as well
 
 func Unmarshal(b []byte, v interface{}) error {
 	ast, err := hujson.Parse(b)
@@ -434,13 +393,14 @@ func (fs *spaFileSystem) Open(name string) (http.File, error) {
 
 // directory should already be initalized
 // maybe the caller should pass a launch function?
-func NewServer(name string, dir string, res embed.FS) (*Server, error) {
+func NewServer(opt *MangroveServer) (*Server, error) {
 	var j Config
 	{
 		// the user creating the server should become the owner of the server
 		h, _ := os.UserHomeDir()
 		j.Key = path.Join(h, ".ssh", "id_rsa")
 	}
+	dir := opt.Root
 
 	cf := path.Join(dir, "index.jsonc")
 	_, e := os.Stat(cf)
@@ -453,20 +413,20 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 	}
 	Unmarshal(b, &j)
 	log.Print(string(b))
-	j.Ui = res
+	j.Ui = opt.Res
 	j.Service = service.Config{
-		Name:        name,
-		DisplayName: name,
-		Description: name,
+		Name:        opt.Name,
+		DisplayName: opt.Name,
+		Description: opt.Name,
 		Arguments:   []string{"start"},
 	}
 
-	opt := &j
+	optc := &j
 	if e != nil {
 		log.Fatal(e)
 	}
 
-	var staticFS = fs.FS(opt.Ui)
+	var staticFS = fs.FS(optc.Ui)
 	// should this be in config?
 	htmlContent, err := fs.Sub(staticFS, "ui/dist")
 	if err != nil {
@@ -561,9 +521,10 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 	_ = tlsConfig
 	handler := cors.Default().Handler(mux)
 	ws := nbhttp.NewServer(nbhttp.Config{
-		Network:   "tcp",
-		Addrs:     []string{"localhost:8088"},
-		AddrsTLS:  []string{"0.0.0.0:8089"},
+		Network: "tcp",
+		// either can be empty
+		Addrs:     opt.Addrs,
+		AddrsTLS:  opt.AddrsTLS,
 		TLSConfig: tlsConfig,
 		Handler:   handler,
 	})
@@ -573,7 +534,7 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 	}
 	svr := &Server{
 		Db:          db,
-		Config:      opt,
+		Config:      optc,
 		Mux:         mux,
 		Home:        dir,
 		Ws:          ws,
@@ -589,7 +550,36 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		Runtime:     map[string]Runtime{},
 	}
 
-	onWebsocket := func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/wss", svr.onWebSocket())
+
+	mux.HandleFunc("/api/qr/", func(w http.ResponseWriter, r *http.Request) {
+		// b, e := r.GetBody()
+		// if e != nil {
+		// 	return
+		// }
+		// bx, e := io.ReadAll(b)
+
+		//sess, ok := svr.GetSession(sessid)
+		// if !ok {
+		// 	return
+		// }
+		data := r.URL.Path[8:]
+		qr, e := qrcode.New(string(data), qrcode.Medium)
+		if e != nil {
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.WriteHeader(200)
+		qr.Write(256, w)
+	})
+
+	WebauthnSocket(svr)
+	// return unstarted to allow the application to modify the server
+	return svr, nil
+}
+
+func (svr *Server) onWebSocket() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		sock := &Socket{
 			Svr:     svr,
 			Session: nil,
@@ -681,33 +671,6 @@ func NewServer(name string, dir string, res embed.FS) (*Server, error) {
 		conn.SetReadDeadline(time.Now().Add(nbhttp.DefaultKeepaliveTime))
 		// we can write
 	}
-
-	mux.HandleFunc("/wss", onWebsocket)
-
-	mux.HandleFunc("/api/qr/", func(w http.ResponseWriter, r *http.Request) {
-		// b, e := r.GetBody()
-		// if e != nil {
-		// 	return
-		// }
-		// bx, e := io.ReadAll(b)
-
-		//sess, ok := svr.GetSession(sessid)
-		// if !ok {
-		// 	return
-		// }
-		data := r.URL.Path[8:]
-		qr, e := qrcode.New(string(data), qrcode.Medium)
-		if e != nil {
-			return
-		}
-		w.Header().Set("Content-Type", "image/png")
-		w.WriteHeader(200)
-		qr.Write(256, w)
-	})
-
-	WebauthnSocket(svr)
-	// return unstarted to allow the application to modify the server
-	return svr, nil
 }
 
 func (sx *Server) Install() {

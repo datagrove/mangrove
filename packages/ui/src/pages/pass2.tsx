@@ -2,7 +2,6 @@ import { Component, Show, createSignal } from "solid-js"
 import { A, Body, Page } from "../layout/nav"
 import { Center, FieldSet } from "../lib/form"
 import { createUser, generatePassPhrase, security, setError, setLogin, setSecurity } from "../lib/crypto"
-import { useNavigate } from "@solidjs/router"
 import {
     parseCreationOptionsFromJSON,
     create,
@@ -11,6 +10,7 @@ import {
 } from "@github/webauthn-json/browser-ponyfill";
 import { SiteStore } from "../layout/site_menu"
 import { createWs } from "../lib/socket"
+import { useNavigate } from "../core/dg";
 
 export const LoginPass = () => {
     return <PassworOrBip39 login={true} />

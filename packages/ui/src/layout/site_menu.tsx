@@ -6,8 +6,7 @@ import { Collapsible, NavItem } from "./section";
 import { For } from "solid-js";
 import { createWindowSize } from "@solid-primitives/resize-observer";
 import { createEffect } from "solid-js";
-import { createStore, produce } from 'solid-js/store'
-import { useLocation, Location, useParams } from "@solidjs/router";
+
 
 import { Mdx } from "./mdx";
 import { PageParams } from "./nav";
@@ -17,6 +16,7 @@ import { createSignal, ParentComponent, Show } from "solid-js";
 
 import { orgsite } from "./orgsite";
 import { LanguageSelect } from "../i18n/i18";
+import { useLocation, Location, useParams } from "../core/dg";
 
 export const [searchMode, setSearchMode] = createSignal(false)
 export const [innerContent, setInnerContent] = createSignal(<div />)

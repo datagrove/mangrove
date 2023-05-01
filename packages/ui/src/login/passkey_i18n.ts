@@ -1,7 +1,6 @@
 
-import { useNavigate, useParams } from "@solidjs/router"
-import { all } from "@ucans/ucans"
 import { JSX } from "solid-js/web/types/jsx"
+import { ln } from "../core/dg"
 // interface Ln {
 //     signin: string
 //     register: string
@@ -54,7 +53,9 @@ const en = {
     enterUsername: "Enter username",
     enterPasskey: "Choose passkey",
     choosePasskey: "Choose passkey",
-    more2fa: "More choices"
+    more2fa: "More choices",
+    invalidCode: "Invalid code",
+    enterPassword: "Enter password",
 }
 type Ln = typeof en
 const es: Ln = {
@@ -84,9 +85,8 @@ const allLn: { [key: string]: Ln } = {
     iw
 }
 
-type LnFn = () => Ln
-export const useLn = (): LnFn => {
-    const p = useParams<{ ln: string }>();
-    return () => allLn[p.ln] ?? allLn['en']
+export const useLn = (): () => Ln => {
+    //const p = useParams<{ ln: string }>();
+    return () => allLn[ln()] ?? allLn['en']
 }
 

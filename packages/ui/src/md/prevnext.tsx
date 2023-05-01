@@ -1,11 +1,12 @@
-import { NavLink } from "@solidjs/router";
+
 import { JSXElement, Show, For, createSignal } from "solid-js";
-import { useLocation } from "@solidjs/router";
+
 import { createEffect, useContext } from "solid-js";
 import { createContext, ParentProps } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Icon } from "solid-heroicons";
 import { chevronRight } from "solid-heroicons/solid";
+import { NavLink } from "../core/dg";
 
 // could be used for a bubble
 export function Dot(props: { number: number }) {
@@ -48,9 +49,9 @@ export const PageStateProvider = (props: ParentProps) => {
   };
 
   createEffect(() => {
-    const { pathname } = useLocation();
+    //const { pathname } = useLocation();
     setStore("sections", []);
-    setStore("path", pathname);
+    //setStore("path", pathname);
   });
 
   return (
