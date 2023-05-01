@@ -4,4 +4,3 @@ node_modules
 .private
 .DS_Store
 **/dist/**
-proxy
