@@ -4,26 +4,26 @@ import { render } from 'solid-js/web'
 import { Route, Routes, Router, useNavigate, useParams, Outlet } from "@solidjs/router"
 
 
-import { Page, Title, Body } from '@datagrove/ui'
+import { LoginPage } from '@datagrove/ui'
 
 interface PageParms {
     ln: string
 }
 // displays the users root profile: orgs, dbs, files, etc
 function Login() {
-    const p = useParams<{ln:string}>()
+    const p = useParams<{ ln: string }>()
 
-    return   <div>hello, world {p.ln} </div>
+    return <div>hello, world {p.ln} </div>
 }
 
 
 function App() {
     //const [items] =  createResource(props.fetch)
-  
+
     return <Routes>
-            <Route path="/:ln/login" component={Login} />
-            </Routes>
-}       
+        <Route path="/:ln/login" component={LoginPage} />
+    </Routes>
+}
 
 render(
     () => (
