@@ -19,6 +19,7 @@ import (
 )
 
 type Session struct {
+	Oid int64
 	UserDevice
 	Device string // device for this session
 	Secret string
@@ -298,6 +299,26 @@ func WebauthnSocket(mg *Server) error {
 	})
 	mg.AddApij("username", false, func(r *Rpcpj) (any, error) {
 		return mg.SuggestName("")
+	})
+	mg.AddApij("register", false, func(r *Rpcpj) (any, error) {
+		var v struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+		}
+		json.Unmarshal(r.Params, &v)
+		s, e := mg.Register(r.Session, v.Username, v.Password)
+		if e != nil {
+			return nil, e
+		}
+		c, _ := GenerateRandomString(16)
+		o := LoginInfo{
+			Error:  0,
+			Cookie: c,
+			Name:   s,
+			Home:   mg.AfterLogin,
+		}
+		// challenge here? we don't know what factor
+		return &o, nil
 	})
 
 	mg.AddApi("gettotp", true, func(r *Rpcp) (any, error) {

@@ -19,41 +19,41 @@ insert into mg.device (device, webauthn) values ($1, $2);
 delete from mg.device where device = $1;
 
 -- name: ApproveDevice :exec
-insert into mg.device_org (device,org) values ($1, $2);
+insert into mg.device_org (device,oid) values ($1, $2);
 
 -- name: RevokeDevice :exec
-delete from mg.device_org where device = $1 and org = $2;
+delete from mg.device_org where device = $1 and oid = $2;
 
 -- name: InsertOrg :exec
-insert into mg.org (org, name, is_user)
-values ($1, $2, $3);
+insert into mg.org (oid, name, is_user, password, hash_alg)
+values ($1, $2, $3,$4,$5);
 
 -- insert: UpdateOrg :exec
 update mg.org set name = $1;
 
 -- name: NamePrefix :one
-select * from mg.namePrefix where name = $1;
+select * from mg.name_prefix where name = $1;
 
 -- name: InsertPrefix :exec
-insert into mg.namePrefix (name,count) values ($1,0) on conflict do nothing;
+insert into mg.name_prefix (name,count) values ($1,0) on conflict do nothing;
 
 -- name: UpdatePrefix :one
-update mg.namePrefix set count=count+1 where name = $1 returning count;
+update mg.name_prefix set count=count+1 where name = $1 returning count;
 
 -- name: Read :many
-select * from mg.dbentry where db = $1 and fid = $2 and start between $3 and $4 order by start;
+select * from mg.dbentry where fid = $1 and start between $2 and $3 order by start;
 
 -- name: Write :exec
-insert into mg.dbentry (db, fid, start, data) values ($1, $2, $3, $4);
+insert into mg.dbentry (fid, start, data) values ($1, $2, $3);
 
 -- name: Trim :exec
-delete from mg.dbentry where db = $1 and fid = $2 and start between $3 and $4;
+delete from mg.dbentry where fid = $1 and start between $2 and $3;
 
 -- name: SelectOrg :one
-select * from mg.org where org = $1;
+select * from mg.org where name = $1;
 
 -- name: SelectCredential :many
-select * from mg.credential where org = $1;
+select * from mg.credential where oid = $1;
 
 -- name: InsertCredential :exec
-insert into mg.credential (org, name, type, value) values ($1, $2, $3, $4);
+insert into mg.credential (oid, name, type, value) values ($1, $2, $3, $4);

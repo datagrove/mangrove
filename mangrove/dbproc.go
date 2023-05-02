@@ -106,7 +106,6 @@ func (s *Server) Read(sess *Session, read *ReadLog) (any, error) {
 		return nil, fmt.Errorf("invalid handle")
 	}
 	a, e := s.Db.qu.Read(context.Background(), mangrove_sql.ReadParams{
-		Db:      h.Stream.db,
 		Fid:     h.Stream.fid,
 		Start:   read.From,
 		Start_2: read.To,
@@ -122,7 +121,7 @@ type OpenDb struct {
 
 func (s *Server) StoreFactor(sess *Session) error {
 	s.Db.qu.InsertCredential(context.Background(), mangrove_sql.InsertCredentialParams{
-		Org: sess.Name,
+		Oid: sess.Oid,
 		Name: pgtype.Text{
 			String: "",
 			Valid:  false,
@@ -134,6 +133,26 @@ func (s *Server) StoreFactor(sess *Session) error {
 		Value: []byte{},
 	})
 	return nil
+}
+
+func (s *Server) Register(sess *Session, user, password string) (string, error) {
+	by, e := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if e != nil {
+		return "", e
+	}
+	e = s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
+		Oid:      sess.Oid,
+		Name:     user,
+		IsUser:   true,
+		Password: by,
+		HashAlg: pgtype.Text{
+			String: "bcrypt",
+			Valid:  true,
+		}})
+	sess.Name = user
+
+	return user, e
+
 }
 
 func (s *Server) PasswordLoginInternal(sess *Session, user, password string, pref int) bool {
@@ -151,7 +170,7 @@ func (s *Server) PasswordLoginInternal(sess *Session, user, password string, pre
 	}
 	// look up the credentials and take the highest priority one
 	// return alternatives.
-	cr, _ := s.Db.qu.SelectCredential(context.Background(), user)
+	cr, _ := s.Db.qu.SelectCredential(context.Background(), a.Oid)
 	// we might not have a credential and that might be ok.
 	opt := []string{}
 	var typ, address string
@@ -271,7 +290,6 @@ func (mg *Server) Append(sess *Session, append *Append) error {
 		return badHandle
 	}
 	e := mg.Db.qu.Write(context.Background(), mangrove_sql.WriteParams{
-		Db:    x.Stream.db,
 		Fid:   x.Stream.fid,
 		Start: append.At,
 		Data:  append.Data,
@@ -292,7 +310,6 @@ func (mg *Server) Trim(sess *Session, trim *Trim) error {
 		return badHandle
 	}
 	e := mg.Db.qu.Trim(context.Background(), mangrove_sql.TrimParams{
-		Db:      x.Stream.db,
 		Fid:     x.Stream.fid,
 		Start:   trim.From,
 		Start_2: trim.To,

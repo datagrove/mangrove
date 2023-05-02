@@ -1,6 +1,6 @@
 import { Icon } from "solid-heroicons";
-import { key } from "solid-heroicons/solid";
-import { Component, createEffect, createSignal, JSXElement, Match, onMount, Show, Switch } from "solid-js";
+import { key, user } from "solid-heroicons/solid";
+import { Component, createEffect, createSignal, JSX, JSXElement, Match, onMount, Show, Switch } from "solid-js";
 import { Center, BlueButton, LightButton } from "../lib/form";
 import { factors, useLn } from "./passkey_i18n";
 import { A } from "../layout/nav";
@@ -27,14 +27,71 @@ export interface UserMfa {
 export const InputLabel = (props: any) => {
     return <div><label {...props} class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</label></div>
 }
-export const Input = (props: any) => {
-    return <div><input {...props} class="block p-2 mt-2 w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset dark:ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6" /></div>
+export const Input = (props: InputProps) => {
+    return <div><input {...props}
+        class="block w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset dark:ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 p-2" /></div>
 }
+
+type InputProps = JSX.HTMLAttributes<HTMLInputElement> & { placeholder?: string, autofocus?: boolean, name?: string, autocomplete?: string, type?: string, value?: string, id?: string, required?: boolean }
+export const Username: Component<InputProps> = (props) => {
+    const ln = useLn()
+
+    return <div >
+        <div class="flex items-center justify-between">
+            <InputLabel for="username" >{ln().username}</InputLabel>
+        </div>
+        <div class="mt-2">
+            <Input  {...props} placeholder={ln().enterUsername} autofocus id="username" name="username" type="text" autocomplete="username webauthn" />
+        </div>
+    </div>
+}
+
+
+export const Password: Component<InputProps & { required?: boolean }> = (props) => {
+    const ln = useLn()
+    const [hide, setHide] = createSignal(true)
+    let el: HTMLInputElement
+
+    const toggle = (e: any) => {
+        e.preventDefault()
+        setHide(!hide())
+        if (!hide()) {
+            el.type = 'text';
+        } else {
+            el.type = 'password';
+        }
+    }
+
+    return <div>
+        <div class="flex items-center justify-between">
+            <InputLabel for="password" >{ln().password}</InputLabel>
+            <div class="text-sm">
+                <button onClick={toggle} class="font-semibold hover:underline text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300">{hide() ? ln().show : ln().hide} {ln().password}</button>
+            </div>
+        </div>
+        <div class="mt-2">
+            <Input {...props} ref={el!} id="password" name="password" type={hide() ? "password" : "text"} autocomplete="current-password" placeholder={ln().enterPassword} />
+        </div>
+    </div>
+}
+
 export const EmailInput = (props: any) => {
-    return <Input placeholder='email' value={loginChoice()?.email ?? ""} />
+    const ln = useLn()
+    return <div>
+        <div class="flex items-center justify-between">
+            <InputLabel for="username" >{ln().email}</InputLabel>
+        </div>
+        <div class="mt-2"><Input placeholder={ln().email} value={loginChoice()?.email ?? ""} autocomplete='email' /></div>
+    </div>
 }
 export const PhoneInput = (props: any) => {
-    return <Input placeholder='phone' value={loginChoice()?.phone ?? ""} />
+    const ln = useLn()
+    return <div>
+        <div class="flex items-center justify-between">
+            <InputLabel for="username" >{ln().phone}</InputLabel>
+        </div>
+        <div class="mt-2"><Input placeholder={ln().phone} value={loginChoice()?.phone ?? ""} autocomplete='phone' /></div>
+    </div>
 }
 export const InputSecret = (props: any) => {
     return <Input {...props} placeholder='code' />
@@ -118,12 +175,12 @@ export const GetSecret: Component<{
     </>
 }
 
-export const AddPasskey: Component<{ 
-    when: () => boolean, required?: boolean, 
-    onChange: (u: UserMfa) => void 
+export const AddPasskey: Component<{
+    when: () => boolean, required?: boolean,
+    onChange: (u: UserMfa) => void
     allow?: string[],
     validate: (secret: string) => Promise<boolean>,
-    }> = (props) => {
+}> = (props) => {
     const ln = useLn()
     let btnSaveEl: HTMLButtonElement | null = null;
     let btnNot: HTMLButtonElement | null = null;

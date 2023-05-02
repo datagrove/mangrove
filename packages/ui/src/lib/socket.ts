@@ -38,7 +38,7 @@ export class Ws {
     ws?: WebSocket
     constructor(public url: string) {
     }
-    async did() : Promise<string>{
+    async did(): Promise<string> {
         return new Promise((resolve, reject) => {
             if (this.did_) {
                 resolve(this.did_)
@@ -48,7 +48,7 @@ export class Ws {
 
         })
     }
-    
+
     connect(): Promise<any> {
         this.ws = new WebSocket(this.url)
         this.ws.onclose = (e) => {
@@ -128,6 +128,13 @@ export class Ws {
     release(handle: number) {
         this.listen.delete(handle)
     }
+    async rpcje<T>(method: string, params?: any): Promise<[T | undefined, string]> {
+        try {
+            return [await this.rpcj(method, params), ""]
+        } catch (e: any) {
+            return [undefined, e.message]
+        }
+    }
     async rpcj<T>(method: string, params?: any): Promise<T> {
         const o = this.mock.get(method)
         if (o) {
@@ -205,7 +212,8 @@ export const profile = new Profile()
 
 export function createWs(url?: string): Ws {
     if (!ws) {
-        ws = new Ws(url ?? `wss://${window.location.host}/wss`)
+        //ws = new Ws(url ?? `wss://${window.location.host}/wss`)
+        ws = new Ws(url ?? `ws://localhost:8080/embed/ws`)
     }
     return ws
 }

@@ -9,68 +9,66 @@ import (
 )
 
 type MgCredential struct {
-	Org   string
+	Oid   int64
 	ID    int32
 	Name  pgtype.Text
 	Type  pgtype.Text
 	Value []byte
 }
 
-type MgDb struct {
-	Db   int32
-	Name string
-}
-
 type MgDbentry struct {
-	Db    int64
 	Fid   int64
 	Start int64
 	Data  []byte
 }
 
 type MgDblock struct {
+	Oid    pgtype.Int8
 	Db     int64
 	Name   []byte
 	Serial pgtype.Int8
 }
 
 type MgDbstream struct {
-	Db  int64
-	Fid int64
-	Did pgtype.Text
+	Db       int64
+	Fid      int64
+	Ownerdid pgtype.Text
 }
 
 type MgDevice struct {
-	Device   string
+	Device   int64
 	Webauthn string
 }
 
 type MgDeviceOrg struct {
-	Device string
-	Org    string
+	Oid    int64
+	Device int64
 	Ucan   string
 }
 
-type MgNameprefix struct {
+type MgNamePrefix struct {
 	Name  string
 	Count int64
 }
 
 type MgOrg struct {
-	Org      string
-	Name     pgtype.Text
+	Oid      int64
+	Name     string
 	IsUser   bool
 	Password []byte
 	HashAlg  pgtype.Text
+	Email    string
+	Mobile   string
+	Pin      pgtype.Text
 }
 
 type MgOrgDb struct {
-	Org string
+	Oid int64
 	Db  int64
 }
 
 type MgOrgMember struct {
-	Org    string
+	Oid    int64
 	Member string
 	Ucan   pgtype.Text
 }

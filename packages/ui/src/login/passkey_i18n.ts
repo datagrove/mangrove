@@ -56,6 +56,8 @@ const en = {
     more2fa: "More choices",
     invalidCode: "Invalid code",
     enterPassword: "Enter password",
+    email: "Email",
+    phone: "Phone",
 }
 type Ln = typeof en
 const es: Ln = {

@@ -1,9 +1,18 @@
 import { JSX, createSignal } from "solid-js"
 
-export const [ln, setLn] = createSignal("en")
-export const [nav, setNav] = createSignal("/")
+export const [ln, setLn_] = createSignal("en")
+export const [nav, setNav_] = createSignal("/")
 
-export function simpleRouter(){
+export function setNav(n: string) {
+    setNav_(n)
+    window.location.hash = "/" + ln() + "/" + n
+}
+export function setLn(n: string) {
+    setLn_(n)
+    window.location.hash = "/" + ln() + "/" + nav()
+}
+
+export function simpleRouter() {
     // simple router that only looks at hash
     const router = () => {
         let route = window.location.hash.slice(1) || "/en/"
@@ -20,10 +29,10 @@ export function A(props: any) {
     return <a {...props}>{props.children}</a>
 }
 export function NavLink(props: any) {
-    return <div/>
-  }
+    return <div />
+}
 export function navigate(path: string, options?: any) {
-  //navigate('/', { replace: true });
+    //navigate('/', { replace: true });
     window.location.hash = path
 }
 
@@ -39,7 +48,7 @@ export interface AnchorProps extends Omit<JSX.AnchorHTMLAttributes<HTMLAnchorEle
     end?: boolean;
 }
 
-export interface Location<T=any> {
+export interface Location<T = any> {
     hash: string;
 }
 export function useLocation<T>(): Location<T> {

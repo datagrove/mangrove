@@ -12,16 +12,16 @@ import (
 )
 
 const approveDevice = `-- name: ApproveDevice :exec
-insert into mg.device_org (device,org) values ($1, $2)
+insert into mg.device_org (device,oid) values ($1, $2)
 `
 
 type ApproveDeviceParams struct {
-	Device string
-	Org    string
+	Device int64
+	Oid    int64
 }
 
 func (q *Queries) ApproveDevice(ctx context.Context, arg ApproveDeviceParams) error {
-	_, err := q.db.Exec(ctx, approveDevice, arg.Device, arg.Org)
+	_, err := q.db.Exec(ctx, approveDevice, arg.Device, arg.Oid)
 	return err
 }
 
@@ -29,7 +29,7 @@ const deleteDevice = `-- name: DeleteDevice :exec
 delete from mg.device where device = $1
 `
 
-func (q *Queries) DeleteDevice(ctx context.Context, device string) error {
+func (q *Queries) DeleteDevice(ctx context.Context, device int64) error {
 	_, err := q.db.Exec(ctx, deleteDevice, device)
 	return err
 }
@@ -39,7 +39,7 @@ select device, webauthn from mg.device
 where device = $1
 `
 
-func (q *Queries) GetDevice(ctx context.Context, device string) (MgDevice, error) {
+func (q *Queries) GetDevice(ctx context.Context, device int64) (MgDevice, error) {
 	row := q.db.QueryRow(ctx, getDevice, device)
 	var i MgDevice
 	err := row.Scan(&i.Device, &i.Webauthn)
@@ -47,11 +47,11 @@ func (q *Queries) GetDevice(ctx context.Context, device string) (MgDevice, error
 }
 
 const insertCredential = `-- name: InsertCredential :exec
-insert into mg.credential (org, name, type, value) values ($1, $2, $3, $4)
+insert into mg.credential (oid, name, type, value) values ($1, $2, $3, $4)
 `
 
 type InsertCredentialParams struct {
-	Org   string
+	Oid   int64
 	Name  pgtype.Text
 	Type  pgtype.Text
 	Value []byte
@@ -59,7 +59,7 @@ type InsertCredentialParams struct {
 
 func (q *Queries) InsertCredential(ctx context.Context, arg InsertCredentialParams) error {
 	_, err := q.db.Exec(ctx, insertCredential,
-		arg.Org,
+		arg.Oid,
 		arg.Name,
 		arg.Type,
 		arg.Value,
@@ -72,7 +72,7 @@ insert into mg.device (device, webauthn) values ($1, $2)
 `
 
 type InsertDeviceParams struct {
-	Device   string
+	Device   int64
 	Webauthn string
 }
 
@@ -97,23 +97,31 @@ func (q *Queries) InsertLock(ctx context.Context, arg InsertLockParams) error {
 }
 
 const insertOrg = `-- name: InsertOrg :exec
-insert into mg.org (org, name, is_user)
-values ($1, $2, $3)
+insert into mg.org (oid, name, is_user, password, hash_alg)
+values ($1, $2, $3,$4,$5)
 `
 
 type InsertOrgParams struct {
-	Org    string
-	Name   pgtype.Text
-	IsUser bool
+	Oid      int64
+	Name     string
+	IsUser   bool
+	Password []byte
+	HashAlg  pgtype.Text
 }
 
 func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) error {
-	_, err := q.db.Exec(ctx, insertOrg, arg.Org, arg.Name, arg.IsUser)
+	_, err := q.db.Exec(ctx, insertOrg,
+		arg.Oid,
+		arg.Name,
+		arg.IsUser,
+		arg.Password,
+		arg.HashAlg,
+	)
 	return err
 }
 
 const insertPrefix = `-- name: InsertPrefix :exec
-insert into mg.namePrefix (name,count) values ($1,0) on conflict do nothing
+insert into mg.name_prefix (name,count) values ($1,0) on conflict do nothing
 `
 
 func (q *Queries) InsertPrefix(ctx context.Context, name string) error {
@@ -122,34 +130,28 @@ func (q *Queries) InsertPrefix(ctx context.Context, name string) error {
 }
 
 const namePrefix = `-- name: NamePrefix :one
-select name, count from mg.namePrefix where name = $1
+select name, count from mg.name_prefix where name = $1
 `
 
-func (q *Queries) NamePrefix(ctx context.Context, name string) (MgNameprefix, error) {
+func (q *Queries) NamePrefix(ctx context.Context, name string) (MgNamePrefix, error) {
 	row := q.db.QueryRow(ctx, namePrefix, name)
-	var i MgNameprefix
+	var i MgNamePrefix
 	err := row.Scan(&i.Name, &i.Count)
 	return i, err
 }
 
 const read = `-- name: Read :many
-select db, fid, start, data from mg.dbentry where db = $1 and fid = $2 and start between $3 and $4 order by start
+select fid, start, data from mg.dbentry where fid = $1 and start between $2 and $3 order by start
 `
 
 type ReadParams struct {
-	Db      int64
 	Fid     int64
 	Start   int64
 	Start_2 int64
 }
 
 func (q *Queries) Read(ctx context.Context, arg ReadParams) ([]MgDbentry, error) {
-	rows, err := q.db.Query(ctx, read,
-		arg.Db,
-		arg.Fid,
-		arg.Start,
-		arg.Start_2,
-	)
+	rows, err := q.db.Query(ctx, read, arg.Fid, arg.Start, arg.Start_2)
 	if err != nil {
 		return nil, err
 	}
@@ -157,12 +159,7 @@ func (q *Queries) Read(ctx context.Context, arg ReadParams) ([]MgDbentry, error)
 	var items []MgDbentry
 	for rows.Next() {
 		var i MgDbentry
-		if err := rows.Scan(
-			&i.Db,
-			&i.Fid,
-			&i.Start,
-			&i.Data,
-		); err != nil {
+		if err := rows.Scan(&i.Fid, &i.Start, &i.Data); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -174,25 +171,25 @@ func (q *Queries) Read(ctx context.Context, arg ReadParams) ([]MgDbentry, error)
 }
 
 const revokeDevice = `-- name: RevokeDevice :exec
-delete from mg.device_org where device = $1 and org = $2
+delete from mg.device_org where device = $1 and oid = $2
 `
 
 type RevokeDeviceParams struct {
-	Device string
-	Org    string
+	Device int64
+	Oid    int64
 }
 
 func (q *Queries) RevokeDevice(ctx context.Context, arg RevokeDeviceParams) error {
-	_, err := q.db.Exec(ctx, revokeDevice, arg.Device, arg.Org)
+	_, err := q.db.Exec(ctx, revokeDevice, arg.Device, arg.Oid)
 	return err
 }
 
 const selectCredential = `-- name: SelectCredential :many
-select org, id, name, type, value from mg.credential where org = $1
+select oid, id, name, type, value from mg.credential where oid = $1
 `
 
-func (q *Queries) SelectCredential(ctx context.Context, org string) ([]MgCredential, error) {
-	rows, err := q.db.Query(ctx, selectCredential, org)
+func (q *Queries) SelectCredential(ctx context.Context, oid int64) ([]MgCredential, error) {
+	rows, err := q.db.Query(ctx, selectCredential, oid)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +198,7 @@ func (q *Queries) SelectCredential(ctx context.Context, org string) ([]MgCredent
 	for rows.Next() {
 		var i MgCredential
 		if err := rows.Scan(
-			&i.Org,
+			&i.Oid,
 			&i.ID,
 			&i.Name,
 			&i.Type,
@@ -218,40 +215,37 @@ func (q *Queries) SelectCredential(ctx context.Context, org string) ([]MgCredent
 }
 
 const selectOrg = `-- name: SelectOrg :one
-select org, name, is_user, password, hash_alg from mg.org where org = $1
+select oid, name, is_user, password, hash_alg, email, mobile, pin from mg.org where name = $1
 `
 
-func (q *Queries) SelectOrg(ctx context.Context, org string) (MgOrg, error) {
-	row := q.db.QueryRow(ctx, selectOrg, org)
+func (q *Queries) SelectOrg(ctx context.Context, name string) (MgOrg, error) {
+	row := q.db.QueryRow(ctx, selectOrg, name)
 	var i MgOrg
 	err := row.Scan(
-		&i.Org,
+		&i.Oid,
 		&i.Name,
 		&i.IsUser,
 		&i.Password,
 		&i.HashAlg,
+		&i.Email,
+		&i.Mobile,
+		&i.Pin,
 	)
 	return i, err
 }
 
 const trim = `-- name: Trim :exec
-delete from mg.dbentry where db = $1 and fid = $2 and start between $3 and $4
+delete from mg.dbentry where fid = $1 and start between $2 and $3
 `
 
 type TrimParams struct {
-	Db      int64
 	Fid     int64
 	Start   int64
 	Start_2 int64
 }
 
 func (q *Queries) Trim(ctx context.Context, arg TrimParams) error {
-	_, err := q.db.Exec(ctx, trim,
-		arg.Db,
-		arg.Fid,
-		arg.Start,
-		arg.Start_2,
-	)
+	_, err := q.db.Exec(ctx, trim, arg.Fid, arg.Start, arg.Start_2)
 	return err
 }
 
@@ -271,7 +265,7 @@ func (q *Queries) UpdateLock(ctx context.Context, arg UpdateLockParams) error {
 }
 
 const updatePrefix = `-- name: UpdatePrefix :one
-update mg.namePrefix set count=count+1 where name = $1 returning count
+update mg.name_prefix set count=count+1 where name = $1 returning count
 `
 
 func (q *Queries) UpdatePrefix(ctx context.Context, name string) (int64, error) {
@@ -282,22 +276,16 @@ func (q *Queries) UpdatePrefix(ctx context.Context, name string) (int64, error) 
 }
 
 const write = `-- name: Write :exec
-insert into mg.dbentry (db, fid, start, data) values ($1, $2, $3, $4)
+insert into mg.dbentry (fid, start, data) values ($1, $2, $3)
 `
 
 type WriteParams struct {
-	Db    int64
 	Fid   int64
 	Start int64
 	Data  []byte
 }
 
 func (q *Queries) Write(ctx context.Context, arg WriteParams) error {
-	_, err := q.db.Exec(ctx, write,
-		arg.Db,
-		arg.Fid,
-		arg.Start,
-		arg.Data,
-	)
+	_, err := q.db.Exec(ctx, write, arg.Fid, arg.Start, arg.Data)
 	return err
 }

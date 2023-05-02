@@ -44,8 +44,8 @@ func main() {
 		Root:     "",
 		ProxyTo:  "https://www.google.com",
 		Embed:    "/embed/",
-		AddrsTLS: []string{"localhost:8080"},
-		Addrs:    []string{},
+		AddrsTLS: []string{},
+		Addrs:    []string{"localhost:8080"},
 		OnLogin: func() string {
 			return "https://www.google.com"
 		},

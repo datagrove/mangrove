@@ -1,6 +1,6 @@
 import "./index.css"
-import { render } from "solid-js/web"
-import { simpleRouter } from "./core/dg"
+import { Match, Switch, render } from "solid-js/web"
+import { nav, simpleRouter } from "./core/dg"
 import { LoginPage } from "./login"
 
 function HomePage() {
@@ -10,9 +10,19 @@ function HomePage() {
     // initial choice of "page" is based on the route
 
     return <div>
-        <LoginPage/>
+        <Switch>
+            <Match when={nav() == "/"} >
+                <LoginPage /></Match>
+            <Match when={nav() == "home"} >
+                <div>Home</div>
+            </Match>
+            <Match when={true} >
+                <div>404</div>
+            </Match>
+        </Switch>
+        <div class='fixed top-0 left-0'>wtf? {nav()}</div>
     </div>
 }
 
-render(() => <HomePage />,document.getElementById("app")!)
+render(() => <HomePage />, document.getElementById("app")!)
 

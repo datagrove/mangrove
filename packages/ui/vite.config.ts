@@ -11,12 +11,12 @@ export default defineConfig({
   server: {
     host: true,
     proxy: {
-      // '/wss': {
-      //   target: 'https://localhost:5078/wss',
-      //   changeOrigin: true,
-      //   secure: false,
-      //   ws: true
-      // }, 
+      '/wss': {
+        target: 'https://localhost:5078/wss',
+        changeOrigin: true,
+        secure: false,
+        ws: true
+      },
       '/api': {
         target: 'https://localhost:8089',
         changeOrigin: true,

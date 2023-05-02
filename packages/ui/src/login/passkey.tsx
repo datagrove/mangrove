@@ -35,7 +35,7 @@ const login = async (user: string, password: string) => {
         user: user,
         password: password
     })
-    return 
+    return
 }
 // this blocks a promise waiting for the user to offer a passkey
 export async function initPasskey(setError: (e: string) => void) {
@@ -43,18 +43,18 @@ export async function initPasskey(setError: (e: string) => void) {
         // @ts-ignore
         || !PublicKeyCredential.isConditionalMediationAvailable
         || !await PublicKeyCredential.isConditionalMediationAvailable()
-        ) {
+    ) {
         return false
     }
 
     const ws = createWs()
-    const abortController = new AbortController();   
+    const abortController = new AbortController();
     const sec = security()
 
     // if we loop here, do we need to do first  part twice
     // this will return nil if the user is not registered?
     // that doesn't seem right
-    while (true) {
+    {
         try {
             const o2 = await ws.rpcj<any>("login", {
                 device: sec.deviceDid,
@@ -135,7 +135,7 @@ export const Register = () => {
 // we only use this if browser supports webauthn but not passkey?
 const webAuthnLogin = async (id: string) => {
 
-const ws = createWs()
+    const ws = createWs()
     // LOGIN
     const o2 = await ws.rpcj<any>("loginx", {
         device: id,
@@ -161,7 +161,7 @@ export const LoginPasskey: Component<{ login?: boolean }> = (props) => {
 
     const [bip39, setBip39] = createSignal(false)
 
-    initPasskey(setError).then((ok)=>{
+    initPasskey(setError).then((ok) => {
 
     })
 

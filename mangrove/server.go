@@ -36,6 +36,7 @@ type LoginInfo struct {
 	Error  int
 	Cookie string `json:"cookie,omitempty"`
 	Home   string `json:"home,omitempty"` // where to go after login
+	Name   string `json:"name,omitempty"`
 }
 
 // challenge type can be "optional" or "required" to indicate that the user may or should add a key

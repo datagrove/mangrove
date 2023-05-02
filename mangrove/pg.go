@@ -104,13 +104,13 @@ func (s *Server) NewDevice(u *UserDevice) error {
 		return e
 	}
 	return s.qu.InsertDevice(b, sq.InsertDeviceParams{
-		Device:   u.ID,
+		Device:   0, //u.ID,
 		Webauthn: string(webauth),
 	})
 }
 func (s *Server) LoadDevice(u *UserDevice, device string) error {
 	u.ID = device
-	a, e := s.Db.qu.GetDevice(context.Background(), device)
+	a, e := s.Db.qu.GetDevice(context.Background(), 0) //device)
 	if e != nil {
 		return e
 	}
@@ -124,9 +124,9 @@ func (s *Server) UpdateDevice(u *UserDevice) error {
 	if e != nil {
 		return e
 	}
-	s.qu.DeleteDevice(context.Background(), u.ID)
+	s.qu.DeleteDevice(context.Background(), 0) //u.ID)
 	return s.qu.InsertDevice(context.Background(), sq.InsertDeviceParams{
-		Device:   "",
+		Device:   0, // "",
 		Webauthn: string(b),
 	})
 }
