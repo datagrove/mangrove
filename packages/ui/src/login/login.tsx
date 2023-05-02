@@ -36,17 +36,18 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
         setError_((ln() as any)[e] ?? e)
     }
     const [okname, setOkname] = createSignal(false)
+    const [finished, setFinished] = createSignal(false)
 
     const finishLogin = (i: LoginInfo|null|undefined) => {
         console.log("finish login", i)
         if (i) {
             //location.href = i.home
+            setFinished(true)
         }
     }
 
     // we need to abort the wait before we can register a new key.
     const setScreen = (r: Screen) => {
-        abortController.abort()
         if (r == Screen.Login) {
             initPasskey(setError)
         }
@@ -81,6 +82,7 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
             }
             setLoginInfo(loginInfo)
             // ask for second factor here.
+            abortController.abort()
             setScreen(Screen.AddKey)
         }
     }
@@ -95,6 +97,7 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
             setError(err)
             return
         }
+        abortController.abort()
         // if the challenge type is 0 then we would ask for a second factor
         const typ = ch?.challenge_type??0
         switch(typ) {
@@ -138,8 +141,12 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
         el.focus()
     }
     return <div dir={ln().dir}>
-        <AddPasskey when={() => screen() == Screen.AddKey} onChange={onCloseAddKey} validate={validate} />
-        <GetSecret validate={validate} when={() => screen() == Screen.Secret} onChange={confirmSecret} />
+        <Show when={finished()}>
+            <Center><pre>{JSON.stringify(loginInfo())}</pre></Center>
+        </Show>
+        <Show when={!finished()}>
+        <AddPasskey when={() => screen() == Screen.AddKey} onClose={onCloseAddKey} />
+        <GetSecret validate={validate} when={() => screen() == Screen.Secret} onClose={confirmSecret} />
         <div class='fixed w-screen flex flex-row items-center pr-4'>
             <div class='flex-1' />
             <div class='w-48'><LanguageSelect /></div>
@@ -163,6 +170,7 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
 
             <div class='mt-2'><A href='#' onClick={startRegister}>{register() ? "Cancel" : "Register"}</A></div>
         </Center>
+        </Show>
     </div>
 }
 

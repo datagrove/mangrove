@@ -31,10 +31,17 @@ type Session struct {
 	mu     sync.Mutex
 	//Watch    []*Watch
 	// maps a fid to a stream handle
-	Handle        map[int64]StreamHandle
-	Notifier      SessionNotifier
-	ChallengeInfo ChallengeInfo
+	Handle   map[int64]StreamHandle
+	Notifier SessionNotifier
 	RegisterInfo
+	Mobile    string
+	Email     string
+	Voice     string
+	Challenge string
+	Totp      string
+	*LoginInfo
+	DefaultFactor int
+	FactorValue   string // hold a value while we are testing it.
 }
 type StreamHandle struct {
 	*Stream
@@ -392,7 +399,7 @@ func WebauthnSocket(mg *Server) error {
 	})
 
 	// don't store in the database until we check it.
-	mg.AddApij("", true, func(r *Rpcpj) (any, error) {
+	mg.AddApij("addfactor", true, func(r *Rpcpj) (any, error) {
 		var v struct {
 			Type  int    `json:"type"`
 			Value string `json:"value"`
@@ -401,32 +408,45 @@ func WebauthnSocket(mg *Server) error {
 		if e != nil {
 			return nil, e
 		}
-		rx := &r.Session.ChallengeInfo
-		rx.ChallengeType = v.Type
-		rx.ChallengeSentTo = v.Value
-		mg.SendChallenge(r.Session)
-		// don't insert into the database here, we need to confirm the factor first
+		// add factor only changes the session
 
-		return &r.Session.ChallengeInfo, nil
+		r.Session.DefaultFactor = v.Type
+		r.Session.FactorValue = v.Value
+
+		return mg.SendChallenge(r.Session)
 	})
 	// check the challenge and add the factor
-	mg.AddApij("2", true, func(r *Rpcpj) (any, error) {
+	mg.AddApij("addfactor2", true, func(r *Rpcpj) (any, error) {
 		var v struct {
-			Type  int    `json:"type"`
-			Value string `json:"value"`
+			Challenge string `json:"challenge"`
 		}
 		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
-		if mg.ValidateChallenge(r.Session, v.Value) {
+		if mg.ValidateChallenge(r.Session, v.Challenge) {
 			// store the factor
-			mg.StoreFactor(r.Session, v.Type, v.Value, nil)
+			mg.StoreFactor(r.Session, r.Session.DefaultFactor, r.Session.FactorValue, nil)
 			return true, nil
 		} else {
-			return false, nil
+			return nil, errors.New("invalid")
 		}
 	})
+	mg.AddApij("loginpassword2", false, func(r *Rpcpj) (any, error) {
+		var v struct {
+			Challenge string `json:"challenge"`
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		if mg.ValidateChallenge(r.Session, v.Challenge) {
+			return mg.GetLoginInfo()
+		} else {
+			return nil, errors.New("invalid")
+		}
+	})
+
 	// we will need to login first with just a password, then we can add a factor
 	// later we can offer a registration form
 	mg.AddApij("loginpassword", false, func(r *Rpcpj) (any, error) {
@@ -442,17 +462,6 @@ func WebauthnSocket(mg *Server) error {
 		}
 
 		return mg.PasswordLogin(r.Session, v.Username, v.Password, 0)
-	})
-	mg.AddApij("loginpassword2", false, func(r *Rpcpj) (any, error) {
-		var v struct {
-			Challenge string `json:"challenge"`
-		}
-		e := json.Unmarshal(r.Params, &v)
-		if e != nil {
-			return nil, e
-		}
-
-		return r.Session.ChallengeInfo.LoginInfo, nil
 	})
 
 	// take the user name and return a challenge

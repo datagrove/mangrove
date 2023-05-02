@@ -54,7 +54,6 @@ export async function initPasskey(setError: (e: string) => void) : Promise<Login
     }
     abortController = new AbortController()
     const ws = createWs()
-
     const sec = security()
 
     // if we loop here, do we need to do first  part twice
@@ -85,7 +84,7 @@ export async function initPasskey(setError: (e: string) => void) : Promise<Login
             // rejected if the key is not registered. loop back then to get another?
             return  await ws.rpcj<LoginInfo>("login2", o.toJSON())
         } catch (e: any) {
-            setError(e.message)
+            // don't show error here, we probably just aborted the signal
         }
     }
     // instead of navigate we need get the site first

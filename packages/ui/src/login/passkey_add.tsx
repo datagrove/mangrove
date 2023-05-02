@@ -29,9 +29,7 @@ export interface LoginChoice {
 //     setLoginChoice({ factor: "", email: "jimh@datagrove.com", phone: "4843664923" })
 // }
 
-export interface UserMfa {
 
-}
 export const InputLabel = (props: any) => {
     return <div><label {...props} class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</label></div>
 }
@@ -147,11 +145,13 @@ export interface ChallengeNotify {
 	other_options: number
     login_info?: LoginInfo
 }
+
+// Needs to work like a dialog box opens when signals true, calls close when done.
 export const GetSecret: Component<{
     when: () => boolean,
     validate: (secret: string) => Promise<boolean>,
-    onChange: (ok: boolean) => void
-}> = (props) => {
+    onClose: (ok: boolean) => void}> = (props) => {
+
     const ln = useLn()
 
     const [error, setError] = createSignal("")
@@ -165,7 +165,7 @@ export const GetSecret: Component<{
 
     const cancel = (e: any) => {
         e.preventDefault()
-        props.onChange(false)
+        props.onClose(false)
     }
     const submit = (e: any) => {
         e.preventDefault()
@@ -173,7 +173,7 @@ export const GetSecret: Component<{
             if (!ok) {
                 setError(ln().invalidCode)
             } else {
-                props.onChange(true)
+                props.onClose(false)
             }
         })
     }
@@ -199,9 +199,8 @@ interface Totp  {
 }
 export const AddPasskey: Component<{
     when: () => boolean, required?: boolean,
-    onChange: (u: UserMfa) => void
+    onClose: (u: boolean) => void
     allow?: string[],
-    validate: (secret: string) => Promise<boolean>,
 }> = (props) => {
     const ws = createWs()
     const ln = useLn()
@@ -212,7 +211,7 @@ export const AddPasskey: Component<{
     const [email, setEmail] = createSignal("")
     const [mobile, setMobile] = createSignal("")
     const [voice, setVoice ] = createSignal("")
-    const [isOpenGetSecret, openGetSecret] = createSignal(false)
+    const [isOpenGetSecret, setIsOpenGetSecret] = createSignal(false)
 
     const [dataUrl, setDataUrl] = createSignal("")
 
@@ -231,8 +230,19 @@ export const AddPasskey: Component<{
          }
     
     }
-
-
+    // why do we need validate and close? Can't validate close?
+    const validate = async (secret: string) => {
+        // this must be a socket call
+        const [log, e] = await ws.rpcje<LoginInfo>("addfactor2", { challenge: secret })
+        if (e) {
+            console.log(e)
+            return false
+        }
+        // we don't need to set login information, we are already logged in
+        //setLoginInfo(log)
+        return true
+    }
+ 
 
     createEffect(() => {
         if (props.when()) {
@@ -247,7 +257,7 @@ export const AddPasskey: Component<{
             const cco = parseCreationOptionsFromJSON(o)
             const cred = await create(cco)
             const token = await ws.rpcj<any>("addpasskey2", cred.toJSON())
-            props.onChange({})
+            props.onClose(true)
         } else {
             let v = ""
             switch(factor()) {
@@ -267,19 +277,19 @@ export const AddPasskey: Component<{
                 value: v
             })
 
-            openGetSecret(true)
+            setIsOpenGetSecret(true)
         }
     }
 
     // we just close and go on.
-    const notNow = () => { props.onChange({}) }
+    const notNow = () => { props.onClose(false) }
     // here we have to save our choice to the database
     const notEver = async () => { 
         await ws.rpcje("updatemfa", {
             mfa: 'none'
         })
 
-        props.onChange({}) 
+        props.onClose(false) 
     }
 
     const changeFactor = (e: any) => {
@@ -288,9 +298,14 @@ export const AddPasskey: Component<{
             fb()
         }
     }
+    const closeSecret = () =>{
+        setIsOpenGetSecret(false)
+        // this onclose should finalize the login
+        props.onClose(true)
+    }
 
     return <>
-        <GetSecret when={isOpenGetSecret} onChange={openGetSecret} validate={props.validate} />
+        <GetSecret when={isOpenGetSecret} onClose={closeSecret} validate={validate} />
         <Show when={props.when() && !isOpenGetSecret()}>
             <Dialog>
                 <Center>

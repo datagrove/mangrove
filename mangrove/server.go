@@ -46,6 +46,7 @@ type ChallengeNotify struct {
 	LoginInfo *LoginInfo `json:"login_info,omitempty"`
 }
 
+// only the ChallengeNotify structure is sent (not secret). Note that loginInfo is sometimes secret (not logged in yet), sometimes not
 type ChallengeInfo struct {
 	// either login or challenge info
 	LoginInfo       *LoginInfo `json:"login_info,omitempty"`

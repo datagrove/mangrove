@@ -150,6 +150,155 @@ func pt(s string) pgtype.Text {
 	return pgtype.Text{String: s, Valid: len(s) > 0}
 }
 
+func (s *Server) Register(sess *Session) (string, error) {
+	// modifies the name to be unique
+	user := sess.Username
+
+	// this would force the name to be unique, but the ux is awkward
+	// count, e := s.Db.qu.UpdatePrefix(context.Background(), user)
+	// if e != nil {
+	// 	e := s.Db.qu.InsertPrefix(context.Background(), user)
+	// 	if e != nil {
+	// 		return "", e
+	// 	}
+	// 	count = 0
+	// }
+
+	// if count > 0 {
+	// 	user = fmt.Sprintf("%s%d", user, count)
+	// }
+
+	// hash the password
+	by, e := bcrypt.GenerateFromPassword([]byte(sess.Password), bcrypt.DefaultCost)
+	if e != nil {
+		return "", e
+	}
+	key, e := totp.Generate(totp.GenerateOpts{
+		Issuer:      s.Name,
+		AccountName: user,
+	})
+	if e != nil {
+		return "", e
+	}
+	// Convert TOTP key into a PNG
+	var buf bytes.Buffer
+	img, err := key.Image(200, 200)
+	if err != nil {
+		panic(err)
+	}
+	png.Encode(&buf, img)
+
+	oid, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
+		Name:     user,
+		IsUser:   true,
+		Password: by,
+		HashAlg:  pgtype.Text{String: "bcrypt", Valid: true},
+		Email:    pt(sess.Email),
+		Mobile:   pt(sess.Phone),
+		Pin:      "",
+		Webauthn: "",
+		Totp:     key.Secret(),
+		TotpPng:  buf.Bytes(),
+		Flags:    0,
+	})
+	sess.Oid = oid
+	sess.Name = user
+
+	return user, e
+}
+
+// this can be 0, it can be kNone. In both cases we should send the loginInfo since we are already logged in.
+
+// pref should be a mask?
+func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (*ChallengeNotify, error) {
+	a, e := s.Db.qu.SelectOrgByName(context.Background(), user)
+	if e != nil {
+		return nil, e
+	}
+	e = bcrypt.CompareHashAndPassword([]byte(a.Password), []byte(password))
+	if e != nil {
+		return nil, e
+	}
+	sess.Oid = a.Oid
+	sess.Name = a.Name
+	sess.DisplayName = a.Name
+	sess.Mobile = a.Mobile.String
+	sess.Email = a.Email.String
+	sess.Voice = a.Mobile.String
+	sess.Totp = a.Totp
+	sess.DefaultFactor = int(a.DefaultFactor)
+
+	return s.SendChallenge(sess)
+}
+
+// logging in always sends the ChallengeNotify, but we can also send it after logging in to confirm configuration changes.
+func (s *Server) GetLoginInfo() (*LoginInfo, error) {
+	c, e := GenerateRandomString(32)
+	return &LoginInfo{
+		Error:  0,
+		Cookie: c,
+		Home:   s.AfterLogin,
+	}, e
+}
+
+// using the database here is not good
+// we want to test the values before we store them
+func (s *Server) SendChallenge(sess *Session) (*ChallengeNotify, error) {
+	code, e := message.CreateCode()
+	if e != nil {
+		return nil, e
+	}
+	msg := fmt.Sprintf("The security code for %s is %s", s.Name, code)
+	sess.Challenge = code
+
+	var li *LoginInfo
+
+	var to string
+	switch sess.DefaultFactor {
+	case kNone, 0:
+		li, _ = s.GetLoginInfo()
+	case kMobile:
+		to = sess.Mobile
+		e = message.Sms(to, msg)
+	case kVoice:
+		to = sess.Mobile
+		e = message.Sms(to, msg)
+	case kEmail:
+		to = sess.Email
+		subj := fmt.Sprintf("Security code for %s", s.Name)
+		o := &message.Email{
+			Sender:    s.EmailSource,
+			Recipient: to,
+			Subject:   subj,
+			Html:      "",
+			Text:      msg,
+		}
+		e = o.Send()
+	case kTotp, kApp:
+		// ?
+	}
+	if e != nil {
+		return nil, e
+	}
+
+	cn := &ChallengeNotify{
+		ChallengeType:   int(sess.DefaultFactor),
+		ChallengeSentTo: to,
+		OtherOptions:    0,
+		LoginInfo:       li,
+	}
+	return cn, nil
+}
+func (mg *Server) ValidateChallenge(sess *Session, value string) bool {
+	switch sess.DefaultFactor {
+	case kMobile, kVoice, kEmail:
+		return value == sess.Challenge
+	case kTotp:
+		return totp.Validate(value, sess.Totp)
+	}
+	return false
+}
+
 // called from register2 with webauthn
 // exclude credentials?
 func (s *Server) StoreFactor(sess *Session, key int, value string, cred *webauthn.Credential) error {
@@ -220,151 +369,6 @@ func (s *Server) StoreFactor(sess *Session, key int, value string, cred *webauth
 	})
 	return nil
 }
-
-func (s *Server) Register(sess *Session) (string, error) {
-	// modifies the name to be unique
-	user := sess.Username
-
-	// this would force the name to be unique, but the ux is awkward
-	// count, e := s.Db.qu.UpdatePrefix(context.Background(), user)
-	// if e != nil {
-	// 	e := s.Db.qu.InsertPrefix(context.Background(), user)
-	// 	if e != nil {
-	// 		return "", e
-	// 	}
-	// 	count = 0
-	// }
-
-	// if count > 0 {
-	// 	user = fmt.Sprintf("%s%d", user, count)
-	// }
-
-	// hash the password
-	by, e := bcrypt.GenerateFromPassword([]byte(sess.Password), bcrypt.DefaultCost)
-	if e != nil {
-		return "", e
-	}
-	key, e := totp.Generate(totp.GenerateOpts{
-		Issuer:      s.Name,
-		AccountName: user,
-	})
-	if e != nil {
-		return "", e
-	}
-	// Convert TOTP key into a PNG
-	var buf bytes.Buffer
-	img, err := key.Image(200, 200)
-	if err != nil {
-		panic(err)
-	}
-	png.Encode(&buf, img)
-
-	oid, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
-		Name:     user,
-		IsUser:   true,
-		Password: by,
-		HashAlg:  pgtype.Text{String: "bcrypt", Valid: true},
-		Email:    pt(sess.Email),
-		Mobile:   pt(sess.Phone),
-		Pin:      "",
-		Webauthn: "",
-		Totp:     key.Secret(),
-		TotpPng:  buf.Bytes(),
-		Flags:    0,
-	})
-	sess.Oid = oid
-	sess.Name = user
-
-	return user, e
-}
-func (mg *Server) ValidateChallenge(sess *Session, value string) bool {
-	rx := &sess.ChallengeInfo
-	switch rx.ChallengeType {
-	case kMobile, kVoice, kEmail:
-		return value == rx.Challenge
-	case kTotp:
-		return totp.Validate(value, rx.ChallengeSentTo)
-	}
-	return false
-}
-
-// this can be 0, it can be kNone. In both cases we should send the loginInfo since we are already logged in.
-
-// pref should be a mask?
-func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (*ChallengeNotify, error) {
-	a, e := s.Db.qu.SelectOrgByName(context.Background(), user)
-	if e != nil {
-		return nil, e
-	}
-	c, e := GenerateRandomString(32)
-	if e != nil {
-		return nil, e
-	}
-	code, e := message.CreateCode()
-	if e != nil {
-		return nil, e
-	}
-	e = bcrypt.CompareHashAndPassword([]byte(a.Password), []byte(password))
-	if e != nil {
-		return nil, e
-	}
-	var addr string = ""
-	sess.Oid = a.Oid
-	sess.Name = a.Name
-	sess.DisplayName = a.Name
-
-	// we know the password at this point, so now pick from available factors.
-	sess.ChallengeInfo = ChallengeInfo{
-		LoginInfo: &LoginInfo{
-			Error:  0,
-			Cookie: c,
-			Home:   s.AfterLogin,
-		},
-		ChallengeNotify: ChallengeNotify{
-			ChallengeType:   int(a.DefaultFactor),
-			ChallengeSentTo: addr,
-			OtherOptions:    int(a.Flags),
-		},
-		Challenge: code,
-	}
-
-	return s.SendChallenge(sess)
-}
-
-// logging in always sends the ChallengeNotify, but we can also send it after logging in to confirm configuration changes.
-func (mg *Server) SendChallenge(sess *Session) (*ChallengeNotify, error) {
-	rx := sess.ChallengeInfo
-	var e error
-	msg := fmt.Sprintf("The security code for %s is %s", mg.Name, rx.Challenge)
-	switch rx.ChallengeType {
-	case kNone:
-	case 0:
-
-	case kMobile:
-		e = message.Sms(rx.ChallengeSentTo, msg)
-	case kVoice:
-		e = message.Sms(rx.ChallengeSentTo, msg)
-	case kEmail:
-		subj := fmt.Sprintf("Security code for %s", mg.Name)
-		o := &message.Email{
-			Sender:    mg.EmailSource,
-			Recipient: rx.ChallengeSentTo,
-			Subject:   subj,
-			Html:      "",
-			Text:      msg,
-		}
-		e = o.Send()
-	case kTotp:
-
-	case kApp:
-		// ?
-	}
-	if e != nil {
-		return nil, e
-	}
-	return &rx.ChallengeNotify, nil
-}
-
 func (mg *Server) Open(sess *Session, w *OpenDb) (int64, error) {
 	//ucan.Parse(w.Auth)
 	return 0, nil

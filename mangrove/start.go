@@ -172,8 +172,8 @@ func (s *Socket) Notify(handle int64, data interface{}) {
 
 func (s *Server) AddApi(name string, login bool, f Rpcf) {
 	fx := func(p *Rpcp) (interface{}, error) {
-		if p.Session.UserDevice.ID == "" {
-			return nil, errors.New("not ")
+		if p.Session.Oid == -1 && login {
+			return nil, errors.New("notLoggedIn")
 		}
 		return f(p)
 	}
@@ -224,15 +224,14 @@ func (s *Server) NewSession(notifier SessionNotifier) (*Session, error) {
 	defer s.muSession.Unlock()
 
 	r := &Session{
-		Oid:           -1,
-		UserDevice:    UserDevice{},
-		Device:        "",
-		Secret:        secret,
-		data:          nil,
-		mu:            sync.Mutex{},
-		Handle:        map[int64]StreamHandle{},
-		Notifier:      notifier,
-		ChallengeInfo: ChallengeInfo{},
+		Oid:        -1,
+		UserDevice: UserDevice{},
+		Device:     "",
+		Secret:     secret,
+		data:       nil,
+		mu:         sync.Mutex{},
+		Handle:     map[int64]StreamHandle{},
+		Notifier:   notifier,
 	}
 	s.Session[secret] = r
 	return r, nil
