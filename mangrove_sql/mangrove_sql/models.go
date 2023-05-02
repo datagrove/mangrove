@@ -8,6 +8,14 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type MgCredential struct {
+	Org   string
+	ID    int32
+	Name  pgtype.Text
+	Type  pgtype.Text
+	Value []byte
+}
+
 type MgDb struct {
 	Db   int32
 	Name string
@@ -18,6 +26,12 @@ type MgDbentry struct {
 	Fid   int64
 	Start int64
 	Data  []byte
+}
+
+type MgDblock struct {
+	Db     int64
+	Name   []byte
+	Serial pgtype.Int8
 }
 
 type MgDbstream struct {
@@ -43,9 +57,11 @@ type MgNameprefix struct {
 }
 
 type MgOrg struct {
-	Org    string
-	Name   pgtype.Text
-	IsUser bool
+	Org      string
+	Name     pgtype.Text
+	IsUser   bool
+	Password []byte
+	HashAlg  pgtype.Text
 }
 
 type MgOrgDb struct {

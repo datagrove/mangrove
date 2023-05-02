@@ -21,6 +21,7 @@ require (
 	github.com/aead/chacha20poly1305 v0.0.0-20170617001512-233f39982aeb // indirect
 	github.com/aead/poly1305 v0.0.0-20180717145839-3fee0db0b635 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
+	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/go-webauthn/revoke v0.1.9 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/mock v1.6.0 // indirect
@@ -65,6 +66,7 @@ require (
 	github.com/otiai10/copy v1.10.0
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/sftp v1.13.5
+	github.com/pquerna/otp v1.4.0
 	github.com/roylee0704/gron v0.0.0-20160621042432-e78485adab46
 	github.com/rs/cors v1.9.0
 	github.com/rs/zerolog v1.29.0

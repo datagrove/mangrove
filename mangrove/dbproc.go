@@ -6,6 +6,13 @@ import (
 	"sync"
 
 	"github.com/datagrove/mangrove/mangrove_sql/mangrove_sql"
+	"github.com/datagrove/mangrove/message"
+	"github.com/jackc/pgx/v5/pgtype"
+	"golang.org/x/crypto/bcrypt"
+)
+
+const (
+	demo123 = "$2a$12$moAgCg/c0OUQyS67TktVJehoY71wxds3syPOvKwNNONfabXGwGyPG"
 )
 
 func (s *Server) CloseStream(fid int64) {
@@ -113,6 +120,68 @@ type OpenDb struct {
 	Subscribe bool
 }
 
+func (s *Server) StoreFactor(sess *Session) error {
+	s.Db.qu.InsertCredential(context.Background(), mangrove_sql.InsertCredentialParams{
+		Org: sess.Name,
+		Name: pgtype.Text{
+			String: "",
+			Valid:  false,
+		},
+		Type: pgtype.Text{
+			String: "",
+			Valid:  false,
+		},
+		Value: []byte{},
+	})
+	return nil
+}
+
+func (s *Server) PasswordLoginInternal(sess *Session, user, password string, pref int) bool {
+	a, e := s.Db.qu.SelectOrg(context.Background(), user)
+	if e != nil {
+		return false
+	}
+	c, e := GenerateRandomString(32)
+	if e != nil {
+		return false
+	}
+	code, e := message.CreateCode()
+	if e != nil {
+		return false
+	}
+	// look up the credentials and take the highest priority one
+	// return alternatives.
+	cr, _ := s.Db.qu.SelectCredential(context.Background(), user)
+	// we might not have a credential and that might be ok.
+	opt := []string{}
+	var typ, address string
+	for _, v := range cr {
+		opt = append(opt, v.Type.String, string(v.Value))
+		typ = v.Type.String
+		address = string(v.Value)
+	}
+	if pref > 0 && pref <= len(cr) {
+		i := pref - 1
+		typ = opt[i*2]
+		address = opt[i*2+1]
+	}
+
+	sess.ChallengeInfo = ChallengeInfo{
+		LoginInfo: &LoginInfo{
+			Error:  0,
+			Cookie: c,
+			Home:   s.AfterLogin,
+		},
+		ChallengeNotify: ChallengeNotify{
+			ChallengeType:   typ,
+			ChallengeSentTo: address,
+			OtherOptions:    opt,
+		},
+		Challenge: code,
+	}
+	e = bcrypt.CompareHashAndPassword([]byte(a.Password), []byte(password))
+	return e == nil
+}
 func (mg *Server) Open(sess *Session, w *OpenDb) (int64, error) {
 	//ucan.Parse(w.Auth)
 	return 0, nil

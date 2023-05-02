@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image/png"
 	"net/http"
 	"sync"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/pquerna/otp/totp"
 )
 
 type Session struct {
@@ -298,51 +300,99 @@ func WebauthnSocket(mg *Server) error {
 		return mg.SuggestName("")
 	})
 
-	// the ChallegeNotify could also be used to trigger an offer (or requirement) for MFA
+	mg.AddApi("gettotp", true, func(r *Rpcp) (any, error) {
+		var v struct {
+			Name string `json:"name"`
+		}
+		sockUnmarshal(r.Params, &v)
+		key, e := totp.Generate(totp.GenerateOpts{
+			Issuer:      mg.Name,
+			AccountName: v.Name,
+		})
+		if e != nil {
+			return nil, e
+		}
+		// Convert TOTP key into a PNG
+		var buf bytes.Buffer
+		img, err := key.Image(200, 200)
+		if err != nil {
+			panic(err)
+		}
+		png.Encode(&buf, img)
+
+		type Totp struct {
+			img    []byte
+			secret string `json:"secret"`
+		}
+		rx := Totp{
+			img:    buf.Bytes(),
+			secret: key.Secret(),
+		}
+		r.ChallengeInfo.Challenge = key.Secret()
+		return &rx, nil
+	})
+
+	mg.AddApij("addfactor", true, func(r *Rpcpj) (any, error) {
+		var v struct {
+			Type  string `json:"type"`
+			Value string `json:"value"`
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		// don't insert into the database here, we need to confirm the factor first
+		rx := &r.Session.ChallengeInfo
+		rx.ChallengeType = v.Type
+		rx.ChallengeSentTo = v.Value
+
+		return mg.SendChallenge(r.Session)
+	})
+	// check the challenge and add the factor
+	mg.AddApij("addfactor2", true, func(r *Rpcpj) (any, error) {
+		var v struct {
+			Type  string `json:"type"`
+			Value string `json:"value"`
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		if mg.ValidateChallenge(r.Session, v.Value) {
+			// store the factor
+			mg.StoreFactor(r.Session)
+			return true, nil
+		} else {
+			return false, nil
+		}
+	})
+	// we will need to login first with just a password, then we can add a factor
+	// later we can offer a registration form
 	mg.AddApij("loginpassword", false, func(r *Rpcpj) (any, error) {
 		var v struct {
 			Username string `json:"username"`
 			Password string `json:"password"`
+			Pref     int    `json:"pref"` // which credential to challenge with
 		}
 
 		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
-		code, e := message.CreateCode()
-		if e != nil {
-			return nil, e
-		}
-		rx := &r.Session.ChallengeInfo
-		r.Session.data.Challenge = code
-		ok := mg.PasswordLogin(v.Username, v.Password, rx)
-		if !ok {
-			return nil, errors.New("invalid password")
-		}
 
-		msg := fmt.Sprintf("The security code for %s is %s", mg.Name, code)
-		switch rx.ChallengeType {
-		case "sms":
-			e = message.Sms(rx.ChallengeSentTo, msg)
-		case "voice":
-			e = message.Sms(rx.ChallengeSentTo, msg)
-		case "email":
-			subj := fmt.Sprintf("Security code for %s", mg.Name)
-			o := &message.Email{
-				Sender:    mg.EmailSource,
-				Recipient: rx.ChallengeSentTo,
-				Subject:   subj,
-				Html:      "",
-				Text:      msg,
+		if mg.PasswordLogin != nil {
+			ok := mg.PasswordLogin(r.Session, v.Username, v.Password)
+			if !ok {
+				return nil, errors.New("invalid password")
 			}
-			e = o.Send()
-		case "app":
-			// ?
+		} else {
+			ok := mg.PasswordLoginInternal(r.Session, v.Username, v.Password, 0)
+			if !ok {
+				return nil, errors.New("invalid password")
+			}
 		}
-		if e != nil {
-			return nil, e
-		}
-		return &rx.ChallengeNotify, nil
+		return mg.SendChallenge(r.Session)
+
 	})
 	mg.AddApij("loginpassword2", false, func(r *Rpcpj) (any, error) {
 		var v struct {
@@ -351,9 +401,6 @@ func WebauthnSocket(mg *Server) error {
 		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
 			return nil, e
-		}
-		if v.Challenge != r.Session.data.Challenge {
-			return nil, errors.New("invalid challenge")
 		}
 
 		return r.Session.ChallengeInfo.LoginInfo, nil
@@ -449,6 +496,47 @@ func WebauthnSocket(mg *Server) error {
 
 	return nil
 
+}
+
+func (mg *Server) ValidateChallenge(sess *Session, value string) bool {
+	rx := &sess.ChallengeInfo
+	switch rx.ChallengeType {
+	case "sms", "voice", "email":
+		return value == rx.Challenge
+	case "totp":
+		return totp.Validate(value, rx.ChallengeSentTo)
+	}
+	return false
+}
+
+func (mg *Server) SendChallenge(sess *Session) (any, error) {
+	rx := sess.ChallengeInfo
+	var e error
+	msg := fmt.Sprintf("The security code for %s is %s", mg.Name, rx.Challenge)
+	switch rx.ChallengeType {
+	case "sms":
+		e = message.Sms(rx.ChallengeSentTo, msg)
+	case "voice":
+		e = message.Sms(rx.ChallengeSentTo, msg)
+	case "email":
+		subj := fmt.Sprintf("Security code for %s", mg.Name)
+		o := &message.Email{
+			Sender:    mg.EmailSource,
+			Recipient: rx.ChallengeSentTo,
+			Subject:   subj,
+			Html:      "",
+			Text:      msg,
+		}
+		e = o.Send()
+	case "totp":
+
+	case "app":
+		// ?
+	}
+	if e != nil {
+		return nil, e
+	}
+	return &rx.ChallengeNotify, nil
 }
 
 // GenerateRandomBytes returns securely generated random bytes.

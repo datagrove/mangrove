@@ -46,6 +46,27 @@ func (q *Queries) GetDevice(ctx context.Context, device string) (MgDevice, error
 	return i, err
 }
 
+const insertCredential = `-- name: InsertCredential :exec
+insert into mg.credential (org, name, type, value) values ($1, $2, $3, $4)
+`
+
+type InsertCredentialParams struct {
+	Org   string
+	Name  pgtype.Text
+	Type  pgtype.Text
+	Value []byte
+}
+
+func (q *Queries) InsertCredential(ctx context.Context, arg InsertCredentialParams) error {
+	_, err := q.db.Exec(ctx, insertCredential,
+		arg.Org,
+		arg.Name,
+		arg.Type,
+		arg.Value,
+	)
+	return err
+}
+
 const insertDevice = `-- name: InsertDevice :exec
 insert into mg.device (device, webauthn) values ($1, $2)
 `
@@ -57,6 +78,21 @@ type InsertDeviceParams struct {
 
 func (q *Queries) InsertDevice(ctx context.Context, arg InsertDeviceParams) error {
 	_, err := q.db.Exec(ctx, insertDevice, arg.Device, arg.Webauthn)
+	return err
+}
+
+const insertLock = `-- name: InsertLock :exec
+insert into mg.dblock (db, name, serial) values ($1, $2, 1)
+`
+
+type InsertLockParams struct {
+	Db   int64
+	Name []byte
+}
+
+// if value is 1, then we need to insert
+func (q *Queries) InsertLock(ctx context.Context, arg InsertLockParams) error {
+	_, err := q.db.Exec(ctx, insertLock, arg.Db, arg.Name)
 	return err
 }
 
@@ -151,6 +187,53 @@ func (q *Queries) RevokeDevice(ctx context.Context, arg RevokeDeviceParams) erro
 	return err
 }
 
+const selectCredential = `-- name: SelectCredential :many
+select org, id, name, type, value from mg.credential where org = $1
+`
+
+func (q *Queries) SelectCredential(ctx context.Context, org string) ([]MgCredential, error) {
+	rows, err := q.db.Query(ctx, selectCredential, org)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MgCredential
+	for rows.Next() {
+		var i MgCredential
+		if err := rows.Scan(
+			&i.Org,
+			&i.ID,
+			&i.Name,
+			&i.Type,
+			&i.Value,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectOrg = `-- name: SelectOrg :one
+select org, name, is_user, password, hash_alg from mg.org where org = $1
+`
+
+func (q *Queries) SelectOrg(ctx context.Context, org string) (MgOrg, error) {
+	row := q.db.QueryRow(ctx, selectOrg, org)
+	var i MgOrg
+	err := row.Scan(
+		&i.Org,
+		&i.Name,
+		&i.IsUser,
+		&i.Password,
+		&i.HashAlg,
+	)
+	return i, err
+}
+
 const trim = `-- name: Trim :exec
 delete from mg.dbentry where db = $1 and fid = $2 and start between $3 and $4
 `
@@ -169,6 +252,21 @@ func (q *Queries) Trim(ctx context.Context, arg TrimParams) error {
 		arg.Start,
 		arg.Start_2,
 	)
+	return err
+}
+
+const updateLock = `-- name: UpdateLock :exec
+update mg.dblock set serial = $3 where db = $1 and name = $2
+`
+
+type UpdateLockParams struct {
+	Db     int64
+	Name   []byte
+	Serial pgtype.Int8
+}
+
+func (q *Queries) UpdateLock(ctx context.Context, arg UpdateLockParams) error {
+	_, err := q.db.Exec(ctx, updateLock, arg.Db, arg.Name, arg.Serial)
 	return err
 }
 

@@ -37,10 +37,22 @@ create table mg.namePrefix(
     count bigint not null
     );
 
+-- orgs are users or groups, password is bcrypt, optional
 create table  mg.org( 
     org text primary key, 
     name text unique, 
-    is_user boolean not null
+    is_user boolean not null,
+    password bytea,
+    hash_alg text
+);
+create table mg.credential (
+    org text not null,
+    id serial,
+    name text,
+    type text,
+    value bytea,
+    primary key(org,id),
+    foreign key (org) references mg.org(org) on delete cascade
 );
 create table mg.org_db(
     org text not null, 

@@ -27,8 +27,9 @@ type MangroveServer struct {
 	AddrsTLS      []string //terrible name
 	Addrs         []string
 	OnLogin       func() string
-	PasswordLogin func(user, password string, info *ChallengeInfo) bool
+	PasswordLogin func(sess *Session, user, password string) bool
 	EmailSource   string
+	AfterLogin    string // use if PasswordLogin is nil, url after login
 }
 
 type LoginInfo struct {
@@ -39,8 +40,9 @@ type LoginInfo struct {
 
 // challenge type can be "optional" or "required" to indicate that the user may or should add a key
 type ChallengeNotify struct {
-	ChallengeType   string `json:"challenge_type,omitempty"`
-	ChallengeSentTo string `json:"challenge_sent_to,omitempty"`
+	ChallengeType   string   `json:"challenge_type,omitempty"`
+	ChallengeSentTo string   `json:"challenge_sent_to,omitempty"`
+	OtherOptions    []string `json:"other_options,omitempty"`
 }
 type ChallengeInfo struct {
 	// either login or challenge info
