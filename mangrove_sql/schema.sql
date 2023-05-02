@@ -6,9 +6,14 @@ create table  mg.org(
     is_user boolean not null,
     password bytea,
     hash_alg text,
-    email text unique not null,
-    mobile text unique not null,
-    pin text
+    email text unique ,
+    mobile text unique,
+    pin text not null,
+    webauthn text not null,
+    totp text not null,
+    flags bigint not null,
+    totp_png bytea not null,
+    default_factor int not null
 );
 create table mg.credential (
     oid bigint not null,

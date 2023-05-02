@@ -52,14 +52,19 @@ type MgNamePrefix struct {
 }
 
 type MgOrg struct {
-	Oid      int64
-	Name     string
-	IsUser   bool
-	Password []byte
-	HashAlg  pgtype.Text
-	Email    string
-	Mobile   string
-	Pin      pgtype.Text
+	Oid           int64
+	Name          string
+	IsUser        bool
+	Password      []byte
+	HashAlg       pgtype.Text
+	Email         pgtype.Text
+	Mobile        pgtype.Text
+	Pin           string
+	Webauthn      string
+	Totp          string
+	Flags         int64
+	TotpPng       []byte
+	DefaultFactor int32
 }
 
 type MgOrgDb struct {

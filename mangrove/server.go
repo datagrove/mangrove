@@ -24,32 +24,33 @@ type MangroveServer struct {
 	ProxyTo string
 	Embed   string
 
-	AddrsTLS      []string //terrible name
-	Addrs         []string
-	OnLogin       func() string
-	PasswordLogin func(sess *Session, user, password string) bool
-	EmailSource   string
-	AfterLogin    string // use if PasswordLogin is nil, url after login
+	AddrsTLS    []string //terrible name
+	Addrs       []string
+	OnLogin     func() string
+	EmailSource string
+	AfterLogin  string // use if PasswordLogin is nil, url after login
 }
 
 type LoginInfo struct {
-	Error  int
+	Error  int    `json:"error,omitempty"`
 	Cookie string `json:"cookie,omitempty"`
 	Home   string `json:"home,omitempty"` // where to go after login
-	Name   string `json:"name,omitempty"`
 }
 
 // challenge type can be "optional" or "required" to indicate that the user may or should add a key
 type ChallengeNotify struct {
-	ChallengeType   string   `json:"challenge_type,omitempty"`
-	ChallengeSentTo string   `json:"challenge_sent_to,omitempty"`
-	OtherOptions    []string `json:"other_options,omitempty"`
+	ChallengeType   int    `json:"challenge_type,omitempty"`
+	ChallengeSentTo string `json:"challenge_sent_to,omitempty"`
+	OtherOptions    int    `json:"other_options,omitempty"`
+	// this is filled for 0 and kNone
+	LoginInfo *LoginInfo `json:"login_info,omitempty"`
 }
+
 type ChallengeInfo struct {
 	// either login or challenge info
-	LoginInfo *LoginInfo `json:"login_info,omitempty"`
-	ChallengeNotify
-	Challenge string `json:"challenge,omitempty"`
+	LoginInfo       *LoginInfo `json:"login_info,omitempty"`
+	ChallengeNotify `json:"challenge_notify,omitempty"`
+	Challenge       string `json:"challenge,omitempty"`
 }
 
 func HomeDir(opt *MangroveServer, args []string) {

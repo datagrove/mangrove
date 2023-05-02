@@ -132,7 +132,8 @@ export class Ws {
         try {
             return [await this.rpcj(method, params), ""]
         } catch (e: any) {
-            return [undefined, e.message]
+            console.log("rpcje", e)
+            return [undefined, e]
         }
     }
     async rpcj<T>(method: string, params?: any): Promise<T> {
@@ -155,6 +156,13 @@ export class Ws {
             return new Promise<T>((resolve, reject) => {
                 this.reply.set(id, [resolve, reject])
             })
+        }
+    }
+    async rpce<T>(method: string, params?: any): Promise<[T | undefined, string]> {
+        try {
+            return [await this.rpc(method, params),""]
+        } catch (e: any) {
+            return [undefined, e]
         }
     }
     // why not just return the promise?

@@ -25,6 +25,17 @@ func (q *Queries) ApproveDevice(ctx context.Context, arg ApproveDeviceParams) er
 	return err
 }
 
+const availableName = `-- name: AvailableName :one
+select count(*) from mg.org where name = $1
+`
+
+func (q *Queries) AvailableName(ctx context.Context, name string) (int64, error) {
+	row := q.db.QueryRow(ctx, availableName, name)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteDevice = `-- name: DeleteDevice :exec
 delete from mg.device where device = $1
 `
@@ -35,8 +46,7 @@ func (q *Queries) DeleteDevice(ctx context.Context, device int64) error {
 }
 
 const getDevice = `-- name: GetDevice :one
-select device, webauthn from mg.device
-where device = $1
+select device, webauthn from mg.device where device = $1
 `
 
 func (q *Queries) GetDevice(ctx context.Context, device int64) (MgDevice, error) {
@@ -96,28 +106,47 @@ func (q *Queries) InsertLock(ctx context.Context, arg InsertLockParams) error {
 	return err
 }
 
-const insertOrg = `-- name: InsertOrg :exec
-insert into mg.org (oid, name, is_user, password, hash_alg)
-values ($1, $2, $3,$4,$5)
+const insertOrg = `-- name: InsertOrg :one
+insert into mg.org (
+    name, is_user, password, hash_alg,email,mobile,pin,
+    webauthn,totp,flags,totp_png,default_factor)
+values ($1, $2, $3,$4,$5,$6,$7,$8,$9,$10,$11,$12) 
+RETURNING oid
 `
 
 type InsertOrgParams struct {
-	Oid      int64
-	Name     string
-	IsUser   bool
-	Password []byte
-	HashAlg  pgtype.Text
+	Name          string
+	IsUser        bool
+	Password      []byte
+	HashAlg       pgtype.Text
+	Email         pgtype.Text
+	Mobile        pgtype.Text
+	Pin           string
+	Webauthn      string
+	Totp          string
+	Flags         int64
+	TotpPng       []byte
+	DefaultFactor int32
 }
 
-func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) error {
-	_, err := q.db.Exec(ctx, insertOrg,
-		arg.Oid,
+func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) (int64, error) {
+	row := q.db.QueryRow(ctx, insertOrg,
 		arg.Name,
 		arg.IsUser,
 		arg.Password,
 		arg.HashAlg,
+		arg.Email,
+		arg.Mobile,
+		arg.Pin,
+		arg.Webauthn,
+		arg.Totp,
+		arg.Flags,
+		arg.TotpPng,
+		arg.DefaultFactor,
 	)
-	return err
+	var oid int64
+	err := row.Scan(&oid)
+	return oid, err
 }
 
 const insertPrefix = `-- name: InsertPrefix :exec
@@ -215,11 +244,11 @@ func (q *Queries) SelectCredential(ctx context.Context, oid int64) ([]MgCredenti
 }
 
 const selectOrg = `-- name: SelectOrg :one
-select oid, name, is_user, password, hash_alg, email, mobile, pin from mg.org where name = $1
+select oid, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where oid = $1
 `
 
-func (q *Queries) SelectOrg(ctx context.Context, name string) (MgOrg, error) {
-	row := q.db.QueryRow(ctx, selectOrg, name)
+func (q *Queries) SelectOrg(ctx context.Context, oid int64) (MgOrg, error) {
+	row := q.db.QueryRow(ctx, selectOrg, oid)
 	var i MgOrg
 	err := row.Scan(
 		&i.Oid,
@@ -230,6 +259,36 @@ func (q *Queries) SelectOrg(ctx context.Context, name string) (MgOrg, error) {
 		&i.Email,
 		&i.Mobile,
 		&i.Pin,
+		&i.Webauthn,
+		&i.Totp,
+		&i.Flags,
+		&i.TotpPng,
+		&i.DefaultFactor,
+	)
+	return i, err
+}
+
+const selectOrgByName = `-- name: SelectOrgByName :one
+select oid, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where name = $1
+`
+
+func (q *Queries) SelectOrgByName(ctx context.Context, name string) (MgOrg, error) {
+	row := q.db.QueryRow(ctx, selectOrgByName, name)
+	var i MgOrg
+	err := row.Scan(
+		&i.Oid,
+		&i.Name,
+		&i.IsUser,
+		&i.Password,
+		&i.HashAlg,
+		&i.Email,
+		&i.Mobile,
+		&i.Pin,
+		&i.Webauthn,
+		&i.Totp,
+		&i.Flags,
+		&i.TotpPng,
+		&i.DefaultFactor,
 	)
 	return i, err
 }
@@ -261,6 +320,59 @@ type UpdateLockParams struct {
 
 func (q *Queries) UpdateLock(ctx context.Context, arg UpdateLockParams) error {
 	_, err := q.db.Exec(ctx, updateLock, arg.Db, arg.Name, arg.Serial)
+	return err
+}
+
+const updateOrg = `-- name: UpdateOrg :exec
+update mg.org set name = $2, is_user = $3, password = $4, hash_alg = $5, email = $6, mobile = $7, pin = $8, webauthn = $9, totp = $10, flags = $11,totp_png=$12,default_factor=$13 where oid=$1
+`
+
+type UpdateOrgParams struct {
+	Oid           int64
+	Name          string
+	IsUser        bool
+	Password      []byte
+	HashAlg       pgtype.Text
+	Email         pgtype.Text
+	Mobile        pgtype.Text
+	Pin           string
+	Webauthn      string
+	Totp          string
+	Flags         int64
+	TotpPng       []byte
+	DefaultFactor int32
+}
+
+func (q *Queries) UpdateOrg(ctx context.Context, arg UpdateOrgParams) error {
+	_, err := q.db.Exec(ctx, updateOrg,
+		arg.Oid,
+		arg.Name,
+		arg.IsUser,
+		arg.Password,
+		arg.HashAlg,
+		arg.Email,
+		arg.Mobile,
+		arg.Pin,
+		arg.Webauthn,
+		arg.Totp,
+		arg.Flags,
+		arg.TotpPng,
+		arg.DefaultFactor,
+	)
+	return err
+}
+
+const updateOrgName = `-- name: UpdateOrgName :exec
+update mg.org set name = $2 where oid=$1
+`
+
+type UpdateOrgNameParams struct {
+	Oid  int64
+	Name string
+}
+
+func (q *Queries) UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) error {
+	_, err := q.db.Exec(ctx, updateOrgName, arg.Oid, arg.Name)
 	return err
 }
 

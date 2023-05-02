@@ -1,104 +1,172 @@
 
 import { Body, Center, Page, Title } from "..";
 import { Component, JSX, Show, createSignal } from "solid-js";
-import { useLn } from "./passkey_i18n";
+import { Factor, useLn } from "./passkey_i18n";
 import { DarkButton } from "../layout/site_menu";
 import { BlueButton } from "../lib/form";
-import { Username, Password, AddPasskey, EmailInput, GetSecret, Input, InputLabel, PhoneInput, getLoginChoice, loginChoice } from "./passkey_add";
+import { Username, Password, AddPasskey, EmailInput, GetSecret, Input, InputLabel, PhoneInput, ChallengeNotify, LoginInfo } from "./passkey_add";
 import { LanguageSelect } from "../i18n/i18";
-import { initPasskey } from "./passkey";
+import { abortController, initPasskey } from "./passkey";
 import { createWs } from "../lib/socket";
 import { A } from "../layout/nav";
+import { setLogin } from "../lib/crypto";
 
 // when this page logs in successfully, how do we get the user to the right place?
-const afterlogin = () => { return "www.espn.com" }
-interface LoginInfo {
-    Error: number,
-    Cookie: string,
-    Home: string
+
+enum Screen {
+    Login,
+    Register,
+    Secret,
+    AddKey,
 }
+
+// todo: send language in requests so that we can localize the error messages
 export const LoginPage: Component<{ allow?: string[] }> = (props) => {
     const ws = createWs()
     const ln = useLn()
-    const [isOpenAddKeyDialog, openAddKeyDialog] = createSignal(false)
-    const [isOpenSecretDialog, openSecretDialog] = createSignal(false)
-    const [user, setUser] = createSignal("")
-    const [password, setPassword] = createSignal("")
-    const [error, setError] = createSignal("")
-    const [register, setRegister] = createSignal(false)
-    const [phone, setPhone] = createSignal("")
-    const [email, setEmail] = createSignal("")
 
+    const [user, setUser_] = createSignal("")
+    const [password, setPassword] = createSignal("")
+    const [error, setError_] = createSignal("")
+    const [screen, setScreen_] = createSignal(Screen.Login)
+    const register = () => screen() == Screen.Register
+
+    const [loginInfo, setLoginInfo] = createSignal<LoginInfo | undefined>(undefined)
+    const setError = (e: string) => {
+        setError_((ln() as any)[e] ?? e)
+    }
+    const [okname, setOkname] = createSignal(false)
+
+    const finishLogin = (i: LoginInfo|null|undefined) => {
+        console.log("finish login", i)
+        if (i) {
+            //location.href = i.home
+        }
+    }
+
+    // we need to abort the wait before we can register a new key.
+    const setScreen = (r: Screen) => {
+        abortController.abort()
+        if (r == Screen.Login) {
+            initPasskey(setError)
+        }
+        setScreen_(r)
+    }
+    const setUser = async (u: string) => {
+        if (register()) {
+            // we need to check if the name is available
+            const [ok, e] = await ws.rpcje<boolean>("okname", { name: u })
+            if (!e && ok) {
+                setOkname(true)
+            } else {
+                setOkname(false)
+            }
+        }
+        setUser_(u)
+    }
     // when we set this up we need to start a promise to gather passkeys that are offered
     // This points out the case that we get a passkey that we don't know
     // in this case we still need to get the user name and password
-    initPasskey(setError).then((ok) => {
-        console.log("passkey init", ok)
+    initPasskey(setError).then((i: LoginInfo|null) => {
+        finishLogin(i)
     })
 
-    const submit = async (e: any) => {
+    const submitRegister = async (e: any) => {
         e.preventDefault()
         if (register()) {
-            const [log, e] = await ws.rpcje<LoginInfo>("register", { username: user(), password: password() })
+            const [log, e] = await ws.rpcje<LoginInfo>("createuser", { username: user(), password: password() })
             if (e) {
                 setError(e)
                 return
             }
-            // we should ask for a factor here
-            // we should show that a password is optional for new users.
-            //location.href = log!.Home
-            // fall through to log in, this will ask for a factor 
+            setLoginInfo(loginInfo)
+            // ask for second factor here.
+            setScreen(Screen.AddKey)
         }
-        await getLoginChoice(user(), password())
-        setError(loginChoice()?.error ?? "")
-        if (loginChoice()?.factor == "") {
-            openAddKeyDialog(true)// we need to add a passkey
-        } else {
-            openSecretDialog(true)
+    }
+
+    // we might nag them here to add a second factor, or even require it.
+    const submitLogin = async (e: any) => {
+        e.preventDefault()
+        // we clicked submit, so not a passkey. We need to check the login and potentially ask for second factor
+        const [ch, err] = await ws.rpcje<ChallengeNotify>("loginpassword", { username: user(), password: password() })
+        console.log("loginpassword", ch, err)
+        if (err) {
+            setError(err)
+            return
+        }
+        // if the challenge type is 0 then we would ask for a second factor
+        const typ = ch?.challenge_type??0
+        switch(typ) {
+            case 0:
+                // we are logged in, but we should ask for a second factor
+                setScreen(Screen.AddKey)// we need to add a passkey
+                setLoginInfo(ch?.login_info)
+            break
+            case Factor.kNone:
+                finishLogin(ch?.login_info)
+                break
+            default:
+                setScreen(Screen.Secret)
         }
     }
     const onCloseAddKey = (e: any) => {
         console.log("closed passkey dialog")
-        openAddKeyDialog(false)
+        setScreen(Screen.Login)
+        finishLogin(loginInfo())
     }
 
     // called when the user has confirmed the secret or has given up
     const confirmSecret = (ok: boolean) => {
         // either way we close the dialog
-        openSecretDialog(false)
-
-        // we should get this from register2 or login2
-        location.href = afterlogin();
+        setScreen(Screen.Login)
+        finishLogin(loginInfo())
     }
     const validate = async (secret: string) => {
         // this must be a socket call
-        return secret == "1234"
+        const [log, e] = await ws.rpcje<LoginInfo>("loginpassword2", { challenge: secret })
+        if (e) {
+            setError(e)
+            return false
+        }
+        setLoginInfo(log)
+        return true
+    }
+    let el: HTMLInputElement
+    const startRegister = () => {
+        setScreen(Screen.Register)
+        el.focus()
     }
     return <div dir={ln().dir}>
-        <AddPasskey when={isOpenAddKeyDialog} onChange={onCloseAddKey} validate={validate} />
-        <GetSecret validate={validate} when={isOpenSecretDialog} onChange={confirmSecret} />
+        <AddPasskey when={() => screen() == Screen.AddKey} onChange={onCloseAddKey} validate={validate} />
+        <GetSecret validate={validate} when={() => screen() == Screen.Secret} onChange={confirmSecret} />
         <div class='fixed w-screen flex flex-row items-center pr-4'>
             <div class='flex-1' />
             <div class='w-48'><LanguageSelect /></div>
             <DarkButton /></div>
         <Center>
-            <Show when={!isOpenAddKeyDialog() && !isOpenSecretDialog()}>
-                <form class='space-y-6' onSubmit={submit} >
-                    <Show when={error()}> <div>{error()}</div></Show>
-                    <Username onInput={(e: any) => setUser(e.target.value)} />
+            <Show when={register()}>
+                <form method='post' class='space-y-6' onSubmit={submitRegister} >
+                    <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
+                    <Show when={user()}><div>{user()} is {okname() ? "" : "not"} available</div></Show>
                     <Password onInput={(e: any) => setPassword(e.target.value)} />
-                    <Show when={register()}>
-                        <PhoneInput onInput={(e: any) => setPhone(e.target.value)} />
-                        <EmailInput onInput={(e: any) => setEmail(e.target.value)} />
-                    </Show>
-                    <BlueButton >{register() ? ln().register : ln().signin}</BlueButton>
+                    <BlueButton disabled={register() && !okname()} >{ln().register}</BlueButton>
+                </form>
+            </Show>
+            <Show when={screen() == Screen.Login}>
+                <form method='post' class='space-y-6' onSubmit={submitLogin} >
+                    <Show when={error()}> <div>{error()}</div></Show>
+                    <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
+                    <Password onInput={(e: any) => setPassword(e.target.value)} />
+                    <BlueButton  >{ln().signin}</BlueButton>
                 </form></Show>
 
-            <div class='mt-2'><A href='#' onClick={() => setRegister(!register())}>{register() ? "Sign in" : "Register"}</A></div>
-            <button class='hidden' onClick={() => openSecretDialog(true)}>get secret</button>
+            <div class='mt-2'><A href='#' onClick={startRegister}>{register() ? "Cancel" : "Register"}</A></div>
         </Center>
     </div>
 }
+
+
 
 function Register() {
     return <Page>

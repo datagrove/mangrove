@@ -1,14 +1,41 @@
 package mangrove
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"image/png"
+	"os"
+	"path"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/datagrove/mangrove/mangrove_sql/mangrove_sql"
 	"github.com/datagrove/mangrove/message"
+	"github.com/datagrove/mangrove/ucan"
+	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/goombaio/namegenerator"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
+	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
+
+	sq "github.com/datagrove/mangrove/mangrove_sql/mangrove_sql"
+)
+
+const (
+	kPasskey  = 1
+	kPasskeyp = 2
+	kTotp     = 4
+	kMobile   = 8
+	kEmail    = 16
+	kApp      = 32
+	kVoice    = 64
+	kNone     = 128
 )
 
 const (
@@ -119,7 +146,66 @@ type OpenDb struct {
 	Subscribe bool
 }
 
-func (s *Server) StoreFactor(sess *Session) error {
+func pt(s string) pgtype.Text {
+	return pgtype.Text{String: s, Valid: len(s) > 0}
+}
+
+// called from register2 with webauthn
+// exclude credentials?
+func (s *Server) StoreFactor(sess *Session, key int, value string, cred *webauthn.Credential) error {
+	a, e := s.Db.qu.SelectOrg(context.Background(), sess.Oid)
+	if e != nil {
+		return e
+	}
+	if cred != nil {
+		// serialize credentials
+		if len(a.Webauthn) != 0 {
+			json.Unmarshal([]byte(a.Webauthn), &sess.Device)
+		}
+		sess.UserDevice.Credentials = append(sess.UserDevice.Credentials, *cred)
+		b, e := json.Marshal(&sess.UserDevice)
+		if e != nil {
+			return e
+		}
+		a.Webauthn = string(b)
+	}
+
+	a.DefaultFactor = int32(key)
+	switch key {
+	case kPasskey:
+		a.Flags |= kPasskey
+	case kPasskeyp:
+		a.Flags |= kPasskeyp
+	case kEmail:
+		a.Email = pt(value)
+	case kMobile:
+		a.Mobile = pt(value)
+		a.Flags |= kMobile
+	case kTotp:
+		// already stored, but sets the flag
+		a.Flags |= kTotp
+	case kApp:
+		a.Flags |= kApp
+	case kVoice:
+		a.Mobile = pt(value)
+		a.Flags |= kVoice
+	}
+	s.Db.qu.UpdateOrg(context.Background(), mangrove_sql.UpdateOrgParams{
+		Oid:           a.Oid,
+		Name:          a.Name,
+		IsUser:        a.IsUser,
+		Password:      a.Password,
+		HashAlg:       a.HashAlg,
+		Email:         a.Email,
+		Mobile:        a.Mobile,
+		Pin:           a.Pin,
+		Webauthn:      a.Webauthn,
+		Totp:          a.Totp,
+		Flags:         a.Flags,
+		TotpPng:       a.TotpPng,
+		DefaultFactor: a.DefaultFactor,
+	})
+
 	s.Db.qu.InsertCredential(context.Background(), mangrove_sql.InsertCredentialParams{
 		Oid: sess.Oid,
 		Name: pgtype.Text{
@@ -135,56 +221,99 @@ func (s *Server) StoreFactor(sess *Session) error {
 	return nil
 }
 
-func (s *Server) Register(sess *Session, user, password string) (string, error) {
-	by, e := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+func (s *Server) Register(sess *Session) (string, error) {
+	// modifies the name to be unique
+	user := sess.Username
+
+	// this would force the name to be unique, but the ux is awkward
+	// count, e := s.Db.qu.UpdatePrefix(context.Background(), user)
+	// if e != nil {
+	// 	e := s.Db.qu.InsertPrefix(context.Background(), user)
+	// 	if e != nil {
+	// 		return "", e
+	// 	}
+	// 	count = 0
+	// }
+
+	// if count > 0 {
+	// 	user = fmt.Sprintf("%s%d", user, count)
+	// }
+
+	// hash the password
+	by, e := bcrypt.GenerateFromPassword([]byte(sess.Password), bcrypt.DefaultCost)
 	if e != nil {
 		return "", e
 	}
-	e = s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
-		Oid:      sess.Oid,
+	key, e := totp.Generate(totp.GenerateOpts{
+		Issuer:      s.Name,
+		AccountName: user,
+	})
+	if e != nil {
+		return "", e
+	}
+	// Convert TOTP key into a PNG
+	var buf bytes.Buffer
+	img, err := key.Image(200, 200)
+	if err != nil {
+		panic(err)
+	}
+	png.Encode(&buf, img)
+
+	oid, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
 		Name:     user,
 		IsUser:   true,
 		Password: by,
-		HashAlg: pgtype.Text{
-			String: "bcrypt",
-			Valid:  true,
-		}})
+		HashAlg:  pgtype.Text{String: "bcrypt", Valid: true},
+		Email:    pt(sess.Email),
+		Mobile:   pt(sess.Phone),
+		Pin:      "",
+		Webauthn: "",
+		Totp:     key.Secret(),
+		TotpPng:  buf.Bytes(),
+		Flags:    0,
+	})
+	sess.Oid = oid
 	sess.Name = user
 
 	return user, e
-
+}
+func (mg *Server) ValidateChallenge(sess *Session, value string) bool {
+	rx := &sess.ChallengeInfo
+	switch rx.ChallengeType {
+	case kMobile, kVoice, kEmail:
+		return value == rx.Challenge
+	case kTotp:
+		return totp.Validate(value, rx.ChallengeSentTo)
+	}
+	return false
 }
 
-func (s *Server) PasswordLoginInternal(sess *Session, user, password string, pref int) bool {
-	a, e := s.Db.qu.SelectOrg(context.Background(), user)
+// this can be 0, it can be kNone. In both cases we should send the loginInfo since we are already logged in.
+
+// pref should be a mask?
+func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (*ChallengeNotify, error) {
+	a, e := s.Db.qu.SelectOrgByName(context.Background(), user)
 	if e != nil {
-		return false
+		return nil, e
 	}
 	c, e := GenerateRandomString(32)
 	if e != nil {
-		return false
+		return nil, e
 	}
 	code, e := message.CreateCode()
 	if e != nil {
-		return false
+		return nil, e
 	}
-	// look up the credentials and take the highest priority one
-	// return alternatives.
-	cr, _ := s.Db.qu.SelectCredential(context.Background(), a.Oid)
-	// we might not have a credential and that might be ok.
-	opt := []string{}
-	var typ, address string
-	for _, v := range cr {
-		opt = append(opt, v.Type.String, string(v.Value))
-		typ = v.Type.String
-		address = string(v.Value)
+	e = bcrypt.CompareHashAndPassword([]byte(a.Password), []byte(password))
+	if e != nil {
+		return nil, e
 	}
-	if pref > 0 && pref <= len(cr) {
-		i := pref - 1
-		typ = opt[i*2]
-		address = opt[i*2+1]
-	}
+	var addr string = ""
+	sess.Oid = a.Oid
+	sess.Name = a.Name
+	sess.DisplayName = a.Name
 
+	// we know the password at this point, so now pick from available factors.
 	sess.ChallengeInfo = ChallengeInfo{
 		LoginInfo: &LoginInfo{
 			Error:  0,
@@ -192,15 +321,50 @@ func (s *Server) PasswordLoginInternal(sess *Session, user, password string, pre
 			Home:   s.AfterLogin,
 		},
 		ChallengeNotify: ChallengeNotify{
-			ChallengeType:   typ,
-			ChallengeSentTo: address,
-			OtherOptions:    opt,
+			ChallengeType:   int(a.DefaultFactor),
+			ChallengeSentTo: addr,
+			OtherOptions:    int(a.Flags),
 		},
 		Challenge: code,
 	}
-	e = bcrypt.CompareHashAndPassword([]byte(a.Password), []byte(password))
-	return e == nil
+
+	return s.SendChallenge(sess)
 }
+
+// logging in always sends the ChallengeNotify, but we can also send it after logging in to confirm configuration changes.
+func (mg *Server) SendChallenge(sess *Session) (*ChallengeNotify, error) {
+	rx := sess.ChallengeInfo
+	var e error
+	msg := fmt.Sprintf("The security code for %s is %s", mg.Name, rx.Challenge)
+	switch rx.ChallengeType {
+	case kNone:
+	case 0:
+
+	case kMobile:
+		e = message.Sms(rx.ChallengeSentTo, msg)
+	case kVoice:
+		e = message.Sms(rx.ChallengeSentTo, msg)
+	case kEmail:
+		subj := fmt.Sprintf("Security code for %s", mg.Name)
+		o := &message.Email{
+			Sender:    mg.EmailSource,
+			Recipient: rx.ChallengeSentTo,
+			Subject:   subj,
+			Html:      "",
+			Text:      msg,
+		}
+		e = o.Send()
+	case kTotp:
+
+	case kApp:
+		// ?
+	}
+	if e != nil {
+		return nil, e
+	}
+	return &rx.ChallengeNotify, nil
+}
+
 func (mg *Server) Open(sess *Session, w *OpenDb) (int64, error) {
 	//ucan.Parse(w.Auth)
 	return 0, nil
@@ -316,3 +480,143 @@ func (mg *Server) Trim(sess *Session, trim *Trim) error {
 	})
 	return e
 }
+
+// urlExample := "postgres://mangrove:mangrove@localhost:5432/mangrove"
+type Db struct {
+	conn *pgxpool.Pool //*sql.DB
+	qu   *sq.Queries
+}
+
+//	func NewDb(cn string) (*Db, error) {
+//		godotenv.Load()
+//		conn, err := sql.Open("postgres", cn)
+//		if err != nil {
+//			return nil, err
+//		}
+//		defer conn.Close()
+//		qu := sq.New(conn)
+//		return &Db{
+//			conn: conn,
+//			qu:   qu,
+//		}, nil
+//	}
+func NewDb(cn string) (*Db, error) {
+	godotenv.Load()
+	conn, err := pgxpool.New(context.Background(), cn)
+	if err != nil {
+		return nil, err
+	}
+	qu := sq.New(conn)
+	return &Db{
+		conn: conn,
+		qu:   qu,
+	}, nil
+}
+func (s *Db) Close() {
+	s.conn.Close()
+}
+
+func (s *Server) AvailableUserName(name string) (int64, error) {
+	// d := path.Join(s.Home, "user", name, ".config.json")
+	// _, e := os.Stat(d)
+	s.Db.qu.InsertPrefix(context.Background(), name)
+	return s.Db.qu.UpdatePrefix(context.Background(), name)
+}
+func (s *Server) SuggestName(name string) (string, error) {
+	if len(name) == 0 {
+		seed := time.Now().UTC().UnixNano()
+		nameGenerator := namegenerator.NewNameGenerator(seed)
+		name = nameGenerator.Generate()
+	}
+	a, e := s.AvailableUserName(name)
+	if e != nil {
+		return "", e
+	}
+	if a == 1 {
+		return name, nil
+	} else {
+		return fmt.Sprintf("%s%d", name, a), nil
+	}
+}
+func (s *Server) SaveUser(u *UserDevice) error {
+	name := strings.ReplaceAll(u.ID, ":", "_")
+	b, e := json.MarshalIndent(u, "", " ")
+	if e != nil {
+		return e
+	}
+	d := path.Join(s.Home, "user", name, ".config.json")
+	os.MkdirAll(path.Dir(d), 0700)
+	return os.WriteFile(d, b, 0600)
+
+}
+
+func (s *Server) checkCanLogin(device, cred string) error {
+	// device is a did. cred must be a valid ucan with audience of device,and login capability
+	ucan, e := ucan.DecodeUcan(cred)
+	if e != nil {
+		return e
+	}
+	_ = ucan
+	return nil
+}
+
+func (s *Server) OkName(sess *Session, name string) bool {
+	a, _ := s.Db.qu.AvailableName(context.Background(), name)
+	return a == 0
+}
+func (s *Server) NewDevice(u *UserDevice) error {
+	b := context.Background()
+
+	webauth, e := json.Marshal(u)
+	if e != nil {
+		return e
+	}
+	return s.qu.InsertDevice(b, sq.InsertDeviceParams{
+		Device:   0, //u.ID,
+		Webauthn: string(webauth),
+	})
+}
+func (s *Server) LoadWebauthnUser(sess *Session, id string) error {
+	idn, e := strconv.ParseInt(id, 10, 64)
+	if e != nil {
+		return e
+	}
+	a, e := s.Db.qu.SelectOrg(context.Background(), idn)
+	if e != nil {
+		return e
+	}
+	return json.Unmarshal([]byte(a.Webauthn), &sess.UserDevice)
+}
+func (s *Server) LoadDevice(u *UserDevice, device string) error {
+	u.ID = device
+	a, e := s.Db.qu.GetDevice(context.Background(), 0) //device)
+	if e != nil {
+		return e
+	}
+	return json.Unmarshal([]byte(a.Webauthn), u)
+}
+
+// Save device is for adding a credential to an existing device
+// maybe a credential should be a device? Could look like things disappeared though.
+func (s *Server) UpdateDevice(u *UserDevice) error {
+	b, e := json.MarshalIndent(u, "", " ")
+	if e != nil {
+		return e
+	}
+	s.qu.DeleteDevice(context.Background(), 0) //u.ID)
+	return s.qu.InsertDevice(context.Background(), sq.InsertDeviceParams{
+		Device:   0, // "",
+		Webauthn: string(b),
+	})
+}
+
+// name = strings.ReplaceAll(name, ":", "_")
+// b, e := os.ReadFile(path.Join(s.Home, "user", name, ".config.json"))
+// if e != nil {
+// 	return e
+// }
+// return json.Unmarshal(b, u)
+// name := strings.ReplaceAll(u.ID, ":", "_")
+// d := path.Join(s.Home, "user", name, ".config.json")
+// os.MkdirAll(path.Dir(d), 0700)
+// return os.WriteFile(d, b, 0600)

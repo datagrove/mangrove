@@ -49,10 +49,8 @@ func main() {
 		OnLogin: func() string {
 			return "https://www.google.com"
 		},
-
-		// this provides a transition, if nil then use dataabase
-		PasswordLogin: nil,
-		EmailSource:   "",
+		EmailSource: "jimh@datagrove.com",
+		AfterLogin:  "localhost:5783/#/en/debug",
 	}
 	cmd := mangrove.DefaultCommands(opt)
 	cmd.Execute()

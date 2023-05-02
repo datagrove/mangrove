@@ -9,26 +9,28 @@ import { ln } from "../core/dg"
 //     notEver: string
 // }
 
-type KeyValue = [string, string]
+type KeyValue = [number, string]
+
+export enum Factor {
+    kPasskey  = 1,
+    kPasskeyp = 2,
+    kTotp     = 4,
+    kMobile   = 8,
+    kEmail    = 16,
+    kApp      = 32,
+    kVoice    = 64,
+    kNone     = 128,  // stop asking
+}
 export const factors: KeyValue[] = [
-    ["passkey", "Passkey"],
-    ["passkey+", "Passkey and Password"],
-    ["totp", "Time Based Code"],
-    ["sms", "Text Message"],
-    ["email", "Email"],
-    ["app", "Phone App"],
-    ["voice", "Voice Call"],
+    [Factor.kPasskey, "Passkey"],
+    [Factor.kPasskeyp, "Passkey and Password"],
+    [Factor.kTotp, "Time Based Code"],
+    [Factor.kMobile, "Text Message"],
+    [Factor.kEmail, "Email"],
+    [Factor.kApp, "Phone App"],
+    [Factor.kVoice, "Voice Call"],
 ]
 
-export const codeBased = (x: string) => {
-    return x === "totp" || x === "sms" || x === "email" || x === "voice"
-}
-export const socketBased = (x: string) => {
-    return x === "app"
-}
-export const webauthnBased = (x: string) => {
-    return x === "passkey" || x === "passkey+"
-}
 
 
 const LTR = {
@@ -58,6 +60,7 @@ const en = {
     enterPassword: "Enter password",
     email: "Email",
     phone: "Phone",
+    invalidPassword: "Invalid user name or password",
 }
 type Ln = typeof en
 const es: Ln = {

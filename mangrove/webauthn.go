@@ -2,22 +2,26 @@ package mangrove
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"image/png"
 	"net/http"
 	"sync"
 
-	"github.com/datagrove/mangrove/message"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
-	"github.com/pquerna/otp/totp"
 )
 
+type RegisterInfo struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+	Phone    string `json:"phone"`
+}
 type Session struct {
 	Oid int64
 	UserDevice
@@ -30,6 +34,7 @@ type Session struct {
 	Handle        map[int64]StreamHandle
 	Notifier      SessionNotifier
 	ChallengeInfo ChallengeInfo
+	RegisterInfo
 }
 type StreamHandle struct {
 	*Stream
@@ -255,7 +260,36 @@ func WebauthnSocket(mg *Server) error {
 		return nil, nil
 	})
 
-	mg.AddApij("register", false, func(r *Rpcpj) (any, error) {
+	mg.AddApij("addpasskey", false, func(r *Rpcpj) (any, error) {
+		if r.Oid < 0 {
+			return nil, errors.New("login_first")
+		}
+		r.UserDevice.ID = fmt.Sprintf("%d", r.Oid)
+		// does this get baked into credential? that would be an argument for getting a name first.
+		r.UserDevice.DisplayName = r.Name
+		r.UserDevice.Name = r.Name
+		options, session, err := web.BeginRegistration(&r.UserDevice)
+		if err != nil {
+			return nil, err
+		}
+		r.Session.data = session
+		return options, nil
+	})
+	mg.AddApij("addpasskey2", false, func(r *Rpcpj) (any, error) {
+		response, err := protocol.ParseCredentialCreationResponseBody(bytes.NewReader(r.Params))
+		if err != nil {
+			return nil, err
+		}
+		// when we create this credential we need to also store it to the user file
+		credential, err := web.CreateCredential(&r.UserDevice, *r.Session.data, response)
+		if err != nil {
+			return nil, err
+		}
+		mg.StoreFactor(r.Session, kPasskey, "", credential)
+		return true, nil
+	})
+
+	mg.AddApij("registerdevice", false, func(r *Rpcpj) (any, error) {
 		var v struct {
 			Device string `json:"device"`
 		}
@@ -275,9 +309,43 @@ func WebauthnSocket(mg *Server) error {
 		return options, nil
 	})
 
+	// always creates with a password
+	mg.AddApij("createuser", false, func(r *Rpcpj) (any, error) {
+		e := json.Unmarshal(r.Params, &r.Session.RegisterInfo)
+		if e != nil {
+			return nil, e
+		}
+		_, e = mg.Register(r.Session)
+		if e != nil {
+			return nil, e
+		}
+		c, _ := GenerateRandomString(16)
+		o := LoginInfo{
+			Error:  0,
+			Cookie: c,
+			Home:   mg.AfterLogin,
+		}
+		return &o, nil
+	})
+
+	// 	r.UserDevice.ID = fmt.Sprintf("%d", r.Oid)
+
+	// 	// does this get baked into credential? that would be an argument for getting a name first.
+	// 	r.UserDevice.DisplayName = r.Username
+	// 	r.UserDevice.Name = r.Username
+	// 	options, session, err := web.BeginRegistration(&r.UserDevice)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	r.Session.data = session
+	// 	return options, nil
+	// })
+	// this registers a new user, we need a different way to add a device credential
+	// when we cross echo-systems we will need to store a local passkey
+
 	// we take the approach of generating a new user, then merging this into the user set.
 	// return the temporary user name
-	mg.AddApij("register2", false, func(r *Rpcpj) (any, error) {
+	mg.AddApij("registerdevice2", false, func(r *Rpcpj) (any, error) {
 		var e error
 		response, err := protocol.ParseCredentialCreationResponseBody(bytes.NewReader(r.Params))
 		if err != nil {
@@ -297,82 +365,54 @@ func WebauthnSocket(mg *Server) error {
 		}
 		return true, nil
 	})
-	mg.AddApij("username", false, func(r *Rpcpj) (any, error) {
-		return mg.SuggestName("")
-	})
-	mg.AddApij("register", false, func(r *Rpcpj) (any, error) {
-		var v struct {
-			Username string `json:"username"`
-			Password string `json:"password"`
-		}
-		json.Unmarshal(r.Params, &v)
-		s, e := mg.Register(r.Session, v.Username, v.Password)
-		if e != nil {
-			return nil, e
-		}
-		c, _ := GenerateRandomString(16)
-		o := LoginInfo{
-			Error:  0,
-			Cookie: c,
-			Name:   s,
-			Home:   mg.AfterLogin,
-		}
-		// challenge here? we don't know what factor
-		return &o, nil
-	})
 
-	mg.AddApi("gettotp", true, func(r *Rpcp) (any, error) {
+	mg.AddApij("okname", false, func(r *Rpcpj) (any, error) {
 		var v struct {
 			Name string `json:"name"`
 		}
-		sockUnmarshal(r.Params, &v)
-		key, e := totp.Generate(totp.GenerateOpts{
-			Issuer:      mg.Name,
-			AccountName: v.Name,
-		})
+		json.Unmarshal(r.Params, &v)
+		return mg.OkName(r.Session, v.Name), nil
+	})
+
+	mg.AddApi("gettotp", true, func(r *Rpcp) (any, error) {
+		a, e := mg.Db.qu.SelectOrg(context.Background(), r.Oid)
 		if e != nil {
 			return nil, e
 		}
-		// Convert TOTP key into a PNG
-		var buf bytes.Buffer
-		img, err := key.Image(200, 200)
-		if err != nil {
-			panic(err)
-		}
-		png.Encode(&buf, img)
 
 		type Totp struct {
-			img    []byte
-			secret string `json:"secret"`
+			Img    []byte `json:"img,omitempty"`
+			Secret string `json:"secret,omitempty"`
 		}
 		rx := Totp{
-			img:    buf.Bytes(),
-			secret: key.Secret(),
+			Img:    a.TotpPng,
+			Secret: a.Totp,
 		}
-		r.ChallengeInfo.Challenge = key.Secret()
 		return &rx, nil
 	})
 
-	mg.AddApij("addfactor", true, func(r *Rpcpj) (any, error) {
+	// don't store in the database until we check it.
+	mg.AddApij("", true, func(r *Rpcpj) (any, error) {
 		var v struct {
-			Type  string `json:"type"`
+			Type  int    `json:"type"`
 			Value string `json:"value"`
 		}
 		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
-		// don't insert into the database here, we need to confirm the factor first
 		rx := &r.Session.ChallengeInfo
 		rx.ChallengeType = v.Type
 		rx.ChallengeSentTo = v.Value
+		mg.SendChallenge(r.Session)
+		// don't insert into the database here, we need to confirm the factor first
 
-		return mg.SendChallenge(r.Session)
+		return &r.Session.ChallengeInfo, nil
 	})
 	// check the challenge and add the factor
-	mg.AddApij("addfactor2", true, func(r *Rpcpj) (any, error) {
+	mg.AddApij("2", true, func(r *Rpcpj) (any, error) {
 		var v struct {
-			Type  string `json:"type"`
+			Type  int    `json:"type"`
 			Value string `json:"value"`
 		}
 		e := json.Unmarshal(r.Params, &v)
@@ -381,7 +421,7 @@ func WebauthnSocket(mg *Server) error {
 		}
 		if mg.ValidateChallenge(r.Session, v.Value) {
 			// store the factor
-			mg.StoreFactor(r.Session)
+			mg.StoreFactor(r.Session, v.Type, v.Value, nil)
 			return true, nil
 		} else {
 			return false, nil
@@ -401,23 +441,11 @@ func WebauthnSocket(mg *Server) error {
 			return nil, e
 		}
 
-		if mg.PasswordLogin != nil {
-			ok := mg.PasswordLogin(r.Session, v.Username, v.Password)
-			if !ok {
-				return nil, errors.New("invalid password")
-			}
-		} else {
-			ok := mg.PasswordLoginInternal(r.Session, v.Username, v.Password, 0)
-			if !ok {
-				return nil, errors.New("invalid password")
-			}
-		}
-		return mg.SendChallenge(r.Session)
-
+		return mg.PasswordLogin(r.Session, v.Username, v.Password, 0)
 	})
 	mg.AddApij("loginpassword2", false, func(r *Rpcpj) (any, error) {
 		var v struct {
-			Challenge string
+			Challenge string `json:"challenge"`
 		}
 		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
@@ -447,7 +475,8 @@ func WebauthnSocket(mg *Server) error {
 		}
 
 		handler := func(rawID, userHandle []byte) (webauthn.User, error) {
-			e := mg.LoadDevice(&r.UserDevice, string(userHandle))
+			e := mg.LoadWebauthnUser(r.Session, string(userHandle))
+			//e := mg.LoadDevice(&r.UserDevice, string(userHandle))
 			if e != nil {
 				return nil, e
 			} else {
@@ -455,10 +484,10 @@ func WebauthnSocket(mg *Server) error {
 			}
 		}
 		credential, err := web.ValidateDiscoverableLogin(handler, *r.Session.data, response)
+		_ = credential
 		if err != nil {
 			return nil, err
 		}
-		spew.Dump(credential)
 
 		// we already have a challenge before now. return the user site
 		// or potentially return a hash of the document (latest commit?)
@@ -468,7 +497,15 @@ func WebauthnSocket(mg *Server) error {
 		//ws, e := mg.AddWatch(v.Path, r.Session, r.Id, v.Filter, 0)
 		// the handle returned is specific to the session.
 		s, e := GenerateRandomString(16)
-		return s, e
+		if e != nil {
+			return nil, e
+		}
+		return &LoginInfo{
+			Error:  0,
+			Cookie: s,
+			Home:   mg.AfterLogin,
+		}, nil
+
 	})
 	// take the user name and return a challenge
 	// we might want to allow this to log directly into a user?
@@ -512,52 +549,15 @@ func WebauthnSocket(mg *Server) error {
 		// we could also use the did as a handle. we could use 64 bit int, and keep it in a local map. basically watch handle for a recursive directory.
 		//ws, e := mg.AddWatch(v.Path, r.Session, r.Id, v.Filter, 0)
 		// the handle returned is specific to the session.
-		return &SessionStatus{Home: 0}, nil
+		return &LoginInfo{
+			Error:  0,
+			Cookie: "",
+			Home:   "",
+		}, nil
 	})
 
 	return nil
 
-}
-
-func (mg *Server) ValidateChallenge(sess *Session, value string) bool {
-	rx := &sess.ChallengeInfo
-	switch rx.ChallengeType {
-	case "sms", "voice", "email":
-		return value == rx.Challenge
-	case "totp":
-		return totp.Validate(value, rx.ChallengeSentTo)
-	}
-	return false
-}
-
-func (mg *Server) SendChallenge(sess *Session) (any, error) {
-	rx := sess.ChallengeInfo
-	var e error
-	msg := fmt.Sprintf("The security code for %s is %s", mg.Name, rx.Challenge)
-	switch rx.ChallengeType {
-	case "sms":
-		e = message.Sms(rx.ChallengeSentTo, msg)
-	case "voice":
-		e = message.Sms(rx.ChallengeSentTo, msg)
-	case "email":
-		subj := fmt.Sprintf("Security code for %s", mg.Name)
-		o := &message.Email{
-			Sender:    mg.EmailSource,
-			Recipient: rx.ChallengeSentTo,
-			Subject:   subj,
-			Html:      "",
-			Text:      msg,
-		}
-		e = o.Send()
-	case "totp":
-
-	case "app":
-		// ?
-	}
-	if e != nil {
-		return nil, e
-	}
-	return &rx.ChallengeNotify, nil
 }
 
 // GenerateRandomBytes returns securely generated random bytes.

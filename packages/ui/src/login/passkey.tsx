@@ -13,8 +13,10 @@ import { createWs } from "../lib/socket"
 import { useLn } from "./passkey_i18n"
 import { LanguageSelect } from "../i18n/i18"
 import { useNavigate } from "../core/dg";
+import { abort } from "process";
+import { LoginInfo } from "./passkey_add";
 
-// if password is empty, then this is for a new
+//if password is empty, then this is for a new
 // const register = async (user: string, password: string) => {
 //     const ws = createWs()
 //     const o = await ws.rpcj<any>("register", {
@@ -38,17 +40,21 @@ const login = async (user: string, password: string) => {
     return
 }
 // this blocks a promise waiting for the user to offer a passkey
-export async function initPasskey(setError: (e: string) => void) {
+export let abortController : AbortController
+export async function initPasskey(setError: (e: string) => void) : Promise<LoginInfo|null> {
     if (!window.PublicKeyCredential
         // @ts-ignore
         || !PublicKeyCredential.isConditionalMediationAvailable
         || !await PublicKeyCredential.isConditionalMediationAvailable()
     ) {
-        return false
+        return null
     }
-
+    if (abortController) {
+        abortController.abort()
+    }
+    abortController = new AbortController()
     const ws = createWs()
-    const abortController = new AbortController();
+
     const sec = security()
 
     // if we loop here, do we need to do first  part twice
@@ -59,8 +65,8 @@ export async function initPasskey(setError: (e: string) => void) {
             const o2 = await ws.rpcj<any>("login", {
                 device: sec.deviceDid,
             })
-            const cro = parseRequestOptionsFromJSON(o2)
 
+            const cro = parseRequestOptionsFromJSON(o2)
             console.log("waiting for sign")
             const o = await get({
                 publicKey: cro.publicKey,
@@ -68,22 +74,23 @@ export async function initPasskey(setError: (e: string) => void) {
                 // @ts-ignore
                 mediation: 'conditional'
             })
+            if (abortController.signal.aborted) {
+                return null
+            }
             console.log("got sign")
 
             // token is not the socket challenge, it can be shared across tabs.
             // we need to get back the site store here, does it also keep a token?
             // we will eventually write the store into opfs
             // rejected if the key is not registered. loop back then to get another?
-            const reg = await ws.rpcj<string>("login2", o.toJSON())
-            setLogin("token")
-            return true
+            return  await ws.rpcj<LoginInfo>("login2", o.toJSON())
         } catch (e: any) {
             setError(e.message)
         }
     }
     // instead of navigate we need get the site first
     // then we can navigate in it. the site might tell us the first url
-
+    return null
 }
 
 
