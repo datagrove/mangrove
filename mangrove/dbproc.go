@@ -263,7 +263,7 @@ func (s *Server) SendChallenge(sess *Session) (*ChallengeNotify, error) {
 		e = message.Sms(to, msg)
 	case kVoice:
 		to = sess.Mobile
-		e = message.Sms(to, msg)
+		e = message.Voice(to, msg)
 	case kEmail:
 		to = sess.Email
 		subj := fmt.Sprintf("Security code for %s", s.Name)
