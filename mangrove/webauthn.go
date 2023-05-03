@@ -412,6 +412,14 @@ func WebauthnSocket(mg *Server) error {
 
 		r.Session.DefaultFactor = v.Type
 		r.Session.FactorValue = v.Value
+		switch v.Type {
+		case kEmail:
+			r.Session.Email = v.Value
+		case kMobile:
+			r.Session.Mobile = v.Value
+		case kVoice:
+			r.Session.Mobile = v.Value
+		}
 
 		return mg.SendChallenge(r.Session)
 	})

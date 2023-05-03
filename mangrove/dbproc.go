@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image/png"
+	"log"
 	"os"
 	"path"
 	"strconv"
@@ -278,6 +279,7 @@ func (s *Server) SendChallenge(sess *Session) (*ChallengeNotify, error) {
 		// ?
 	}
 	if e != nil {
+		log.Printf("error sending challenge: %s", e)
 		return nil, e
 	}
 

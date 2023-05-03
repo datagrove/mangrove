@@ -13,6 +13,7 @@ import {
 } from "@github/webauthn-json/browser-ponyfill";
 
 
+
 // we need to async get the login choices, 
 export interface LoginChoice {
     factor: string  // empty means we should ask to add mfa, none means just username/password
@@ -81,22 +82,22 @@ export const Password: Component<InputProps & { required?: boolean }> = (props) 
     </div>
 }
 
-export const EmailInput = (props: any) => {
+export const EmailInput = (props: InputProps) => {
     const ln = useLn()
     return <div>
         <div class="flex items-center justify-between">
             <InputLabel for="username" >{ln().email}</InputLabel>
         </div>
-        <div class="mt-2"><Input placeholder={ln().email}  autocomplete='email' /></div>
+        <div class="mt-2"><Input {...props} placeholder={ln().email}  autocomplete='email' /></div>
     </div>
 }
-export const PhoneInput = (props: any) => {
+export const PhoneInput = (props: InputProps) => {
     const ln = useLn()
     return <div>
         <div class="flex items-center justify-between">
             <InputLabel for="username" >{ln().phone}</InputLabel>
         </div>
-        <div class="mt-2"><Input placeholder={ln().phone} autocomplete='phone' /></div>
+        <div class="mt-2"><Input {...props} placeholder={ln().phone} autocomplete='phone' /></div>
     </div>
 }
 export const InputSecret = (props: any) => {
@@ -260,7 +261,7 @@ export const AddPasskey: Component<{
             props.onClose(true)
         } else {
             let v = ""
-            switch(factor()) {
+            switch(Number(factor())) {
             case Factor.kEmail:
                 v = email()
                 break
@@ -285,15 +286,15 @@ export const AddPasskey: Component<{
     const notNow = () => { props.onClose(false) }
     // here we have to save our choice to the database
     const notEver = async () => { 
-        await ws.rpcje("updatemfa", {
-            mfa: 'none'
+        await ws.rpcje("addfactor", {
+            type: Number(Factor.kNone),
         })
 
         props.onClose(false) 
     }
 
     const changeFactor = (e: any) => {
-        setFactor(e.target.value)
+        setFactor(Number(e.target.value))
         if (factor()==Factor.kTotp && dataUrl()=="") {
             fb()
         }
@@ -320,7 +321,7 @@ export const AddPasskey: Component<{
                                     aria-label="Select language"
                                     class='flex-1  rounded-md dark:bg-neutral-900 text-black dark:text-white '
                                     onChange={changeFactor}>
-                                    {factors.map(([code, name]) => (
+                                    {factors.map(([code, name]:[number,string]) => (
                                         <option value={code}>
                                             {name}&nbsp;&nbsp;&nbsp;
                                         </option>
