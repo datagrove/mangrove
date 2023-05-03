@@ -1,10 +1,8 @@
-package main
+package message
 
 import (
 	"log"
 	"testing"
-
-	"github.com/datagrove/mangrove/message"
 
 	"github.com/joho/godotenv"
 )
@@ -15,7 +13,7 @@ func Test_send(t *testing.T) {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	o := message.Email{
+	o := Email{
 		Sender:    "jimh@datagrove.com",
 		Recipient: "jimh@datagrove.com",
 		Subject:   "aws test",
@@ -33,7 +31,19 @@ func Test_sms(t *testing.T) {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	err = message.Sms("+14843664923", "yo, wassup")
+	err = Sms("+14843664923", "yo, wassup")
+	if err != nil {
+		panic(err)
+	}
+
+}
+
+func Test_voice(t *testing.T) {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	err = Voice("+14843664923", "Your security code is 123456")
 	if err != nil {
 		panic(err)
 	}

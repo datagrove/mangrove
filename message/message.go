@@ -35,6 +35,33 @@ func Sms(to string, message string) error {
 	}
 }
 
+const (
+	call = `<?xml version="1.0" encoding="UTF-8"?>
+	<Response>
+	<Say voice="alice">%s</Say>
+	</Response>`
+)
+
+func Voice(to string, message string) error {
+	s := fmt.Sprintf(call, message)
+	client := twilio.NewRestClientWithParams(twilio.ClientParams{
+		Username: os.Getenv("TWILIO_SID"),
+		Password: os.Getenv("TWILIO_AUTH"),
+	})
+	params := &twilioApi.CreateCallParams{}
+	params.SetTwiml(s)
+	params.SetTo(to)
+	params.SetFrom(os.Getenv("TWILIO_NUMBER"))
+
+	resp, err := client.Api.CreateCall(params)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	fmt.Println(resp)
+	return nil
+}
+
 func CreateCode() (string, error) {
 	b, e := SecureRandomBytes(4)
 	if e != nil {
