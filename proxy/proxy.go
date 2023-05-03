@@ -42,7 +42,7 @@ func main() {
 		Res:      Res,
 		Launch:   nil,
 		Root:     "",
-		ProxyTo:  "https://www.google.com",
+		ProxyTo:  "https://datagrove_servr",
 		Embed:    "/embed/",
 		AddrsTLS: []string{},
 		Addrs:    []string{"localhost:8080"},
@@ -50,7 +50,7 @@ func main() {
 			return "https://www.google.com"
 		},
 		EmailSource: "jimh@datagrove.com",
-		AfterLogin:  "localhost:5783/#/en/debug",
+		AfterLogin:  "https://datagrove_servr/MBRR",
 	}
 	cmd := mangrove.DefaultCommands(opt)
 	cmd.Execute()

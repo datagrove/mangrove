@@ -13,7 +13,6 @@ require (
 	github.com/multiformats/go-multibase v0.2.0
 	github.com/multiformats/go-varint v0.0.7
 	github.com/stretchr/testify v1.8.1
-	github.com/twystd/tweetnacl-go v0.0.0-20210413205227-681aa97ec383
 )
 
 require (
