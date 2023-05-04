@@ -2,12 +2,14 @@ package main
 
 import (
 	"embed"
+	"errors"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/datagrove/mangrove/mangrove"
+	"github.com/datagrove/mangrove/scrape"
 )
 
 var (
@@ -30,14 +32,10 @@ func (fs *spaFileSystem) Open(name string) (http.File, error) {
 	return f, err
 }
 
-// should we dynamically look up the passwords or transfer them in bulk?
-// does it make sense to use a PAKE? Pake needs argon2 to run on the client?
-func main() {
+var opt *mangrove.MangroveServer
 
-	// we can offer a hook to process; the hook returns the url
-	// or we could have a dictionary of mapping the url?
-	// a function seems more flexible, could take a variety of arguments
-	opt := &mangrove.MangroveServer{
+func GetOpts() *mangrove.MangroveServer {
+	return &mangrove.MangroveServer{
 		Name:     "sample",
 		Res:      Res,
 		Launch:   nil,
@@ -46,12 +44,21 @@ func main() {
 		Embed:    "/embed/",
 		AddrsTLS: []string{},
 		Addrs:    []string{"localhost:8080"},
+
+		EmailSource: "jimh@datagrove.com",
+
 		OnLogin: func() string {
 			return "https://www.google.com"
 		},
-		EmailSource: "jimh@datagrove.com",
-		AfterLogin:  "https://datagrove_servr/MBRR",
+
+		ProxyLogin: ImisLogin,
 	}
+}
+
+// should we dynamically look up the passwords or transfer them in bulk?
+// does it make sense to use a PAKE? Pake needs argon2 to run on the client?
+func main() {
+	opt = GetOpts()
 	cmd := mangrove.DefaultCommands(opt)
 	cmd.Execute()
 }
@@ -85,3 +92,40 @@ func justEmbed2() {
 
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
+
+const (
+	userFieldName = "ctl01$TemplateBody$WebPartManager1$gwpciNewContactSignInCommon$ciNewContactSignInCommon$signInUserName"
+	passFieldName = "ctl01$TemplateBody$WebPartManager1$gwpciNewContactSignInCommon$ciNewContactSignInCommon$signInPassword"
+)
+
+func ImisLogin(user, password string) (*mangrove.ProxyLogin, error) {
+	cl, e := scrape.NewClient(opt.ProxyTo + "/iCore/Contacts/Sign_In.aspx?LoginRedirect=true&returnurl=%2fMBRR")
+	if e != nil {
+		return nil, e
+	}
+	// this postback should get the login cookie
+	cl.Page.Form[userFieldName] = user
+	cl.Page.Form[passFieldName] = password
+	e = cl.PostBack("ctl01$TemplateBody$WebPartManager1$gwpciNewContactSignInCommon$ciNewContactSignInCommon$SubmitButton", "Sign In")
+	if e != nil {
+		return nil, e
+	}
+	for _, c := range cl.Cookies() {
+		if c.Name == "login" {
+			pl := &mangrove.ProxyLogin{
+				Home:    opt.ProxyTo + "iSamples/MemberR/MemberHome.aspx",
+				Email:   "",
+				Phone:   "",
+				Cookies: []*http.Cookie{c},
+			}
+			return pl, nil
+		}
+	}
+
+	// os.WriteFile("x.html", []byte(cl.Page.Body), 0644)
+	// cl.Print()
+
+	return nil, failedLoginErr
+}
+
+var failedLoginErr = errors.New("failedLogin")

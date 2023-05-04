@@ -233,14 +233,6 @@ func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (
 }
 
 // logging in always sends the ChallengeNotify, but we can also send it after logging in to confirm configuration changes.
-func (s *Server) GetLoginInfo() (*LoginInfo, error) {
-	c, e := GenerateRandomString(32)
-	return &LoginInfo{
-		Error:  0,
-		Cookie: c,
-		Home:   s.AfterLogin,
-	}, e
-}
 
 // using the database here is not good
 // we want to test the values before we store them
@@ -257,7 +249,13 @@ func (s *Server) SendChallenge(sess *Session) (*ChallengeNotify, error) {
 	var to string
 	switch sess.DefaultFactor {
 	case kNone, 0:
-		li, _ = s.GetLoginInfo()
+		c, _ := GenerateRandomString(32)
+		li = &LoginInfo{
+			Error:  0,
+			Cookie: c,
+			Home:   "", //s.AfterLogin,
+		}
+
 	case kMobile:
 		to = sess.Mobile
 		e = message.Sms(to, msg)

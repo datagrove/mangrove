@@ -16,6 +16,8 @@ import (
 
 // move to mangrove
 
+// get what's know about user,password
+
 type MangroveServer struct {
 	Name   string
 	Res    embed.FS
@@ -29,7 +31,14 @@ type MangroveServer struct {
 	Addrs       []string
 	OnLogin     func() string
 	EmailSource string
-	AfterLogin  string // use if PasswordLogin is nil, url after login
+	// turn a user name and password into a cookie
+	ProxyLogin func(user string, pass string) (*ProxyLogin, error)
+}
+type ProxyLogin struct {
+	Home    string
+	Email   string
+	Phone   string
+	Cookies []*http.Cookie // key,value pairs.
 }
 
 type LoginInfo struct {

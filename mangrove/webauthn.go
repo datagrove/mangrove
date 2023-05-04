@@ -317,6 +317,8 @@ func WebauthnSocket(mg *Server) error {
 	})
 
 	// always creates with a password
+	// we don't have a way to proxy this yet, so disable for demo.
+	// we may want to handle this directly from the proxy anyway so we can use the existing form (not an option for login)
 	mg.AddApij("createuser", false, func(r *Rpcpj) (any, error) {
 		e := json.Unmarshal(r.Params, &r.Session.RegisterInfo)
 		if e != nil {
@@ -330,7 +332,7 @@ func WebauthnSocket(mg *Server) error {
 		o := LoginInfo{
 			Error:  0,
 			Cookie: c,
-			Home:   mg.AfterLogin,
+			Home:   "", // mg.AfterLogin,
 		}
 		return &o, nil
 	})
@@ -440,20 +442,6 @@ func WebauthnSocket(mg *Server) error {
 			return nil, errors.New("invalid")
 		}
 	})
-	mg.AddApij("loginpassword2", false, func(r *Rpcpj) (any, error) {
-		var v struct {
-			Challenge string `json:"challenge"`
-		}
-		e := json.Unmarshal(r.Params, &v)
-		if e != nil {
-			return nil, e
-		}
-		if mg.ValidateChallenge(r.Session, v.Challenge) {
-			return mg.GetLoginInfo()
-		} else {
-			return nil, errors.New("invalid")
-		}
-	})
 
 	// we will need to login first with just a password, then we can add a factor
 	// later we can offer a registration form
@@ -471,7 +459,20 @@ func WebauthnSocket(mg *Server) error {
 
 		return mg.PasswordLogin(r.Session, v.Username, v.Password, 0)
 	})
-
+	mg.AddApij("loginpassword2", false, func(r *Rpcpj) (any, error) {
+		var v struct {
+			Challenge string `json:"challenge"`
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		if mg.ValidateChallenge(r.Session, v.Challenge) {
+			return mg.GetLoginInfo()
+		} else {
+			return nil, errors.New("invalid")
+		}
+	})
 	// take the user name and return a challenge
 	// we might want to allow this to log directly into a user?
 	mg.AddApij("login", false, func(r *Rpcpj) (any, error) {
@@ -506,6 +507,12 @@ func WebauthnSocket(mg *Server) error {
 			return nil, err
 		}
 
+		// we need to log in the proxy server here
+		px, e := mg.ProxyLogin(r.Name, r.Password)
+		if e != nil {
+			return nil, e
+		}
+
 		// we already have a challenge before now. return the user site
 		// or potentially return a hash of the document (latest commit?)
 		// we are going to subscribe to this document and always get updates
@@ -520,7 +527,7 @@ func WebauthnSocket(mg *Server) error {
 		return &LoginInfo{
 			Error:  0,
 			Cookie: s,
-			Home:   mg.AfterLogin,
+			Home:   px.Home, //mg.AfterLogin,
 		}, nil
 
 	})

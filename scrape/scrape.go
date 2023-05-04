@@ -65,6 +65,9 @@ func (cl *Client) PostBack(name string, value string) error {
 	return err
 }
 
+func (cl *Client) Cookies() []*http.Cookie {
+	return cl.jar.Cookies(cl.Page.Resp.Request.URL)
+}
 func (cl *Client) Print() {
 	p := cl.Page
 	// Print the response body
