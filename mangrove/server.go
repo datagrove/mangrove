@@ -29,22 +29,19 @@ type MangroveServer struct {
 
 	AddrsTLS    []string //terrible name
 	Addrs       []string
-	OnLogin     func() string
 	EmailSource string
 	// turn a user name and password into a cookie
 	ProxyLogin func(user string, pass string) (*ProxyLogin, error)
 }
 type ProxyLogin struct {
-	Home    string
-	Email   string
-	Phone   string
-	Cookies []*http.Cookie // key,value pairs.
+	Home    string   `json:"home,omitempty"`
+	Email   string   `json:"email,omitempty"`
+	Phone   string   `json:"phone,omitempty"`
+	Cookies []string `json:"cookies,omitempty"` // key,value pairs.
 }
 
 type LoginInfo struct {
-	Error  int    `json:"error,omitempty"`
-	Cookie string `json:"cookie,omitempty"`
-	Home   string `json:"home,omitempty"` // where to go after login
+	*ProxyLogin
 }
 
 // challenge type can be "optional" or "required" to indicate that the user may or should add a key
@@ -142,7 +139,7 @@ func DefaultCommands(opt *MangroveServer) *cobra.Command {
 			proxy := httputil.NewSingleHostReverseProxy(url)
 			proxy.ModifyResponse = func(resp *http.Response) error {
 				// Check if the response is a redirect
-				if resp.StatusCode >= 300 && resp.StatusCode <= 399 {
+				if resp.StatusCode != 304 && resp.StatusCode >= 300 && resp.StatusCode <= 399 {
 					// Modify the redirect location to point back to the reverse proxy
 					redirectURL, _ := resp.Location()
 					redirectURL.Scheme = "http"
@@ -159,12 +156,10 @@ func DefaultCommands(opt *MangroveServer) *cobra.Command {
 						w.Write([]byte(getpage()))
 						return
 					}
-					// we have the same cookies with the filled page
-					//
-					// if strings.HasPrefix(r.URL.Path, "/iCore/Contacts/Sign_In") {
-					// 	http.Redirect(w, r, "/embed/", http.StatusFound)
-					// 	return
-					// }
+					if strings.HasPrefix(r.URL.Path, "/iCore/Contacts/Sign_In") {
+						http.Redirect(w, r, "/embed/", http.StatusFound)
+						return
+					}
 					if strings.HasPrefix(r.URL.Path, "/embed/") || r.URL.Path == "/embed" {
 						if r.URL.Path == "/embed/ws" {
 							ws(w, r)

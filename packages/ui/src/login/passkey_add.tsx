@@ -50,6 +50,7 @@ export const Username: Component<InputProps> = (props) => {
         <div >
             <Input  {...props} placeholder={ln().enterUsername} autofocus id="username" name="username" type="text" autocomplete="username webauthn" />
         </div>
+
     </div>
 }
 
@@ -79,9 +80,18 @@ export const Password: Component<InputProps & { required?: boolean }> = (props) 
         <div >
             <Input {...props} ref={el!} id="password" name="password" type={hide() ? "password" : "text"} autocomplete="current-password" placeholder={ln().enterPassword} />
         </div>
+
     </div>
 }
-
+export const PhoneOrEmailInput = (props: InputProps) => {
+    const ln = useLn()
+    return <div>
+        <div class="flex items-center justify-between">
+            <InputLabel for="username" >{ln().phoneOrEmail}</InputLabel>
+        </div>
+        <div class="mt-2"><Input {...props} placeholder={ln().phoneOrEmail} autocomplete='phone' /></div>
+    </div>
+}
 export const EmailInput = (props: InputProps) => {
     const ln = useLn()
     return <div>
@@ -136,9 +146,10 @@ export const DialogActions: Component<any> = (props) => {
 }
 
 export interface LoginInfo {
-    error: number,
-    cookie: string,
     home: string,
+    email:  string,
+    phone: string,
+    cookies: string[],
 }
 export interface ChallengeNotify {
 	challenge_type: number

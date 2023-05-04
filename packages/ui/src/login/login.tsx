@@ -1,23 +1,26 @@
 
 import { Body, Center, Page, Title } from "..";
-import { Component, JSX, Show, createSignal } from "solid-js";
+import { Component, JSX, Match, Show, Switch, createSignal } from "solid-js";
 import { Factor, useLn } from "./passkey_i18n";
 import { DarkButton } from "../layout/site_menu";
 import { BlueButton } from "../lib/form";
-import { Username, Password, AddPasskey, EmailInput, GetSecret, Input, InputLabel, PhoneInput, ChallengeNotify, LoginInfo } from "./passkey_add";
+import { Username, Password, AddPasskey, EmailInput, GetSecret, Input, InputLabel, PhoneInput, ChallengeNotify, LoginInfo, PhoneOrEmailInput } from "./passkey_add";
 import { LanguageSelect } from "../i18n/i18";
-import { abortController, initPasskey } from "./passkey";
+import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { createWs } from "../lib/socket";
 import { A } from "../layout/nav";
 import { setLogin } from "../lib/crypto";
 
 // when this page logs in successfully, how do we get the user to the right place?
+export const Spc = () => <div class='flex-1' />
 
 enum Screen {
     Login,
     Register,
     Secret,
     AddKey,
+    Recover,
+    Recover2
 }
 
 // todo: send language in requests so that we can localize the error messages
@@ -31,18 +34,22 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
     const [screen, setScreen_] = createSignal(Screen.Login)
     const register = () => screen() == Screen.Register
 
-    const [loginInfo, setLoginInfo] = createSignal<LoginInfo | undefined>(undefined)
+    const [loginInfo, setLoginInfo] = createSignal<LoginInfo | undefined | null>(undefined)
     const setError = (e: string) => {
         setError_((ln() as any)[e] ?? e)
     }
     const [okname, setOkname] = createSignal(false)
     const [finished, setFinished] = createSignal(false)
 
-    const finishLogin = (i: LoginInfo|null|undefined) => {
+    const finishLogin = (i: LoginInfo | null | undefined) => {
         console.log("finish login", i)
+        setLoginInfo(i)
         if (i) {
-            //location.href = i.home
-            setFinished(true)
+            loginInfo()?.cookies.forEach((c) => {
+                document.cookie = c + ";path=/"
+            })
+            location.href = i.home
+            //setFinished(true)
         }
     }
 
@@ -68,7 +75,7 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
     // when we set this up we need to start a promise to gather passkeys that are offered
     // This points out the case that we get a passkey that we don't know
     // in this case we still need to get the user name and password
-    initPasskey(setError).then((i: LoginInfo|null) => {
+    initPasskey(setError).then((i: LoginInfo | null) => {
         finishLogin(i)
     })
 
@@ -88,6 +95,9 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
     }
 
     // we might nag them here to add a second factor, or even require it.
+    // if they send a password, but require a passkey, we need to trigger that
+    // if they give a passkey, but we need a password anyway, we need to handle that.
+    // we can't easily not advertise passkey, because don't know who will log in.
     const submitLogin = async (e: any) => {
         e.preventDefault()
         // we clicked submit, so not a passkey. We need to check the login and potentially ask for second factor
@@ -99,13 +109,18 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
         }
         abortController.abort()
         // if the challenge type is 0 then we would ask for a second factor
-        const typ = ch?.challenge_type??0
-        switch(typ) {
+        const typ = ch?.challenge_type ?? 0
+        switch (typ) {
             case 0:
                 // we are logged in, but we should ask for a second factor
                 setScreen(Screen.AddKey)// we need to add a passkey
                 setLoginInfo(ch?.login_info)
-            break
+                break
+            case Factor.kPasskey:
+            case Factor.kPasskeyp:
+                const li = await webauthnLogin()
+                finishLogin(li)
+                break
             case Factor.kNone:
                 finishLogin(ch?.login_info)
                 break
@@ -140,38 +155,81 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
         setScreen(Screen.Register)
         el.focus()
     }
+    const [recoverPassword, setRecoverPassword] = createSignal(false)
+    const [createAccount, setCreateAccount] = createSignal(false)
     return <div dir={ln().dir}>
         <Show when={finished()}>
-            <Center><pre>{JSON.stringify(loginInfo())}</pre></Center>
+            <Center>
+                <div><A href={loginInfo()?.home ?? ""}>Home</A></div>
+                <div>{JSON.stringify(loginInfo(), null, 4)}</div></Center>
+
         </Show>
         <Show when={!finished()}>
-        <AddPasskey when={() => screen() == Screen.AddKey} onClose={onCloseAddKey} />
-        <GetSecret validate={validate} when={() => screen() == Screen.Secret} onClose={confirmSecret} />
-        <div class='fixed w-screen flex flex-row items-center pr-4'>
-            <div class='flex-1' />
-            <div class='w-48'><LanguageSelect /></div>
-            <DarkButton /></div>
-        <Center>
-            <Show when={register()}>
-                <form method='post' class='space-y-6' onSubmit={submitRegister} >
-                    <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
-                    <Show when={user()}><div>{user()} is {okname() ? "" : "not"} available</div></Show>
-                    <Password onInput={(e: any) => setPassword(e.target.value)} />
-                    <BlueButton disabled={register() && !okname()} >{ln().register}</BlueButton>
-                </form>
-            </Show>
-            <Show when={screen() == Screen.Login}>
-                <form method='post' class='space-y-6' onSubmit={submitLogin} >
-                    <Show when={error()}> <div>{error()}</div></Show>
-                    <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
-                    <Password onInput={(e: any) => setPassword(e.target.value)} />
-                    <BlueButton  >{ln().signin}</BlueButton>
-                </form></Show>
+            <AddPasskey when={() => screen() == Screen.AddKey} onClose={onCloseAddKey} />
+            <GetSecret validate={validate} when={() => screen() == Screen.Secret} onClose={confirmSecret} />
 
-            <div class='mt-2'><A href='#' onClick={startRegister}>{register() ? "Cancel" : "Register"}</A></div>
-        </Center>
+            <div class='fixed w-screen flex flex-row items-center pr-4'>
+                <div class='flex-1' />
+                <div class='w-48'><LanguageSelect /></div>
+                <DarkButton /></div>
+            <Center>
+                <Switch>
+                    <Match when={screen() == Screen.Register}>
+                        <form method='post' class='space-y-6' onSubmit={submitRegister} >
+                            <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
+                            <Show when={user()}><div>{user()} is {okname() ? "" : "not"} available</div></Show>
+                            <Password onInput={(e: any) => setPassword(e.target.value)} />
+                            <BlueButton disabled={register() && !okname()} >{ln().register}</BlueButton>
+                        </form>
+                    </Match>
+                    <Match when={screen() == Screen.Login}>
+                        <form method='post' class='space-y-6' onSubmit={submitLogin} >
+                            <Show when={error()}> <div>{error()}</div></Show>
+                            <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
+                            <Password onInput={(e: any) => setPassword(e.target.value)} />
+                            <BlueButton  >{ln().signin}</BlueButton>
+                            </form>
+                    <div class="mt-6 space-y-4">
+                        <div class='flex'><Spc /><GreyButton onClick={() => {setScreen(Screen.Register) }}>{ln().register}</GreyButton><Spc /></div>
+
+                        <div class="flex"><Spc />
+                            <GreyButton onClick={() => { setScreen(Screen.Recover)}}>{ln().forgotPassword}</GreyButton>
+                            <Spc /></div>
+                    </div></Match>
+                    <Match when={screen() == Screen.Recover}>
+                        <form method='post' class='space-y-6' onSubmit={submitLogin} >
+                            <div>Enter phone OR email</div>
+                            <PhoneInput onInput={(e: any) => setUser(e.target.value)} />
+                            <EmailInput onInput={(e: any) => setUser(e.target.value)} />
+                            <BlueButton onClick={()=>setScreen(Screen.Recover2)} >{ln().recover}</BlueButton>
+                        </form>
+                    </Match>
+                    <Match when={screen() == Screen.Recover2}>
+                        <form method='post' class='space-y-6' onSubmit={submitLogin} >
+                            <div>Choose a new password </div>
+                            <Username></Username>
+                            <Password onInput={(e: any) => setUser(e.target.value)} />
+                            <BlueButton  >{ln().recover}</BlueButton>
+                        </form>
+                    </Match>
+                    <Match when={true}>
+                        <div>Bad screen {screen()} </div>
+                    </Match>
+
+
+                </Switch></Center>
         </Show>
     </div>
+}
+
+
+
+type ButtonProps = JSX.HTMLAttributes<HTMLButtonElement>
+
+export const GreyButton: Component<ButtonProps> = (props) => {
+    return <button {...props} class="text-sm block font-semibold hover:underline text-indigo-500 hover:text-indigo-700 dark:text-neutral-500 dark:hover:text-indigo-300">
+        {props.children}
+    </button>
 }
 
 

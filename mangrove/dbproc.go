@@ -170,10 +170,10 @@ func (s *Server) Register(sess *Session) (string, error) {
 	// }
 
 	// hash the password
-	by, e := bcrypt.GenerateFromPassword([]byte(sess.Password), bcrypt.DefaultCost)
-	if e != nil {
-		return "", e
-	}
+	//by, e := bcrypt.GenerateFromPassword([]byte(sess.Password), bcrypt.DefaultCost)
+	// if e != nil {
+	// 	return "", e
+	// }
 	key, e := totp.Generate(totp.GenerateOpts{
 		Issuer:      s.Name,
 		AccountName: user,
@@ -192,8 +192,8 @@ func (s *Server) Register(sess *Session) (string, error) {
 	oid, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
 		Name:     user,
 		IsUser:   true,
-		Password: by,
-		HashAlg:  pgtype.Text{String: "bcrypt", Valid: true},
+		Password: []byte(sess.Password),
+		HashAlg:  pgtype.Text{String: "", Valid: true},
 		Email:    pt(sess.Email),
 		Mobile:   pt(sess.Phone),
 		Pin:      "",
@@ -209,18 +209,65 @@ func (s *Server) Register(sess *Session) (string, error) {
 }
 
 // this can be 0, it can be kNone. In both cases we should send the loginInfo since we are already logged in.
+var errBadLogin = fmt.Errorf("invalidLogin")
 
 // pref should be a mask?
 func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (*ChallengeNotify, error) {
 	a, e := s.Db.qu.SelectOrgByName(context.Background(), user)
 	if e != nil {
-		return nil, e
+		//return nil, e
+		sess.Username = user
+		sess.Password = password
+		li, e := s.GetLoginInfo(sess)
+		if e != nil {
+			return nil, e
+		}
+		// no bcrypt, we wouldn't be able to proxy, should be optional when not a proxy though
+		// pass, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		// store the user locally
+		oid, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
+			Name:          user,
+			IsUser:        true,
+			Password:      []byte(password),
+			HashAlg:       pt(""),
+			Email:         pt(li.Email),
+			Mobile:        pt(li.Phone),
+			Pin:           "",
+			Webauthn:      "",
+			Totp:          "",
+			Flags:         0,
+			TotpPng:       []byte{},
+			DefaultFactor: 0,
+		})
+		if e != nil {
+			return nil, e
+		}
+		sess.Oid = oid
+
+		return &ChallengeNotify{
+			ChallengeType:   0,
+			ChallengeSentTo: "",
+			OtherOptions:    0,
+			LoginInfo:       li,
+		}, nil
+
 	}
-	e = bcrypt.CompareHashAndPassword([]byte(a.Password), []byte(password))
-	if e != nil {
-		return nil, e
+
+	switch a.HashAlg.String {
+	case "bcrypt":
+		e = bcrypt.CompareHashAndPassword([]byte(a.Password), []byte(password))
+		if e != nil {
+			return nil, errBadLogin
+		}
+	case "":
+		if string(a.Password) != password {
+			return nil, errBadLogin
+		}
 	}
 	sess.Oid = a.Oid
+	sess.Username = a.Name
+	sess.Password = string(a.Password)
+
 	sess.Name = a.Name
 	sess.DisplayName = a.Name
 	sess.Mobile = a.Mobile.String
@@ -233,6 +280,15 @@ func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (
 }
 
 // logging in always sends the ChallengeNotify, but we can also send it after logging in to confirm configuration changes.
+func (s *Server) GetLoginInfo(sess *Session) (*LoginInfo, error) {
+	p, e := s.ProxyLogin(sess.Username, sess.Password)
+	if e != nil {
+		return nil, e
+	}
+	return &LoginInfo{
+		ProxyLogin: p,
+	}, nil
+}
 
 // using the database here is not good
 // we want to test the values before we store them
@@ -249,11 +305,10 @@ func (s *Server) SendChallenge(sess *Session) (*ChallengeNotify, error) {
 	var to string
 	switch sess.DefaultFactor {
 	case kNone, 0:
-		c, _ := GenerateRandomString(32)
-		li = &LoginInfo{
-			Error:  0,
-			Cookie: c,
-			Home:   "", //s.AfterLogin,
+
+		li, e = s.GetLoginInfo(sess)
+		if e != nil {
+			return nil, e
 		}
 
 	case kMobile:
@@ -586,6 +641,8 @@ func (s *Server) LoadWebauthnUser(sess *Session, id string) error {
 		return e
 	}
 	a, e := s.Db.qu.SelectOrg(context.Background(), idn)
+	sess.Username = a.Name
+	sess.Password = string(a.Password)
 	if e != nil {
 		return e
 	}

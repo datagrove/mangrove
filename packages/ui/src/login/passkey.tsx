@@ -39,6 +39,26 @@ const login = async (user: string, password: string) => {
     })
     return
 }
+
+// not a conditional mediation, this will force a dalog.
+export const webauthnLogin = async () => { // id: string, not needed?
+    abortController.abort()
+    const ws = createWs()
+    // LOGIN
+    // const o2 = await ws.rpcj<any>("loginx", {
+    //     device: id,
+    //     //username: sec.userDid // maybe empty
+    // })
+    // const cro = parseRequestOptionsFromJSON(o2)
+    const o = await get(crox())
+    const reg = await ws.rpcj<LoginInfo>("login2", o.toJSON())
+    return reg
+    //setLogin(reg)
+    // instead of navigate we need get the site first
+    // then we can navigate in it. the site might tell us the first url
+
+}
+const [crox,setCrox] = createSignal<any>(null)
 // this blocks a promise waiting for the user to offer a passkey
 export let abortController : AbortController
 export async function initPasskey(setError: (e: string) => void) : Promise<LoginInfo|null> {
@@ -66,6 +86,7 @@ export async function initPasskey(setError: (e: string) => void) : Promise<Login
             })
 
             const cro = parseRequestOptionsFromJSON(o2)
+            setCrox(cro)
             console.log("waiting for sign")
             const o = await get({
                 publicKey: cro.publicKey,
@@ -138,23 +159,6 @@ export const Register = () => {
     </SimplePage>
 }
 
-// we only use this if browser supports webauthn but not passkey?
-const webAuthnLogin = async (id: string) => {
-
-    const ws = createWs()
-    // LOGIN
-    const o2 = await ws.rpcj<any>("loginx", {
-        device: id,
-        //username: sec.userDid // maybe empty
-    })
-    const cro = parseRequestOptionsFromJSON(o2)
-    const o = await get(cro)
-    const reg = await ws.rpcj<string>("loginx2", o.toJSON())
-    setLogin(reg)
-    // instead of navigate we need get the site first
-    // then we can navigate in it. the site might tell us the first url
-
-}
 
 
 export const LoginPasskey: Component<{ login?: boolean }> = (props) => {

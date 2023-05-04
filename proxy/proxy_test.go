@@ -1,6 +1,9 @@
 package main
 
 import (
+	"io/fs"
+	"log"
+	"net/http"
 	"os"
 	"testing"
 
@@ -18,6 +21,35 @@ func Test_embed(t *testing.T) {
 
 func Test_embed2(t *testing.T) {
 	justEmbed2()
+}
+func justEmbed() {
+	mux := http.NewServeMux()
+
+	var staticFS = fs.FS(Res)
+	// should this be in config?
+	htmlContent, err := fs.Sub(staticFS, "ui/dist")
+	if err != nil {
+		panic(err)
+	}
+	fs := http.FileServer(&spaFileSystem{http.FS(htmlContent)})
+	mux.Handle("/embed/", http.StripPrefix("/embed/", fs))
+
+	log.Fatal(http.ListenAndServe(":8080", mux))
+}
+
+func justEmbed2() {
+	mux := http.NewServeMux()
+
+	var staticFS = fs.FS(Res)
+	// should this be in config?
+	htmlContent, err := fs.Sub(staticFS, "ui/dist")
+	if err != nil {
+		panic(err)
+	}
+	fs := http.FileServer(&spaFileSystem{http.FS(htmlContent)})
+	mux.Handle("/", fs)
+
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }
 
 const (

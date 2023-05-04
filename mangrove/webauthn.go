@@ -173,7 +173,7 @@ func WebauthnSocket(mg *Server) error {
 	wconfig := &webauthn.Config{
 		RPDisplayName: "Go Webauthn",                                                                         // Display Name for your site
 		RPID:          "localhost",                                                                           // Generally the FQDN for your site
-		RPOrigins:     []string{"https://localhost:5078", "http://localhost:8088", "https://localhost:5783"}, // The origin URLs allowed for WebAuthn requests
+		RPOrigins:     []string{"https://localhost:5078", "http://localhost:8080", "https://localhost:5783"}, // The origin URLs allowed for WebAuthn requests
 	}
 
 	web, err := webauthn.New(wconfig)
@@ -328,13 +328,7 @@ func WebauthnSocket(mg *Server) error {
 		if e != nil {
 			return nil, e
 		}
-		c, _ := GenerateRandomString(16)
-		o := LoginInfo{
-			Error:  0,
-			Cookie: c,
-			Home:   "", // mg.AfterLogin,
-		}
-		return &o, nil
+		return mg.GetLoginInfo(r.Session)
 	})
 
 	// 	r.UserDevice.ID = fmt.Sprintf("%d", r.Oid)
@@ -457,8 +451,13 @@ func WebauthnSocket(mg *Server) error {
 			return nil, e
 		}
 
+		// this can fail if the user doesn't exist in our database yet
+		// if it fails we try the proxy login
 		return mg.PasswordLogin(r.Session, v.Username, v.Password, 0)
+
 	})
+
+	// validates the 2FA challenge after logging in with a password
 	mg.AddApij("loginpassword2", false, func(r *Rpcpj) (any, error) {
 		var v struct {
 			Challenge string `json:"challenge"`
@@ -468,7 +467,7 @@ func WebauthnSocket(mg *Server) error {
 			return nil, e
 		}
 		if mg.ValidateChallenge(r.Session, v.Challenge) {
-			return mg.GetLoginInfo()
+			return mg.GetLoginInfo(r.Session)
 		} else {
 			return nil, errors.New("invalid")
 		}
@@ -507,12 +506,6 @@ func WebauthnSocket(mg *Server) error {
 			return nil, err
 		}
 
-		// we need to log in the proxy server here
-		px, e := mg.ProxyLogin(r.Name, r.Password)
-		if e != nil {
-			return nil, e
-		}
-
 		// we already have a challenge before now. return the user site
 		// or potentially return a hash of the document (latest commit?)
 		// we are going to subscribe to this document and always get updates
@@ -520,15 +513,8 @@ func WebauthnSocket(mg *Server) error {
 		// we could also use the did as a handle. we could use 64 bit int, and keep it in a local map. basically watch handle for a recursive directory.
 		//ws, e := mg.AddWatch(v.Path, r.Session, r.Id, v.Filter, 0)
 		// the handle returned is specific to the session.
-		s, e := GenerateRandomString(16)
-		if e != nil {
-			return nil, e
-		}
-		return &LoginInfo{
-			Error:  0,
-			Cookie: s,
-			Home:   px.Home, //mg.AfterLogin,
-		}, nil
+
+		return mg.GetLoginInfo(r.Session)
 
 	})
 	// take the user name and return a challenge
@@ -573,11 +559,7 @@ func WebauthnSocket(mg *Server) error {
 		// we could also use the did as a handle. we could use 64 bit int, and keep it in a local map. basically watch handle for a recursive directory.
 		//ws, e := mg.AddWatch(v.Path, r.Session, r.Id, v.Filter, 0)
 		// the handle returned is specific to the session.
-		return &LoginInfo{
-			Error:  0,
-			Cookie: "",
-			Home:   "",
-		}, nil
+		return mg.GetLoginInfo(r.Session)
 	})
 
 	return nil

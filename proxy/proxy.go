@@ -3,8 +3,6 @@ package main
 import (
 	"embed"
 	"errors"
-	"io/fs"
-	"log"
 	"net/http"
 	"os"
 
@@ -34,6 +32,10 @@ func (fs *spaFileSystem) Open(name string) (http.File, error) {
 
 var opt *mangrove.MangroveServer
 
+const (
+	ProxyFrom = "http://localhost:8080"
+)
+
 func GetOpts() *mangrove.MangroveServer {
 	return &mangrove.MangroveServer{
 		Name:     "sample",
@@ -47,10 +49,6 @@ func GetOpts() *mangrove.MangroveServer {
 
 		EmailSource: "jimh@datagrove.com",
 
-		OnLogin: func() string {
-			return "https://www.google.com"
-		},
-
 		ProxyLogin: ImisLogin,
 	}
 }
@@ -61,36 +59,6 @@ func main() {
 	opt = GetOpts()
 	cmd := mangrove.DefaultCommands(opt)
 	cmd.Execute()
-}
-
-func justEmbed() {
-	mux := http.NewServeMux()
-
-	var staticFS = fs.FS(Res)
-	// should this be in config?
-	htmlContent, err := fs.Sub(staticFS, "ui/dist")
-	if err != nil {
-		panic(err)
-	}
-	fs := http.FileServer(&spaFileSystem{http.FS(htmlContent)})
-	mux.Handle("/embed/", http.StripPrefix("/embed/", fs))
-
-	log.Fatal(http.ListenAndServe(":8080", mux))
-}
-
-func justEmbed2() {
-	mux := http.NewServeMux()
-
-	var staticFS = fs.FS(Res)
-	// should this be in config?
-	htmlContent, err := fs.Sub(staticFS, "ui/dist")
-	if err != nil {
-		panic(err)
-	}
-	fs := http.FileServer(&spaFileSystem{http.FS(htmlContent)})
-	mux.Handle("/", fs)
-
-	log.Fatal(http.ListenAndServe(":8080", mux))
 }
 
 const (
@@ -112,11 +80,15 @@ func ImisLogin(user, password string) (*mangrove.ProxyLogin, error) {
 	}
 	for _, c := range cl.Cookies() {
 		if c.Name == "login" {
+			enc := []string{}
+			for _, c := range cl.Cookies() {
+				enc = append(enc, c.String())
+			}
 			pl := &mangrove.ProxyLogin{
-				Home:    opt.ProxyTo + "iSamples/MemberR/MemberHome.aspx",
+				Home:    ProxyFrom + "/iSamples/MemberR/MemberHome.aspx",
 				Email:   "",
 				Phone:   "",
-				Cookies: []*http.Cookie{c},
+				Cookies: enc,
 			}
 			return pl, nil
 		}
@@ -125,7 +97,7 @@ func ImisLogin(user, password string) (*mangrove.ProxyLogin, error) {
 	// os.WriteFile("x.html", []byte(cl.Page.Body), 0644)
 	// cl.Print()
 
-	return nil, failedLoginErr
+	return nil, errFailedLogin
 }
 
-var failedLoginErr = errors.New("failedLogin")
+var errFailedLogin = errors.New("failedLogin")

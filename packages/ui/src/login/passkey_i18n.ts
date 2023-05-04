@@ -58,9 +58,12 @@ const en = {
     more2fa: "More choices",
     invalidCode: "Invalid code",
     enterPassword: "Enter password",
+    forgotPassword: "Recover name or password",
     email: "Email",
     phone: "Phone",
+    phoneOrEmail: "Phone or Email",
     invalidPassword: "Invalid user name or password",
+    recover: "Recover account",
 }
 type Ln = typeof en
 const es: Ln = {
