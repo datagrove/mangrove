@@ -1,45 +1,35 @@
 import { Component, createEffect, createSignal, onCleanup } from "solid-js"
-import { createEditor, dbstr } from "./client"
+import { createEditor, dbstr as cellptr, makeCell } from "./client"
 import { z } from "zod"
+import { BlueButton } from "../lib/form"
 
 
-// create a enditor
-// creating type
-
-/*
-export function createCell<T,K,C=Committer>(db: Dbms, 
-    table: DbTable<T,K>, 
-    attr: (keyof T), key: K ) {
-
-    const s = ""
-    const r : CellState =  {
-        value: s,
-        predicted: s,
-        proposals: [],
-        gsn: 0,
-        lsn: 0,
-        committer: {}
-    }
-    return r
-}
-*/
-
-export const Inputx: Component<{ ptr: dbstr , validate: z.ZodString}> = (props) => {
-    const [edref, ed] = createEditor(props.ptr)
-
-    const [error,setError] = createSignal<string>("")
-
-    // when the editor changes we want to revalidate
-    // we can do this with normal input onchange though
-    const v1 = (v: any) => { 
-        const result = props.validate.safeParse(v.target?.value)
-        if (result.success) {
-            setError("")
-        } else {
-            setError(result.error.message)
-        }
-     }
-    return <div><input ref={edref} onInput={ v1}/>
-        <div> validate message</div>
+export const Input: Component<{ ptr: cellptr, label: string }> = (props) => {
+    const [error, setError] = createSignal<string>("")
+    const [edref] = createEditor(props.ptr, setError)
+    return <div>
+        <div>{props.label}</div>
+        <div class='m-2 text-black' ><input ref={edref} />
+            <div> {error()}</div></div>
     </div>
+}
+
+
+export const Sampleform: Component = (props) => {
+    const af = {
+        first: makeCell("", z.string().min(3)),
+        last: makeCell("", z.string().min(3)),
+    }
+    const submit = (e: Event) => {
+        e.preventDefault()
+    }
+    return <form onsubmit={submit}>
+        <Input label='one' ptr={af.first} />
+        <Input label='two' ptr={af.last} />
+        <BlueButton onClick={() => {
+            for (const [k, v] of Object.entries(af)) {
+                console.log(k, v.value())
+            }
+        }}>Submit</BlueButton>
+    </form>
 }

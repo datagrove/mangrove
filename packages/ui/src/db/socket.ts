@@ -72,6 +72,8 @@ export class SendToWorker {
         return r
     }
 
+
+
     async recv(e: MessageEvent) {
         // we need to parse the message.
         // split at '\n', first part is json, second part is binary

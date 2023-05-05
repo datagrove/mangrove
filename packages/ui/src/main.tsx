@@ -2,6 +2,7 @@ import "./index.css"
 import { Match, Switch, render } from "solid-js/web"
 import { nav, simpleRouter } from "./core/dg"
 import { LoginPage } from "./login"
+import { Sampleform } from "./db/input"
 
 function HomePage() {
     simpleRouter()
@@ -24,5 +25,8 @@ function HomePage() {
     </div>
 }
 
-render(() => <HomePage />, document.getElementById("app")!)
+function HomePage2() {
+    return <Sampleform />
+}
+render(() => <HomePage2 />, document.getElementById("app")!)
 
