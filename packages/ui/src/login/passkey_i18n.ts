@@ -11,15 +11,17 @@ import { ln } from "../core/dg"
 
 type KeyValue = [number, string]
 
+// idea of bitmask is to allow a filter; not every client allows every factor
 export enum Factor {
-    kPasskey  = 1,
+    kUnknown = 0,
+    kPasskey = 1,
     kPasskeyp = 2,
-    kTotp     = 4,
-    kMobile   = 8,
-    kEmail    = 16,
-    kApp      = 32,
-    kVoice    = 64,
-    kNone     = 128,  // stop asking
+    kTotp = 3,
+    kMobile = 4,
+    kEmail = 5,
+    kApp = 6,
+    kVoice = 7,
+    kNone = 8,  // stop asking
 }
 export const factors: KeyValue[] = [
     [Factor.kPasskey, "Passkey"],
@@ -98,3 +100,7 @@ export const useLn = (): () => Ln => {
     return () => allLn[ln()] ?? allLn['en']
 }
 
+export function lx(key: string): string {
+    const l = allLn[ln()] ?? allLn['en']
+    return l[key as keyof Ln] ?? key
+}

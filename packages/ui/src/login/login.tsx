@@ -10,6 +10,7 @@ import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { createWs } from "../lib/socket";
 import { A } from "../layout/nav";
 import { setLogin } from "../lib/crypto";
+import { Segment } from "../lib/progress";
 
 // when this page logs in successfully, how do we get the user to the right place?
 export const Spc = () => <div class='flex-1' />
@@ -23,8 +24,16 @@ enum Screen {
     Recover2
 }
 
+const keys = ["passkey", "email", "phone", "time", "app"]
+export const LoginPage: Component<{}> = (props) => {
+    const [key, setKey] = createSignal("passkey")
+    return <Center>
+        <Segment option={keys} value={key} onChange={setKey} />
+    </Center>
+}
+
 // todo: send language in requests so that we can localize the error messages
-export const LoginPage: Component<{ allow?: string[] }> = (props) => {
+export const LoginPage2: Component<{ allow?: string[] }> = (props) => {
     const ws = createWs()
     const ln = useLn()
 
@@ -188,27 +197,27 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
                             <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
                             <Password onInput={(e: any) => setPassword(e.target.value)} />
                             <BlueButton  >{ln().signin}</BlueButton>
-                            </form>
-                    <div class="mt-6 space-y-4">
-                        <div class='flex'><Spc /><GreyButton onClick={() => {setScreen(Screen.Register) }}>{ln().register}</GreyButton><Spc /></div>
+                        </form>
+                        <div class="mt-6 space-y-4">
+                            <div class='flex'><Spc /><GreyButton onClick={() => { setScreen(Screen.Register) }}>{ln().register}</GreyButton><Spc /></div>
 
-                        <div class="flex"><Spc />
-                            <GreyButton onClick={() => { setScreen(Screen.Recover)}}>{ln().forgotPassword}</GreyButton>
-                            <Spc /></div>
-                    </div></Match>
+                            <div class="flex"><Spc />
+                                <GreyButton onClick={() => { setScreen(Screen.Recover) }}>{ln().forgotPassword}</GreyButton>
+                                <Spc /></div>
+                        </div></Match>
                     <Match when={screen() == Screen.Recover}>
                         <form method='post' class='space-y-6' onSubmit={submitLogin} >
                             <div>Enter phone OR email</div>
-                            <PhoneInput onInput={(e: any) => setUser(e.target.value)} />
-                            <EmailInput onInput={(e: any) => setUser(e.target.value)} />
-                            <BlueButton onClick={()=>setScreen(Screen.Recover2)} >{ln().recover}</BlueButton>
+                            <PhoneInput onInput={setUser} />
+                            <EmailInput onInput={setUser} />
+                            <BlueButton onClick={() => setScreen(Screen.Recover2)} >{ln().recover}</BlueButton>
                         </form>
                     </Match>
                     <Match when={screen() == Screen.Recover2}>
                         <form method='post' class='space-y-6' onSubmit={submitLogin} >
                             <div>Choose a new password </div>
-                            <Username></Username>
-                            <Password onInput={(e: any) => setUser(e.target.value)} />
+                            <Username onInput={setUser}></Username>
+                            <Password onInput={setUser} />
                             <BlueButton  >{ln().recover}</BlueButton>
                         </form>
                     </Match>

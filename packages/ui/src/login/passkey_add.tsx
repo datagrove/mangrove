@@ -34,12 +34,23 @@ export interface LoginChoice {
 export const InputLabel = (props: any) => {
     return <div><label {...props} class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</label></div>
 }
+
 export const Input = (props: InputProps) => {
-    return <div><input {...props}
+    return <div><input {...props} value={props.reset ? props.reset() : ""} onInput={(e) => props.onInput(e.target.value)}
         class="block mt-1 w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset dark:ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 p-2" /></div>
 }
 
-type InputProps = JSX.HTMLAttributes<HTMLInputElement> & { placeholder?: string, autofocus?: boolean, name?: string, autocomplete?: string, type?: string, value?: string, id?: string, required?: boolean }
+// type InputProps = JSX.HTMLAttributes<HTMLInputElement> & { placeholder?: string, autofocus?: boolean, name?: string, autocomplete?: string, type?: string, value?: string, id?: string, required?: boolean }
+type InputProps = {
+    reset?: () => string,   // should not be same signal as onInput
+    class?: string,
+    id?: string,
+    name?: string,
+    type?: string,
+    autocomplete?: string,
+    placeholder?: string,
+    onInput: (value: string) => void,
+}
 export const Username: Component<InputProps> = (props) => {
     const ln = useLn()
 
@@ -48,7 +59,7 @@ export const Username: Component<InputProps> = (props) => {
             <InputLabel for="username" >{ln().username}</InputLabel>
         </div>
         <div >
-            <Input  {...props} placeholder={ln().enterUsername} autofocus id="username" name="username" type="text" autocomplete="username webauthn" />
+            <Input  {...props} placeholder={ln().enterUsername} id="username" name="username" type="text" autocomplete="username webauthn" />
         </div>
 
     </div>
@@ -92,13 +103,15 @@ export const PhoneOrEmailInput = (props: InputProps) => {
         <div class="mt-2"><Input {...props} placeholder={ln().phoneOrEmail} autocomplete='phone' /></div>
     </div>
 }
-export const EmailInput = (props: InputProps) => {
+
+
+export const EmailInput: Component<InputProps> = (props) => {
     const ln = useLn()
     return <div>
         <div class="flex items-center justify-between">
             <InputLabel for="username" >{ln().email}</InputLabel>
         </div>
-        <div class="mt-2"><Input {...props} placeholder={ln().email}  autocomplete='email' /></div>
+        <div class="mt-2"><Input {...props} placeholder={ln().email} autocomplete='email' /></div>
     </div>
 }
 export const PhoneInput = (props: InputProps) => {
@@ -147,14 +160,14 @@ export const DialogActions: Component<any> = (props) => {
 
 export interface LoginInfo {
     home: string,
-    email:  string,
+    email: string,
     phone: string,
     cookies: string[],
 }
 export interface ChallengeNotify {
-	challenge_type: number
-	challenge_sent_to: string
-	other_options: number
+    challenge_type: number
+    challenge_sent_to: string
+    other_options: number
     login_info?: LoginInfo
 }
 
@@ -162,7 +175,8 @@ export interface ChallengeNotify {
 export const GetSecret: Component<{
     when: () => boolean,
     validate: (secret: string) => Promise<boolean>,
-    onClose: (ok: boolean) => void}> = (props) => {
+    onClose: (ok: boolean) => void
+}> = (props) => {
 
     const ln = useLn()
 
@@ -205,7 +219,7 @@ export const GetSecret: Component<{
         </Show >
     </>
 }
-interface Totp  {
+interface Totp {
     img: Uint8Array
     secret: string
 }
@@ -222,25 +236,25 @@ export const AddPasskey: Component<{
     const [factor, setFactor] = createSignal<number>(Factor.kPasskey)
     const [email, setEmail] = createSignal("")
     const [mobile, setMobile] = createSignal("")
-    const [voice, setVoice ] = createSignal("")
+    const [voice, setVoice] = createSignal("")
     const [isOpenGetSecret, setIsOpenGetSecret] = createSignal(false)
 
     const [dataUrl, setDataUrl] = createSignal("")
 
-    const fb = async () =>{
-        const [img,e] =  await ws.rpce<Totp>("gettotp", {})
+    const fb = async () => {
+        const [img, e] = await ws.rpce<Totp>("gettotp", {})
         if (e) {
             console.log(e)
             return
         }
-         const bl = new Blob([img!.img], { type: 'image/png' });
-         const reader = new FileReader();
-         reader.readAsDataURL(bl);
-         reader.onloadend = () => {
-           const dataUrl = reader.result as string;       
-           setDataUrl(dataUrl)
-         }
-    
+        const bl = new Blob([img!.img], { type: 'image/png' });
+        const reader = new FileReader();
+        reader.readAsDataURL(bl);
+        reader.onloadend = () => {
+            const dataUrl = reader.result as string;
+            setDataUrl(dataUrl)
+        }
+
     }
     // why do we need validate and close? Can't validate close?
     const validate = async (secret: string) => {
@@ -254,7 +268,7 @@ export const AddPasskey: Component<{
         //setLoginInfo(log)
         return true
     }
- 
+
 
     createEffect(() => {
         if (props.when()) {
@@ -272,16 +286,16 @@ export const AddPasskey: Component<{
             props.onClose(true)
         } else {
             let v = ""
-            switch(Number(factor())) {
-            case Factor.kEmail:
-                v = email()
-                break
-            case Factor.kMobile:
-                v = mobile()
-                break
-            case Factor.kVoice:
-                v = voice()
-                break
+            switch (Number(factor())) {
+                case Factor.kEmail:
+                    v = email()
+                    break
+                case Factor.kMobile:
+                    v = mobile()
+                    break
+                case Factor.kVoice:
+                    v = voice()
+                    break
             }
             // we need to test the method here.
             await ws.rpcje<string>("addfactor", {
@@ -296,21 +310,21 @@ export const AddPasskey: Component<{
     // we just close and go on.
     const notNow = () => { props.onClose(false) }
     // here we have to save our choice to the database
-    const notEver = async () => { 
+    const notEver = async () => {
         await ws.rpcje("addfactor", {
             type: Number(Factor.kNone),
         })
 
-        props.onClose(false) 
+        props.onClose(false)
     }
 
     const changeFactor = (e: any) => {
         setFactor(Number(e.target.value))
-        if (factor()==Factor.kTotp && dataUrl()=="") {
+        if (factor() == Factor.kTotp && dataUrl() == "") {
             fb()
         }
     }
-    const closeSecret = () =>{
+    const closeSecret = () => {
         setIsOpenGetSecret(false)
         // this onclose should finalize the login
         props.onClose(true)
@@ -324,20 +338,20 @@ export const AddPasskey: Component<{
                     <DialogPage >
                         <Show when={more()}>
                             <div>
-                            <InputLabel>Second Factor</InputLabel>
-                            <div class='mt-2 text-black dark:text-white  rounded-md items-center '>
-                                <select
-                                    id='ln'
-                                    value={factor()}
-                                    aria-label="Select language"
-                                    class='flex-1  rounded-md dark:bg-neutral-900 text-black dark:text-white '
-                                    onChange={changeFactor}>
-                                    {factors.map(([code, name]:[number,string]) => (
-                                        <option value={code}>
-                                            {name}&nbsp;&nbsp;&nbsp;
-                                        </option>
-                                    ))}
-                                </select></div>
+                                <InputLabel>Second Factor</InputLabel>
+                                <div class='mt-2 text-black dark:text-white  rounded-md items-center '>
+                                    <select
+                                        id='ln'
+                                        value={factor()}
+                                        aria-label="Select language"
+                                        class='flex-1  rounded-md dark:bg-neutral-900 text-black dark:text-white '
+                                        onChange={changeFactor}>
+                                        {factors.map(([code, name]: [number, string]) => (
+                                            <option value={code}>
+                                                {name}&nbsp;&nbsp;&nbsp;
+                                            </option>
+                                        ))}
+                                    </select></div>
                             </div>
                         </Show>
                         <Switch>
@@ -352,15 +366,15 @@ export const AddPasskey: Component<{
 
                             </Match>
                             <Match when={factor() == Factor.kEmail}>
-                                <EmailInput onInput={(e:any)=>setEmail(e.target.value)} />
+                                <EmailInput onInput={setEmail} />
 
                             </Match>
                             <Match when={factor() == Factor.kMobile}>
-                                <PhoneInput  onInput={(e:any)=>setMobile(e.target.value)} />
+                                <PhoneInput onInput={(e) => setMobile(e)} />
 
                             </Match>
-                            <Match when={factor() ==  Factor.kVoice}>
-                                <PhoneInput  onInput={(e:any)=>setVoice(e.target.value)}/>
+                            <Match when={factor() == Factor.kVoice}>
+                                <PhoneInput onInput={(e: any) => setVoice(e.target.value)} />
 
                             </Match>
                             <Match when={factor() == Factor.kTotp}>
