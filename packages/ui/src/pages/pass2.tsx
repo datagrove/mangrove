@@ -9,7 +9,7 @@ import {
     parseRequestOptionsFromJSON,
 } from "@github/webauthn-json/browser-ponyfill";
 import { SiteStore } from "../layout/site_menu"
-import { createWs } from "../lib/socket"
+import { createWs } from "../db/socket"
 import { useNavigate } from "../core/dg";
 
 export const LoginPass = () => {

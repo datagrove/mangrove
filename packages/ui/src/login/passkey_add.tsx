@@ -4,7 +4,7 @@ import { Component, createEffect, createSignal, JSX, JSXElement, Match, onMount,
 import { Center, BlueButton, LightButton } from "../lib/form";
 import { Factor, factors, useLn } from "./passkey_i18n";
 import { A } from "../layout/nav";
-import { createWs } from "../lib/socket";
+import { createWs } from "../db/socket";
 import {
     parseCreationOptionsFromJSON,
     create,

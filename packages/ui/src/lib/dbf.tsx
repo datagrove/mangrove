@@ -1,5 +1,5 @@
 import { Accessor, Setter, createSignal, onCleanup } from "solid-js"
-import { UpdateRow, Watchable, Ws, getWs, profile } from "./socket"
+import { UpdateRow, Watchable, Ws, getWs, profile } from "../db/socket"
 
 const fc = new Map<string, Folder>()
 type FolderWatcher = (f: Folder) => void

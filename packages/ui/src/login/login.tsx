@@ -7,7 +7,7 @@ import { BlueButton } from "../lib/form";
 import { Username, Password, AddPasskey, EmailInput, GetSecret, Input, InputLabel, PhoneInput, ChallengeNotify, LoginInfo, PhoneOrEmailInput } from "./passkey_add";
 import { LanguageSelect } from "../i18n/i18";
 import { abortController, initPasskey, webauthnLogin } from "./passkey";
-import { createWs } from "../lib/socket";
+import { createWs } from "../db/socket";
 import { A } from "../layout/nav";
 import { setLogin } from "../lib/crypto";
 import { Segment } from "../lib/progress";

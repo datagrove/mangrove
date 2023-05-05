@@ -3,7 +3,7 @@
 // autoLogin false until we resolve if we can automatically login
 
 import { createSignal } from "solid-js"
-import { createWs } from "./socket"
+import { createWs } from "../db/socket"
 import { bufferToHex } from "./encode"
 import * as bip39 from 'bip39'
 import * as ucans from "@ucans/ucans"
