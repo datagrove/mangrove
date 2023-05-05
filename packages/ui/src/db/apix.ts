@@ -1,24 +1,17 @@
 import { Ws } from "./socket"
 
 
-
+// we can keep a memory only temp table for building transactions
 
 // to have a database server we need a log?
 // 
-class Server {
-    const tr = new Ptree()
 
-    constructor(public ws: Ws) {
-    }
+
+export class Service extends Map<string, (params: any) => Promise<any>>{
 
 }
 
-// global Dbms state
-const db = new Map<string, Server>()
-
-
-
-export const api = new Map<string, (params: any) => Promise<any>>()
+export const api = new Service
 
 api.set('add', async (params: {x:number,y:number}) : Promise<number> => {
     return params.x + params.y

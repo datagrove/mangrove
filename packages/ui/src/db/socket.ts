@@ -135,16 +135,6 @@ export class SendToWorker {
 }
 
 
-// we need to build in both workers? for encoding and decoding?
-// argument for structured cloning?
-export class Service {
-    a = new Map<string, (_: Uint8Array) => void>()
-
-    add<T, R>(nm: string, fn: (_: any) => Promise<R>) {
-        this.a.set(nm, fn)
-    }
-}
-
 // wrappers, any easy way? Zod?
 // function commit(p: PortLike, tx: Tx) {
 //     p.send('commit', tx)
