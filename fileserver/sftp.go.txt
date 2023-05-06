@@ -1,0 +1,222 @@
+package mangrove
+
+import (
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
+)
+package mangrove
+
+import (
+	"log"
+	"testing"
+)
+
+func Test_Connect(t *testing.T) {
+	x, e := Open(&SshConnection{
+		Host:      "localhost",
+		Port:      2022,
+		User:      "jim",
+		Password:  "jhsimple",
+		PublicKey: nil,
+	})
+	if e != nil {
+		t.Error(e)
+	}
+	fs, e := x.ReadDir("/")
+
+	//fs, e := x.Glob("*.txt")
+	if e != nil {
+		t.Error(e)
+	}
+	for _, f := range fs {
+		log.Println(f.Name())
+	}
+	if e != nil {
+		t.Error(e)
+	}
+	defer x.Close()
+}
+
+const (
+	// frequency of sending transmission statistics
+	progressCheckInterval = 1024 * 1024
+)
+
+// start of an sftp client
+func xx() {
+	port := 2022
+	hostKeyPath := "/path/to/host_rsa_key"
+	userHomeDirFunc := func(user string) string {
+		return "/path/to/home/" + user
+	}
+
+	// Create an SSH server
+	hostKey, err := ioutil.ReadFile(hostKeyPath)
+	if err != nil {
+		log.Fatalf("Failed to read host key: %v", err)
+	}
+
+	signer, err := ssh.ParsePrivateKey(hostKey)
+	if err != nil {
+		log.Fatalf("Failed to parse host key: %v", err)
+	}
+
+	config := &ssh.ServerConfig{
+		NoClientAuth: true,
+	}
+
+	config.AddHostKey(signer)
+
+	listener, err := ssh.Listen("tcp", fmt.Sprintf(":%d", port), config)
+	if err != nil {
+		log.Fatalf("Failed to start SSH server: %v", err)
+	}
+
+	log.Printf("SSH server running on port %d.", port)
+
+	for {
+		// Wait for a new connection
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Printf("Error connecting client: %v", err)
+			continue
+		}
+
+		// Start connection handler
+		go func() {
+			sftpServer, err := sftp.NewServer(conn, &sftpServerHandler{userHomeDirFunc})
+			if err != nil {
+				log.Printf("Unable to create SFTP server: %v", err)
+				return
+			}
+
+			if err := sftpServer.Serve(); err != nil {
+				log.Printf("Error while running SFTP server: %v", err)
+			}
+
+			conn.Close()
+		}()
+	}
+}
+
+type sftpServerHandler struct {
+	userHomeDirFunc func(user string) string
+}
+
+func (h *sftpServerHandler) GetInitHandler(user string) (*sftp.Handlers, error) {
+	return &sftp.Handlers{
+		FileGet:  h.getFile,
+		FilePut:  h.putFile,
+		FileList: h.listDir,
+		FileCmd:  h.execCommand,
+	}, nil
+}
+
+func (h *sftpServerHandler) getFile(request *sftp.Request) (io.ReadCloser, error) {
+	filePath := h.resolveFilePath(request.Filepath)
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
+}
+
+func (h *sftpServerHandler) putFile(request *sftp.Request) (io.WriteCloser, error) {
+	filePath := h.resolveFilePath(request.Filepath)
+
+	file, err := os.Create(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &progressWriter{
+		writer:           file,
+		request:          request,
+		progressInterval: progressCheckInterval,
+	}, nil
+}
+
+func (h *sftpServerHandler) listDir(request *sftp.Request) (sftp.ListerAt, error) {
+	dirPath := h.resolveFilePath(request.Filepath)
+
+	return &dirLister{
+		dirPath: dirPath,
+	}, nil
+}
+
+func (h *sftpServerHandler) execCommand(request *sftp.Request) error {
+	return fmt.Errorf("Not implemented")
+}
+
+func (h *sftpServerHandler) resolveFilePath(filepath string) string {
+	username := h.getUsername(filepath)
+
+	return path.Join(h.userHomeDirFunc(username), strings.TrimPrefix(filepath, "/home/"+username))
+}
+
+func (h *sftpServerHandler) getUsername(filepath string) string {
+	segments := strings.Split(filepath, "/")
+
+	if len(segments) >= 2 && segments[1] != "" {
+		return segments[1]
+	} else {
+		return "anonymous"
+	}
+}
+
+type dirLister struct {
+	dirPath string
+}
+
+func (l *dirLister) ListDirAt(requestPath string) ([]os.FileInfo, error) {
+	var fullPath string
+
+	if requestPath == "" {
+		fullPath = l.dirPath
+	} else {
+		fullPath = filepath.Join(l.dirPath, requestPath)
+	}
+
+	files, err := ioutil.ReadDir(fullPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
+type progressWriter struct {
+	writer           io.Writer
+	request          *sftp.Request
+	progressInterval int64
+	bytesWritten     int64
+}
+
+func (w *progressWriter) Write(data []byte) (int, error) {
+	n, err := w.writer.Write(data)
+
+	if err == nil {
+		w.bytesWritten += int64(n)
+
+		if w.bytesWritten%w.progressInterval == 0 {
+			w.request.Progress(w.bytesWritten)
+		}
+	}
+
+	return n, err
+}
+
+func (w *progressWriter) Close() error {
+	return w.writer.Close()
+}

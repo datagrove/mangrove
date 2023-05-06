@@ -6,8 +6,7 @@ export const SettingsPage: Component<{}> = (props) => {
     return <div>
         <Center>
             <div class=''>Settings</div>
-            <EmailInput></EmailInput>
-            <PhoneInput></PhoneInput>
+
             <BlueButton>Update</BlueButton>
         </Center>
     </div>

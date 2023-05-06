@@ -194,6 +194,31 @@ func (q *Queries) OrgByEmail(ctx context.Context, email pgtype.Text) (MgOrg, err
 	return i, err
 }
 
+const orgByPhone = `-- name: OrgByPhone :one
+select oid, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where mobile = $1
+`
+
+func (q *Queries) OrgByPhone(ctx context.Context, mobile pgtype.Text) (MgOrg, error) {
+	row := q.db.QueryRow(ctx, orgByPhone, mobile)
+	var i MgOrg
+	err := row.Scan(
+		&i.Oid,
+		&i.Name,
+		&i.IsUser,
+		&i.Password,
+		&i.HashAlg,
+		&i.Email,
+		&i.Mobile,
+		&i.Pin,
+		&i.Webauthn,
+		&i.Totp,
+		&i.Flags,
+		&i.TotpPng,
+		&i.DefaultFactor,
+	)
+	return i, err
+}
+
 const read = `-- name: Read :many
 select fid, start, data from mg.dbentry where fid = $1 and start between $2 and $3 order by start
 `
@@ -398,6 +423,20 @@ type UpdateOrgNameParams struct {
 
 func (q *Queries) UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) error {
 	_, err := q.db.Exec(ctx, updateOrgName, arg.Oid, arg.Name)
+	return err
+}
+
+const updatePassword = `-- name: UpdatePassword :exec
+update mg.org set password = $2 where oid = $1
+`
+
+type UpdatePasswordParams struct {
+	Oid      int64
+	Password []byte
+}
+
+func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error {
+	_, err := q.db.Exec(ctx, updatePassword, arg.Oid, arg.Password)
 	return err
 }
 

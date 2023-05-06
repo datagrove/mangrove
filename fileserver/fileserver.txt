@@ -1,0 +1,51 @@
+
+	mg.AddApi("mkdir", true, func(r *Rpcp) (any, error) {
+		var v struct {
+			Path string `json:"path"`
+		}
+		sockUnmarshal(r.Params, &v)
+		return nil, mg.Mkdir(v.Path, r.Session)
+	})
+	mg.AddApi("rm", true, func(r *Rpcp) (any, error) {
+		var v struct {
+			Path string `json:"path"`
+		}
+		sockUnmarshal(r.Params, &v)
+
+		return nil, mg.Rm(v.Path, r.Session)
+	})
+	mg.AddApi("mv", true, func(r *Rpcp) (any, error) {
+		var v struct {
+			From string `json:"from"`
+			To   string `json:"to"`
+		}
+		sockUnmarshal(r.Params, &v)
+
+		return nil, mg.Mv(v.From, v.To, r.Session)
+
+	})
+	mg.AddApi("cp", true, func(r *Rpcp) (any, error) {
+		var v struct {
+			From string `json:"from"`
+
+			To string `json:"to"`
+		}
+		sockUnmarshal(r.Params, &v)
+		return nil, mg.Cp(v.From, v.To, r.Session)
+	})
+	mg.AddApi("upload", true, func(r *Rpcp) (any, error) {
+		var v struct {
+			Path string `json:"path"`
+			Data []byte `json:"data"`
+		}
+		sockUnmarshal(r.Params, &v)
+		return nil, mg.Upload(v.Path, v.Data, r.Session)
+	})
+	mg.AddApi("download", true, func(r *Rpcp) (any, error) {
+		var v struct {
+			Path string `json:"path"`
+		}
+		sockUnmarshal(r.Params, &v)
+
+		return mg.Download(v.Path, r.Session)
+	})

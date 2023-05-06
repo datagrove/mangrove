@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/datagrove/mangrove/mangrove"
 	"github.com/datagrove/mangrove/scrape"
+	"github.com/datagrove/mangrove/server"
 )
 
 var (
@@ -30,14 +30,14 @@ func (fs *spaFileSystem) Open(name string) (http.File, error) {
 	return f, err
 }
 
-var opt *mangrove.MangroveServer
+var opt *server.Config
 
 const (
 	ProxyFrom = "http://localhost:8080"
 )
 
-func GetOpts() *mangrove.MangroveServer {
-	return &mangrove.MangroveServer{
+func GetOpts() *server.Config {
+	return &server.Config{
 		Name:     "sample",
 		Res:      Res,
 		Launch:   nil,
@@ -49,6 +49,7 @@ func GetOpts() *mangrove.MangroveServer {
 
 		EmailSource: "jimh@datagrove.com",
 
+		// we need more features than this
 		ProxyLogin: ImisLogin,
 	}
 }
@@ -57,7 +58,7 @@ func GetOpts() *mangrove.MangroveServer {
 // does it make sense to use a PAKE? Pake needs argon2 to run on the client?
 func main() {
 	opt = GetOpts()
-	cmd := mangrove.DefaultCommands(opt)
+	cmd := server.DefaultCommands(opt)
 	cmd.Execute()
 }
 
@@ -66,7 +67,7 @@ const (
 	passFieldName = "ctl01$TemplateBody$WebPartManager1$gwpciNewContactSignInCommon$ciNewContactSignInCommon$signInPassword"
 )
 
-func ImisLogin(user, password string) (*mangrove.ProxyLogin, error) {
+func ImisLogin(user, password string) (*server.ProxyLogin, error) {
 	cl, e := scrape.NewClient(opt.ProxyTo + "/iCore/Contacts/Sign_In.aspx?LoginRedirect=true&returnurl=%2fMBRR")
 	if e != nil {
 		return nil, e
@@ -84,7 +85,7 @@ func ImisLogin(user, password string) (*mangrove.ProxyLogin, error) {
 			for _, c := range cl.Cookies() {
 				enc = append(enc, c.String())
 			}
-			pl := &mangrove.ProxyLogin{
+			pl := &server.ProxyLogin{
 				Home:    ProxyFrom + "/iSamples/MemberR/MemberHome.aspx",
 				Email:   "",
 				Phone:   "",

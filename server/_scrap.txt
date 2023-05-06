@@ -1,0 +1,19 @@
+func (s *Server) NewUser(u *UserDevice) error {
+	name := strings.ReplaceAll(u.ID, ":", "_")
+	d := path.Join(s.Home, "user", name)
+	os.Mkdir(d, 0700)
+	a := Asset
+	fs.WalkDir(a, "pkg/~", func(p string, de fs.DirEntry, e error) error {
+		f, e := fs.ReadFile(a, p)
+		if e != nil {
+			return e
+		}
+		os.WriteFile(path.Join(d, p), f, 0600)
+		return nil
+	})
+	return nil
+}
+
+
+
+

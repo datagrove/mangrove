@@ -45,6 +45,12 @@ select count(*) from mg.org where name = $1;
 -- name: SelectOrgByName :one
 select * from mg.org where name = $1;
 
+-- name: OrgByEmail :one
+select * from mg.org where email = $1;
+
+-- name: OrgByPhone :one
+select * from mg.org where mobile = $1;
+
 -- name: NamePrefix :one
 select * from mg.name_prefix where name = $1;
 
@@ -71,8 +77,7 @@ select * from mg.credential where oid = $1;
 -- name: InsertCredential :exec
 insert into mg.credential (oid, name, type, value) values ($1, $2, $3, $4);
 
--- name: OrgByEmail :one
-select * from mg.org where email = $1;
+-- name: UpdatePassword :exec
+update mg.org set password = $2 where oid = $1;
 
--- Name: OrgByMobile :one
-select * from mg.org where mobile = $1;
+
