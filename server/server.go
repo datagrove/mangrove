@@ -17,18 +17,30 @@ import (
 
 // get what's know about user,password
 
-type Config struct {
-	*service.Config
-	Res    embed.FS
-	Launch func(*Server) error
-	Root   string
+// we want a
+
+// override defaults with index.jsonc
+type ConfigJson struct {
+	AddrsTLS []string
+	Addrs    []string
+	Root     string
 
 	ProxyTo string
 	Embed   string
 
-	AddrsTLS    []string //terrible name
-	Addrs       []string
 	EmailSource string
+
+	Key   string `json:"key,omitempty"`
+	Https string `json:"https,omitempty"`
+	Sftp  string `json:"sftp,omitempty"`
+
+	HttpsCert    string `json:"https_cert,omitempty"`
+	HttpsPrivate string `json:"https_private,omitempty"`
+}
+type Config struct {
+	*service.Config
+	Ui     embed.FS
+	Launch func(*Server) error
 
 	// turn a user name into a cookie. auth could be a password or a token
 	ProxyLogin func(user string, auth string) (*ProxyLogin, error)
@@ -39,15 +51,8 @@ type Config struct {
 	// we could do this with the normal signin in page, but the problem is the special username field and extra javascript.
 	//ProxyRegister func(key, val []string, auth string) (*ProxyLogin, error)
 
-	Key   string `json:"key,omitempty"`
-	Https string `json:"https,omitempty"`
-	Sftp  string `json:"sftp,omitempty"`
-
-	HttpsCert    string `json:"https_cert,omitempty"`
-	HttpsPrivate string `json:"https_private,omitempty"`
-
 	//Store   string   `json:"test_root,omitempty"`
-	Ui embed.FS
+
 }
 type ProxyLogin struct {
 	Home    string   `json:"home,omitempty"`
