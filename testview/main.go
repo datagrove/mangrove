@@ -9,7 +9,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/datagrove/mangrove/mangrove"
+	"github.com/datagrove/mangrove/server"
+	"github.com/kardianos/service"
 )
 
 // testview --port 5078 --sftp localhost:5079 --http localhost:5078 --store ./TestResults
@@ -21,14 +22,33 @@ var (
 
 // main is where we set up the web hooks, file hooks, apis, and reports
 func main() {
-	x := mangrove.DefaultServer("testview", res, launch)
+	x := server.DefaultCommands(&server.Config{
+		Name:                "",
+		Res:                 res,
+		Launch:              launch,
+		Root:                "",
+		ProxyTo:             "",
+		Embed:               "",
+		AddrsTLS:            []string{},
+		Addrs:               []string{},
+		EmailSource:         "",
+		ProxyLogin:          nil,
+		ProxyUpdatePassword: nil,
+		Key:                 "",
+		Https:               "",
+		Sftp:                "",
+		HttpsCert:           "",
+		HttpsPrivate:        "",
+		Ui:                  embed.FS{},
+		Service:             service.Config{},
+	})
 	x.Execute()
 }
 
 // add apis here
 // authorization has to be in a cookie
 // the cookie is set when they visit the url they get from ssh.
-func launch(x *mangrove.Server) error {
+func launch(x *server.Server) error {
 	mux := x.Mux
 
 	// this lets us serve the artifacts as static files

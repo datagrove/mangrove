@@ -1,4 +1,4 @@
-package remotecli
+package tasks
 
 import (
 	sh "github.com/kballard/go-shellquote"

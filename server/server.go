@@ -10,9 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/joho/godotenv"
 	"github.com/kardianos/service"
-	"github.com/spf13/cobra"
 )
 
 // move to mangrove
@@ -20,7 +18,7 @@ import (
 // get what's know about user,password
 
 type Config struct {
-	Name   string
+	*service.Config
 	Res    embed.FS
 	Launch func(*Server) error
 	Root   string
@@ -49,8 +47,7 @@ type Config struct {
 	HttpsPrivate string `json:"https_private,omitempty"`
 
 	//Store   string   `json:"test_root,omitempty"`
-	Ui      embed.FS
-	Service service.Config
+	Ui embed.FS
 }
 type ProxyLogin struct {
 	Home    string   `json:"home,omitempty"`
@@ -80,17 +77,6 @@ type ChallengeInfo struct {
 	Challenge       string `json:"challenge,omitempty"`
 }
 
-func HomeDir(opt *Config, args []string) {
-	if len(opt.Root) > 0 {
-		return
-	}
-	if len(args) > 0 {
-		opt.Root = args[0]
-	} else {
-		opt.Root = "./store"
-	}
-}
-
 // first pull the sign in page, then extract the hidden fields and submit those
 // with the username and password. How do I know if the user is logged in already?
 // I need some api to tell if the user is logged in already.
@@ -111,39 +97,7 @@ func getpage() string {
 	return fmt.Sprintf(page, urlx, user, pass)
 }
 
-func DefaultCommands(opt *Config) *cobra.Command {
-	godotenv.Load()
-
-	// DefaultConfig will look in the current directory for a testview.json file
-	rootCmd := &cobra.Command{}
-	rootCmd.AddCommand(&cobra.Command{
-		Use: "install [home directory]",
-		Run: func(cmd *cobra.Command, args []string) {
-			// use service to install the service
-			HomeDir(opt, args)
-			x, e := NewServer(opt) // opt.Name, HomeDir(args), opt.Res)
-			if e != nil {
-				log.Fatal(e)
-			}
-			// how do we add command line paramters?
-			x.Install()
-		}})
-	rootCmd.AddCommand(&cobra.Command{
-		Use: "start [home directory]",
-		Run: func(cmd *cobra.Command, args []string) {
-			x, e := NewServer(opt)
-			if e != nil {
-				log.Fatal(e)
-			}
-			if opt.Launch != nil {
-				opt.Launch(x)
-			}
-			x.Start()
-
-		}})
-	return rootCmd
-}
-func (s *Server) Start() {
+func (s *Server) Start2() {
 	// should this be in config?
 	var staticFS = fs.FS(s.Ui)
 	htmlContent, err := fs.Sub(staticFS, "ui/dist")

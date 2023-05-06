@@ -137,7 +137,7 @@ func (s *FileWatcher) GetWatch(watchPath string) (*Watch, bool) {
 	}
 	return w, true
 }
-func (s *FileWatcher) RemoveWatch(watchPath string, session *server.SocketSession) {
+func (s *FileWatcher) RemoveWatch(watchPath string, session *server.Session) {
 	w, ok := s.GetWatch(watchPath)
 	if !ok {
 		return

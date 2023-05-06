@@ -436,33 +436,6 @@ func (svr *Server) onWebSocket() http.HandlerFunc {
 	}
 }
 
-func (sx *Server) Install() {
-	prg := &program{}
-	s, err := service.New(prg, &sx.Config.Service)
-	if err != nil {
-		log.Fatal(err)
-	}
-	s.Install()
-}
-
-func (sx *Server) RunService() {
-	prg := &program{}
-	s, err := service.New(prg, &sx.Config.Service)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	logger, err = s.Logger(nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = s.Run()
-	if err != nil {
-		logger.Error(err)
-	}
-}
-
 func (sx *Server) Run() error {
 	e := sx.Ws.Start()
 	if e != nil {

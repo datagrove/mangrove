@@ -13,6 +13,7 @@ require (
 	github.com/multiformats/go-multibase v0.2.0
 	github.com/multiformats/go-varint v0.0.7
 	github.com/stretchr/testify v1.8.1
+	golang.org/x/net v0.8.0
 )
 
 require (
@@ -62,7 +63,6 @@ require (
 	github.com/lesismal/llib v1.1.10
 	github.com/lesismal/nbio v1.3.11
 	github.com/o1egl/paseto v1.0.0
-	github.com/otiai10/copy v1.10.0
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/sftp v1.13.5
 	github.com/pquerna/otp v1.4.0
