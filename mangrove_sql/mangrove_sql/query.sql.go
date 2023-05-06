@@ -169,6 +169,31 @@ func (q *Queries) NamePrefix(ctx context.Context, name string) (MgNamePrefix, er
 	return i, err
 }
 
+const orgByEmail = `-- name: OrgByEmail :one
+select oid, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where email = $1
+`
+
+func (q *Queries) OrgByEmail(ctx context.Context, email pgtype.Text) (MgOrg, error) {
+	row := q.db.QueryRow(ctx, orgByEmail, email)
+	var i MgOrg
+	err := row.Scan(
+		&i.Oid,
+		&i.Name,
+		&i.IsUser,
+		&i.Password,
+		&i.HashAlg,
+		&i.Email,
+		&i.Mobile,
+		&i.Pin,
+		&i.Webauthn,
+		&i.Totp,
+		&i.Flags,
+		&i.TotpPng,
+		&i.DefaultFactor,
+	)
+	return i, err
+}
+
 const read = `-- name: Read :many
 select fid, start, data from mg.dbentry where fid = $1 and start between $2 and $3 order by start
 `

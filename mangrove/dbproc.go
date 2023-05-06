@@ -289,6 +289,23 @@ func (s *Server) GetLoginInfo(sess *Session) (*LoginInfo, error) {
 		ProxyLogin: p,
 	}, nil
 }
+func (s *Server) RecoverPassword(sess *Session, email, phone string) error {
+	if len(email) > 0 {
+		a, e := s.Db.qu.OrgByEmail(context.Background(), pt(email))
+		if e != nil {
+			return e
+		}
+		s.SendChallenge(sess)
+	} else if len(phone) > 0 {
+		a, e := s.Db.qu.OrgByEmail(context.Background(), pt(email))
+		if e != nil {
+			return e
+		}
+		s.SendChallenge(sess)
+	}
+
+	return nil
+}
 
 // using the database here is not good
 // we want to test the values before we store them

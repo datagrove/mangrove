@@ -25,7 +25,7 @@ enum Screen {
 }
 
 const keys = ["passkey", "email", "phone", "time", "app"]
-export const LoginPage: Component<{}> = (props) => {
+export const LoginPagex: Component<{}> = (props) => {
     const [key, setKey] = createSignal("passkey")
     return <Center>
         <Segment option={keys} value={key} onChange={setKey} />
@@ -33,7 +33,7 @@ export const LoginPage: Component<{}> = (props) => {
 }
 
 // todo: send language in requests so that we can localize the error messages
-export const LoginPage2: Component<{ allow?: string[] }> = (props) => {
+export const LoginPage: Component<{ allow?: string[] }> = (props) => {
     const ws = createWs()
     const ln = useLn()
 
@@ -41,7 +41,10 @@ export const LoginPage2: Component<{ allow?: string[] }> = (props) => {
     const [password, setPassword] = createSignal("")
     const [error, setError_] = createSignal("")
     const [screen, setScreen_] = createSignal(Screen.Login)
+    const [email, setEmail] = createSignal("")
+    const [phone, setPhone] = createSignal("")
     const register = () => screen() == Screen.Register
+    const [secret, setSecret] = createSignal("")
 
     const [loginInfo, setLoginInfo] = createSignal<LoginInfo | undefined | null>(undefined)
     const setError = (e: string) => {
@@ -164,8 +167,16 @@ export const LoginPage2: Component<{ allow?: string[] }> = (props) => {
         setScreen(Screen.Register)
         el.focus()
     }
-    const [recoverPassword, setRecoverPassword] = createSignal(false)
-    const [createAccount, setCreateAccount] = createSignal(false)
+
+    const recover = async () => {
+        const o = await ws.rpcj("recover", { email: email(), phone: phone() })
+        setScreen(Screen.Recover2)
+    }
+    const recover2 = async () => {
+        const o = await ws.rpcj("recover2", { secret: secret() })
+        setScreen(Screen.Recover2)
+    }
+
     return <div dir={ln().dir}>
         <Show when={finished()}>
             <Center>
@@ -207,18 +218,18 @@ export const LoginPage2: Component<{ allow?: string[] }> = (props) => {
                         </div></Match>
                     <Match when={screen() == Screen.Recover}>
                         <form method='post' class='space-y-6' onSubmit={submitLogin} >
-                            <div>Enter phone OR email</div>
-                            <PhoneInput onInput={setUser} />
-                            <EmailInput onInput={setUser} />
-                            <BlueButton onClick={() => setScreen(Screen.Recover2)} >{ln().recover}</BlueButton>
+                            <div>Enter phone or email</div>
+                            <PhoneInput onInput={setPhone} />
+                            <EmailInput onInput={setEmail} />
+                            <BlueButton onClick={recover} >{ln().recover}</BlueButton>
                         </form>
                     </Match>
                     <Match when={screen() == Screen.Recover2}>
                         <form method='post' class='space-y-6' onSubmit={submitLogin} >
                             <div>Choose a new password </div>
                             <Username onInput={setUser}></Username>
-                            <Password onInput={setUser} />
-                            <BlueButton  >{ln().recover}</BlueButton>
+                            <Password onInput={setPassword} />
+                            <BlueButton onClick={recover2} >{ln().recover}</BlueButton>
                         </form>
                     </Match>
                     <Match when={true}>

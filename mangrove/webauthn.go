@@ -249,6 +249,44 @@ func WebauthnSocket(mg *Server) error {
 		return mg.Download(v.Path, r.Session)
 	})
 
+	mg.AddApij("recover", false, func(r *Rpcpj) (any, error) {
+		var v struct {
+			email string `json:"email"`
+			phone string `json:"phone"`
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		mg.RecoverPassword(v.email, v.phone)
+		return nil, nil
+	})
+	// same as loginpassword2?
+	mg.AddApij("recover2", false, func(r *Rpcpj) (any, error) {
+		var v struct {
+			secret string `json:"secret"`
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		if v.secret != r.Session.Secret {
+			return nil, errBadLogin
+		}
+		return true, nil
+	})
+	mg.AddApij("recover3", false, func(r *Rpcpj) (any, error) {
+		var v struct {
+			password string `json:"password"`
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		// how do we change the password in proxied app?
+		return nil, nil
+	})
+
 	// how should we safely confirm the recovery code? It's basically a password.
 	// add is mostly the same as register?
 	mg.AddApij("addCredential", true, func(r *Rpcpj) (any, error) {

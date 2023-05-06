@@ -70,3 +70,9 @@ select * from mg.credential where oid = $1;
 
 -- name: InsertCredential :exec
 insert into mg.credential (oid, name, type, value) values ($1, $2, $3, $4);
+
+-- name: OrgByEmail :one
+select * from mg.org where email = $1;
+
+-- Name: OrgByMobile :one
+select * from mg.org where mobile = $1;
