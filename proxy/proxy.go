@@ -8,6 +8,7 @@ import (
 
 	"github.com/datagrove/mangrove/scrape"
 	"github.com/datagrove/mangrove/server"
+	"github.com/kardianos/service"
 )
 
 var (
@@ -38,19 +39,22 @@ const (
 
 func GetOpts() *server.Config {
 	return &server.Config{
-		Name:     "sample",
-		Res:      Res,
-		Launch:   nil,
-		Root:     "",
-		ProxyTo:  "https://datagrove_servr",
-		Embed:    "/embed/",
-		AddrsTLS: []string{},
-		Addrs:    []string{"localhost:8080"},
-
-		EmailSource: "jimh@datagrove.com",
+		Config: service.Config{
+			Name: "ImisProxy",
+		},
+		ConfigJson: server.ConfigJson{
+			Root:        "",
+			ProxyTo:     "https://datagrove_servr",
+			Embed:       "/embed/",
+			AddrsTLS:    []string{},
+			Addrs:       []string{"localhost:8080"},
+			EmailSource: "jimh@datagrove.com",
+		},
 
 		// we need more features than this
 		ProxyLogin: ImisLogin,
+		Ui:         Res,
+		Launch:     nil,
 	}
 }
 

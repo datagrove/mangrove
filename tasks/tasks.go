@@ -3,7 +3,6 @@ package tasks
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -12,9 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/datagrove/mangrove/serde"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
-	"github.com/tailscale/hujson"
 )
 
 //var Job map[string]*Job
@@ -65,19 +64,6 @@ func (c *Context) TaskLog() *Task {
 	return r
 }
 
-// the idea here is to add a few different commands for standalone bespoke servers
-//	should this return a cobra command?
-// maybe there should be a default proxy server as well
-
-func Unmarshal(b []byte, v interface{}) error {
-	ast, err := hujson.Parse(b)
-	if err != nil {
-		return err
-	}
-	ast.Standardize()
-	return json.Unmarshal(ast.Pack(), v)
-}
-
 func OpenContainer(home string, container string) (*Context, error) {
 
 	ct, e := LoadContainer(container)
@@ -96,11 +82,7 @@ func OpenContainer(home string, container string) (*Context, error) {
 }
 func LoadContainer(dir string) (*Container, error) {
 	var j Container
-	b, e := os.ReadFile(path.Join(dir, "index.jsonc"))
-	if e != nil {
-		return nil, e
-	}
-	e = Unmarshal(b, &j)
+	e := serde.UnmarshalFile(&j, dir, "index.jsonc")
 	if e != nil {
 		return nil, e
 	}

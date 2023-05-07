@@ -2,12 +2,13 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/datagrove/mangrove/crypto"
+	"github.com/datagrove/mangrove/serde"
 	"github.com/joho/godotenv"
 	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
@@ -26,11 +27,43 @@ func DefaultCommands(opt *Config) *cobra.Command {
 		if len(os.Args) > 2 {
 			opt.Root = os.Args[2]
 		} else {
-			opt.Root = "./store"
+			p, e := os.UserHomeDir()
+			if e != nil {
+				log.Fatal(e)
+			}
+			// bug? this should probably allow override with --name
+			opt.Root = path.Join(p, opt.Name)
+		}
+		var e error
+		opt.Root, e = filepath.Abs(opt.Root)
+		if e != nil {
+			log.Fatal(e)
 		}
 	}
 
+	_, e := os.Stat(opt.Root)
+	if e != nil {
+		sx := opt.ConfigJson
+		// create a default configuration
+		os.MkdirAll(opt.Root, 0755)
+		sx.HttpsCert = path.Join(sx.Root, "cert.pem")
+		sx.HttpsPrivate = path.Join(sx.Root, "key.pem")
+		crypto.MakeCert(sx.HttpsCert, sx.HttpsPrivate)
+
+		b, e := json.MarshalIndent(&sx, "", "  ")
+		if e != nil {
+			log.Fatal(e)
+		}
+
+		os.WriteFile(path.Join(sx.Root, "index.jsonc"), b, 0644)
+	} else {
+		serde.UnmarshalFile(&opt.ConfigJson, opt.Root, "index.jsonc")
+	}
+
 	rootCmd := &cobra.Command{}
+
+	// we need to have options to name the service if we want more thann one service
+	// we need to pass the directory to the service, probably resolved
 	rootCmd.AddCommand(&cobra.Command{
 		Use: "install [home directory]",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -109,24 +142,8 @@ func (sx *Server) Uninstall() error {
 	}
 	return s.Uninstall()
 }
+
 func (sx *Server) Install() error {
-	_, e := os.Stat(sx.Root)
-	if e == nil {
-		return fmt.Errorf("directory %s already exists", sx.Root)
-	}
-	// create a default configuration
-	os.MkdirAll(sx.Root, 0755)
-
-	sx.HttpsCert = path.Join(sx.Root, "cert.pem")
-	sx.HttpsPrivate = path.Join(sx.Root, "key.pem")
-	crypto.MakeCert(sx.HttpsCert, sx.HttpsPrivate)
-
-	b, e := json.MarshalIndent(&sx.Config.ConfigJson, "", "  ")
-	if e != nil {
-		log.Fatal(e)
-	}
-
-	os.WriteFile(path.Join(sx.Root, "index.jsonc"), b, 0644)
 
 	s, err := service.New(sx, &sx.Config.Config)
 	if err != nil {
