@@ -49,6 +49,9 @@ export const InlineButton: Component<ButtonProps> = (props) => {
 export const Ab: Component<AnchorProps> = (props) => {
   return <Ar {...props} class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`} href={props.href}>{props.children}</Ar>
 }
+export const Bb: Component<{ onClick: () => void, children: JSXElement, class?: string }> = (props) => {
+  return <button {...props} class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`} onClick={props.onClick}>{props.children}</button>
+}
 export const P: Component<{ children: JSXElement, class?: string }> = (props) => {
   return <p class={`${props.class ?? ""} mt-2`}  >{props.children}</p>
 }
@@ -146,12 +149,12 @@ export const Body: Component<{ children: JSXElement }> = (props) => {
 }
 export const SimplePage: Component<{ children: JSXElement }> = (props) => {
   return <><div class='fixed w-screen flex flex-row items-center pr-4'>
-      <div class='flex-1' />
-      <div class='w-48'><LanguageSelect /></div>
-      <DarkButton /></div>
-      <Center>
-          {props.children}
-      </Center></>
+    <div class='flex-1' />
+    <div class='w-48'><LanguageSelect /></div>
+    <DarkButton /></div>
+    <Center>
+      {props.children}
+    </Center></>
 }
 export const Page: Component<{ children: JSXElement }> = (props) => {
   return <div class='flex h-screen v-screen '>

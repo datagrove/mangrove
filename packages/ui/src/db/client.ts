@@ -13,6 +13,7 @@ import { Tx } from "../dbt/tree"
 import { Watch, toBytes } from "./data"
 import { z } from "zod"
 import { l } from "../i18n/en"
+import { JSXElement, createSignal } from "solid-js"
 
 class Client {
     shared: SendToWorker | undefined
@@ -125,33 +126,44 @@ export type dbstrDb = {
 }
 
 // db str needs to be a wrapper around a cellstate, the cell state may be on a remote server, an in-memory cell, or a local cell.
-export type dbstr = {
-    validate: z.ZodString
+export interface CellOptions {
+    name: string,
+    label?: string,
+    placeholder?: string,
+    default?: string,
+    validate?: z.ZodString,
+    autocomplete?: string
+    type?: string
+    topAction?: () => JSXElement
+}
+
+export interface Cell extends CellOptions {
     commit(s: string): Promise<void>
     listen(cb: (v: string) => void): void
     value(): string
 }
+
 // is this only for in-memory, or is there a better way to link directly to a database?
 // should we be use named parameters here?
-export function cell(props?: {
-        value?: string, 
-        validate?: z.ZodString
-    }): dbstr {
+export function cell(props: CellOptions): Cell {
     // use array here so we can point to it? is there a cheaper way?
-    let v: string[] = [props?.value??""]
+    //let v: string[] = [props?.default ?? ""]
+    const [v, setV] = createSignal(props?.default ?? "")
     return {
+        ...props,
         validate: props?.validate || z.string(),
         commit: async (ts: string) => {
-            v[0] = ts
+            console.log("commit", ts)
+            setV(ts)
         },
         listen: (cb: (val: string) => void) => {
             // not called.
         },
-        value: () => v[0]
+        value: () => v()
     }
 }
 
-export function createEditor(d: dbstr, setError: (s: string) => void): [refset<HTMLInputElement>] {
+export function createEditor(d: Cell, setError: (s: string) => void): [refset<HTMLInputElement>] {
 
     return [(el: HTMLInputElement) => {
         d.listen((v: string) => {
@@ -159,7 +171,7 @@ export function createEditor(d: dbstr, setError: (s: string) => void): [refset<H
         })
         el.addEventListener('input', async (e: any) => {
             const v = e.target?.value
-            const r = d.validate.safeParse(v)
+            const r = d.validate!.safeParse(v)
             setError(r.success ? '' : r.error.message)
             d.commit(v)
         })

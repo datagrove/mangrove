@@ -104,3 +104,4 @@ export function lx(key: string): string {
     const l = allLn[ln()] ?? allLn['en']
     return l[key as keyof Ln] ?? key
 }
+export const _ = lx

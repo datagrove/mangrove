@@ -1,5 +1,5 @@
 import { Component, createEffect, createSignal, onCleanup } from "solid-js"
-import { createEditor, dbstr as cellptr, cell } from "./client"
+import { createEditor, Cell as cellptr, cell } from "./client"
 import { z } from "zod"
 import { BlueButton } from "../lib/form"
 

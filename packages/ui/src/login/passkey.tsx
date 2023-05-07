@@ -1,5 +1,5 @@
 import { Component, JSXElement, Match, Show, Switch, createSignal } from "solid-js"
-import { A } from "../layout/nav"
+import { Ab } from "../layout/nav"
 import { BlueButton, Center } from "../lib/form"
 import { generatePassPhrase, security, setError, setLogin, setSecurity } from "../lib/crypto"
 import {
@@ -58,10 +58,10 @@ export const webauthnLogin = async () => { // id: string, not needed?
     // then we can navigate in it. the site might tell us the first url
 
 }
-const [crox,setCrox] = createSignal<any>(null)
+const [crox, setCrox] = createSignal<any>(null)
 // this blocks a promise waiting for the user to offer a passkey
-export let abortController : AbortController
-export async function initPasskey(setError: (e: string) => void) : Promise<LoginInfo|null> {
+export let abortController: AbortController
+export async function initPasskey(setError: (e: string) => void): Promise<LoginInfo | null> {
     if (!window.PublicKeyCredential
         // @ts-ignore
         || !PublicKeyCredential.isConditionalMediationAvailable
@@ -103,7 +103,7 @@ export async function initPasskey(setError: (e: string) => void) : Promise<Login
             // we need to get back the site store here, does it also keep a token?
             // we will eventually write the store into opfs
             // rejected if the key is not registered. loop back then to get another?
-            return  await ws.rpcj<LoginInfo>("login2", o.toJSON())
+            return await ws.rpcj<LoginInfo>("login2", o.toJSON())
         } catch (e: any) {
             // don't show error here, we probably just aborted the signal
         }
@@ -211,7 +211,7 @@ export const LoginPasskey: Component<{ login?: boolean }> = (props) => {
             </Switch>
         </form>
 
-        <div class='flex w-full mt-4'><div class='flex-1' /> <A href={`/${"en"}/register`}>{ln().register}</A><div class='flex-1' /> </div>
+        <div class='flex w-full mt-4'><div class='flex-1' /> <Ab href={`/${"en"}/register`}>{ln().register}</Ab><div class='flex-1' /> </div>
     </SimplePage>
 
 }

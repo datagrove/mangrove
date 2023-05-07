@@ -2,8 +2,7 @@ import { Icon } from "solid-heroicons";
 import { key, user } from "solid-heroicons/solid";
 import { Component, createEffect, createSignal, JSX, JSXElement, Match, onMount, Show, Switch } from "solid-js";
 import { Center, BlueButton, LightButton } from "../lib/form";
-import { Factor, factors, useLn } from "./passkey_i18n";
-import { A } from "../layout/nav";
+import { Factor, _, factors, useLn } from "./passkey_i18n";
 import { createWs } from "../db/socket";
 import {
     parseCreationOptionsFromJSON,
@@ -11,6 +10,8 @@ import {
     get,
     parseRequestOptionsFromJSON,
 } from "@github/webauthn-json/browser-ponyfill";
+import { Cell } from "../db/client";
+import { Ab, Bb } from "../layout/nav";
 
 
 
@@ -64,8 +65,39 @@ export const Username: Component<InputProps> = (props) => {
 
     </div>
 }
+export const InputCell: Component<{ cell: Cell }> = (props) => {
+    const ln = useLn()
+    const n = props.cell.name
+    const setCell = (e: string) => {
+        props.cell.commit(e)
+    }
+    return <div >
+        <div class="flex items-center justify-between">
+            <InputLabel for={n} >{_(n)}</InputLabel>
+            <Show when={props.cell.topAction}>
+                <div />
+                <div>{props.cell.topAction!()}</div>
+            </Show>
+        </div>
+        <div >
+            <Input onInput={setCell} placeholder={_(n)} id={n} name={n} type={props.cell.type ?? "text"} autocomplete={props.cell.autocomplete} />
+        </div>
 
-
+    </div>
+}
+export const PasswordCell: Component<{ cell: Cell }> = (props) => {
+    const ln = useLn()
+    const [hide, setHide] = createSignal(true)
+    const top = () => <Bb onClick={() => setHide(!hide())} >{hide() ? ln().show : ln().hide}</Bb>
+    const c = () => {
+        return {
+            ...props.cell,
+            type: hide() ? "password" : "text",
+            topAction: top
+        }
+    }
+    return <InputCell cell={c()} />
+}
 export const Password: Component<InputProps & { required?: boolean }> = (props) => {
     const ln = useLn()
     const [hide, setHide] = createSignal(true)
@@ -390,7 +422,7 @@ export const AddPasskey: Component<{
                             <div class='w-24'><LightButton tabindex='0' ref={btnNot!} onClick={notNow}>{ln().notNow}</LightButton></div>
                             <div class='w-24'><LightButton tabindex='0' onClick={notEver}>{ln().notEver}</LightButton></div>
                         </div>
-                        <Show when={!more()}><div class=' flex'><A href='#' onClick={() => setMore(true)}>{ln().more2fa}</A></div></Show>
+                        <Show when={!more()}><div class=' flex'><Ab href='#' onClick={() => setMore(true)}>{ln().more2fa}</Ab></div></Show>
                     </DialogPage></Center>
             </Dialog ></Show >
     </>

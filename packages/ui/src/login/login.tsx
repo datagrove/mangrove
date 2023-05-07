@@ -1,16 +1,13 @@
 
-import { Ab, Body, Center,  Title } from "..";
-import { Component, JSX, JSXElement, Match, Show, Switch, createSignal } from "solid-js";
+import { Ab, Center, SimplePage } from "..";
+import { Component, JSX, Match, Show, Switch, createSignal } from "solid-js";
 import { Factor, useLn } from "./passkey_i18n";
-import { DarkButton } from "../layout/site_menu";
 import { BlueButton } from "../lib/form";
-import { Username, Password, AddPasskey, EmailInput, GetSecret, Input, InputLabel, PhoneInput, ChallengeNotify, LoginInfo, PhoneOrEmailInput } from "./passkey_add";
-import { LanguageSelect } from "../i18n/i18";
+import { Username, Password, AddPasskey, EmailInput, GetSecret, PhoneInput, ChallengeNotify, LoginInfo, InputCell, PasswordCell } from "./passkey_add";
 import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { createWs } from "../db/socket";
-import { setLogin } from "../lib/crypto";
 import { Segment } from "../lib/progress";
-import { cell } from "../db/client";
+import { CellOptions, cell } from "../db/client";
 import { useNavigate } from "../core/dg";
 
 // when this page logs in successfully, how do we get the user to the right place?
@@ -43,10 +40,13 @@ export const LoginPagex: Component<{}> = (props) => {
     </Center>
 }
 
+export const LoginPage = (props: { allow?: string[] }) => {
+    return <SimplePage><Login /></SimplePage>
+}
 
 
 // todo: send language in requests so that we can localize the error messages
-export const LoginPage: Component<{ allow?: string[] }> = (props) => {
+const Login: Component<{ allow?: string[] }> = (props) => {
     const ws = createWs()
     const ln = useLn()
     const nav = useNavigate()
@@ -215,31 +215,58 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
     </div>
 }
 
+// inviting is a way to send a link with a OTP to someone to join the system
+// could be email or internal name.
+// name.namespace vs name@dns
+export const InvitePage = () => {
+
+}
+
 // for imis we should try to intercept the registration and just steal the password if it succeeds.
 // for 1199 we don't need registration at all; just a QR code for pat?
 // how does pat grant then?
-const RegisterPage = () => {
+// for 1199 I can create a password and send it.
+export const user: CellOptions = {
+    name: "username",
+    autocomplete: "username webauthn"
+}
+export const password: CellOptions = {
+    name: "password",
+    type: "password",
+}
+export const email: CellOptions = {
+    name: "email",
+}
+export const phone: CellOptions = {
+    name: "phone",
+}
+export const RegisterPage = () => <SimplePage><Register /></SimplePage>
+
+const Register = () => {
     const ws = createWs()
     const ln = useLn()
-        // registration is a transaction, but then we later want to be able to edit 
+    // registration is a transaction, but then we later want to be able to edit 
     const data = {
-        user: cell(),
-        password: cell(),
+        user: cell(user),
+        password: cell(password),
+        email: cell(email),
+        phone: cell(phone),
     }
     const [okname, setOkname] = createSignal(false)
     const submitRegister = async (eb: any) => {
-                // we need to check if the name is available
-                const [ok, e] = await ws.rpcje<boolean>("okname", { name: data.user.value() })
-                if (!e && ok) {
-                    setOkname(true)
-                } else {
-                    setOkname(false)
-                }
-            }
+        // we need to check if the name is available
+        const [ok, e] = await ws.rpcje<boolean>("okname", { name: data.user.value() })
+        if (!e && ok) {
+            setOkname(true)
+        } else {
+            setOkname(false)
+        }
+    }
 
     return <form method='post' class='space-y-6' onSubmit={(e: any) => e.preventDefault()} >
-
-        <BlueButton disabled={!okname()} >{ln().register}</BlueButton>
+        <InputCell cell={data.user} />
+        <PasswordCell cell={data.password} />
+        <BlueButton disabled={!data.user.value()} >{ln().register}</BlueButton>
     </form>
 
 }
