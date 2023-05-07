@@ -131,10 +131,16 @@ export type dbstr = {
     listen(cb: (v: string) => void): void
     value(): string
 }
-export function makeCell(value: string, validate?: z.ZodString): dbstr {
-    let v: string[] = [value]
+// is this only for in-memory, or is there a better way to link directly to a database?
+// should we be use named parameters here?
+export function cell(props?: {
+        value?: string, 
+        validate?: z.ZodString
+    }): dbstr {
+    // use array here so we can point to it? is there a cheaper way?
+    let v: string[] = [props?.value??""]
     return {
-        validate: validate || z.string(),
+        validate: props?.validate || z.string(),
         commit: async (ts: string) => {
             v[0] = ts
         },

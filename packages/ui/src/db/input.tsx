@@ -1,5 +1,5 @@
 import { Component, createEffect, createSignal, onCleanup } from "solid-js"
-import { createEditor, dbstr as cellptr, makeCell } from "./client"
+import { createEditor, dbstr as cellptr, cell } from "./client"
 import { z } from "zod"
 import { BlueButton } from "../lib/form"
 
@@ -17,8 +17,8 @@ export const Input: Component<{ ptr: cellptr, label: string }> = (props) => {
 
 export const Sampleform: Component = (props) => {
     const af = {
-        first: makeCell("", z.string().min(3)),
-        last: makeCell("", z.string().min(3)),
+        first: cell("", z.string().min(3)),
+        last: cell("", z.string().min(3)),
     }
     const submit = (e: Event) => {
         e.preventDefault()

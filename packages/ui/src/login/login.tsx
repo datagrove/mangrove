@@ -1,6 +1,6 @@
 
-import { Body, Center, Page, Title } from "..";
-import { Component, JSX, Match, Show, Switch, createSignal } from "solid-js";
+import { Ab, Body, Center,  Title } from "..";
+import { Component, JSX, JSXElement, Match, Show, Switch, createSignal } from "solid-js";
 import { Factor, useLn } from "./passkey_i18n";
 import { DarkButton } from "../layout/site_menu";
 import { BlueButton } from "../lib/form";
@@ -8,16 +8,27 @@ import { Username, Password, AddPasskey, EmailInput, GetSecret, Input, InputLabe
 import { LanguageSelect } from "../i18n/i18";
 import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { createWs } from "../db/socket";
-import { A } from "../layout/nav";
 import { setLogin } from "../lib/crypto";
 import { Segment } from "../lib/progress";
+import { cell } from "../db/client";
+import { useNavigate } from "../core/dg";
 
 // when this page logs in successfully, how do we get the user to the right place?
 export const Spc = () => <div class='flex-1' />
+type ButtonProps = JSX.HTMLAttributes<HTMLButtonElement>
 
+export const GreyButton: Component<ButtonProps> = (props) => {
+    return <button {...props} class="text-sm block font-semibold hover:underline text-indigo-500 hover:text-indigo-700 dark:text-neutral-500 dark:hover:text-indigo-300">
+        {props.children}
+    </button>
+}
+
+export interface AuthPolicy {
+    uniqueName: boolean
+    require: string[]
+}
 enum Screen {
     Login,
-    Register,
     Secret,
     AddKey,
     Recover,
@@ -32,25 +43,28 @@ export const LoginPagex: Component<{}> = (props) => {
     </Center>
 }
 
+
+
 // todo: send language in requests so that we can localize the error messages
 export const LoginPage: Component<{ allow?: string[] }> = (props) => {
     const ws = createWs()
     const ln = useLn()
+    const nav = useNavigate()
 
-    const [user, setUser_] = createSignal("")
+    const [user, setUser] = createSignal("")
     const [password, setPassword] = createSignal("")
     const [error, setError_] = createSignal("")
     const [screen, setScreen_] = createSignal(Screen.Login)
     const [email, setEmail] = createSignal("")
     const [phone, setPhone] = createSignal("")
-    const register = () => screen() == Screen.Register
+
     const [secret, setSecret] = createSignal("")
 
     const [loginInfo, setLoginInfo] = createSignal<LoginInfo | undefined | null>(undefined)
     const setError = (e: string) => {
         setError_((ln() as any)[e] ?? e)
     }
-    const [okname, setOkname] = createSignal(false)
+
     const [finished, setFinished] = createSignal(false)
 
     const finishLogin = (i: LoginInfo | null | undefined) => {
@@ -72,18 +86,7 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
         }
         setScreen_(r)
     }
-    const setUser = async (u: string) => {
-        if (register()) {
-            // we need to check if the name is available
-            const [ok, e] = await ws.rpcje<boolean>("okname", { name: u })
-            if (!e && ok) {
-                setOkname(true)
-            } else {
-                setOkname(false)
-            }
-        }
-        setUser_(u)
-    }
+
     // when we set this up we need to start a promise to gather passkeys that are offered
     // This points out the case that we get a passkey that we don't know
     // in this case we still need to get the user name and password
@@ -91,20 +94,6 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
         finishLogin(i)
     })
 
-    const submitRegister = async (e: any) => {
-        e.preventDefault()
-        if (register()) {
-            const [log, e] = await ws.rpcje<LoginInfo>("createuser", { username: user(), password: password() })
-            if (e) {
-                setError(e)
-                return
-            }
-            setLoginInfo(loginInfo)
-            // ask for second factor here.
-            abortController.abort()
-            setScreen(Screen.AddKey)
-        }
-    }
 
     // we might nag them here to add a second factor, or even require it.
     // if they send a password, but require a passkey, we need to trigger that
@@ -163,10 +152,6 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
         return true
     }
     let el: HTMLInputElement
-    const startRegister = () => {
-        setScreen(Screen.Register)
-        el.focus()
-    }
 
     const recover = async () => {
         const o = await ws.rpcj("recover", { email: email(), phone: phone() })
@@ -180,7 +165,7 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
     return <div dir={ln().dir}>
         <Show when={finished()}>
             <Center>
-                <div><A href={loginInfo()?.home ?? ""}>Home</A></div>
+                <div><Ab href={loginInfo()?.home ?? ""}>Home</Ab></div>
                 <div>{JSON.stringify(loginInfo(), null, 4)}</div></Center>
 
         </Show>
@@ -188,76 +173,140 @@ export const LoginPage: Component<{ allow?: string[] }> = (props) => {
             <AddPasskey when={() => screen() == Screen.AddKey} onClose={onCloseAddKey} />
             <GetSecret validate={validate} when={() => screen() == Screen.Secret} onClose={confirmSecret} />
 
-            <div class='fixed w-screen flex flex-row items-center pr-4'>
-                <div class='flex-1' />
-                <div class='w-48'><LanguageSelect /></div>
-                <DarkButton /></div>
-            <Center>
-                <Switch>
+            <Switch>
+
+                <Match when={screen() == Screen.Login}>
+                    <form method='post' class='space-y-6' onSubmit={submitLogin} >
+                        <Show when={error()}> <div>{error()}</div></Show>
+                        <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
+                        <Password onInput={(e: any) => setPassword(e.target.value)} />
+                        <BlueButton  >{ln().signin}</BlueButton>
+                    </form>
+                    <div class="mt-6 space-y-4">
+                        <div class='flex'><Spc /><GreyButton onClick={() => { nav('/register') }}>{ln().register}</GreyButton><Spc /></div>
+
+                        <div class="flex"><Spc />
+                            <GreyButton onClick={() => { nav('/register') }}>{ln().forgotPassword}</GreyButton>
+                            <Spc /></div>
+                    </div></Match>
+                <Match when={screen() == Screen.Recover}>
+                    <form method='post' class='space-y-6' onSubmit={submitLogin} >
+                        <div>Enter phone or email</div>
+                        <PhoneInput onInput={setPhone} />
+                        <EmailInput onInput={setEmail} />
+                        <BlueButton onClick={recover} >{ln().recover}</BlueButton>
+                    </form>
+                </Match>
+                <Match when={screen() == Screen.Recover2}>
+                    <form method='post' class='space-y-6' onSubmit={submitLogin} >
+                        <div>Choose a new password </div>
+                        <Username onInput={setUser}></Username>
+                        <Password onInput={setPassword} />
+                        <BlueButton onClick={recover2} >{ln().recover}</BlueButton>
+                    </form>
+                </Match>
+                <Match when={true}>
+                    <div>Bad screen {screen()} </div>
+                </Match>
+
+
+            </Switch>
+        </Show>
+    </div>
+}
+
+// for imis we should try to intercept the registration and just steal the password if it succeeds.
+// for 1199 we don't need registration at all; just a QR code for pat?
+// how does pat grant then?
+const RegisterPage = () => {
+    const ws = createWs()
+    const ln = useLn()
+        // registration is a transaction, but then we later want to be able to edit 
+    const data = {
+        user: cell(),
+        password: cell(),
+    }
+    const [okname, setOkname] = createSignal(false)
+    const submitRegister = async (eb: any) => {
+                // we need to check if the name is available
+                const [ok, e] = await ws.rpcje<boolean>("okname", { name: data.user.value() })
+                if (!e && ok) {
+                    setOkname(true)
+                } else {
+                    setOkname(false)
+                }
+            }
+
+    return <form method='post' class='space-y-6' onSubmit={(e: any) => e.preventDefault()} >
+
+        <BlueButton disabled={!okname()} >{ln().register}</BlueButton>
+    </form>
+
+}
+
+
+// registration should allow the user to enter a username, but this doesn't need to be unique always. For some websites they will want to enforce uniqueness.
+/*
+        <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
+        <Show when={user()}><div>{user()} is {okname() ? "" : "not"} available</div></Show>
+        <Password onInput={(e: any) => setPassword(e.target.value)} />
+
+
+    const [okname, setOkname] = createSignal(false)
+        if (register()) {
+            // we need to check if the name is available
+            const [ok, e] = await ws.rpcje<boolean>("okname", { name: u })
+            if (!e && ok) {
+                setOkname(true)
+            } else {
+                setOkname(false)
+            }
+        }
                     <Match when={screen() == Screen.Register}>
-                        <form method='post' class='space-y-6' onSubmit={submitRegister} >
+                        <form method='post' class='space-y-6' onSubmit={(e:any)=>e.preventDefault()} >
                             <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
                             <Show when={user()}><div>{user()} is {okname() ? "" : "not"} available</div></Show>
                             <Password onInput={(e: any) => setPassword(e.target.value)} />
                             <BlueButton disabled={register() && !okname()} >{ln().register}</BlueButton>
                         </form>
+
+
                     </Match>
-                    <Match when={screen() == Screen.Login}>
-                        <form method='post' class='space-y-6' onSubmit={submitLogin} >
-                            <Show when={error()}> <div>{error()}</div></Show>
-                            <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
-                            <Password onInput={(e: any) => setPassword(e.target.value)} />
-                            <BlueButton  >{ln().signin}</BlueButton>
-                        </form>
-                        <div class="mt-6 space-y-4">
-                            <div class='flex'><Spc /><GreyButton onClick={() => { setScreen(Screen.Register) }}>{ln().register}</GreyButton><Spc /></div>
+export function Register() {
 
-                            <div class="flex"><Spc />
-                                <GreyButton onClick={() => { setScreen(Screen.Recover) }}>{ln().forgotPassword}</GreyButton>
-                                <Spc /></div>
-                        </div></Match>
-                    <Match when={screen() == Screen.Recover}>
-                        <form method='post' class='space-y-6' onSubmit={submitLogin} >
-                            <div>Enter phone or email</div>
-                            <PhoneInput onInput={setPhone} />
-                            <EmailInput onInput={setEmail} />
-                            <BlueButton onClick={recover} >{ln().recover}</BlueButton>
-                        </form>
-                    </Match>
-                    <Match when={screen() == Screen.Recover2}>
-                        <form method='post' class='space-y-6' onSubmit={submitLogin} >
-                            <div>Choose a new password </div>
-                            <Username onInput={setUser}></Username>
-                            <Password onInput={setPassword} />
-                            <BlueButton onClick={recover2} >{ln().recover}</BlueButton>
-                        </form>
-                    </Match>
-                    <Match when={true}>
-                        <div>Bad screen {screen()} </div>
-                    </Match>
+    // registration is a transaction, but then we later want to be able to edit 
+    const data = {
+        user: cell(),
+        password: cell(),
+    }
 
-
-                </Switch></Center>
-        </Show>
-    </div>
-}
+    const submitRegister = async (e: any) => {
+        e.preventDefault()
+        if (register()) {
+            const [log, e] = await ws.rpcje<LoginInfo>("createuser", { username: user(), password: password() })
+            if (e) {
+                setError(e)
+                return
+            }
+            setLoginInfo(loginInfo)
+            // ask for second factor here.
+            abortController.abort()
+            setScreen(Screen.AddKey)
+        }
+    }
 
 
 
-type ButtonProps = JSX.HTMLAttributes<HTMLButtonElement>
-
-export const GreyButton: Component<ButtonProps> = (props) => {
-    return <button {...props} class="text-sm block font-semibold hover:underline text-indigo-500 hover:text-indigo-700 dark:text-neutral-500 dark:hover:text-indigo-300">
-        {props.children}
-    </button>
-}
-
-
-
-function Register() {
     return <Page>
         <Title />
-        <Body>Register</Body>
+        <Body>
+        <form method='post' class='space-y-6' onSubmit={submitRegister} >
+        <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
+        <Show when={user()}><div>{user()} is {okname() ? "" : "not"} available</div></Show>
+        <Password onInput={(e: any) => setPassword(e.target.value)} />
+        <BlueButton disabled={register() && !okname()} >{ln().register}</BlueButton>
+        </form>
+        </Body>
     </Page>
 }
-
+*/

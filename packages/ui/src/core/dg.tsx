@@ -1,42 +1,65 @@
-import { JSX, createSignal } from "solid-js"
+import { Component, JSX, JSXElement, Match, Switch, createEffect, createSignal, onCleanup } from "solid-js"
 
+
+
+// these need to be signals or not?
+// the event handler will trigger a re-render when it changes, that will set these values
 export const [ln, setLn_] = createSignal("en")
-export const [nav, setNav_] = createSignal("/")
+export const [loc, setLoc] = createSignal("/")
 
-export function setNav(n: string) {
-    setNav_(n)
-    window.location.hash = "/" + ln() + "/" + n
+export function useNavigate() {
+    return (path: string, options?: { replace?: boolean }) => {
+         window.location.hash = "/" + ln() + path
+    }
 }
+
 export function setLn(n: string) {
     setLn_(n)
-    window.location.hash = "/" + ln() + "/" + nav()
+    window.location.hash = "/" + ln() + loc()
 }
 
-export function simpleRouter() {
-    // simple router that only looks at hash
-    const router = () => {
-        let route = window.location.hash.slice(1) || "/en/"
-        let sp = route.split('/')
-        console.log("route", route, sp)
-        setLn(sp[1])
-        setNav(sp[2])
-    }
-    window.addEventListener('load', router);
-    window.addEventListener('hashchange', router);
+const router = () => {
+    let route = window.location.hash.slice(1) || "/en/"
+    let sp = route.split('/')
+    let l = sp[1]
+    let p = "/" + sp.slice(2).join('/')
+    setLn_(l)
+    setLoc(p)
+    window.location.hash = "/" + l + p
+    console.log("route", {
+        "route": route,
+        "ln": l,
+        "path": p
+    })
+}
+
+export const Router = (props: { children: JSXElement }) => {
+    createEffect(() => {
+        window.addEventListener('load', router);
+        window.addEventListener('hashchange', router);
+    })
+    onCleanup(() => {
+        window.removeEventListener('load', router);
+        window.removeEventListener('hashchange', router);
+    })
+
+    return <>{props.children}</>
+}
+export const Routes = Switch
+
+export const Route = (props: { path: string, component: Component<any> }) => {
+    return <Match when={(loc() == props.path)}>
+        <props.component />
+    </Match>
 }
 
 export function A(props: any) {
-    return <a {...props}>{props.children}</a>
+    const navigate = useNavigate()
+    return <a {...props} onClick={(e) => { navigate(props.href) }}>{props.children}</a>
 }
 export function NavLink(props: any) {
     return <div />
 }
-export function navigate(path: string, options?: any) {
-    //navigate('/', { replace: true });
-    window.location.hash = path
-}
-
-export const useNavigate = () => navigate
 
 export interface AnchorProps extends Omit<JSX.AnchorHTMLAttributes<HTMLAnchorElement>, "state"> {
     href: string;

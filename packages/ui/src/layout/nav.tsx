@@ -16,9 +16,10 @@ import {
   ButtonProps,
 } from 'solid-headless';
 import Dismiss from 'solid-dismiss'
-import { SearchList, SiteMenuContent, searchMode, setSearchMode } from './site_menu'
+import { DarkButton, SearchList, SiteMenuContent, searchMode, setSearchMode } from './site_menu'
 import { BlueButton, Center } from '../lib/form'
 import { AnchorProps, A as Ar, useNavigate } from '../core/dg';
+import { LanguageSelect } from '../i18n/i18';
 function classNames(...classes: (string | boolean | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }
@@ -45,7 +46,7 @@ function Separator() {
 export const InlineButton: Component<ButtonProps> = (props) => {
   return <button {...props} class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`}>{props.children}</button>
 }
-export const A: Component<AnchorProps> = (props) => {
+export const Ab: Component<AnchorProps> = (props) => {
   return <Ar {...props} class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`} href={props.href}>{props.children}</Ar>
 }
 export const P: Component<{ children: JSXElement, class?: string }> = (props) => {
@@ -143,7 +144,15 @@ export const Body: Component<{ children: JSXElement }> = (props) => {
 
   </div>
 }
-
+export const SimplePage: Component<{ children: JSXElement }> = (props) => {
+  return <><div class='fixed w-screen flex flex-row items-center pr-4'>
+      <div class='flex-1' />
+      <div class='w-48'><LanguageSelect /></div>
+      <DarkButton /></div>
+      <Center>
+          {props.children}
+      </Center></>
+}
 export const Page: Component<{ children: JSXElement }> = (props) => {
   return <div class='flex h-screen v-screen '>
     <div class='w-80 h-full overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><SiteMenuContent></SiteMenuContent></div>
@@ -158,7 +167,7 @@ interface Tab {
 export const Tab: Component<{ tab: Tab, selected: boolean }> = (props) => {
   return <Switch>
     <Match when={props.selected}> <a class="inline-flex items-center border-b-2 border-indigo-500 px-1 pt-1 text-sm font-medium text-gray-900">{props.tab.name}</a></Match>
-    <Match when={!props.selected}> <A href={props.tab.route} class="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700">{props.tab.name}</A></Match>
+    <Match when={!props.selected}> <Ab href={props.tab.route} class="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700">{props.tab.name}</Ab></Match>
   </Switch >
 }
 

@@ -20,6 +20,15 @@ import (
 func DefaultCommands(opt *Config) *cobra.Command {
 	godotenv.Load()
 
+	// should we make the service a pointer then so it can be optional?
+	if len(opt.Name) == 0 {
+		path, err := os.Executable()
+		if err != nil {
+			panic(err)
+		}
+		opt.Name = filepath.Base(path)
+	}
+
 	// 1. Take the configured Config.Root
 	// 2. If there are command line arguments, first one is root
 	// 3. Otherwise, use ./store
