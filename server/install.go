@@ -103,7 +103,7 @@ func (p *Server) Stop(s service.Service) error {
 }
 
 func (sx *Server) Uninstall() error {
-	s, err := service.New(sx, sx.Config.Config)
+	s, err := service.New(sx, &sx.Config.Config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -121,14 +121,14 @@ func (sx *Server) Install() error {
 	sx.HttpsPrivate = path.Join(sx.Root, "key.pem")
 	crypto.MakeCert(sx.HttpsCert, sx.HttpsPrivate)
 
-	b, e := json.MarshalIndent(sx.Config, "", "  ")
+	b, e := json.MarshalIndent(&sx.Config.ConfigJson, "", "  ")
 	if e != nil {
 		log.Fatal(e)
 	}
 
 	os.WriteFile(path.Join(sx.Root, "index.jsonc"), b, 0644)
 
-	s, err := service.New(sx, sx.Config.Config)
+	s, err := service.New(sx, &sx.Config.Config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -136,7 +136,7 @@ func (sx *Server) Install() error {
 }
 
 func (sx *Server) RunService() {
-	s, err := service.New(sx, sx.Config.Config)
+	s, err := service.New(sx, &sx.Config.Config)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -38,7 +38,8 @@ type ConfigJson struct {
 	HttpsPrivate string `json:"https_private,omitempty"`
 }
 type Config struct {
-	*service.Config
+	ConfigJson
+	service.Config
 	Ui     embed.FS
 	Launch func(*Server) error
 
