@@ -253,8 +253,10 @@ const Register = () => {
         phone: cell(phone),
     }
     const [okname, setOkname] = createSignal(false)
-    const submitRegister = async (eb: any) => {
+    const submitRegister = async () => {
         // we need to check if the name is available
+        data.user.setError(`${data.user.value()} is not available`)
+        return
         const [ok, e] = await ws.rpcje<boolean>("okname", { name: data.user.value() })
         if (!e && ok) {
             setOkname(true)
@@ -266,7 +268,7 @@ const Register = () => {
     return <form method='post' class='space-y-6' onSubmit={(e: any) => e.preventDefault()} >
         <InputCell cell={data.user} />
         <PasswordCell cell={data.password} />
-        <BlueButton disabled={!data.user.value()} >{ln().register}</BlueButton>
+        <BlueButton onClick={() => submitRegister()} disabled={!data.user.value()} >{ln().register}</BlueButton>
     </form>
 
 }

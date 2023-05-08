@@ -69,6 +69,7 @@ export const InputCell: Component<{ cell: Cell }> = (props) => {
     const ln = useLn()
     const n = props.cell.name
     const setCell = (e: string) => {
+        props.cell.clearErrors()
         props.cell.commit(e)
     }
     return <div >
@@ -81,6 +82,11 @@ export const InputCell: Component<{ cell: Cell }> = (props) => {
         </div>
         <div >
             <Input onInput={setCell} placeholder={_(n)} id={n} name={n} type={props.cell.type ?? "text"} autocomplete={props.cell.autocomplete} />
+        </div>
+        <div>
+            <Show when={props.cell.error()}>
+                <div class="text-sm text-red-600 mt-2">{props.cell.error()![0].message}</div>
+            </Show>
         </div>
 
     </div>

@@ -11,7 +11,7 @@ import MyWorker from './worker?worker'
 import Shared from './shared?sharedworker'
 import { Tx } from "../dbt/tree"
 import { Watch, toBytes } from "./data"
-import { z } from "zod"
+import { set, z } from "zod"
 import { l } from "../i18n/en"
 import { JSXElement, createSignal } from "solid-js"
 
@@ -134,13 +134,24 @@ export interface CellOptions {
     validate?: z.ZodString,
     autocomplete?: string
     type?: string
+
     topAction?: () => JSXElement
 }
 
+interface SyntaxError {
+    message: string
+    start: number
+    end: number
+}
+
 export interface Cell extends CellOptions {
+    error_?: SyntaxError[]
     commit(s: string): Promise<void>
     listen(cb: (v: string) => void): void
     value(): string
+    setError(s: string): void
+    error(): undefined | SyntaxError[]
+    clearErrors(): void
 }
 
 // is this only for in-memory, or is there a better way to link directly to a database?
@@ -149,12 +160,20 @@ export function cell(props: CellOptions): Cell {
     // use array here so we can point to it? is there a cheaper way?
     //let v: string[] = [props?.default ?? ""]
     const [v, setV] = createSignal(props?.default ?? "")
+    const [err, setErr] = createSignal<SyntaxError[] | undefined>()
     return {
         ...props,
         validate: props?.validate || z.string(),
         commit: async (ts: string) => {
             console.log("commit", ts)
             setV(ts)
+        },
+        clearErrors() {
+            setErr(undefined)
+        },
+        error: err,
+        setError: (s: string) => {
+            setErr([{ message: s, start: 0, end: 0 }])
         },
         listen: (cb: (val: string) => void) => {
             // not called.
