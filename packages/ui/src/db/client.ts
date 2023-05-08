@@ -1,6 +1,6 @@
 // steps parameterized by 
-import {z} from 'zod'
-import {JSXElement, createSignal} from 'solid-js'
+import { z } from 'zod'
+import { JSXElement, createSignal } from 'solid-js'
 // db str needs to be a wrapper around a cellstate, the cell state may be on a remote server, an in-memory cell, or a local cell.
 export interface CellOptions {
     name: string,
@@ -10,7 +10,7 @@ export interface CellOptions {
     validate?: z.ZodString,
     autocomplete?: string
     type?: string
-
+    autofocus?: boolean
     topAction?: () => JSXElement
 }
 
@@ -28,6 +28,7 @@ export interface Cell extends CellOptions {
     setError(s: string): void
     error(): undefined | SyntaxError[]
     clearErrors(): void
+
 }
 
 // is this only for in-memory, or is there a better way to link directly to a database?

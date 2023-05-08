@@ -10,12 +10,12 @@ import { BlueButton } from "../lib/form"
 import { InputCell, PasswordCell } from "./passkey_add"
 import { useLn } from "./passkey_i18n"
 import { SimplePage } from "../layout/nav"
-import { autofocus } from "@solid-primitives/autofocus";
 
 // for 1199 I can create a password and send it.
 export const user: CellOptions = {
     name: "username",
-    autocomplete: "username webauthn"
+    autocomplete: "username webauthn",
+    autofocus: true,
 }
 export const password: CellOptions = {
     name: "password",

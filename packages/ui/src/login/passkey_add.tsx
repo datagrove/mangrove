@@ -31,10 +31,10 @@ export const InputLabel = (props: any) => {
 }
 
 export const Input = (props: InputProps) => {
-    let inp!: HTMLInputElement 
+    let inp!: HTMLInputElement
     onMount(() => {
         if (props.autofocus) {
-            setTimeout(()=> inp.focus())
+            setTimeout(() => inp.focus())
         }
     })
 
@@ -57,7 +57,7 @@ export const InputCell: Component<{ cell: Cell }> = (props) => {
             </Show>
         </div>
         <div >
-            <Input onInput={setCell} placeholder={_(n)} id={n} name={n} type={props.cell.type ?? "text"} autocomplete={props.cell.autocomplete} />
+            <Input {...props} autofocus={props.cell.autofocus} onInput={setCell} placeholder={_(n)} id={n} name={n} type={props.cell.type ?? "text"} autocomplete={props.cell.autocomplete} />
         </div>
         <div>
             <Show when={props.cell.error()}>
@@ -89,7 +89,7 @@ export const Username: Component<InputProps> = (props) => {
             <InputLabel for="username" >{ln().username}</InputLabel>
         </div>
         <div  >
-            <Input {...props}  placeholder={ln().enterUsername} id="username" name="username" type="text" autocomplete="username webauthn" />
+            <Input {...props} placeholder={ln().enterUsername} id="username" name="username" type="text" autocomplete="username webauthn" />
         </div>
 
     </div>
@@ -130,7 +130,7 @@ export const EmailInput: Component<InputProps> = (props) => {
         <div class="flex items-center justify-between">
             <InputLabel for="username" >{ln().email}</InputLabel>
         </div>
-        <div  class="mt-2"><Input {...props} placeholder={ln().email} autocomplete='email' /></div>
+        <div class="mt-2"><Input {...props} placeholder={ln().email} autocomplete='email' /></div>
     </div>
 }
 export const PhoneInput = (props: InputProps) => {
