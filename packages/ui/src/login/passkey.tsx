@@ -1,5 +1,5 @@
 import { Component, JSXElement, Match, Show, Switch, createSignal } from "solid-js"
-import { Ab } from "../layout/nav"
+import { Ab, SimplePage } from "../layout/nav"
 import { BlueButton, Center } from "../lib/form"
 import { generatePassPhrase, security, setError, setLogin, setSecurity } from "../lib/crypto"
 import {
@@ -9,7 +9,7 @@ import {
     parseRequestOptionsFromJSON,
 } from "@github/webauthn-json/browser-ponyfill";
 import { DarkButton, SiteStore } from "../layout/site_menu"
-import { createWs } from "../db/socket"
+import { createWs } from "../core/socket"
 import { useLn } from "./passkey_i18n"
 import { LanguageSelect } from "../i18n/i18"
 import { useNavigate } from "../core/dg";
@@ -61,6 +61,8 @@ export const webauthnLogin = async () => { // id: string, not needed?
 const [crox, setCrox] = createSignal<any>(null)
 // this blocks a promise waiting for the user to offer a passkey
 export let abortController: AbortController
+
+// returns null if the login is aborted
 export async function initPasskey(setError: (e: string) => void): Promise<LoginInfo | null> {
     if (!window.PublicKeyCredential
         // @ts-ignore
@@ -122,18 +124,6 @@ type LoginPolicy = typeof defaultLogin
 
 const [policy, setPolicy] = createSignal(defaultLogin)
 
-export const SimplePage: Component<{ children: JSXElement }> = (props) => {
-    const ln = useLn()
-    return <div dir={ln().dir}>
-        <div class='flex flex-row items-center mr-4'>
-            <div class='flex-1' />
-            <div class='w-48'><LanguageSelect /></div>
-            <DarkButton /></div>
-        <Center>
-            {props.children}
-        </Center>
-    </div>
-}
 
 export const Register = () => {
     const ws = createWs()

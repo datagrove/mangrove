@@ -1,5 +1,5 @@
 import { Component, JSXElement, Resource, Setter, Signal, createResource, createSignal, onCleanup } from 'solid-js'
-import { Ws } from '../db/socket'
+import { Ws } from '../core/socket'
 import { decode, encode } from 'cbor-x';
 
 // when we pop up dialogs they can get a ws for whatever is the current database

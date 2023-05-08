@@ -368,11 +368,7 @@ func WebauthnSocket(mg *Server) error {
 		if e != nil {
 			return nil, e
 		}
-
-		// this can fail if the user doesn't exist in our database yet
-		// if it fails we try the proxy login
 		return mg.PasswordLogin(r.Session, v.Username, v.Password, 0)
-
 	})
 
 	// validates the 2FA challenge after logging in with a password

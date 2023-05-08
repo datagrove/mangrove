@@ -9,10 +9,33 @@ export const [loc, setLoc] = createSignal("/")
 
 export function useNavigate() {
     return (path: string, options?: { replace?: boolean }) => {
+        if (!path.startsWith('/')) {
+            path = "/" + path
+        }
          window.location.hash = "/" + ln() + path
     }
 }
 
+export type Params = Record<string, string>;
+export interface Path {
+    pathname: string;
+    search: string;
+    hash: string;
+  }
+export interface Location<S = unknown> extends Path {
+    query: Params;
+    state: Readonly<Partial<S>> | null;
+    key: string;
+  }
+export function useLocation<T>() {
+    return () => {
+        return {
+            pathname: loc(),
+            search: "",
+            hash: ""
+        } as Location<T>
+    } 
+}
 export function setLn(n: string) {
     setLn_(n)
     window.location.hash = "/" + ln() + loc()
@@ -52,7 +75,11 @@ export const Route = (props: { path: string, component: Component<any> }) => {
         <props.component />
     </Match>
 }
-
+export const DefaultRoute : Component<{ children: JSXElement }> = (props) => {
+    return <Match when={true}>
+        {props.children}
+    </Match>
+}
 export function A(props: any) {
     const navigate = useNavigate()
     return <a {...props} onClick={(e) => { navigate(props.href) }}>{props.children}</a>
@@ -71,12 +98,7 @@ export interface AnchorProps extends Omit<JSX.AnchorHTMLAttributes<HTMLAnchorEle
     end?: boolean;
 }
 
-export interface Location<T = any> {
-    hash: string;
-}
-export function useLocation<T>(): Location<T> {
-    return { hash: "" }
-}
+
 
 export function useParams<T>(): T {
     return {} as T

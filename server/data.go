@@ -24,12 +24,11 @@ type Session struct {
 	Handle   map[int64]StreamHandle
 	Notifier SessionNotifier
 	RegisterInfo
-	Mobile    string
-	Email     string
-	Voice     string
-	Challenge string
-	Totp      string
-	*LoginInfo
+	Mobile        string
+	Email         string
+	Voice         string
+	Challenge     string
+	Totp          string
 	DefaultFactor int
 	FactorValue   string // hold a value while we are testing it.
 }

@@ -25,116 +25,17 @@ export interface UpdateRow<T> {
     updates: ChangeRow<T>[]
 }
 
-type NotifyHandler = (r: Rpc<any>) => void
-type MockHandler = (args: any) => any
+export type NotifyHandler = (r: Rpc<any>) => void
+export type MockHandler = (args: any) => any
 
-export class PortLike {
-
-}
 type rpcp = (e: Uint8Array) => void
 export interface PortLike {
     postMessage: (data: any) => void
 }
 
-export class RpcService extends Map<string, MockHandler>{
-
-}
+export class RpcService extends Map<string, MockHandler>{}
 
 
-export class SendToWorker {
-    nextId = 1
-    reply = new Map<number, [(data: any) => void, (data: any) => void]>()
-    onmessage_ = new Map<string, NotifyHandler>()
-    // listens are call backs tied to a negative id.
-    listen = new Map<number, (r: UpdateRow<any>[]) => void>()
-    mock = new RpcService()
-    port: (data: any) => void // Worker|SharedWorker
-
-    constructor(port: (data: any) => void) {
-        this.port = port
-    }
-
-    //mock = new Map<string, MockHandler>
-    static async worker(w: Worker): Promise<SendToWorker> {
-
-        const r = new SendToWorker((data: any) => w.postMessage(data))
-        w.onmessage = async (e: MessageEvent) => {
-            r.recv(e)
-        }
-        return r
-    }
-    static async shared(w: SharedWorker): Promise<SendToWorker> {
-        w.port.start()
-        const r = new SendToWorker((data: any) => w.port.postMessage(data))
-        w.port.onmessage = async (e: MessageEvent) => {
-            r.recv(e)
-        }
-        return r
-    }
-
-
-
-    async recv(e: MessageEvent) {
-        // we need to parse the message.
-        // split at '\n', first part is json, second part is binary
-        console.log('got', e)
-
-        let data: any
-        if (typeof e.data === "string") {
-            const txt = await e.data
-            data = JSON.parse(txt)
-        }
-        else {
-            const b = await e.data.arrayBuffer()
-            data = decode(new Uint8Array(b))
-        }
-
-        // listening uses id < 0
-        if (data.id) {
-            if (data.id < 0) {
-                const r = this.listen.get(data.id)
-                if (r) {
-                    r(data.result)
-                } else {
-                    console.log("no listener", data.id)
-                }
-            } else {
-                const r = this.reply.get(data.id)
-                if (r) {
-                    this.reply.delete(data.id)
-                    if (data.result) {
-                        console.log("resolved", data.result)
-                        r[0](data.result)
-                    } else {
-                        console.log("error", data.error)
-                        r[1](data.error)
-                    }
-                    return
-                } else {
-                    console.log("no awaiter", data.id)
-                }
-            }
-        } else {
-            console.log("no id")
-        }
-    }
-
-    async rpc<T>(method: string, params?: any): Promise<T> {
-        const o = this.mock.get(method)
-        if (o) {
-            return await o(params) as T
-        } else {
-            console.log("send", method, params)
-            const id = this.nextId++
-            this.port(structuredClone({ method, params, id: id }))
-            return new Promise<T>((resolve, reject) => {
-                this.reply.set(id, [resolve, reject])
-            })
-        }
-    }
-
-    //
-}
 
 
 // wrappers, any easy way? Zod?
@@ -318,16 +219,21 @@ export class Ws {
     }
 }
 
-//this.url ??=  `wss://${window.location.host}/wss`
+let ws_: Ws //= new Ws('ws://localhost:8088/wss')
+export function initWs(url: string) {
+    ws_ = new Ws(url )
+}
+export function createWs(url?: string): Ws {
+    return ws_
+}
 
 
+/*
 export interface OrError<T> {
     error?: string
     value?: T
 }
-// by default this should be the same as the server
-// 
-let ws: Ws //= new Ws('ws://localhost:8088/wss')
+
 const wsCache = new Map<string, Ws>()
 
 export class Profile {
@@ -335,12 +241,6 @@ export class Profile {
     server = ""
 }
 export const profile = new Profile()
+*/
 
-export function createWs(url?: string): Ws {
-    if (!ws) {
-        //ws = new Ws(url ?? `wss://${window.location.host}/wss`)
-        ws = new Ws(url ?? `ws://localhost:8080/embed/ws`)
-    }
-    return ws
-}
 

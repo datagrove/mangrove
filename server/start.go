@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -70,7 +69,8 @@ type Server struct {
 	Stream   map[int64]*Stream
 
 	// we need some kind of plugin structure
-
+	EmbedHandler http.Handler
+	WsHandler    http.HandlerFunc
 }
 
 func (s *Server) RemoveSession(sess *Session) {
@@ -277,8 +277,8 @@ func NewServer(optc *Config) (*Server, error) {
 		return nil, err
 	}
 	fs := http.FileServer(&spaFileSystem{http.FS(htmlContent)})
+
 	mux := http.NewServeMux()
-	mux.Handle("/", fs)
 
 	var tlsConfig *tls.Config
 	if len(optc.AddrsTLS) > 0 {
@@ -311,15 +311,16 @@ func NewServer(optc *Config) (*Server, error) {
 		return nil, e
 	}
 	svr := &Server{
-		Config:    optc,
-		Db:        db,
-		Mux:       mux,
-		Ws:        ws,
-		Api:       map[string]Rpcf{},
-		Apij:      map[string]func(a *Rpcpj) (any, error){},
-		muSession: sync.Mutex{},
-		Session:   map[string]*Session{},
-		Handle:    0,
+		Config:       optc,
+		Db:           db,
+		Mux:          mux,
+		Ws:           ws,
+		Api:          map[string]Rpcf{},
+		Apij:         map[string]func(a *Rpcpj) (any, error){},
+		muSession:    sync.Mutex{},
+		Session:      map[string]*Session{},
+		Handle:       0,
+		EmbedHandler: fs,
 	}
 
 	mux.HandleFunc("/wss", svr.onWebSocket())
@@ -337,6 +338,7 @@ func NewServer(optc *Config) (*Server, error) {
 	})
 
 	WebauthnSocket(svr)
+	svr.WsHandler = svr.onWebSocket()
 	// return unstarted to allow the application to modify the server
 	return svr, nil
 }
@@ -434,37 +436,6 @@ func (svr *Server) onWebSocket() http.HandlerFunc {
 		conn.SetReadDeadline(time.Now().Add(nbhttp.DefaultKeepaliveTime))
 		// we can write
 	}
-}
-
-func (sx *Server) Run() error {
-	e := sx.Ws.Start()
-	if e != nil {
-		return e
-	}
-	defer sx.Ws.Stop()
-
-	go func() {
-		ssh_server := ssh.Server{
-			Addr: sx.Config.Sftp,
-			PublicKeyHandler: func(ctx ssh.Context, key ssh.PublicKey) bool {
-				return true
-			},
-			SubsystemHandlers: map[string]ssh.SubsystemHandler{
-				"sftp": SftpHandlerx,
-			},
-		}
-		kf := ssh.HostKeyFile(sx.Config.Key)
-		kf(&ssh_server)
-		log.Fatal(ssh_server.ListenAndServe())
-	}()
-	//go log.Fatal(http.ListenAndServe(x, sx.Mux))
-	//log.Fatal(http.ListenAndServeTLS(sx.Https, sx.Cert, sx.Key, sx.Mux))
-	//certmagic.HTTPS([]string{"example.com"}, mux)
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt)
-	<-interrupt
-	log.Println("exit")
-	return nil
 }
 
 type FileSystem struct {

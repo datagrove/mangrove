@@ -1,7 +1,7 @@
 import { useNavigate} from "../core/dg"
 import { Show } from "solid-js"
 import { A, P } from '../layout/nav'
-import { createWs } from "../db/socket";
+import { createWs } from "../core/socket";
 import {
     parseCreationOptionsFromJSON,
     create,

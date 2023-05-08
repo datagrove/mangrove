@@ -20,6 +20,7 @@ import { DarkButton, SearchList, SiteMenuContent, searchMode, setSearchMode } fr
 import { BlueButton, Center } from '../lib/form'
 import { AnchorProps, A as Ar, useNavigate } from '../core/dg';
 import { LanguageSelect } from '../i18n/i18';
+import { useLn } from '../login/passkey_i18n';
 function classNames(...classes: (string | boolean | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }
@@ -148,9 +149,10 @@ export const Body: Component<{ children: JSXElement }> = (props) => {
   </div>
 }
 export const SimplePage: Component<{ children: JSXElement }> = (props) => {
-  return <><div class='fixed w-screen flex flex-row items-center pr-4'>
-    <div class='flex-1' />
-    <div class='w-48'><LanguageSelect /></div>
+  const ln = useLn()
+  return <><div dir={ln().dir} class='px-2 space-x-1 my-2 fixed w-screen flex flex-row items-center'>
+    <div class='flex-1 '/>
+    <div class='w-48 '><LanguageSelect /></div>
     <DarkButton /></div>
     <Center>
       {props.children}

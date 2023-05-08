@@ -66,6 +66,7 @@ const en = {
     phoneOrEmail: "Phone or Email",
     invalidPassword: "Invalid user name or password",
     recover: "Recover account",
+    invalidLogin: "Invalid login",
 }
 type Ln = typeof en
 const es: Ln = {

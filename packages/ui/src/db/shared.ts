@@ -1,6 +1,6 @@
 import { Service, Watch } from "./data";
 import { Store, Write, Read, PageRef } from "./ptree";
-import { Rpc } from "./socket";
+import { Rpc } from "../core/socket";
 
 const st = new Store("db")
 const ctx = self as any;

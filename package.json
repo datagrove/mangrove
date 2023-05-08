@@ -2,6 +2,9 @@
     "name": "workspace",
     "workspaces": [
         "packages/*",
-        "sites/*"
-      ]
+        "proxy/ui"
+    ],
+    "dependencies": {
+        "@solid-primitives/autofocus": "^0.0.106"
+    }
 }

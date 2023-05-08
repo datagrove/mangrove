@@ -3,7 +3,7 @@ import { key, user } from "solid-heroicons/solid";
 import { Component, createEffect, createSignal, JSX, JSXElement, Match, onMount, Show, Switch } from "solid-js";
 import { Center, BlueButton, LightButton } from "../lib/form";
 import { Factor, _, factors, useLn } from "./passkey_i18n";
-import { createWs } from "../db/socket";
+import { createWs } from "../core/socket";
 import {
     parseCreationOptionsFromJSON,
     create,
@@ -12,35 +12,7 @@ import {
 } from "@github/webauthn-json/browser-ponyfill";
 import { Cell } from "../db/client";
 import { Ab, Bb } from "../layout/nav";
-
-
-
-// we need to async get the login choices, 
-export interface LoginChoice {
-    factor: string  // empty means we should ask to add mfa, none means just username/password
-    phone?: string
-    email?: string
-    error?: string
-}
-// export const [loginChoice, setLoginChoice] = createSignal<LoginChoice | null>(null)
-
-// // we don't know this until they enter user and password.
-// export async function getLoginChoice(user: string, password: string) {
-//     //const resp = await fetch("/api/login_choice")
-//     //setLoginChoice(resp)
-//     setLoginChoice({ factor: "", email: "jimh@datagrove.com", phone: "4843664923" })
-// }
-
-
-export const InputLabel = (props: any) => {
-    return <div><label {...props} class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</label></div>
-}
-
-export const Input = (props: InputProps) => {
-    return <div><input {...props} value={props.reset ? props.reset() : ""} onInput={(e) => props.onInput(e.target.value)}
-        class="block mt-1 w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset dark:ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 p-2" /></div>
-}
-
+import { on } from "events";
 // type InputProps = JSX.HTMLAttributes<HTMLInputElement> & { placeholder?: string, autofocus?: boolean, name?: string, autocomplete?: string, type?: string, value?: string, id?: string, required?: boolean }
 type InputProps = {
     reset?: () => string,   // should not be same signal as onInput
@@ -50,20 +22,24 @@ type InputProps = {
     type?: string,
     autocomplete?: string,
     placeholder?: string,
+    autofocus?: boolean,
     onInput: (value: string) => void,
 }
-export const Username: Component<InputProps> = (props) => {
-    const ln = useLn()
 
-    return <div >
-        <div class="flex items-center justify-between">
-            <InputLabel for="username" >{ln().username}</InputLabel>
-        </div>
-        <div >
-            <Input  {...props} placeholder={ln().enterUsername} id="username" name="username" type="text" autocomplete="username webauthn" />
-        </div>
+export const InputLabel = (props: any) => {
+    return <div><label {...props} class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</label></div>
+}
 
-    </div>
+export const Input = (props: InputProps) => {
+    let inp!: HTMLInputElement 
+    onMount(() => {
+        if (props.autofocus) {
+            setTimeout(()=> inp.focus())
+        }
+    })
+
+    return <div><input {...props} ref={inp} value={props.reset ? props.reset() : ""} onInput={(e) => props.onInput(e.target.value)}
+        class="block mt-1 w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset dark:ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 p-2" /></div>
 }
 export const InputCell: Component<{ cell: Cell }> = (props) => {
     const ln = useLn()
@@ -104,6 +80,21 @@ export const PasswordCell: Component<{ cell: Cell }> = (props) => {
     }
     return <InputCell cell={c()} />
 }
+
+export const Username: Component<InputProps> = (props) => {
+    const ln = useLn()
+
+    return <div >
+        <div class="flex items-center justify-between">
+            <InputLabel for="username" >{ln().username}</InputLabel>
+        </div>
+        <div  >
+            <Input {...props}  placeholder={ln().enterUsername} id="username" name="username" type="text" autocomplete="username webauthn" />
+        </div>
+
+    </div>
+}
+
 export const Password: Component<InputProps & { required?: boolean }> = (props) => {
     const ln = useLn()
     const [hide, setHide] = createSignal(true)
@@ -132,16 +123,6 @@ export const Password: Component<InputProps & { required?: boolean }> = (props) 
 
     </div>
 }
-export const PhoneOrEmailInput = (props: InputProps) => {
-    const ln = useLn()
-    return <div>
-        <div class="flex items-center justify-between">
-            <InputLabel for="username" >{ln().phoneOrEmail}</InputLabel>
-        </div>
-        <div class="mt-2"><Input {...props} placeholder={ln().phoneOrEmail} autocomplete='phone' /></div>
-    </div>
-}
-
 
 export const EmailInput: Component<InputProps> = (props) => {
     const ln = useLn()
@@ -149,7 +130,7 @@ export const EmailInput: Component<InputProps> = (props) => {
         <div class="flex items-center justify-between">
             <InputLabel for="username" >{ln().email}</InputLabel>
         </div>
-        <div class="mt-2"><Input {...props} placeholder={ln().email} autocomplete='email' /></div>
+        <div  class="mt-2"><Input {...props} placeholder={ln().email} autocomplete='email' /></div>
     </div>
 }
 export const PhoneInput = (props: InputProps) => {

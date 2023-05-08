@@ -12,12 +12,12 @@ import { type PublicKeyCredentialDescriptorJSON } from "@github/webauthn-json";
 import { RegistrationPublicKeyCredential } from "@github/webauthn-json/browser-ponyfill"
 import type { RegistrationResponseExtendedJSON } from "@github/webauthn-json/browser-ponyfill/extended"
 import { A, P } from '../layout/nav'
-import { createWs } from "../db/socket";
+import { createWs } from "../core/socket";
 
 
 import * as bip39 from 'bip39'
 import * as nacl from 'tweetnacl'
-import { Ws } from "../db/socket";
+import { Ws } from "../core/socket";
 import { BlueButton, Center, Checkbox, FieldSet, Input, TextDivider, ToggleSection } from "../lib/form";
 import { LoginWith } from "../lib/login_with";
 import { Buffer } from 'buffer'

@@ -175,6 +175,42 @@ func pt(s string) pgtype.Text {
 // 	return "", e
 // }
 
+// this is for the proxy to create a new user
+// this is from http, how can we get the session, do we need it?
+func (s *Server) CreateUser(user, pass, ph string) error {
+	key, e := totp.Generate(totp.GenerateOpts{
+		Issuer:      s.Name,
+		AccountName: user,
+	})
+	if e != nil {
+		return e
+	}
+	// Convert TOTP key into a PNG
+	var buf bytes.Buffer
+	img, err := key.Image(200, 200)
+	if err != nil {
+		panic(err)
+	}
+	png.Encode(&buf, img)
+
+	_, e = s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
+		Name:     user,
+		IsUser:   true,
+		Password: []byte(pass),
+		HashAlg:  pgtype.Text{String: "", Valid: true},
+		Email:    pt(user),
+		Mobile:   pt(ph),
+		Pin:      "",
+		Webauthn: "",
+		Totp:     key.Secret(),
+		TotpPng:  buf.Bytes(),
+		Flags:    0,
+	})
+
+	return e
+
+}
+
 func (s *Server) Register(sess *Session) (string, error) {
 	user := sess.Username
 
@@ -219,6 +255,7 @@ var errBadLogin = fmt.Errorf("invalidLogin")
 func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (*ChallengeNotify, error) {
 	a, e := s.Db.qu.SelectOrgByName(context.Background(), user)
 	if e != nil {
+		// we can't find the user, but check to see if the proxy knows them
 		//return nil, e
 		sess.Username = user
 		sess.Password = password
@@ -289,9 +326,7 @@ func (s *Server) GetLoginInfo(sess *Session) (*LoginInfo, error) {
 	if e != nil {
 		return nil, e
 	}
-	return &LoginInfo{
-		ProxyLogin: p,
-	}, nil
+	return p, nil
 }
 func (s *Server) RecoverPasswordResponse2(sess *Session, challenge, password string) error {
 	if challenge != sess.Challenge {

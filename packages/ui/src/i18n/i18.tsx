@@ -20,8 +20,8 @@ const Select: ParentComponent<{
     onChange: (e: string) => void
 }> = (props) => {
 
-    return (<div class='flex text-black dark:text-white p-2 mr-2 rounded-md items-center space-x-2'>
-        <label for='ln'>{props.children}</label>
+    return (<div class='flex  text-black dark:text-white rounded-md items-center '>
+        <label class='block mx-2' for='ln'>{props.children}</label>
         <select
             id='ln'
             value={props.value}
