@@ -208,6 +208,7 @@ export interface LoginInfo {
     email: string,
     phone: string,
     cookies: string[],
+    options: number
 }
 export interface ChallengeNotify {
     challenge_type: number

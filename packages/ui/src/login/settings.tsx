@@ -1,6 +1,6 @@
-import { Component, JSX, Match, Switch, createSignal } from "solid-js"
+import { Component, JSX, Match, Show, Switch, createSignal } from "solid-js"
 import { BlueButton, Center } from "../lib/form"
-import { AddPasskey, Dialog, DialogPage, EmailInput, GetSecret, InputLabel, LoginInfo, PhoneInput, Username } from "./passkey_add"
+import { AddPasskey, Dialog, DialogPage, EmailInput, GetSecret, Input, InputLabel, LoginInfo, PhoneInput, Username } from "./passkey_add"
 import { Bb, SimplePage } from "../layout/nav"
 import {
     parseCreationOptionsFromJSON,
@@ -11,9 +11,11 @@ import {
 
 import { Icon } from "solid-heroicons";
 import { key } from "solid-heroicons/solid";
-import { createWs } from "../core/socket";
+import { addMock, createWs } from "../core/socket";
 import { useLn, Factor, factors } from "./passkey_i18n";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "solid-headless";
+import { loginInfo } from "./login";
+import { useNavigate } from "../core/dg";
 
 /*
 export function sheet(data: { [key: string]: any }) : {[key: string]: Cell} {
@@ -37,93 +39,174 @@ export const DebugPage = () => {
        </SimplePage>
 
 }*/
-export interface Totp {
-    img: Uint8Array
-    secret: string
-}
+
 
 function ChevronUpIcon(props: JSX.IntrinsicElements['svg']): JSX.Element {
     return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        {...props}
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M5 15l7-7 7 7"
-        />
-      </svg>
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            {...props}
+        >
+            <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 15l7-7 7 7"
+            />
+        </svg>
     );
-  }
-const Db = (props: {children: JSX.Element}) => {
-    return <DisclosureButton as="div" class="flex justify-between w-full px-4 py-2 text-sm font-medium text-left text-neutral-900 bg-neutral-100 rounded-lg hover:bg-neutral-200 focus:outline-none focus-visible:ring focus-visible:ring-neutral-500 focus-visible:ring-opacity-75">
-    {({ isOpen }) => (
-      <>
-        {props.children}
-        <ChevronUpIcon
-          class={`${isOpen() ? 'transform rotate-180' : ''} w-5 h-5 text-neutral-500`}
-        />
-      </>
-    )}
-  </DisclosureButton>
 }
-const Dp = (props: {children: JSX.Element}) => {
+const Db = (props: { children: JSX.Element }) => {
+    return <DisclosureButton as="div" class="flex justify-between w-full px-4 py-2 text-sm font-medium text-left text-neutral-900 bg-neutral-100 rounded-lg hover:bg-neutral-200 focus:outline-none focus-visible:ring focus-visible:ring-neutral-500 focus-visible:ring-opacity-75">
+        {({ isOpen }) => (
+            <>
+                {props.children}
+                <ChevronUpIcon
+                    class={`${isOpen() ? 'transform rotate-180' : ''} w-5 h-5 text-neutral-500`}
+                />
+            </>
+        )}
+    </DisclosureButton>
+}
+const Dp = (props: { children: JSX.Element }) => {
     return <DisclosurePanel class="px-4 pt-4 pb-2 text-sm text-gray-500">
-    {props.children}
-  </DisclosurePanel>
+        {props.children}
+    </DisclosurePanel>
 }
 
-const Passkey = () => {
-    return <Username />
-}
+
+
 
 // we should have loginInfo here, since we must be logged in for this to make sense.
 // but we could have moved away from the page, so we need to use the login cookie or similar to restore the login info. We can keep everything in sessionStorage? It depends on how we want to manage logins, if we want to log back in without challenge then we need to keep in localStorage.
 
-export const FactorSettings: Component<{onClose: (x:boolean)=>void}> = (props) => {
+// must use cbor to get uint8array
+
+export const SettingsPage: Component<{}> = (props) => {
+    return <SimplePage>
+        <FactorSettings onClose={() => { }} />
+    </SimplePage>
+}
+
+
+
+export interface Settings {
+    user_secret: string
+    img: Uint8Array | undefined
+    email: string
+    phone: string
+    activatePasskey: boolean
+    activateTotp: boolean
+}
+
+
+export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (props) => {
+
     const ws = createWs()
+    addMock("settings", async (x) => {
+        const r: Settings =  {
+            user_secret: "secret",
+            img: undefined,
+            email: "jimh@datagrove.com",
+            phone: "+14843664923",
+            activatePasskey: true,
+            activateTotp: true,
+        }
+        return r
+    })
+    addMock("configure", async (x) => {
+        console.log(x)
+    })
+
+
+
     const ln = useLn()
-    const [factor, setFactor] = createSignal<number>(Factor.kPasskey)
-    const [email, setEmail] = createSignal("")
-    const [mobile, setMobile] = createSignal("")
-    const [voice, setVoice] = createSignal("")
-    const [isOpenGetSecret, setIsOpenGetSecret] = createSignal(false)
-    const [totp,setTotp] = createSignal<Totp>()
-    const [dataUrl, setDataUrl] = createSignal("")
+    const nav = useNavigate()
+    const [settings, setSettings] = createSignal<Settings | undefined>()
+    const [dataUrl, setDataUrl] = createSignal<string>("")
+    const [challenge,setChallenge] = createSignal("")
+
+    // we should use a resource like thing to get the current settings using the secret that's in the login info.
 
     const fb = async () => {
-        const [img, e] = await ws.rpce<Totp>("gettotp", {})
+        const [settings, e] = await ws.rpce<Settings>("settings", {})
         if (e) {
             console.log(e)
             return
         }
-        const bl = new Blob([img!.img], { type: 'image/png' });
+        const bl = new Blob([settings!.img!], { type: 'image/png' });
         const reader = new FileReader();
         reader.readAsDataURL(bl);
         reader.onloadend = () => {
             const dataUrl = reader.result as string;
             setDataUrl(dataUrl)
         }
-
     }
-    // why do we need validate and close? Can't validate close?
-    const validate = async (secret: string) => {
-        // this must be a socket call
-        const [log, e] = await ws.rpcje<LoginInfo>("addfactor2", { challenge: secret })
-        if (e) {
-            console.log(e)
-            return false
-        }
-        // we don't need to set login information, we are already logged in
-        //setLoginInfo(log)
-        return true
+    fb()
+
+    const save = async () => {
+        ws.rpce("configure", settings())
     }
 
+    const update = (x: Partial<Settings>) => {
+        setSettings({
+            ...settings()!,
+            ...x
+        })
+    }
+    const testOtp = async (s:string) => {
+    }
+    const testEmail = async (s:string) => {
+    }
+    const testText = async (s:string) => {
+    }
+    const testPasskey = async ()=>{
+    }
+
+    const active = (b: any) => { return b ? "Active" : "Inactive" }
+    return <div class='space-y-6'>
+        <p>Activate one or more factors to protect your account. </p>
+        <Show when={settings()}>
+            <Disclosure defaultOpen={false} as='div'>
+                <Db> Passkey: {active(settings()!.activatePasskey)}</Db>
+                <Dp>
+                    Tap the user name field to manage your passkeys. Pick one to test it.
+                    <Username />
+                    <BlueButton onClick={testPasskey}>Test</BlueButton>
+                </Dp>
+            </Disclosure>
+            <Disclosure defaultOpen={false} as='div'>
+                <Db> Time Based Code: {active(settings()!.activateTotp)}</Db>
+                <Dp><img src={dataUrl()} /></Dp>
+                <Input autofocus onInput={(e) => setChallenge(e)} />
+                <BlueButton onClick={()=>testOtp(challenge())}>Test</BlueButton>
+            </Disclosure>
+            <Disclosure defaultOpen={false} as='div'>
+                <Db>Phone number: {active(settings()!.phone)}</Db>
+                <Dp>  <PhoneInput autofocus onInput={(e) => update({ phone: e })} /></Dp>
+                <BlueButton onClick={()=>testText(settings()!.phone)}>Test</BlueButton>
+            </Disclosure>
+            <Disclosure defaultOpen={false} as='div'>
+                <Db>Email: {active(settings()!.email)}</Db>
+                <Dp>  <EmailInput autofocus onInput={(e) => update({ email: e })} /></Dp>
+                <BlueButton onClick={()=>testEmail(settings()!.email)}>Test</BlueButton>
+            </Disclosure>
+            <BlueButton onClick={save}>Save</BlueButton>
+        </Show>
+    </div>
+}
+
+
+
+/*
+    const closeSecret = () => {
+        setIsOpenGetSecret(false)
+        // this onclose should finalize the login
+        props.onClose(true)
+    }
     const add = async () => {
         const o = await ws.rpcj<any>("addpasskey", {})
         const cco = parseCreationOptionsFromJSON(o)
@@ -156,41 +239,7 @@ export const FactorSettings: Component<{onClose: (x:boolean)=>void}> = (props) =
         }
     }
 
-    const changeFactor = (e: any) => {
-        setFactor(Number(e.target.value))
-        if (factor() == Factor.kTotp && dataUrl() == "") {
-            fb()
-        }
-    }
-    const closeSecret = () => {
-        setIsOpenGetSecret(false)
-        // this onclose should finalize the login
-        props.onClose(true)
-    }
-    const passkeyActive = ()=> true 
-    const active = (b: any) => { return b ? "Active" : "Inactive" }
-    return <div class='space-y-6'>
-        <p>Activate one or more factors to protect your account. </p>
-        <Disclosure defaultOpen={false} as='div'>
-                <Db> Passkey: {active(passkeyActive)}</Db>
-            <Dp>
-                Tap the user name field to manage your passkeys
-                <Passkey/></Dp>
-                </Disclosure>
-        <Disclosure defaultOpen={false} as='div'>
-                <Db> Time Based Code: {active(totp())}</Db>
-            <Dp><img src={dataUrl()} /></Dp>
-                </Disclosure>
-        <Disclosure defaultOpen={false} as='div'>
-                <Db>Phone number: {active(mobile())}</Db>
-            <Dp>  <PhoneInput autofocus onInput={(e) => setMobile(e)} /></Dp>
-                </Disclosure>
-        <Disclosure defaultOpen={false} as='div'>
-                <Db>Email: {active(email())}</Db>
-            <Dp>  <EmailInput autofocus onInput={setEmail} /></Dp>
-                </Disclosure>
-        <BlueButton onClick={add}>Save</BlueButton>
-    </div>
+
     return <Switch>
         <Match when={isOpenGetSecret()}><GetSecret onClose={closeSecret} validate={validate} /></Match>
         <Match when={true}>
@@ -244,10 +293,4 @@ export const FactorSettings: Component<{onClose: (x:boolean)=>void}> = (props) =
             </Dialog ></Match>
     </Switch>
 
-};
-
-export const SettingsPage: Component<{}> = (props) => {
-    return <SimplePage>
-            <FactorSettings onClose={()=>{}}/>
-        </SimplePage>
-}
+    */

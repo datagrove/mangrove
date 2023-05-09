@@ -118,13 +118,28 @@ type Config struct {
 
 // should be in challenge info as well?
 type LoginInfo struct {
-	Home       string   `json:"home,omitempty"`
-	Email      string   `json:"email,omitempty"`
-	Phone      string   `json:"phone,omitempty"`
-	Cookies    []string `json:"cookies,omitempty"` // key,value pairs.
-	UserSecret string   `json:"user_secret,omitempty"`
-	Options    int64    `json:"options,omitempty"`
+	Home string `json:"home"`
+	// email and phone would be nice to get from proxy? what would we do with it?
+	// the browser likely already knows the phone.
+	Email      string   `json:"email"`
+	Phone      string   `json:"phone"`
+	Cookies    []string `json:"cookies"` // key,value pairs.
+	UserSecret string   `json:"user_secret"`
+	// this needs to tell the user what second factors they have defined.
+	Options         int64 `json:"options"`
+	ActivatePasskey bool  `json:"activate_passkey"`
+	ActivateTotp    bool  `json:"activate_totp"`
 }
+
+type Settings struct {
+	UserSecret      string `json:"user_secret"` // user_secret: string
+	Img             []byte `json:"img"`         // img: Uint8Array | undefined
+	Email           string `json:"email"`
+	Phone           string `json:"phone"`
+	ActivatePasskey bool   `json:"activate_passkey"`
+	ActivateTotp    bool   `json:"activate_totp"`
+}
+
 type ProxyLogin = LoginInfo
 
 // challenge type can be "optional" or "required" to indicate that the user may or should add a key

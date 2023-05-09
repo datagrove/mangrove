@@ -64,6 +64,7 @@ export interface LoginProps {
     createAccount?:  string
     recoverUser?: string
     recoverPassword?: string
+    afterLogin?: string
 }
 
 
@@ -72,6 +73,10 @@ export const LoginPage : Component<LoginProps> = (props) => {
     return <SimplePage>{Login(props)}</SimplePage>
 }
 // todo: send language in requests so that we can localize the error messages
+
+// If we are in another tab we might need to connect, maybe connect automatically?
+// maybe send the user secret with the submit?
+export const [loginInfo, setLoginInfo] = createSignal<LoginInfo | undefined>(undefined)
 
 const Login: Component<LoginProps> = (props) => {
     enum Screen {
@@ -88,7 +93,6 @@ const Login: Component<LoginProps> = (props) => {
     const [password, setPassword] = createSignal("")
     const [error, setError_] = createSignal("")
     const [screen, setScreen_] = createSignal(Screen.Login)
-    const [loginInfo, setLoginInfo] = createSignal<LoginInfo | undefined>(undefined)
 
     createEffect(() => {
         console.log("screen", screen())
@@ -112,7 +116,8 @@ const Login: Component<LoginProps> = (props) => {
             document.cookie = c + ";path=/"
         })
         setScreen(Screen.Suspense)
-        location.href = i.home
+        //location.href = i.home
+        nav(i.home ? i.home : props.afterLogin??"/")
         //window.open(i.home, "_blank")
         //console.log("login info", i)
     }

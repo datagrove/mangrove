@@ -321,16 +321,23 @@ func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (
 }
 
 // always send LoginInfo.
-func (s *Server) GetSettings(sess *Session) (*LoginInfo, error) {
-	li, e := s.GetLoginInfo(sess)
+func (s *Server) GetSettings(sess *Session) (*Settings, error) {
+	a, e := s.Db.qu.SelectOrg(context.Background(), sess.Oid)
 	if e != nil {
 		return nil, e
 	}
+	return &Settings{
+		UserSecret:      "",
+		Img:             a.TotpPng,
+		Email:           a.Email.String,
+		Phone:           a.Mobile.String,
+		ActivatePasskey: false,
+		ActivateTotp:    false,
+	}, nil
 
-	return li, nil
 }
-func (s *Server) Configure(sess *Session, li *LoginInfo) error {
-
+func (s *Server) Configure(sess *Session, li *Settings) error {
+	s.Db.qu.UpdateOrg(context.Background(), mangrove_sql.UpdateOrgParams{})
 	return nil
 }
 
@@ -338,15 +345,28 @@ func (s *Server) Configure(sess *Session, li *LoginInfo) error {
 // this should probably come from the database for scale reasons.
 // this is a password equivalent so care needs to be taken
 func (s *Server) GetLoginInfo(sess *Session) (*LoginInfo, error) {
-	p, e := s.ProxyLogin(sess.Username, sess.Password)
+	var li *LoginInfo
+	var e error
+	if s.ProxyLogin != nil {
+		li, e = s.ProxyLogin(sess.Username, sess.Password)
+		if e != nil {
+			return nil, e
+		}
+	} else {
+		li = &LoginInfo{
+			Home:       "",
+			Email:      "",
+			Phone:      "",
+			Cookies:    []string{},
+			UserSecret: "",
+			Options:    0,
+		}
+	}
+	li.UserSecret, e = s.UserToSecret(sess.Oid)
 	if e != nil {
 		return nil, e
 	}
-	p.UserSecret, e = s.UserToSecret(sess.Oid)
-	if e != nil {
-		return nil, e
-	}
-	return p, nil
+	return li, nil
 }
 func (s *Server) RecoverPasswordResponse2(sess *Session, challenge, password string) error {
 	if challenge != sess.Challenge {
@@ -404,6 +424,37 @@ func (s *Server) RecoverPasswordChallenge(sess *Session, email, phone string) er
 	}
 
 	return nil
+}
+
+func (s *Server) TestEmail(sess *Session) error {
+	o := &message.Email{
+		Sender:    s.EmailSource,
+		Recipient: sess.Email,
+		Subject:   "Test Email",
+		Html:      "",
+		Text:      "If you received this email, it means you have configured your email correctly.",
+	}
+	return o.Send()
+}
+func (s *Server) TestVoice(sess *Session) error {
+	o := &message.Email{
+		Sender:    s.EmailSource,
+		Recipient: sess.Email,
+		Subject:   "Test Email",
+		Html:      "",
+		Text:      "If you received this email, it means you have configured your email correctly.",
+	}
+	return o.Send()
+}
+func (s *Server) TestSms(sess *Session) error {
+	o := &message.Email{
+		Sender:    s.EmailSource,
+		Recipient: sess.Email,
+		Subject:   "Test Email",
+		Html:      "",
+		Text:      "If you received this email, it means you have configured your email correctly.",
+	}
+	return o.Send()
 }
 
 // using the database here is not good

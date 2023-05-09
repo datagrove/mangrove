@@ -138,25 +138,18 @@ func WebauthnSocket(mg *Server) error {
 		return mg.GetSettings(r.Session)
 	})
 
-	mg.AddApij("configure", false, func(r *Rpcpj) (any, error) {
-		var v LoginInfo
-		e := json.Unmarshal(r.Params, &v)
-		if e != nil {
-			return nil, e
-		}
-		oid := mg.Configure(r.Session, &v)
-		return oid, nil
+	// must be logged in (see connect)
+	mg.AddApi("settings", true, func(r *Rpcp) (any, error) {
+		return mg.GetSettings(r.Session)
 	})
-	mg.AddApij("configure", false, func(r *Rpcpj) (any, error) {
-		var v struct {
-			UserSecret string `json:"usersecret"`
-		}
-		e := json.Unmarshal(r.Params, &v)
+
+	mg.AddApi("configure", true, func(r *Rpcp) (any, error) {
+		var v Settings
+		e := sockUnmarshal(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
-		oid := mg.SecretToUser(v.UserSecret)
-		return oid, nil
+		return true, mg.Configure(r.Session, &v)
 	})
 
 	mg.AddApij("recover", false, func(r *Rpcpj) (any, error) {

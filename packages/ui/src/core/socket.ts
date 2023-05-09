@@ -226,6 +226,9 @@ export function initWs(url: string) {
 export function createWs(url?: string): Ws {
     return ws_
 }
+export function addMock(method: string, fn: (arg: any) => any) {
+    ws_.serve(method, fn)
+}
 
 
 /*
