@@ -9,6 +9,45 @@ import { createWs } from "../core/socket";
 import { Segment } from "../lib/progress";
 import { CellOptions, cell } from "../db/client";
 import { useNavigate } from "../core/dg";
+// instead of localstorage, why not cookies?
+// cookies are less convenient for webrtc
+// websockets can use them though.
+
+// token per container? per home containers? can you have more than one home though?
+export interface Sec {
+    token: {
+        [key: string]: Token
+    }
+}
+export interface Token {
+    resource: string
+    signed: string
+    expires: number
+}
+
+export const [sec, setSec_] = createSignal<Sec>({
+    token: {}
+})
+window.addEventListener("storage", () => {
+    // When local storage changes, dump the list to
+    // the console.
+    const sec = localStorage.getItem("sec")
+    const o = sec ? JSON.parse(sec) as Sec : { token: {} } as Sec
+    setSec_(o)
+});
+export const setLogin = (sec: Sec) => {
+    localStorage.setItem("sec", JSON.stringify(sec))
+    setSec_(sec)
+}
+export const useLogin = () => () => sec().token["~"]
+export interface Loc {
+    // org-container.server.domain/#/tab/page when published (iframes)
+    // but server.dns alone, building anonymous iframes is potentially more powerful
+    org: string
+    container: string
+    tab: string,
+    page: string[]
+}
 
 // when this page logs in successfully, how do we get the user to the right place?
 export const Spc = () => <div class='flex-1' />
@@ -22,10 +61,10 @@ export const GreyButton: Component<ButtonProps> = (props) => {
 
 
 export interface LoginProps {
-    createAccount?:  string
+    createAccount?: string
     restoreAccount?: string
 }
-export const LoginPage : Component<LoginProps> = (props) => {
+export const LoginPage: Component<LoginProps> = (props) => {
     return <SimplePage>{Login(props)}</SimplePage>
 }
 // todo: send language in requests so that we can localize the error messages
@@ -61,7 +100,7 @@ const Login: Component<LoginProps> = (props) => {
 
     const [finished, setFinished] = createSignal(false)
 
-    const finishLogin = (i: LoginInfo ) => {
+    const finishLogin = (i: LoginInfo) => {
         setScreen(Screen.Suspense)
         loginInfo()?.cookies.forEach((c) => {
             document.cookie = c + ";path=/"
@@ -81,7 +120,7 @@ const Login: Component<LoginProps> = (props) => {
     // when we set this up we need to start a promise to gather passkeys that are offered
     // This points out the case that we get a passkey that we don't know
     // in this case we still need to get the user name and password
-    initPasskey(setError).then((i: LoginInfo|null ) => {
+    initPasskey(setError).then((i: LoginInfo | null) => {
         if (i) finishLogin(i)
         else console.log("passkey watch cancelled")
     })
@@ -99,7 +138,7 @@ const Login: Component<LoginProps> = (props) => {
         if (err) {
             setError(err)
             return
-        } 
+        }
         ch = ch!
         abortController.abort()
         // if the challenge type is 0 then we would ask for a second factor
@@ -135,7 +174,7 @@ const Login: Component<LoginProps> = (props) => {
         // either way we close the dialog
         if (ok) {
             setScreen(Screen.Login)
-            if (!loginInfo()){
+            if (!loginInfo()) {
                 setError("challenge failed")
             } else {
                 finishLogin(loginInfo()!)
@@ -168,8 +207,8 @@ const Login: Component<LoginProps> = (props) => {
             <Switch>
                 <Match when={screen() == Screen.Suspense}>
                     <H2>Loading...</H2>
-                    <pre class='hidden'>{JSON.stringify(loginInfo(),null,2)}</pre>
-                    </Match>
+                    <pre class='hidden'>{JSON.stringify(loginInfo(), null, 2)}</pre>
+                </Match>
                 <Match when={screen() == Screen.Login}>
                     <form method='post' class='space-y-6' onSubmit={submitLogin} >
                         <Show when={error()}> <div>{error()}</div></Show>
@@ -178,18 +217,18 @@ const Login: Component<LoginProps> = (props) => {
                         <BlueButton  >{ln().signin}</BlueButton>
                     </form>
                     <div class="mt-6 space-y-4">
-                        <div class='flex'><Spc /><GreyButton onClick={()=>{
+                        <div class='flex'><Spc /><GreyButton onClick={() => {
                             if (props.createAccount) {
                                 location.href = props.createAccount
                             } else {
                                 nav('register') // relative to the current page
                             }
-                            }}>{ln().register}</GreyButton><Spc /></div>
+                        }}>{ln().register}</GreyButton><Spc /></div>
 
                         <div class="flex"><Spc />
-                            <GreyButton onClick={() => { 
+                            <GreyButton onClick={() => {
                                 nav('recover')
-                                }}>{ln().forgotPassword}</GreyButton>
+                            }}>{ln().forgotPassword}</GreyButton>
                             <Spc /></div>
                     </div></Match>
             </Switch>
