@@ -25,12 +25,12 @@ export enum Factor {
 }
 export const factors: KeyValue[] = [
     [Factor.kPasskey, "Passkey"],
-    [Factor.kPasskeyp, "Passkey and Password"],
-    [Factor.kTotp, "Time Based Code"],
-    [Factor.kMobile, "Text Message"],
+    //[Factor.kPasskeyp, "Passkey and Password"],
+    [Factor.kTotp, "Time Code"],
+    [Factor.kMobile, "Phone"],
     [Factor.kEmail, "Email"],
-    [Factor.kApp, "Phone App"],
-    [Factor.kVoice, "Voice Call"],
+    //[Factor.kApp, "Phone App"],
+    //[Factor.kVoice, "Voice Call"],
 ]
 
 
@@ -60,7 +60,8 @@ const en = {
     more2fa: "More choices",
     invalidCode: "Invalid code",
     enterPassword: "Enter password",
-    forgotPassword: "Recover name or password",
+    forgotPassword: "Forgot password?",
+    forgotUsername: "Forgot username?",
     email: "Email",
     phone: "Phone",
     phoneOrEmail: "Phone or Email",

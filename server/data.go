@@ -12,13 +12,15 @@ type RegisterInfo struct {
 	Email    string `json:"email"`
 	Phone    string `json:"phone"`
 }
+
+// each session can have multiple sockets attached ot
 type Session struct {
+	mu  sync.Mutex
 	Oid int64
 	UserDevice
 	Device string // device for this session
 	Secret string
 	data   *webauthn.SessionData
-	mu     sync.Mutex
 	//Watch    []*Watch
 	// maps a fid to a stream handle
 	Handle   map[int64]StreamHandle

@@ -6,11 +6,72 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/kardianos/service"
+	"github.com/lesismal/nbio/nbhttp"
 	"github.com/skip2/go-qrcode"
 )
+
+var logger service.Logger
+
+type Rpcfj = func(a *Rpcpj) (any, error)
+type Rpcf = func(a *Rpcp) (any, error)
+type Server struct {
+	*Config
+	*Db
+	//*FileWatcher
+	Mux  *http.ServeMux
+	Home string
+	Ws   *nbhttp.Server
+	Cert string
+	Key  string
+
+	Api       map[string]Rpcf
+	Apij      map[string]Rpcfj
+	muSession sync.Mutex
+	Session   map[string]*Session
+
+	Handle int64
+
+	muStream sync.Mutex
+	Stream   map[int64]*Stream
+
+	// we need some kind of plugin structure
+	EmbedHandler http.Handler
+	WsHandler    http.HandlerFunc
+	UserSecret
+}
+
+type UserSecret struct {
+	mu     sync.Mutex
+	Users  map[int64]string
+	Secret map[string]int64
+}
+
+func (s *UserSecret) UserToSecret(user int64) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if secret, ok := s.Users[user]; ok {
+		return secret, nil
+	}
+	secret, e := GenerateRandomString(32)
+	if e != nil {
+		return "", e
+	}
+	s.Users[user] = secret
+	s.Secret[secret] = user
+	return secret, nil
+}
+func (s *UserSecret) SecretToUser(secret string) int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if user, ok := s.Secret[secret]; ok {
+		return user
+	}
+	return -1
+}
 
 // move to mangrove
 
@@ -55,11 +116,14 @@ type Config struct {
 	Start func(s *Server) error
 }
 
+// should be in challenge info as well?
 type LoginInfo struct {
-	Home    string   `json:"home,omitempty"`
-	Email   string   `json:"email,omitempty"`
-	Phone   string   `json:"phone,omitempty"`
-	Cookies []string `json:"cookies,omitempty"` // key,value pairs.
+	Home       string   `json:"home,omitempty"`
+	Email      string   `json:"email,omitempty"`
+	Phone      string   `json:"phone,omitempty"`
+	Cookies    []string `json:"cookies,omitempty"` // key,value pairs.
+	UserSecret string   `json:"user_secret,omitempty"`
+	Options    int64    `json:"options,omitempty"`
 }
 type ProxyLogin = LoginInfo
 

@@ -320,9 +320,29 @@ func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (
 	return s.SendChallenge(sess)
 }
 
+// always send LoginInfo.
+func (s *Server) GetSettings(sess *Session) (*LoginInfo, error) {
+	li, e := s.GetLoginInfo(sess)
+	if e != nil {
+		return nil, e
+	}
+
+	return li, nil
+}
+func (s *Server) Configure(sess *Session, li *LoginInfo) error {
+
+	return nil
+}
+
 // logging in always sends the ChallengeNotify, but we can also send it after logging in to confirm configuration changes.
+// this should probably come from the database for scale reasons.
+// this is a password equivalent so care needs to be taken
 func (s *Server) GetLoginInfo(sess *Session) (*LoginInfo, error) {
 	p, e := s.ProxyLogin(sess.Username, sess.Password)
+	if e != nil {
+		return nil, e
+	}
+	p.UserSecret, e = s.UserToSecret(sess.Oid)
 	if e != nil {
 		return nil, e
 	}

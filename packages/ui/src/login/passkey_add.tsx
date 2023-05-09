@@ -1,5 +1,5 @@
 import { Icon } from "solid-heroicons";
-import { key} from "solid-heroicons/solid";
+import { key } from "solid-heroicons/solid";
 import { Component, createEffect, createSignal, JSX, JSXElement, Match, onMount, Show, Switch } from "solid-js";
 import { Center, BlueButton, LightButton } from "../lib/form";
 import { Factor, _, factors, useLn } from "./passkey_i18n";
@@ -13,6 +13,7 @@ import {
 import { Cell, CellOptions } from "../db/client";
 import { Ab, Bb } from "../layout/nav";
 import { on } from "events";
+import { FactorSettings } from "./settings";
 // type InputProps = JSX.HTMLAttributes<HTMLInputElement> & { placeholder?: string, autofocus?: boolean, name?: string, autocomplete?: string, type?: string, value?: string, id?: string, required?: boolean }
 type InputProps = {
     reset?: () => string,   // should not be same signal as onInput
@@ -23,7 +24,7 @@ type InputProps = {
     autocomplete?: string,
     placeholder?: string,
     autofocus?: boolean,
-    onInput: (value: string) => void,
+    onInput?: (value: string) => void,
 }
 export const DirectiveText = (props: any) => {
     return <div class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</div>
@@ -42,7 +43,7 @@ export const Input = (props: InputProps) => {
 
     // ring-1 ring-inset focus:ring-2 focus:ring-inset focus:ring-indigo-500 dark:focus:ring-indigo-500 
 
-    return <div><input {...props} ref={inp} value={props.reset ? props.reset() : ""} onInput={(e) => props.onInput(e.target.value)}
+    return <div><input {...props} ref={inp} value={props.reset ? props.reset() : ""} onInput={props.onInput?(e) => props.onInput!(e.target.value):undefined}
         class="block mt-1 w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm sm:text-sm sm:leading-6 p-2" /></div>
 }
 export const InputCell: Component<{ cell: Cell, autofocus?: boolean }> = (props) => {
@@ -61,7 +62,7 @@ export const InputCell: Component<{ cell: Cell, autofocus?: boolean }> = (props)
             </Show>
         </div>
         <div >
-            <Input {...props} autofocus={props.autofocus||props.cell.autofocus} onInput={setCell} placeholder={_(n)} id={n} name={n} type={props.cell.type ?? "text"} autocomplete={props.cell.autocomplete} />
+            <Input {...props} autofocus={props.autofocus || props.cell.autofocus} onInput={setCell} placeholder={_(n)} id={n} name={n} type={props.cell.type ?? "text"} autocomplete={props.cell.autocomplete} />
         </div>
         <div>
             <Show when={props.cell.error()}>
@@ -217,21 +218,12 @@ export interface ChallengeNotify {
 
 // Needs to work like a dialog box opens when signals true, calls close when done.
 export const GetSecret: Component<{
-    when: () => boolean,
     validate: (secret: string) => Promise<boolean>,
     onClose: (ok: boolean) => void
 }> = (props) => {
-
     const ln = useLn()
-
     const [error, setError] = createSignal("")
-    let btn: HTMLButtonElement | null = null;
     const [inp, setInp] = createSignal("")
-    createEffect(() => {
-        if (props.when()) {
-            btn?.focus()
-        }
-    })
 
     const cancel = (e: any) => {
         e.preventDefault()
@@ -247,28 +239,20 @@ export const GetSecret: Component<{
             }
         })
     }
-    return <>
-        <Show when={props.when()} >
-            <Dialog>
-                <DialogPage>
-                    <form onSubmit={submit} class='space-y-6'>
-                        <div>
-                            <Show when={error()}><div class='text-red-500'>{error()}</div></Show>
-                            <InputLabel>Enter code</InputLabel>
-                            <InputSecret ref={btn!} onInput={(e: any) => setInp(e.target.value)} />
-                        </div>
-                        <DialogActions><OkButton /> <CancelButton onClick={cancel} /></DialogActions>
-                    </form>
-                </DialogPage></Dialog>
-        </Show >
-    </>
+    return <Dialog>
+        <DialogPage>
+            <form onSubmit={submit} class='space-y-6'>
+                <div>
+                    <Show when={error()}><div class='text-red-500'>{error()}</div></Show>
+                    <InputLabel>Enter code</InputLabel>
+                    <InputSecret autofocus onInput={(e: any) => setInp(e.target.value)} />
+                </div>
+                <DialogActions><OkButton /> <CancelButton onClick={cancel} /></DialogActions>
+            </form>
+        </DialogPage></Dialog>
 }
-interface Totp {
-    img: Uint8Array
-    secret: string
-}
+
 export const AddPasskey: Component<{
-    when: () => boolean, required?: boolean,
     onClose: (u: boolean) => void
     allow?: string[],
 }> = (props) => {
@@ -276,79 +260,15 @@ export const AddPasskey: Component<{
     const ln = useLn()
     let btnSaveEl: HTMLButtonElement | null = null;
     let btnNot: HTMLButtonElement | null = null;
+
     const [more, setMore] = createSignal(false)
-    const [factor, setFactor] = createSignal<number>(Factor.kPasskey)
-    const [email, setEmail] = createSignal("")
-    const [mobile, setMobile] = createSignal("")
-    const [voice, setVoice] = createSignal("")
-    const [isOpenGetSecret, setIsOpenGetSecret] = createSignal(false)
 
-    const [dataUrl, setDataUrl] = createSignal("")
-
-    const fb = async () => {
-        const [img, e] = await ws.rpce<Totp>("gettotp", {})
-        if (e) {
-            console.log(e)
-            return
-        }
-        const bl = new Blob([img!.img], { type: 'image/png' });
-        const reader = new FileReader();
-        reader.readAsDataURL(bl);
-        reader.onloadend = () => {
-            const dataUrl = reader.result as string;
-            setDataUrl(dataUrl)
-        }
-
-    }
-    // why do we need validate and close? Can't validate close?
-    const validate = async (secret: string) => {
-        // this must be a socket call
-        const [log, e] = await ws.rpcje<LoginInfo>("addfactor2", { challenge: secret })
-        if (e) {
-            console.log(e)
-            return false
-        }
-        // we don't need to set login information, we are already logged in
-        //setLoginInfo(log)
-        return true
-    }
-
-
-    createEffect(() => {
-        if (props.when()) {
-            console.log("open add passkey")
-            btnSaveEl?.focus()
-        }
-    })
-
-    const add = async () => {
-        if (factor() == Factor.kPasskey || factor() == Factor.kPasskeyp) {
-            const o = await ws.rpcj<any>("addpasskey", {})
-            const cco = parseCreationOptionsFromJSON(o)
-            const cred = await create(cco)
-            const token = await ws.rpcj<any>("addpasskey2", cred.toJSON())
-            props.onClose(true)
-        } else {
-            let v = ""
-            switch (Number(factor())) {
-                case Factor.kEmail:
-                    v = email()
-                    break
-                case Factor.kMobile:
-                    v = mobile()
-                    break
-                case Factor.kVoice:
-                    v = voice()
-                    break
-            }
-            // we need to test the method here.
-            await ws.rpcje<string>("addfactor", {
-                type: Number(factor()),
-                value: v
-            })
-
-            setIsOpenGetSecret(true)
-        }
+    const add = async (e: any) => {
+        const o = await ws.rpcj<any>("addpasskey", {})
+        const cco = parseCreationOptionsFromJSON(o)
+        const cred = await create(cco)
+        const token = await ws.rpcj<any>("addpasskey2", cred.toJSON())
+        props.onClose(true)
     }
 
     // we just close and go on.
@@ -361,30 +281,32 @@ export const AddPasskey: Component<{
 
         props.onClose(false)
     }
+    return <Switch>
+            <Match when={more()}>
+                <FactorSettings onClose={props.onClose} />
+            </Match>
+        <Match when={!more()}><Dialog> <DialogPage >
+        <div class="space-y-6 ">
+            <Icon path={key} class="w-24 h-24 mx-auto" />
+            <p >{ln().addPasskey1}</p>
+            <p class='text-neutral-500'>{ln().addPasskey2}</p>
+        </div>
+        <div class='flex space-x-4'>
+            <div class='w-24'><BlueButton autofocus tabindex='0' ref={btnSaveEl!} onClick={add}>{ln().add}</BlueButton></div>
+            <div class='w-24'><LightButton tabindex='0' ref={btnNot!} onClick={notNow}>{ln().notNow}</LightButton></div>
+            <div class='w-24'><LightButton tabindex='0' onClick={notEver}>{ln().notEver}</LightButton></div>
+        </div>
+       <div class=' flex'><Bb onClick={() => {
+            setMore(true)
+       }}>{ln().more2fa}</Bb></div></DialogPage> </Dialog>
+        </Match></Switch>
+    
+}
 
-    const changeFactor = (e: any) => {
-        setFactor(Number(e.target.value))
-        if (factor() == Factor.kTotp && dataUrl() == "") {
-            fb()
-        }
-    }
-    const closeSecret = () => {
-        setIsOpenGetSecret(false)
-        // this onclose should finalize the login
-        props.onClose(true)
-    }
 
-    return <>
-        <GetSecret when={isOpenGetSecret} onClose={closeSecret} validate={validate} />
-        <Show when={props.when() && !isOpenGetSecret()}>
-            <Dialog>
-                <Center>
-                    <DialogPage >
-                        <Show when={more()}>
-                            <div>
-                                <InputLabel>Second Factor</InputLabel>
-                                <div class='mt-2 text-black dark:text-white  rounded-md items-center '>
-                                    <select
+/*
+
+<select
                                         id='ln'
                                         value={factor()}
                                         aria-label="Select language"
@@ -395,49 +317,5 @@ export const AddPasskey: Component<{
                                                 {name}&nbsp;&nbsp;&nbsp;
                                             </option>
                                         ))}
-                                    </select></div>
-                            </div>
-                        </Show>
-                        <Switch>
-                            <Match when={!more()}>
-                                <div class="space-y-6 ">
-                                    <Icon path={key} class="w-24 h-24 mx-auto" />
-                                    <p >{ln().addPasskey1}</p>
-                                    <p class='text-neutral-500'>{ln().addPasskey2}</p>
-                                </div>
-                            </Match>
-                            <Match when={factor() === Factor.kPasskey || factor() === Factor.kPasskeyp}>
-
-                            </Match>
-                            <Match when={factor() == Factor.kEmail}>
-                                <EmailInput onInput={setEmail} />
-
-                            </Match>
-                            <Match when={factor() == Factor.kMobile}>
-                                <PhoneInput onInput={(e) => setMobile(e)} />
-
-                            </Match>
-                            <Match when={factor() == Factor.kVoice}>
-                                <PhoneInput onInput={(e: any) => setVoice(e.target.value)} />
-
-                            </Match>
-                            <Match when={factor() == Factor.kTotp}>
-                                <img src={dataUrl()} />
-
-                            </Match>
-                            <Match when={factor() == Factor.kApp}>
-                                <div> Install iMis on your phone</div>
-                            </Match>
-                        </Switch>
-                        <div class='flex space-x-4'>
-                            <div class='w-24'><BlueButton tabindex='0' ref={btnSaveEl!} onClick={add}>{ln().add}</BlueButton></div>
-                            <div class='w-24'><LightButton tabindex='0' ref={btnNot!} onClick={notNow}>{ln().notNow}</LightButton></div>
-                            <div class='w-24'><LightButton tabindex='0' onClick={notEver}>{ln().notEver}</LightButton></div>
-                        </div>
-                        <Show when={!more()}><div class=' flex'><Ab href='#' onClick={() => setMore(true)}>{ln().more2fa}</Ab></div></Show>
-                    </DialogPage></Center>
-            </Dialog ></Show >
-    </>
-
-};
-
+                                    </select>
+*/

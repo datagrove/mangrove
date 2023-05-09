@@ -8,7 +8,11 @@ export const [ln, setLn_] = createSignal("en")
 export const [loc, setLoc] = createSignal("/")
 
 export function useNavigate() {
-    return (path: string, options?: { replace?: boolean }) => {
+    return (path: string, options?: { replace?: boolean, external?: boolean }) => {
+        if (options?.external) {
+            location.href = path
+            return
+        }
         if (!path.startsWith('/')) {
             path = "/" + path
         }
@@ -55,8 +59,11 @@ const router = () => {
         "path": p
     })
 }
+export let root: string
+// the page this loads from is the root, so when we navigate outside the root we need to let the browser handle it
 
 export const Router = (props: { children: JSXElement }) => {
+    root = location.href
     createEffect(() => {
         window.addEventListener('load', router);
         window.addEventListener('hashchange', router);

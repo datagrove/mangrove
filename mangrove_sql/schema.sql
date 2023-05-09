@@ -73,3 +73,11 @@ create table if not exists mg.device(
 	 device bigserial not null, 
 	 ucan text not null,
 	 primary key (device, oid));
+
+-- session is a capability to access a user's data
+create table session (
+    sid bytea not null,
+    oid bigint not null,
+    expire timestamp(6) not null
+    primary key (sid)
+)

@@ -88,7 +88,12 @@ func main() {
 		}
 
 		ProxyRequestHandler := func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasPrefix(r.URL.Path, "/iCore/Contacts/Sign_In") {
+			if r.URL.Path == "/" {
+				http.Redirect(w, r, "/MBRR/", http.StatusFound)
+				return
+			}
+			if strings.HasPrefix(r.URL.Path, "/iCore/Contacts/Sign_In") ||
+				strings.HasPrefix(r.URL.Path, "/MBRR/SignIn") {
 				http.Redirect(w, r, "/embed/", http.StatusFound)
 				return
 			}

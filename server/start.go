@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/gliderlabs/ssh"
-	"github.com/kardianos/service"
 	"github.com/lesismal/llib/std/crypto/tls"
 	"github.com/lesismal/nbio/nbhttp"
 	"github.com/lesismal/nbio/nbhttp/websocket"
@@ -42,35 +41,6 @@ func sockMarshall(v interface{}) ([]byte, error) {
 
 // we might want to allow a job to control a frame of the ui, but how?
 // maybe we should have a list of functions that take a bit of json to configure themselves.
-
-var logger service.Logger
-
-type Rpcfj = func(a *Rpcpj) (any, error)
-type Rpcf = func(a *Rpcp) (any, error)
-type Server struct {
-	*Config
-	*Db
-	//*FileWatcher
-	Mux  *http.ServeMux
-	Home string
-	Ws   *nbhttp.Server
-	Cert string
-	Key  string
-
-	Api       map[string]Rpcf
-	Apij      map[string]Rpcfj
-	muSession sync.Mutex
-	Session   map[string]*Session
-
-	Handle int64
-
-	muStream sync.Mutex
-	Stream   map[int64]*Stream
-
-	// we need some kind of plugin structure
-	EmbedHandler http.Handler
-	WsHandler    http.HandlerFunc
-}
 
 func (s *Server) RemoveSession(sess *Session) {
 	for h := range sess.Handle {
@@ -313,13 +283,25 @@ func NewServer(optc *Config) (*Server, error) {
 		Config:       optc,
 		Db:           db,
 		Mux:          mux,
+		Home:         "",
 		Ws:           ws,
+		Cert:         "",
+		Key:          "",
 		Api:          map[string]Rpcf{},
 		Apij:         map[string]func(a *Rpcpj) (any, error){},
 		muSession:    sync.Mutex{},
 		Session:      map[string]*Session{},
 		Handle:       0,
+		muStream:     sync.Mutex{},
+		Stream:       map[int64]*Stream{},
 		EmbedHandler: fs,
+		WsHandler: func(http.ResponseWriter, *http.Request) {
+		},
+		UserSecret: UserSecret{
+			mu:     sync.Mutex{},
+			Users:  map[int64]string{},
+			Secret: map[string]int64{},
+		},
 	}
 
 	WebauthnSocket(svr)
