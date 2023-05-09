@@ -1,6 +1,14 @@
 import { Component, JSX, JSXElement, Match, Switch, createEffect, createSignal, onCleanup } from "solid-js"
 
 
+const useHash = false
+export function setPath(path: string) {
+    if (useHash) {
+        window.location.hash = path
+    } else {
+        window.history.pushState(null, "", path)
+    }
+}
 
 // these need to be signals or not?
 // the event handler will trigger a re-render when it changes, that will set these values
@@ -14,9 +22,11 @@ export function useNavigate() {
             return
         }
         if (!path.startsWith('/')) {
-            path = "/" + path
+            // relative path
+            path = loc() + path
         }
-         window.location.hash = "/" + ln() + path
+        console.log("navigate", path)
+        setPath("/" + ln() + path)
     }
 }
 
@@ -25,12 +35,12 @@ export interface Path {
     pathname: string;
     search: string;
     hash: string;
-  }
+}
 export interface Location<S = unknown> extends Path {
     query: Params;
     state: Readonly<Partial<S>> | null;
     key: string;
-  }
+}
 export function useLocation<T>() {
     return () => {
         return {
@@ -38,21 +48,36 @@ export function useLocation<T>() {
             search: "",
             hash: ""
         } as Location<T>
-    } 
-}
-export function setLn(n: string) {
-    setLn_(n)
-    window.location.hash = "/" + ln() + loc()
+    }
 }
 
-const router = () => {
-    let route = window.location.hash.slice(1) || "/en/"
+
+export function setLn(n: string) {
+    setLn_(n)
+    if (useHash) {
+        window.location.hash = "/" + n + loc()
+    } else {
+        window.history.pushState({}, "", "/" + n + loc())
+    }
+
+}
+
+
+const router = (e: any) => {
+    e.preventDefault()
+    const root = ""
+    let route = "/"
+    if (useHash) {
+        route = window.location.hash
+    } else {
+        route = window.location.pathname.slice(root.length)
+    }
     let sp = route.split('/')
     let l = sp[1]
     let p = "/" + sp.slice(2).join('/')
-    setLn_(l)
-    setLoc(p)
-    window.location.hash = "/" + l + p
+    setLn_(l ? l : "en")
+    setLoc(p ? p : "/")
+    //window.location.hash = "/" + l + p
     console.log("route", {
         "route": route,
         "ln": l,
@@ -82,7 +107,7 @@ export const Route = (props: { path: string, component: Component<any> }) => {
         <props.component />
     </Match>
 }
-export const DefaultRoute : Component<{ children: JSXElement }> = (props) => {
+export const DefaultRoute: Component<{ children: JSXElement }> = (props) => {
     return <Match when={true}>
         {props.children}
     </Match>

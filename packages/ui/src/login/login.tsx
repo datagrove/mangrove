@@ -8,7 +8,7 @@ import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { createWs } from "../core/socket";
 import { Segment } from "../lib/progress";
 import { Cell, CellOptions, cell } from "../db/client";
-import { useNavigate } from "../core/dg";
+import { AnchorProps, useNavigate } from "../core/dg";
 // instead of localstorage, why not cookies?
 // cookies are less convenient for webrtc
 // websockets can use them though.
@@ -58,10 +58,19 @@ export const GreyButton: Component<ButtonProps> = (props) => {
         {props.children}
     </button>
 }
-
+export const Ag: Component<AnchorProps> = (props) => {
+    const nav = useNavigate()
+    const click = (e: any) => {
+        e.preventDefault()
+        nav(props.href)
+    }
+    return <a {...props} class="text-sm block font-semibold hover:underline text-indigo-500 hover:text-indigo-700 dark:text-neutral-500 dark:hover:text-indigo-300">
+        {props.children}
+    </a>
+}
 
 export interface LoginProps {
-    createAccount?:  string
+    createAccount?: string
     recoverUser?: string
     recoverPassword?: string
     afterLogin?: string
@@ -69,7 +78,7 @@ export interface LoginProps {
 
 
 
-export const LoginPage : Component<LoginProps> = (props) => {
+export const LoginPage: Component<LoginProps> = (props) => {
     return <SimplePage>{Login(props)}</SimplePage>
 }
 // todo: send language in requests so that we can localize the error messages
@@ -110,14 +119,14 @@ const Login: Component<LoginProps> = (props) => {
         setScreen_(r)
     }
 
-    const finishLogin = (i: LoginInfo ) => {
+    const finishLogin = (i: LoginInfo) => {
 
         i.cookies.forEach((c) => {
             document.cookie = c + ";path=/"
         })
         setScreen(Screen.Suspense)
         //location.href = i.home
-        nav(i.home ? i.home : props.afterLogin??"/")
+        nav(i.home ? i.home : props.afterLogin ?? "/")
         //window.open(i.home, "_blank")
         //console.log("login info", i)
     }
@@ -125,9 +134,9 @@ const Login: Component<LoginProps> = (props) => {
     // when we set this up we need to start a promise to gather passkeys that are offered
     // This points out the case that we get a passkey that we don't know
     // in this case we still need to get the user name and password
-    initPasskey(setError).then((i: LoginInfo|null ) => {
+    initPasskey(setError).then((i: LoginInfo | null) => {
         if (i) {
-           finishLogin(i)
+            finishLogin(i)
         }
         else console.log("passkey watch cancelled")
     })
@@ -180,7 +189,7 @@ const Login: Component<LoginProps> = (props) => {
                 finishLogin(loginInfo()!)
             }
         }
-    }    
+    }
 
     const onCloseAddKey = (e: any) => {
         console.log("closed passkey dialog")
@@ -201,41 +210,31 @@ const Login: Component<LoginProps> = (props) => {
         return true
     }
     return <div >
-            <Switch>
-                <Match when={screen() == Screen.AddKey}><AddPasskey  onClose={onCloseAddKey} /></Match>
-                <Match when={screen() == Screen.Secret}><GetSecret validate={validate}  onClose={confirmSecret} /></Match>
-                <Match when={screen() == Screen.Suspense}>
-                    <H2>Loading...</H2>
-                    <pre class='hidden'>{JSON.stringify(loginInfo(), null, 2)}</pre>
-                </Match>
-                <Match when={screen() == Screen.Login}>
-                    <form method='post' class='space-y-6' onSubmit={submitLogin} >
-                        <Show when={error()}> <div>{error()}</div></Show>
-                        <Username autofocus onInput={(e: string) => setUser(e)} />
-                        <Password onInput={(e: string) => setPassword(e)} />
-                        <BlueButton  >{ln().signin}</BlueButton>
-                    </form>
-                    <div class="mt-6 space-y-4">
-                        <div class='flex'><Spc /><GreyButton onClick={() => {
-                            if (props.createAccount) {
-                                location.href = props.createAccount
-                            } else {
-                                nav('register') // relative to the current page
-                            }
-                        }}>{ln().register}</GreyButton><Spc /></div>
+        <Switch>
+            <Match when={screen() == Screen.AddKey}><AddPasskey onClose={onCloseAddKey} /></Match>
+            <Match when={screen() == Screen.Secret}><GetSecret validate={validate} onClose={confirmSecret} /></Match>
+            <Match when={screen() == Screen.Suspense}>
+                <H2>Loading...</H2>
+                <pre class='hidden'>{JSON.stringify(loginInfo(), null, 2)}</pre>
+            </Match>
+            <Match when={screen() == Screen.Login}>
+                <form method='post' class='space-y-6' onSubmit={submitLogin} >
+                    <Show when={error()}> <div>{error()}</div></Show>
+                    <Username autofocus onInput={(e: string) => setUser(e)} />
+                    <Password onInput={(e: string) => setPassword(e)} />
+                    <BlueButton  >{ln().signin}</BlueButton>
+                </form>
+                <div class="mt-6 space-y-4">
+                    <div class='flex'><Spc /><Ag href={props.createAccount ?? "/register"}>{ln().register}</Ag><Spc /></div>
 
-                        <Show when={props.recoverUser}><div class="flex"><Spc />
-                            <GreyButton onClick={() => { 
-                                nav(props.recoverPassword!,{external:true})
-                                }}>{ln().forgotPassword}</GreyButton>
-                            <Spc /></div></Show>
-                        <Show when={props.recoverUser}><div class="flex"><Spc />
-                            <GreyButton onClick={() => { 
-                                nav(props.recoverUser!,{external:true})
-                                }}>{ln().forgotUsername}</GreyButton>
-                            <Spc /></div></Show>
-                    </div></Match>
-            </Switch>
+                    <Show when={props.recoverUser}><div class="flex"><Spc />
+                        <Ag href={props.recoverPassword!}>{ln().forgotPassword}</Ag>
+                        <Spc /></div></Show>
+                    <Show when={props.recoverUser}><div class="flex"><Spc />
+                        <Ag href={props.recoverUser!}>{ln().forgotUsername}</Ag>
+                        <Spc /></div></Show>
+                </div></Match>
+        </Switch>
 
     </div>
 }
