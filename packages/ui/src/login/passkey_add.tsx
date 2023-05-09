@@ -1,5 +1,5 @@
 import { Icon } from "solid-heroicons";
-import { key, user } from "solid-heroicons/solid";
+import { key} from "solid-heroicons/solid";
 import { Component, createEffect, createSignal, JSX, JSXElement, Match, onMount, Show, Switch } from "solid-js";
 import { Center, BlueButton, LightButton } from "../lib/form";
 import { Factor, _, factors, useLn } from "./passkey_i18n";
@@ -10,7 +10,7 @@ import {
     get,
     parseRequestOptionsFromJSON,
 } from "@github/webauthn-json/browser-ponyfill";
-import { Cell } from "../db/client";
+import { Cell, CellOptions } from "../db/client";
 import { Ab, Bb } from "../layout/nav";
 import { on } from "events";
 // type InputProps = JSX.HTMLAttributes<HTMLInputElement> & { placeholder?: string, autofocus?: boolean, name?: string, autocomplete?: string, type?: string, value?: string, id?: string, required?: boolean }
@@ -25,7 +25,9 @@ type InputProps = {
     autofocus?: boolean,
     onInput: (value: string) => void,
 }
-
+export const DirectiveText = (props: any) => {
+    return <div class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</div>
+}
 export const InputLabel = (props: any) => {
     return <div><label {...props} class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</label></div>
 }
@@ -38,10 +40,12 @@ export const Input = (props: InputProps) => {
         }
     })
 
+    // ring-1 ring-inset focus:ring-2 focus:ring-inset focus:ring-indigo-500 dark:focus:ring-indigo-500 
+
     return <div><input {...props} ref={inp} value={props.reset ? props.reset() : ""} onInput={(e) => props.onInput(e.target.value)}
-        class="block mt-1 w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset dark:ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 p-2" /></div>
+        class="block mt-1 w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm sm:text-sm sm:leading-6 p-2" /></div>
 }
-export const InputCell: Component<{ cell: Cell }> = (props) => {
+export const InputCell: Component<{ cell: Cell, autofocus?: boolean }> = (props) => {
     const ln = useLn()
     const n = props.cell.name
     const setCell = (e: string) => {
@@ -57,7 +61,7 @@ export const InputCell: Component<{ cell: Cell }> = (props) => {
             </Show>
         </div>
         <div >
-            <Input {...props} autofocus={props.cell.autofocus} onInput={setCell} placeholder={_(n)} id={n} name={n} type={props.cell.type ?? "text"} autocomplete={props.cell.autocomplete} />
+            <Input {...props} autofocus={props.autofocus||props.cell.autofocus} onInput={setCell} placeholder={_(n)} id={n} name={n} type={props.cell.type ?? "text"} autocomplete={props.cell.autocomplete} />
         </div>
         <div>
             <Show when={props.cell.error()}>
@@ -80,6 +84,25 @@ export const PasswordCell: Component<{ cell: Cell }> = (props) => {
     }
     return <InputCell cell={c()} />
 }
+// for 1199 I can create a password and send it.
+export const user: CellOptions = {
+    name: "username",
+    autocomplete: "username webauthn",
+    autofocus: true,
+}
+export const password: CellOptions = {
+    name: "password",
+    type: "password",
+}
+export const phone: CellOptions = {
+    name: "phone",
+}
+
+export const email: CellOptions = {
+    name: "email",
+}
+
+
 
 export const Username: Component<InputProps> = (props) => {
     const ln = useLn()
@@ -142,6 +165,8 @@ export const PhoneInput = (props: InputProps) => {
         <div class="mt-2"><Input {...props} placeholder={ln().phone} autocomplete='phone' /></div>
     </div>
 }
+
+
 export const InputSecret = (props: any) => {
     return <Input {...props} placeholder='code' />
 }

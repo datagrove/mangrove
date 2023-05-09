@@ -20,7 +20,6 @@ import (
 	"github.com/lesismal/nbio/nbhttp"
 	"github.com/lesismal/nbio/nbhttp/websocket"
 	"github.com/pkg/sftp"
-	qrcode "github.com/skip2/go-qrcode"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/fxamacker/cbor/v2"
@@ -322,20 +321,6 @@ func NewServer(optc *Config) (*Server, error) {
 		Handle:       0,
 		EmbedHandler: fs,
 	}
-
-	mux.HandleFunc("/wss", svr.onWebSocket())
-
-	// generate a QR from a url
-	mux.HandleFunc("/api/qr/", func(w http.ResponseWriter, r *http.Request) {
-		data := r.URL.Path[8:]
-		qr, e := qrcode.New(string(data), qrcode.Medium)
-		if e != nil {
-			return
-		}
-		w.Header().Set("Content-Type", "image/png")
-		w.WriteHeader(200)
-		qr.Write(256, w)
-	})
 
 	WebauthnSocket(svr)
 	svr.WsHandler = svr.onWebSocket()

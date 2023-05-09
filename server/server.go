@@ -9,6 +9,7 @@ import (
 
 	"github.com/gliderlabs/ssh"
 	"github.com/kardianos/service"
+	"github.com/skip2/go-qrcode"
 )
 
 // move to mangrove
@@ -115,10 +116,21 @@ func (s *Server) Start2() {
 	if s.Config.Start != nil {
 		log.Fatal(s.Config.Start(s))
 	} else {
-		http.Handle("/", s.EmbedHandler)
-		http.HandleFunc("/wss", s.WsHandler)
+		s.Mux.Handle("/", s.EmbedHandler)
+		s.Mux.HandleFunc("/wss", s.WsHandler)
+		// generate a QR from a url
+		s.Mux.HandleFunc("/api/qr/", func(w http.ResponseWriter, r *http.Request) {
+			data := r.URL.Path[8:]
+			qr, e := qrcode.New(string(data), qrcode.Medium)
+			if e != nil {
+				return
+			}
+			w.Header().Set("Content-Type", "image/png")
+			w.WriteHeader(200)
+			qr.Write(256, w)
+		})
 
-		s.Run()
-		log.Fatal(http.ListenAndServe(":8080", nil))
+		go s.Run()
+		log.Fatal(http.ListenAndServe(":8080", s.Mux))
 	}
 }

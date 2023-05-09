@@ -7,26 +7,11 @@ import { createSignal } from "solid-js"
 import { createWs } from "../core/socket"
 import { CellOptions, cell } from "../db/client"
 import { BlueButton } from "../lib/form"
-import { InputCell, PasswordCell } from "./passkey_add"
+import { InputCell, PasswordCell, email, password, phone, user } from "./passkey_add"
 import { useLn } from "./passkey_i18n"
 import { SimplePage } from "../layout/nav"
 
-// for 1199 I can create a password and send it.
-export const user: CellOptions = {
-    name: "username",
-    autocomplete: "username webauthn",
-    autofocus: true,
-}
-export const password: CellOptions = {
-    name: "password",
-    type: "password",
-}
-export const email: CellOptions = {
-    name: "email",
-}
-export const phone: CellOptions = {
-    name: "phone",
-}
+
 export const RegisterPage = () => <SimplePage><Register /></SimplePage>
 
 const Register = () => {

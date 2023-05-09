@@ -2,9 +2,10 @@ import { Component, createSignal, Switch, Match } from "solid-js"
 import { createWs } from "../core/socket"
 import { BlueButton } from "../lib/form"
 
-import { PhoneInput, EmailInput, Username, Password } from "./passkey_add"
+import { PhoneInput, EmailInput, Username, Password, DirectiveText, email, password, phone, user, InputCell } from "./passkey_add"
 import { useLn } from "./passkey_i18n"
 import { SimplePage } from "../layout/nav"
+import { cell } from "../db/client"
 
 enum RecoverScreen {
     Recover,
@@ -20,39 +21,40 @@ export const Recover: Component = (props) => {
     const [screen,setScreen] = createSignal(RecoverScreen.Recover)
     const [error, setError_] = createSignal("")
 
-    const [user, setUser] = createSignal("")
-    const [password, setPassword] = createSignal("")
-    const [email, setEmail] = createSignal("")
-    const [phone, setPhone] = createSignal("")
-    const [secret, setSecret] = createSignal("")
+    const data = {
+        user: cell(user),
+        password: cell(password),
+        email: cell(email),
+        phone: cell(phone),
+    }
 
     const submit = (e: Event) => {
         e.preventDefault()
     }
 
     const recover = async () => {
-        const o = await ws.rpcj("recover", { email: email(), phone: phone() })
+        const o = await ws.rpcj("recover", { email: data.email.value(), phone: data.phone.value() })
         setScreen(RecoverScreen.Recover2)
     }
     const recover2 = async () => {
-        const o = await ws.rpcj("recover2", { secret: secret() })
+        const o = await ws.rpcj("recover2", { secret: data.password.value() })
         setScreen(RecoverScreen.Recover2)
     }
 
     return <Switch>
         <Match when={screen() == RecoverScreen.Recover}>
         <form method='post' class='space-y-6' onSubmit={submit} >
-            <div>Enter phone or email</div>
-            <PhoneInput autofocus onInput={setPhone} />
-            <EmailInput onInput={setEmail} />
+            <DirectiveText>Enter phone or email</DirectiveText>
+            <InputCell autofocus cell={{...data.phone}} />
+            <InputCell cell = {data.email }/>
             <BlueButton onClick={recover} >{ln().recover}</BlueButton>
         </form>
     </Match>
     <Match when={screen() == RecoverScreen.Recover2}>
         <form method='post' class='space-y-6' onSubmit={submit} >
             <div>Choose a new password </div>
-            <Username onInput={setUser}></Username>
-            <Password onInput={setPassword} />
+            <InputCell autofocus cell={{...data.phone}} />
+            <InputCell cell = {data.email }/>
             <BlueButton onClick={recover2} >{ln().recover}</BlueButton>
         </form>
     </Match>
