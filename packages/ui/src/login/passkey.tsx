@@ -63,7 +63,7 @@ const [crox, setCrox] = createSignal<any>(null)
 export let abortController: AbortController
 
 // returns null if the login is aborted
-export async function initPasskey(setError: (e: string) => void): Promise<LoginInfo | null> {
+export async function initPasskey(): Promise<LoginInfo | null> {
     if (!window.PublicKeyCredential
         // @ts-ignore
         || !PublicKeyCredential.isConditionalMediationAvailable
@@ -161,7 +161,7 @@ export const LoginPasskey: Component<{ login?: boolean }> = (props) => {
 
     const [bip39, setBip39] = createSignal(false)
 
-    initPasskey(setError).then((ok) => {
+    initPasskey().then((ok) => {
 
     })
 

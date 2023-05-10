@@ -72,7 +72,7 @@ const Db = (props: { children: JSX.Element }) => {
     </DisclosureButton>
 }
 const Dp = (props: { children: JSX.Element }) => {
-    return <DisclosurePanel class="px-4 pt-4 pb-2 text-sm text-gray-500">
+    return <DisclosurePanel class="px-4 space-y-6 pt-4 pb-2 text-sm text-gray-500">
         {props.children}
     </DisclosurePanel>
 }
@@ -107,7 +107,7 @@ export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (pro
 
     const ws = createWs()
     addMock("settings", async (x) => {
-        const r: Settings =  {
+        const r: Settings = {
             user_secret: "secret",
             img: undefined,
             email: "jimh@datagrove.com",
@@ -127,16 +127,17 @@ export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (pro
     const nav = useNavigate()
     const [settings, setSettings] = createSignal<Settings | undefined>()
     const [dataUrl, setDataUrl] = createSignal<string>("")
-    const [challenge,setChallenge] = createSignal("")
+    const [challenge, setChallenge] = createSignal("")
 
     // we should use a resource like thing to get the current settings using the secret that's in the login info.
 
     const fb = async () => {
         const [settings, e] = await ws.rpce<Settings>("settings", {})
+        console.log("settings", settings)
         if (e) {
-            console.log(e)
             return
         }
+        setSettings(settings)
         const bl = new Blob([settings!.img!], { type: 'image/png' });
         const reader = new FileReader();
         reader.readAsDataURL(bl);
@@ -157,13 +158,17 @@ export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (pro
             ...x
         })
     }
-    const testOtp = async (s:string) => {
+    const testOtp = async (s: string) => {
+        ws.rpce("testOtp", { email: s })
     }
-    const testEmail = async (s:string) => {
+    const testEmail = async (s: string) => {
+        ws.rpce("testEmail", { email: s })
     }
-    const testText = async (s:string) => {
+    const testText = async (s: string) => {
+        ws.rpce("testSms", { phone: s })
     }
-    const testPasskey = async ()=>{
+    const testPasskey = async () => {
+
     }
 
     const active = (b: any) => { return b ? "Active" : "Inactive" }
@@ -174,25 +179,26 @@ export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (pro
                 <Db> Passkey: {active(settings()!.activatePasskey)}</Db>
                 <Dp>
                     Tap the user name field to manage your passkeys. Pick one to test it.
-                    <Username />
-                    <BlueButton onClick={testPasskey}>Test</BlueButton>
+                    <Input {...props} placeholder={ln().enterUsername} id="username" name="username" type="text" autocomplete="username webauthn" />
+                    <div class='w-24'><BlueButton onClick={testPasskey}>Test</BlueButton></div>
                 </Dp>
             </Disclosure>
             <Disclosure defaultOpen={false} as='div'>
                 <Db> Time Based Code: {active(settings()!.activateTotp)}</Db>
-                <Dp><img src={dataUrl()} /></Dp>
-                <Input autofocus onInput={(e) => setChallenge(e)} />
-                <BlueButton onClick={()=>testOtp(challenge())}>Test</BlueButton>
+                <Dp><img src={dataUrl()} />
+                    <Input autofocus onInput={(e) => setChallenge(e)} />
+                    <div class='w-24'><BlueButton onClick={() => testOtp(challenge())}>Test</BlueButton></div></Dp>
             </Disclosure>
             <Disclosure defaultOpen={false} as='div'>
                 <Db>Phone number: {active(settings()!.phone)}</Db>
-                <Dp>  <PhoneInput autofocus onInput={(e) => update({ phone: e })} /></Dp>
-                <BlueButton onClick={()=>testText(settings()!.phone)}>Test</BlueButton>
+                <Dp>  <Input autofocus onInput={(e) => update({ phone: e })} />
+                    <div class='w-24'><BlueButton onClick={() => testText(settings()!.phone)}>Test</BlueButton></div>
+                </Dp>
             </Disclosure>
             <Disclosure defaultOpen={false} as='div'>
                 <Db>Email: {active(settings()!.email)}</Db>
-                <Dp>  <EmailInput autofocus onInput={(e) => update({ email: e })} /></Dp>
-                <BlueButton onClick={()=>testEmail(settings()!.email)}>Test</BlueButton>
+                <Dp>  <Input autofocus onInput={(e) => update({ email: e })} />
+                    <div class='w-24'><BlueButton onClick={() => testEmail(settings()!.email)}>Test</BlueButton></div></Dp>
             </Disclosure>
             <BlueButton onClick={save}>Save</BlueButton>
         </Show>

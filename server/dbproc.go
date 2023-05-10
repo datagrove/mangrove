@@ -331,8 +331,8 @@ func (s *Server) GetSettings(sess *Session) (*Settings, error) {
 		Img:             a.TotpPng,
 		Email:           a.Email.String,
 		Phone:           a.Mobile.String,
-		ActivatePasskey: false,
-		ActivateTotp:    false,
+		ActivatePasskey: true,
+		ActivateTotp:    true,
 	}, nil
 
 }
@@ -424,37 +424,6 @@ func (s *Server) RecoverPasswordChallenge(sess *Session, email, phone string) er
 	}
 
 	return nil
-}
-
-func (s *Server) TestEmail(sess *Session) error {
-	o := &message.Email{
-		Sender:    s.EmailSource,
-		Recipient: sess.Email,
-		Subject:   "Test Email",
-		Html:      "",
-		Text:      "If you received this email, it means you have configured your email correctly.",
-	}
-	return o.Send()
-}
-func (s *Server) TestVoice(sess *Session) error {
-	o := &message.Email{
-		Sender:    s.EmailSource,
-		Recipient: sess.Email,
-		Subject:   "Test Email",
-		Html:      "",
-		Text:      "If you received this email, it means you have configured your email correctly.",
-	}
-	return o.Send()
-}
-func (s *Server) TestSms(sess *Session) error {
-	o := &message.Email{
-		Sender:    s.EmailSource,
-		Recipient: sess.Email,
-		Subject:   "Test Email",
-		Html:      "",
-		Text:      "If you received this email, it means you have configured your email correctly.",
-	}
-	return o.Send()
 }
 
 // using the database here is not good

@@ -61,7 +61,7 @@ export const GreyButton: Component<ButtonProps> = (props) => {
 
 // when using hashes, we need to adjust the path according to the hash.
 export const Ag: Component<any> = (props) => {
-    return <A {...props}  class="text-sm block font-semibold hover:underline text-indigo-500 hover:text-indigo-700 dark:text-neutral-500 dark:hover:text-indigo-300">
+    return <A {...props} class="text-sm block font-semibold hover:underline text-indigo-500 hover:text-indigo-700 dark:text-neutral-500 dark:hover:text-indigo-300">
         {props.children}
     </A>
 }
@@ -111,7 +111,7 @@ const Login: Component<LoginProps> = (props) => {
     // we need to abort the wait before we can register a new key.
     const setScreen = (r: Screen) => {
         if (r == Screen.Login) {
-            initPasskey(setError)
+            initPasskey()
         }
         setScreen_(r)
     }
@@ -131,11 +131,13 @@ const Login: Component<LoginProps> = (props) => {
     // when we set this up we need to start a promise to gather passkeys that are offered
     // This points out the case that we get a passkey that we don't know
     // in this case we still need to get the user name and password
-    initPasskey(setError).then((i: LoginInfo | null) => {
+    initPasskey().then((i: LoginInfo | null) => {
         if (i) {
             finishLogin(i)
         }
         else console.log("passkey watch cancelled")
+    }).catch((e) => {
+        setError(e)
     })
 
     // we might nag them here to add a second factor, or even require it.
@@ -225,7 +227,7 @@ const Login: Component<LoginProps> = (props) => {
                     <div class='flex'><Spc /><Ag href={props.createAccount ?? "/register"}>{ln().register}</Ag><Spc /></div>
 
                     <Show when={props.recoverPassword}><div class="flex"><Spc />
-                        <Ag  href={props.recoverPassword!}>{ln().forgotPassword}</Ag>
+                        <Ag href={props.recoverPassword!}>{ln().forgotPassword}</Ag>
                         <Spc /></div></Show>
                     <Show when={props.recoverUser}><div class="flex"><Spc />
                         <Ag href={props.recoverUser!}>{ln().forgotUsername}</Ag>

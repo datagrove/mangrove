@@ -27,9 +27,10 @@ const Register = () => {
     const [okname, setOkname] = createSignal(false)
     const submitRegister = async () => {
         // we need to check if the name is available
-        data.user.setError(`${data.user.value()} is not available`)
-        return
-        const [ok, e] = await ws.rpcje<boolean>("okname", { name: data.user.value() })
+        const [ok, e] = await ws.rpcje<boolean>("register", {
+            name: data.user.value(),
+            password: data.password.value(),
+        })
         if (!e && ok) {
             setOkname(true)
         } else {

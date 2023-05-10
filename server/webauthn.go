@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/datagrove/mangrove/message"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/pquerna/otp/totp"
 )
 
 type Device struct {
@@ -211,6 +213,53 @@ func WebauthnSocket(mg *Server) error {
 		return nil, nil
 	})
 
+	mg.AddApij("testEmail", true, func(r *Rpcpj) (any, error) {
+		var v struct {
+			Email string `json:"email"`
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		o := &message.Email{
+			Sender:    mg.EmailSource,
+			Recipient: v.Email,
+			Subject:   "Test Email",
+			Html:      "",
+			Text:      "If you received this email, it means you have configured your email correctly.",
+		}
+		return true, o.Send()
+	})
+	mg.AddApij("testVoice", true, func(r *Rpcpj) (any, error) {
+		var v struct {
+			Phone string `json:"phone"`
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		return true, message.Voice(v.Phone, "Testing delivery of security code")
+	})
+	mg.AddApij("testSms", true, func(r *Rpcpj) (any, error) {
+		var v struct {
+			Phone string `json:"phone"`
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		return true, message.Sms(v.Phone, "Testing delivery of security code")
+	})
+	mg.AddApij("testOtp", true, func(r *Rpcpj) (any, error) {
+		var v struct {
+			Code string `json:"phone"`
+		}
+		e := json.Unmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		return totp.Validate(v.Code, r.Session.Totp), nil
+	})
 	mg.AddApij("addpasskey", false, func(r *Rpcpj) (any, error) {
 		if r.Oid < 0 {
 			return nil, errors.New("login_first")
