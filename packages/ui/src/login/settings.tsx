@@ -65,11 +65,37 @@ interface ButtonProps {
     children: JSX.Element
 }
 const Bs1 = (props: ButtonProps) => {
-    return <div class='w-24'><BlueButton {...props}/></div>
+    return <div class='w-24'><BlueButton {...props} /></div>
 }
 const Bs = (props: ButtonProps) => {
     return <div class='w-24'><LightButton {...props} /></div>
 }
+export const Checkbox: Component<any> = (props) => {
+    const [checked, setChecked] = createSignal(props.checked)
+    const toggle = () => setChecked(!checked())
+    // Enabled: "bg-indigo-600", Not Enabled: "bg-gray-200" -
+    const bclass = () => `${checked() ? "bg-indigo-600" : "bg-gray-200"} relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2`
+    return (
+        <button {...props} onClick={toggle} type="button" class={bclass()} role="switch" aria-checked="false">
+            <span class="sr-only">Use setting</span>
+            {/* Enabled: , Not Enabled: "translate-x-0" */}
+            <span class={`${checked() ? "translate-x-5" : "translate-x-0"} pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}>
+                {/*  Enabled: , Not Enabled: "opacity-100 duration-200 ease-in" */}
+                <span class={`${checked() ? "opacity-0 duration-100 ease-out" : "opacity-100 duration-200 ease-in"} absolute inset-0 flex h-full w-full items-center justify-center transition-opacity`} aria-hidden="true">
+                    <svg class="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 12 12">
+                        <path d="M4 8l2-2m0 0l2-2M6 6L4 4m2 2l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </span>
+                {/* Enabled: "opacity-100 duration-200 ease-in", Not Enabled: "opacity-0 duration-100 ease-out" */}
+                <span class={`${checked() ? "opacity-100 duration-200 ease-in" : "opacity-0 duration-100 ease-out"} absolute inset-0 flex h-full w-full items-center justify-center transition-opacity`} aria-hidden="true">
+                    <svg class="h-3 w-3 text-indigo-600" fill="currentColor" viewBox="0 0 12 12">
+                        <path d="M3.707 5.293a1 1 0 00-1.414 1.414l1.414-1.414zM5 8l-.707.707a1 1 0 001.414 0L5 8zm4.707-3.293a1 1 0 00-1.414-1.414l1.414 1.414zm-7.414 2l2 2 1.414-1.414-2-2-1.414 1.414zm3.414 2l4-4-1.414-1.414-4 4 1.414 1.414z" />
+                    </svg>
+                </span>
+            </span>
+        </button>
+    );
+};
 
 // we should have loginInfo here, since we must be logged in for this to make sense.
 // but we could have moved away from the page, so we need to use the login cookie or similar to restore the login info. We can keep everything in sessionStorage? It depends on how we want to manage logins, if we want to log back in without challenge then we need to keep in localStorage.
@@ -80,7 +106,7 @@ const Bs = (props: ButtonProps) => {
 // save goes back to the logout state
 
 export const SettingsPage: Component<{}> = (props) => {
-    const [ loggedin, setLoggedin ] = createSignal(false)
+    const [loggedin, setLoggedin] = createSignal(true)
 
     const finishLogin = (l: LoginInfo) => {
         setLoggedin(true)
@@ -93,7 +119,7 @@ export const SettingsPage: Component<{}> = (props) => {
             <Match when={true}>
                 <H2 class='mb-2'>Change Security Settings</H2>
                 <P class='mb-4'>First Login in with your existing settings</P>
-                 <Login finishLogin={finishLogin} />
+                <Login finishLogin={finishLogin} />
             </Match>
         </Switch>
     </SimplePage>
@@ -113,16 +139,16 @@ export interface Settings {
 const P = (props: { children: JSX.Element, class?: string }) => {
     return <p class={`dark:text-neutral-400 ${props.class} `}>{props.children} </p>
 }
-const InputButton = (props: { 
-        onClick: () => void, 
-        buttonLabel?: string,
-        children: JSX.Element 
-        }) => {
+const InputButton = (props: {
+    onClick: () => void,
+    buttonLabel?: string,
+    children: JSX.Element
+}) => {
     return <div class='w-full flex items-center space-x-2 '>
-    <div class='flex-1'>
-        {props.children}</div>
-    <div class='w-16'><LightButton onClick={props.onClick}>{props.buttonLabel??"Test"}</LightButton></div></div>
-        }
+        <div class='flex-1'>
+            {props.children}</div>
+        <div class='w-16'><LightButton onClick={props.onClick}>{props.buttonLabel ?? "Test"}</LightButton></div></div>
+}
 
 
 export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (props) => {
@@ -132,8 +158,8 @@ export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (pro
     const nav = useNavigate()
     const [settings, setSettings] = createSignal<Settings | undefined>()
     const [dataUrl, setDataUrl] = createSignal<string>("")
-    const [code,setCode] = createSignal("")
-    const [voice,setVoice] = createSignal(false)
+    const [code, setCode] = createSignal("")
+    const [voice, setVoice] = createSignal(false)
     // we should use a resource like thing to get the current settings using the secret that's in the login info.
 
     const fb = async () => {
@@ -189,23 +215,28 @@ export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (pro
 
     const SwitchVoice = () => {
         // disabled={!!settings()!.phone}
-        return <Bb  onClick={testVoice}>Send as voice</Bb>
+        return <Bb onClick={testVoice}>Send as voice</Bb>
     }
-  
+
+    const [x, setX] = createSignal(false)
 
     const active = (b: any) => { return b ? "Active" : "Inactive" }
     return <div class='space-y-6'>
         <P>Activate one or more factors to protect your account. </P>
-
+        <div class='flex items-center space-x-2'><div><Checkbox checked={x()} onClick={() => setX(!x())} /></div> <div >Activate</div></div>
         <Show when={settings()}>
             <Disclosure defaultOpen={open} as='div'>
                 <Db> Passkey: {active(settings()!.activate_passkey)}</Db>
-                <Dp><InputButton 
-                    onClick={testPasskey}>
-                        <Input   
-                            placeholder={ln().viewPasskey} 
-                            id="username" name="username" type="text" autocomplete="username webauthn" />                   
-                </InputButton></Dp>
+                <Dp>
+
+                    <InputButton
+                        onClick={testPasskey}>
+                        <Input
+                            placeholder={ln().viewPasskey}
+                            id="username" name="username" type="text" autocomplete="username webauthn" />
+                    </InputButton>
+                </Dp>
+
             </Disclosure>
 
             <Disclosure defaultOpen={open} as='div'>
@@ -213,53 +244,53 @@ export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (pro
                 <Dp><div class='text-center w-full'><img class='mt-2' src={dataUrl()} /></div>
                     <P>Scan the QR code with a time based password program like Google Authenticator or Authy. Then enter the code it generates below to test</P>
                     <InputButton onClick={testOtp}>
-                        <Input 
+                        <Input
 
-                        placeholder={ln().enterCode}
-                        autofocus onInput={(e) => setCode(e)} />
+                            placeholder={ln().enterCode}
+                            autofocus onInput={(e) => setCode(e)} />
                     </InputButton></Dp>
             </Disclosure>
 
             <Disclosure defaultOpen={open} as='div'>
                 <Db>Phone number: {active(settings()!.phone)}</Db>
                 <Dp>
-                   
-                    <InputButton 
-                    onClick={() => testText(settings()!.phone)}> 
-                    <Input
-                        value={settings()!.phone}
-                        placeholder={ln().phone}
-                        autofocus 
-                        onInput={(e) => update({ phone: e! })} />
-                    </InputButton> 
-                    <SwitchVoice/>
+
+                    <InputButton
+                        onClick={() => testText(settings()!.phone)}>
+                        <Input
+                            value={settings()!.phone}
+                            placeholder={ln().phone}
+                            autofocus
+                            onInput={(e) => update({ phone: e! })} />
+                    </InputButton>
+                    <SwitchVoice />
                 </Dp>
             </Disclosure>
 
             <Disclosure defaultOpen={open} as='div'>
                 <Db>Email: {active(settings()!.email)}</Db>
-                <Dp> <InputButton 
+                <Dp> <InputButton
                     onClick={() => testText(settings()!.email)}> <Input
                         value={settings()!.email}
                         autocomplete="email"
                         placeholder={ln().email}
                         autofocus
                         onInput={(e) => update({ email: e! })} /></InputButton>
-                 </Dp>
+                </Dp>
             </Disclosure>
 
             <Disclosure defaultOpen={open} as='div'>
                 <Db>IPhone or Android: {active(settings()!.activate_app)}</Db>
-                <Dp> 
-                   <P >To activate install the iMIS application on your mobile device. Tap the test button, then pick 42 on your phone.</P>
-                   <div class='w-16'><LightButton onClick={testApp}>{ln().test}</LightButton></div>
-                   </Dp>
+                <Dp>
+                    <P >To activate install the iMIS application on your mobile device. Tap the test button, then pick 42 on your phone.</P>
+                    <div class='w-16'><LightButton onClick={testApp}>{ln().test}</LightButton></div>
+                </Dp>
             </Disclosure>
 
             <ButtonSet>
                 <Bs1 onClick={save}>{ln().save}</Bs1>
                 <Bs onClick={() => props.onClose(true)}>{ln().cancel}</Bs>
-              </ButtonSet>
+            </ButtonSet>
         </Show>
     </div>
 }
