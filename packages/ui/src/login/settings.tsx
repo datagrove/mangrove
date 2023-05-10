@@ -1,5 +1,5 @@
 import { Component, JSX, JSXElement, Match, Show, Switch, children, createSignal } from "solid-js"
-import { BlueButton, Center, CheckboxSet, KeyValue, LightButton, RadioGroup } from "../lib/form"
+import { BlueButton, Center, CheckboxSet, KeyValue, LightButton, RadioGroup, Select } from "../lib/form"
 import { AddPasskey, Dialog, DialogPage, EmailInput, GetSecret, Input, InputLabel, LoginInfo, PhoneInput, Username } from "./passkey_add"
 import { Bb, H2, SimplePage } from "../layout/nav"
 import {
@@ -106,17 +106,62 @@ const Checkbox: Component<{ children: JSXElement, checked?: boolean, onClick?: (
 
 // first we need to login, then we can change the settings
 // save goes back to the logout state
+const social = ["Apple",
+    "Google",
+    "Facebook",
+    "Twitter",
+    "Github",
+    "Microsoft"
+]
+const base: KeyValue[] = ["Passkey", "Passkey and Password", "TOTP", "TOTP and Password", "Email", "Phone", "App", "SSH"].map(x => [x, x])
 
+
+const roles: KeyValue[] = ["Base", "Admin"].map(x => [x, x])
+const oauth: KeyValue[] = social.map((x) => [x, x])
+const options: KeyValue[] = [
+    ...base,
+    ...oauth
+]
+// each security role can have its own settings
+
+export interface RoleOptions {
+    admin: boolean
+    social: string[]
+}
+export interface FactorOptions {
+    role: string  // current user
+    roles: {      // all roles if admin
+        [key: string]: RoleOptions
+    }
+
+}
 export const SettingsPage: Component<{}> = (props) => {
     const [loggedin, setLoggedin] = createSignal(true)
 
     const finishLogin = (l: LoginInfo) => {
         setLoggedin(true)
     }
+    const getOpt = (): FactorOptions => {
+        return {
+            role: "Base",
+            roles: {
+                Base: {
+                    admin: false,
+                    social: [],
+                },
+                Admin: {
+                    admin: true,
+                    social: [],
+                }
+            }
+        }
+    }
     return <SimplePage>
         <Switch>
             <Match when={loggedin()}>
-                <FactorSettings onClose={() => { }} />
+                <FactorSettings
+                    opt={getOpt()}
+                    onClose={() => { }} />
             </Match>
             <Match when={true}>
                 <H2 class='mb-2'>Change Security Settings</H2>
@@ -152,17 +197,15 @@ const InputButton = (props: {
         <div class='w-16'><LightButton onClick={props.onClick}>{props.buttonLabel ?? "Test"}</LightButton></div></div>
 }
 
-const oauth : KeyValue[] = [
-    "Apple",
-    "Google",
-    "Facebook",
-    "Twitter",
-    "Github",
-    "Microsoft",
-].map((x) => [x,x])
 
-export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (props) => {
+
+
+
+export const FactorSettings: Component<{ opt: FactorOptions, onClose: (x: boolean) => void }> = (props) => {
     const ws = createWs()
+
+    // we need to know the role of this user, so we can show the right settings.
+    const opt = props.opt.roles[props.opt.role]
 
     const ln = useLn()
     const nav = useNavigate()
@@ -233,6 +276,8 @@ export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (pro
     const Keyset: Component<{ x: string }> = (props) => <RadioGroup opts={[props.x + " only", props.x + " with password", "Never"]} />
 
     const active = (b: any) => { return b ? "Active" : "Inactive" }
+
+
     return <div class='space-y-6'>
         <P>Activate one or more factors to protect your account. </P>
 
@@ -319,15 +364,41 @@ export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (pro
             <Disclosure defaultOpen={open} as='div'>
                 <Db>Sign in with Apple, etc</Db>
                 <Dp>
-                    <CheckboxSet opts={oauth} />
+                    <OauthOptions />
                 </Dp>
             </Disclosure>
+            <Show when={opt.admin}>
+                <Disclosure defaultOpen={open} as='div'>
+                    <Db>Admin: Login Options</Db>
+                    <Dp>
+                        <AdminOptions />
+                    </Dp>
+                </Disclosure>
+            </Show>
             <ButtonSet>
                 <Bs1 onClick={save}>{ln().save}</Bs1>
                 <Bs onClick={() => props.onClose(true)}>{ln().cancel}</Bs>
             </ButtonSet>
         </Show>
     </div>
+}
+
+
+type BoolMap = { [key: string]: boolean }
+export const OauthOptions = (props: {}) => {
+    const vs = createSignal<BoolMap>({})
+    return <div>
+        <CheckboxSet opts={oauth} value={vs} />
+    </div>
+}
+export const AdminOptions = (props: {}) => {
+    const r = createSignal<string>("Base")
+    const vs = createSignal<BoolMap>({})
+    return <div>
+        <div class='mb-2'><Select opts={roles} value={r}></Select></div>
+        <CheckboxSet opts={options} value={vs} />
+    </div>
+
 }
 
 

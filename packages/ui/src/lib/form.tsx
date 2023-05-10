@@ -1,5 +1,6 @@
 import { ButtonProps } from "solid-headless"
-import { Component, For, JSX, JSXElement, Show, createSignal } from "solid-js"
+import { Accessor, Component, For, JSX, JSXElement, ParentComponent, Show, Signal, createSignal } from "solid-js"
+import { Bb } from "../layout/nav"
 
 
 export const FieldSet: Component<{ children: JSXElement }> = (props) => {
@@ -87,29 +88,69 @@ export const TextDivider: Component<{ children: string }> = (props) => {
     </div>
 }
 
+const ax = createSignal<{ [key: string]: boolean }>({})
 export type KeyValue = [string, string]
-export type StringSet = { [key: string]: boolean }
+export type StringSet = Signal<{ [key: string]: boolean }>
 export const CheckboxSet: Component<{ 
     opts: KeyValue[], 
-    value?: StringSet,
-    onChange?: (x: StringSet) => void }> = (props) => {
+    value: StringSet,
+     }> = (props) => {
+    const [value, setValue] = props.value
 
-    const set = (key: string, value: boolean) => {
+    const set = (key: string, v: boolean) => {
+        setValue({
+            ...value(),
+            [key]: v
+        })
+    }
 
+    const setAll = (v: boolean) => {
+        const o : {[key:string]:boolean} = {}
+        for (let x of props.opts) {
+            o[x[0]] = v
+        }
+        setValue(o)
     }
-    const get = (key: string): boolean => {
-        return true
-    }
+
     return <>
         <fieldset>
+            
             <For each={props.opts}>{(e, i) => {
                 return <Checkbox 
-                    checked={() => true} 
-                    onChange={(x: boolean) => { }} >
+                    checked={() => value()[e[0]]} 
+                    onChange={(x: boolean) => {  set(e[0],x)}} >
                         {e[1]}</Checkbox>
-            }}</For></fieldset>
+            }}</For>
+            <Bb onClick={() => { setAll(true)}}>All</Bb>  <Bb onClick={() => {setAll(false) }}>None</Bb>
+            </fieldset>
     </>
 }
+
+export const Select: Component<{
+    opts: KeyValue[]
+    value: Signal<string> 
+} > = (props) => {
+    const [value, setValue] = props.value
+    console.log("select", props.opts, props.value[0]())
+    return (<div class='flex  text-black dark:text-white rounded-md items-center '>
+        <select
+            id='ln'
+            value={value()}
+            aria-label="Select language"
+            class='flex-1  rounded-md dark:bg-neutral-900 text-black dark:text-white '
+            oninput={(e) => {
+                setValue( e.currentTarget.value)
+            }}
+        >
+            {props.opts.map(([code, name]) => (
+                <option value={code}>
+                    {name}&nbsp;&nbsp;&nbsp;
+                </option>
+            ))}
+        </select>
+    </div>
+    );
+};
 
 export const Radio = (props: { name?: string,  checked: ()=>boolean, onChange: (x: boolean) => void }) => {
     return   <div class="flex items-center">
