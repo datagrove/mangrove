@@ -34,7 +34,7 @@ export const InputLabel = (props: any) => {
     return <div><label {...props} class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</label></div>
 }
 
-export const Input = (props: InputProps) => {
+export const Input = (props: InputProps & { error?: () => string }) => {
     let inp!: HTMLInputElement
     onMount(() => {
         if (props.autofocus) {
@@ -42,11 +42,15 @@ export const Input = (props: InputProps) => {
         }
     })
 
-    return <div><input 
-    {...props} ref={inp} 
-    value={props.reset ? props.reset() : props.value} 
-    onInput={props.onInput?(e) => props.onInput!(e.target.value):undefined}
+    return <><div><input
+        {...props} ref={inp}
+        value={props.reset ? props.reset() : props.value}
+        onInput={props.onInput ? (e) => props.onInput!(e.target.value) : undefined}
         class="block w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm sm:text-sm sm:leading-6 p-2" /></div>
+        <Show when={props.error && props.error()}>
+            <div class="text-sm text-red-600 mt-2">{props.error!()}</div>
+        </Show>
+    </>
 }
 export const InputCell: Component<{ cell: Cell, autofocus?: boolean }> = (props) => {
     const ln = useLn()
@@ -285,25 +289,25 @@ export const AddPasskey: Component<{
         props.onClose(false)
     }
     return <Switch>
-            <Match when={more()}>
-                <FactorSettings onClose={props.onClose} />
-            </Match>
+        <Match when={more()}>
+            <FactorSettings onClose={props.onClose} />
+        </Match>
         <Match when={!more()}><Dialog> <DialogPage >
-        <div class="space-y-6 ">
-            <Icon path={key} class="w-24 h-24 mx-auto" />
-            <p >{ln().addPasskey1}</p>
-            <p class='text-neutral-500'>{ln().addPasskey2}</p>
-        </div>
-        <div class='flex space-x-4'>
-            <div class='w-24'><BlueButton autofocus tabindex='0' ref={btnSaveEl!} onClick={add}>{ln().add}</BlueButton></div>
-            <div class='w-24'><LightButton tabindex='0' ref={btnNot!} onClick={notNow}>{ln().notNow}</LightButton></div>
-            <div class='w-24'><LightButton tabindex='0' onClick={notEver}>{ln().notEver}</LightButton></div>
-        </div>
-       <div class=' flex'><Bb onClick={() => {
-            setMore(true)
-       }}>{ln().more2fa}</Bb></div></DialogPage> </Dialog>
+            <div class="space-y-6 ">
+                <Icon path={key} class="w-24 h-24 mx-auto" />
+                <p >{ln().addPasskey1}</p>
+                <p class='text-neutral-500'>{ln().addPasskey2}</p>
+            </div>
+            <div class='flex space-x-4'>
+                <div class='w-24'><BlueButton autofocus tabindex='0' ref={btnSaveEl!} onClick={add}>{ln().add}</BlueButton></div>
+                <div class='w-24'><LightButton tabindex='0' ref={btnNot!} onClick={notNow}>{ln().notNow}</LightButton></div>
+                <div class='w-24'><LightButton tabindex='0' onClick={notEver}>{ln().notEver}</LightButton></div>
+            </div>
+            <div class=' flex'><Bb onClick={() => {
+                setMore(true)
+            }}>{ln().more2fa}</Bb></div></DialogPage> </Dialog>
         </Match></Switch>
-    
+
 }
 
 

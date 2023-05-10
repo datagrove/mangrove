@@ -212,10 +212,10 @@ export const FactorSettings: Component<{ opt: FactorOptions, onClose: (x: boolea
     const [settings, setSettings] = createSignal<Settings | undefined>()
     const [dataUrl, setDataUrl] = createSignal<string>("")
     const [code, setCode] = createSignal("")
-    const [voice, setVoice] = createSignal(false)
+
     // we should use a resource like thing to get the current settings using the secret that's in the login info.
 
-    const fb = async () => {
+    const getSettings = async () => {
         const [settings, e] = await ws.rpce<Settings>("settings", {})
         console.log("settings", settings)
         if (e) {
@@ -230,7 +230,7 @@ export const FactorSettings: Component<{ opt: FactorOptions, onClose: (x: boolea
             setDataUrl(dataUrl)
         }
     }
-    fb()
+    getSettings()
 
     const save = async () => {
         ws.rpce("configure", settings())
@@ -244,24 +244,47 @@ export const FactorSettings: Component<{ opt: FactorOptions, onClose: (x: boolea
     }
 
     // these need errors in the input group, figure out cell state
+    const [error, setError] = createSignal<{ [key: string]: string }>({})
+    const testrun = (p: string) => {
 
+    }
     const testOtp = async () => {
-        ws.rpcje("testOtp", { code: code() })
+        const [_, e] = await ws.rpcje("testOtp", { code: code() })
+        setError({
+            ...error(),
+            totp: e ?? ""
+        })
     }
     const testEmail = async (s: string) => {
-        ws.rpcje("testEmail", { email: s })
+        const [_, e] = await ws.rpcje("testEmail", { email: s })
+        setError({
+            ...error(),
+            email: e ?? ""
+        })
     }
     const testText = async (s: string) => {
-        ws.rpcje("testSms", { phone: s })
+        const [_, e] = await ws.rpcje("testSms", { phone: s })
+        setError({
+            ...error(),
+            phone: e ?? ""
+        })
     }
     const testVoice = async () => {
-        console.log("testVoice")
-        ws.rpcje("testVoice", { phone: settings()!.phone })
+        const [_, e] = await ws.rpcje("testVoice", { phone: settings()!.phone })
+        setError({
+            ...error(),
+            phone: e ?? ""
+        })
     }
     const testPasskey = async () => {
 
     }
     const testApp = async () => {
+        const [_, e] = await ws.rpcje("testVoice", { phone: settings()!.phone })
+        setError({
+            ...error(),
+            app: e ?? ""
+        })
     }
 
     const open = false
@@ -277,7 +300,6 @@ export const FactorSettings: Component<{ opt: FactorOptions, onClose: (x: boolea
 
     const active = (b: any) => { return b ? "Active" : "Inactive" }
 
-
     return <div class='space-y-6'>
         <P>Activate one or more factors to protect your account. </P>
 
@@ -289,6 +311,7 @@ export const FactorSettings: Component<{ opt: FactorOptions, onClose: (x: boolea
                     <InputButton
                         onClick={testPasskey}>
                         <Input
+                            error={() => error().passkey}
                             placeholder={ln().viewPasskey}
                             id="username" name="username" type="text" autocomplete="username webauthn" />
                     </InputButton>
@@ -305,7 +328,7 @@ export const FactorSettings: Component<{ opt: FactorOptions, onClose: (x: boolea
                     <P>Scan the QR code with a time based password program like Google Authenticator or Authy. Then enter the code it generates below to test</P>
                     <InputButton onClick={testOtp}>
                         <Input
-
+                            error={() => error().totp}
                             placeholder={ln().enterCode}
                             autofocus onInput={(e) => setCode(e)} />
                     </InputButton>
