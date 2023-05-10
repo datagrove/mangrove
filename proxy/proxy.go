@@ -125,7 +125,7 @@ func main() {
 					return
 				}
 				// Serve files from the embedded file system at /embed
-				r.URL.Path = strings.TrimPrefix(r.URL.Path, "/embed")
+				r.URL.Path = r.URL.Path[9:]
 				s.EmbedHandler.ServeHTTP(w, r)
 			} else {
 				r.Host = pt.Host

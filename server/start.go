@@ -190,51 +190,6 @@ func (fs *spaFileSystem) Open(name string) (http.File, error) {
 	return f, err
 }
 
-/*
-// if embedding program wants to use jsonc,could
-func LoadOptions(path string) {
-	var j Config
-	{
-		// the user creating the server should become the owner of the server
-		h, _ := os.UserHomeDir()
-		j.Key = path.Join(h, ".ssh", "id_rsa")
-	}
-	dir := opt.Root
-
-	cf := path.Join(dir, "index.jsonc")
-	_, e := os.Stat(cf)
-	if e != nil {
-		os.MkdirAll(dir, 0777) // permissions here are not correct, should be lower
-		os.WriteFile(path.Join(dir, "index.jsonc"), []byte(`{
-			"Https": ":5078",
-			"Sftp": ":5079",
-		}`), 0777)
-	}
-	b, e := os.ReadFile(cf)
-	if e != nil {
-		log.Fatal(e)
-	}
-	Unmarshal(b, &j)
-	log.Print(string(b))
-	j.Ui = opt.Res
-	j.Service = service.Config{
-		Name:        opt.Name,
-		DisplayName: opt.Name,
-		Description: opt.Name,
-		Arguments:   []string{"start"},
-	}
-
-	optc := &j
-	if e != nil {
-		log.Fatal(e)
-	}
-
-		cert := path.Join(optc.HttpsCert, "cert.pem")
-	key := path.Join(optc.HttpsPrivate, "key.pem")
-	_, e := os.Stat(cert)
-}
-*/
-
 // directory should already be initalized
 // maybe the caller should pass a launch function?
 func NewServer(optc *Config) (*Server, error) {
@@ -305,6 +260,7 @@ func NewServer(optc *Config) (*Server, error) {
 	}
 
 	WebauthnSocket(svr)
+	SettingsApi(svr)
 	svr.WsHandler = svr.onWebSocket()
 	// return unstarted to allow the application to modify the server
 	return svr, nil

@@ -1,7 +1,7 @@
-import { Component, JSX, Match, Show, Switch, createSignal } from "solid-js"
-import { BlueButton, Center } from "../lib/form"
+import { Component, JSX, JSXElement, Match, Show, Switch, children, createSignal } from "solid-js"
+import { BlueButton, Center, LightButton } from "../lib/form"
 import { AddPasskey, Dialog, DialogPage, EmailInput, GetSecret, Input, InputLabel, LoginInfo, PhoneInput, Username } from "./passkey_add"
-import { Bb, SimplePage } from "../layout/nav"
+import { Bb, H2, SimplePage } from "../layout/nav"
 import {
     parseCreationOptionsFromJSON,
     create,
@@ -14,31 +14,8 @@ import { key } from "solid-heroicons/solid";
 import { addMock, createWs } from "../core/socket";
 import { useLn, Factor, factors } from "./passkey_i18n";
 import { Disclosure, DisclosureButton, DisclosurePanel } from "solid-headless";
-import { loginInfo } from "./login";
-import { useNavigate } from "../core/dg";
-
-/*
-export function sheet(data: { [key: string]: any }) : {[key: string]: Cell} {
-    return {}
-}
-export 
-export const DebugPage = () => {
-
-    const data = {
-        phone2fa: true,
-        email2fa: true,
-        totp2fa: true,
-        passkey: true,
-    }
-    const dc = sheet(data)
-
-    return <SimplePage>
-        <div>This page is for demonstration purposes and would not exist in a deployed product</div>
-        <OptionList />
-            <OptionCell cell=
-       </SimplePage>
-
-}*/
+import { Login, LoginPage, loginInfo } from "./login";
+import { A, useNavigate } from "../core/dg";
 
 
 function ChevronUpIcon(props: JSX.IntrinsicElements['svg']): JSX.Element {
@@ -72,22 +49,53 @@ const Db = (props: { children: JSX.Element }) => {
     </DisclosureButton>
 }
 const Dp = (props: { children: JSX.Element }) => {
-    return <DisclosurePanel class="px-4 space-y-6 pt-4 pb-2 text-sm text-gray-500">
+    return <DisclosurePanel class="px-2 mt-2 pt-2 space-y-2  text-sm text-gray-500">
         {props.children}
     </DisclosurePanel>
 }
 
-
-
+const ButtonSet = (props: { children: JSX.Element[] }) => {
+    return <div class='flex space-x-4'>
+        {props.children}
+    </div>
+}
+interface ButtonProps {
+    autofocus?: boolean
+    onClick: () => void
+    children: JSX.Element
+}
+const Bs1 = (props: ButtonProps) => {
+    return <div class='w-24'><BlueButton {...props}/></div>
+}
+const Bs = (props: ButtonProps) => {
+    return <div class='w-24'><LightButton {...props} /></div>
+}
 
 // we should have loginInfo here, since we must be logged in for this to make sense.
 // but we could have moved away from the page, so we need to use the login cookie or similar to restore the login info. We can keep everything in sessionStorage? It depends on how we want to manage logins, if we want to log back in without challenge then we need to keep in localStorage.
 
 // must use cbor to get uint8array
 
+// first we need to login, then we can change the settings
+// save goes back to the logout state
+
 export const SettingsPage: Component<{}> = (props) => {
+    const [ loggedin, setLoggedin ] = createSignal(false)
+
+    const finishLogin = (l: LoginInfo) => {
+        setLoggedin(true)
+    }
     return <SimplePage>
-        <FactorSettings onClose={() => { }} />
+        <Switch>
+            <Match when={loggedin()}>
+                <FactorSettings onClose={() => { }} />
+            </Match>
+            <Match when={true}>
+                <H2 class='mb-2'>Change Security Settings</H2>
+                <P class='mb-4'>First Login in with your existing settings</P>
+                 <Login finishLogin={finishLogin} />
+            </Match>
+        </Switch>
     </SimplePage>
 }
 
@@ -98,37 +106,34 @@ export interface Settings {
     img: Uint8Array | undefined
     email: string
     phone: string
-    activatePasskey: boolean
-    activateTotp: boolean
+    activate_passkey: boolean
+    activate_totp: boolean
+    activate_app: boolean
 }
+const P = (props: { children: JSX.Element, class?: string }) => {
+    return <p class={`dark:text-neutral-400 ${props.class} `}>{props.children} </p>
+}
+const InputButton = (props: { 
+        onClick: () => void, 
+        buttonLabel?: string,
+        children: JSX.Element 
+        }) => {
+    return <div class='w-full flex items-center space-x-2 '>
+    <div class='flex-1'>
+        {props.children}</div>
+    <div class='w-16'><LightButton onClick={props.onClick}>{props.buttonLabel??"Test"}</LightButton></div></div>
+        }
 
 
 export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (props) => {
-
     const ws = createWs()
-    addMock("settings", async (x) => {
-        const r: Settings = {
-            user_secret: "secret",
-            img: undefined,
-            email: "jimh@datagrove.com",
-            phone: "+14843664923",
-            activatePasskey: true,
-            activateTotp: true,
-        }
-        return r
-    })
-    addMock("configure", async (x) => {
-        console.log(x)
-    })
-
-
 
     const ln = useLn()
     const nav = useNavigate()
     const [settings, setSettings] = createSignal<Settings | undefined>()
     const [dataUrl, setDataUrl] = createSignal<string>("")
-    const [challenge, setChallenge] = createSignal("")
-
+    const [code,setCode] = createSignal("")
+    const [voice,setVoice] = createSignal(false)
     // we should use a resource like thing to get the current settings using the secret that's in the login info.
 
     const fb = async () => {
@@ -158,49 +163,103 @@ export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (pro
             ...x
         })
     }
-    const testOtp = async (s: string) => {
-        ws.rpce("testOtp", { email: s })
+
+    // these need errors in the input group, figure out cell state
+
+    const testOtp = async () => {
+        ws.rpcje("testOtp", { code: code() })
     }
     const testEmail = async (s: string) => {
-        ws.rpce("testEmail", { email: s })
+        ws.rpcje("testEmail", { email: s })
     }
     const testText = async (s: string) => {
-        ws.rpce("testSms", { phone: s })
+        ws.rpcje("testSms", { phone: s })
+    }
+    const testVoice = async () => {
+        console.log("testVoice")
+        ws.rpcje("testVoice", { phone: settings()!.phone })
     }
     const testPasskey = async () => {
 
     }
+    const testApp = async () => {
+    }
+
+    const open = false
+
+    const SwitchVoice = () => {
+        // disabled={!!settings()!.phone}
+        return <Bb  onClick={testVoice}>Send as voice</Bb>
+    }
+  
 
     const active = (b: any) => { return b ? "Active" : "Inactive" }
     return <div class='space-y-6'>
-        <p>Activate one or more factors to protect your account. </p>
+        <P>Activate one or more factors to protect your account. </P>
+
         <Show when={settings()}>
-            <Disclosure defaultOpen={false} as='div'>
-                <Db> Passkey: {active(settings()!.activatePasskey)}</Db>
-                <Dp>
-                    Tap the user name field to manage your passkeys. Pick one to test it.
-                    <Input {...props} placeholder={ln().enterUsername} id="username" name="username" type="text" autocomplete="username webauthn" />
-                    <div class='w-24'><BlueButton onClick={testPasskey}>Test</BlueButton></div>
-                </Dp>
+            <Disclosure defaultOpen={open} as='div'>
+                <Db> Passkey: {active(settings()!.activate_passkey)}</Db>
+                <Dp><InputButton 
+                    onClick={testPasskey}>
+                        <Input   
+                            placeholder={ln().viewPasskey} 
+                            id="username" name="username" type="text" autocomplete="username webauthn" />                   
+                </InputButton></Dp>
             </Disclosure>
-            <Disclosure defaultOpen={false} as='div'>
-                <Db> Time Based Code: {active(settings()!.activateTotp)}</Db>
-                <Dp><img src={dataUrl()} />
-                    <Input autofocus onInput={(e) => setChallenge(e)} />
-                    <div class='w-24'><BlueButton onClick={() => testOtp(challenge())}>Test</BlueButton></div></Dp>
+
+            <Disclosure defaultOpen={open} as='div'>
+                <Db> Time Based Code: {active(settings()!.activate_totp)}</Db>
+                <Dp><div class='text-center w-full'><img class='mt-2' src={dataUrl()} /></div>
+                    <P>Scan the QR code with a time based password program like Google Authenticator or Authy. Then enter the code it generates below to test</P>
+                    <InputButton onClick={testOtp}>
+                        <Input 
+
+                        placeholder={ln().enterCode}
+                        autofocus onInput={(e) => setCode(e)} />
+                    </InputButton></Dp>
             </Disclosure>
-            <Disclosure defaultOpen={false} as='div'>
+
+            <Disclosure defaultOpen={open} as='div'>
                 <Db>Phone number: {active(settings()!.phone)}</Db>
-                <Dp>  <Input autofocus onInput={(e) => update({ phone: e })} />
-                    <div class='w-24'><BlueButton onClick={() => testText(settings()!.phone)}>Test</BlueButton></div>
+                <Dp>
+                   
+                    <InputButton 
+                    onClick={() => testText(settings()!.phone)}> 
+                    <Input
+                        value={settings()!.phone}
+                        placeholder={ln().phone}
+                        autofocus 
+                        onInput={(e) => update({ phone: e! })} />
+                    </InputButton> 
+                    <SwitchVoice/>
                 </Dp>
             </Disclosure>
-            <Disclosure defaultOpen={false} as='div'>
+
+            <Disclosure defaultOpen={open} as='div'>
                 <Db>Email: {active(settings()!.email)}</Db>
-                <Dp>  <Input autofocus onInput={(e) => update({ email: e })} />
-                    <div class='w-24'><BlueButton onClick={() => testEmail(settings()!.email)}>Test</BlueButton></div></Dp>
+                <Dp> <InputButton 
+                    onClick={() => testText(settings()!.email)}> <Input
+                        value={settings()!.email}
+                        autocomplete="email"
+                        placeholder={ln().email}
+                        autofocus
+                        onInput={(e) => update({ email: e! })} /></InputButton>
+                 </Dp>
             </Disclosure>
-            <BlueButton onClick={save}>Save</BlueButton>
+
+            <Disclosure defaultOpen={open} as='div'>
+                <Db>IPhone or Android: {active(settings()!.activate_app)}</Db>
+                <Dp> 
+                   <P >To activate install the iMIS application on your mobile device. Tap the test button, then pick 42 on your phone.</P>
+                   <div class='w-16'><LightButton onClick={testApp}>{ln().test}</LightButton></div>
+                   </Dp>
+            </Disclosure>
+
+            <ButtonSet>
+                <Bs1 onClick={save}>{ln().save}</Bs1>
+                <Bs onClick={() => props.onClose(true)}>{ln().cancel}</Bs>
+              </ButtonSet>
         </Show>
     </div>
 }

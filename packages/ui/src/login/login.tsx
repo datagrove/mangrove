@@ -1,14 +1,12 @@
 
-import { Ab, Center, H2, SimplePage } from "..";
+import { H2, SimplePage } from "..";
 import { Component, JSX, Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { Factor, useLn } from "./passkey_i18n";
 import { BlueButton } from "../lib/form";
-import { Username, Password, AddPasskey, EmailInput, GetSecret, PhoneInput, ChallengeNotify, LoginInfo, InputCell, PasswordCell } from "./passkey_add";
+import { Username, Password, AddPasskey, GetSecret, ChallengeNotify, LoginInfo } from "./passkey_add";
 import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { createWs } from "../core/socket";
-import { Segment } from "../lib/progress";
-import { Cell, CellOptions, cell } from "../db/client";
-import { A, AnchorProps, hashPath, useNavigate } from "../core/dg";
+import { A, useNavigate } from "../core/dg";
 // instead of localstorage, why not cookies?
 // cookies are less convenient for webrtc
 // websockets can use them though.
@@ -66,17 +64,35 @@ export const Ag: Component<any> = (props) => {
     </A>
 }
 
+
+
+
 export interface LoginProps {
     createAccount?: string
     recoverUser?: string
     recoverPassword?: string
     afterLogin?: string
 }
-
-
-
 export const LoginPage: Component<LoginProps> = (props) => {
-    return <SimplePage>{Login(props)}</SimplePage>
+    const [suspense, Suspense] = createSignal(false)
+    const finishLogin = (i: LoginInfo) => {
+
+        i.cookies.forEach((c) => {
+            document.cookie = c + ";path=/"
+        })
+
+        //location.href = i.home
+        // we can't nav here because it may go to a different page
+        // this will force a reload, so maybe w
+        const h = i.home ? i.home : props.afterLogin ?? "/"
+        location.href = h
+        // nav(h)
+        //window.open(i.home, "_blank")
+        //console.log("login info", i)
+    }
+    return <SimplePage>
+        <Login {...props} finishLogin={finishLogin}/>
+        </SimplePage>
 }
 // todo: send language in requests so that we can localize the error messages
 
@@ -84,7 +100,10 @@ export const LoginPage: Component<LoginProps> = (props) => {
 // maybe send the user secret with the submit?
 export const [loginInfo, setLoginInfo] = createSignal<LoginInfo | undefined>(undefined)
 
-const Login: Component<LoginProps> = (props) => {
+interface LoginProps2 extends LoginProps {
+    finishLogin: (i: LoginInfo) => void
+}
+export const Login: Component<LoginProps2> = (props) => {
     enum Screen {
         Login,
         Secret,
@@ -107,38 +126,34 @@ const Login: Component<LoginProps> = (props) => {
         setScreen(Screen.Login)
         setError_((ln() as any)[e] ?? e)
     }
+    // when we set this up we need to start a promise to gather passkeys that are offered
+    // This points out the case that we get a passkey that we don't know
+    // in this case we still need to get the user name and password
+    const init = async () => {
+        try {
+            const i = await initPasskey()
+            if (i) {
+                finishLogin(i)
+            }
+            else console.log("passkey watch cancelled")
+        }
+        catch(e){
+            setError(e+"")
+        }
+    }
+    init()
 
     // we need to abort the wait before we can register a new key.
     const setScreen = (r: Screen) => {
         if (r == Screen.Login) {
-            initPasskey()
+            init()
         }
         setScreen_(r)
     }
 
     const finishLogin = (i: LoginInfo) => {
-
-        i.cookies.forEach((c) => {
-            document.cookie = c + ";path=/"
-        })
-        setScreen(Screen.Suspense)
-        //location.href = i.home
-        nav(i.home ? i.home : props.afterLogin ?? "/")
-        //window.open(i.home, "_blank")
-        //console.log("login info", i)
+        props.finishLogin(i)
     }
-
-    // when we set this up we need to start a promise to gather passkeys that are offered
-    // This points out the case that we get a passkey that we don't know
-    // in this case we still need to get the user name and password
-    initPasskey().then((i: LoginInfo | null) => {
-        if (i) {
-            finishLogin(i)
-        }
-        else console.log("passkey watch cancelled")
-    }).catch((e) => {
-        setError(e)
-    })
 
     // we might nag them here to add a second factor, or even require it.
     // if they send a password, but require a passkey, we need to trigger that
@@ -223,8 +238,11 @@ const Login: Component<LoginProps> = (props) => {
                     <Password onInput={(e: string) => setPassword(e)} />
                     <BlueButton  >{ln().signin}</BlueButton>
                 </form>
+
                 <div class="mt-6 space-y-4">
-                    <div class='flex'><Spc /><Ag href={props.createAccount ?? "/register"}>{ln().register}</Ag><Spc /></div>
+                    <Show when={props.createAccount}>
+                        <div class='flex'><Spc />
+                            <Ag href={props.createAccount ?? "/register"}>{ln().register}</Ag><Spc /></div></Show>
 
                     <Show when={props.recoverPassword}><div class="flex"><Spc />
                         <Ag href={props.recoverPassword!}>{ln().forgotPassword}</Ag>

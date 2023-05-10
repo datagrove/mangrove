@@ -50,7 +50,7 @@ export const InlineButton: Component<ButtonProps> = (props) => {
 export const Ab: Component<AnchorProps> = (props) => {
   return <Ar {...props} class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`} href={props.href}>{props.children}</Ar>
 }
-export const Bb: Component<{ onClick: () => void, children: JSXElement, class?: string }> = (props) => {
+export const Bb: Component<ButtonProps> = (props) => {
   return <button {...props} class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`} onClick={props.onClick}>{props.children}</button>
 }
 export const P: Component<{ children: JSXElement, class?: string }> = (props) => {
@@ -198,8 +198,9 @@ export const BackNav: Component<{ children: JSXElement, back: boolean }> = (prop
     </div></nav>
 }
 
-export function H2(props: { children: JSXElement }) {
-  return <h4 class="pt-4 pb-2 text-2xl font-bold dark:text-white">{props.children}</h4>
+export function H2(props: { children: JSXElement, class?: string }) {
+  const c = `pt-4 text-2xl font-bold dark:text-white ${props.class}`
+  return <h4 class={c}>{props.children}</h4>
 }
 export function H3(props: { children: JSXElement }) {
   return <h4 class="pt-4 text-2xl font-bold dark:text-white">{props.children}</h4>

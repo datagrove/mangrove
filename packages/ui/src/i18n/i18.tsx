@@ -1,7 +1,7 @@
 import { ParentComponent, createSignal } from "solid-js"
 import { Icon } from "solid-heroicons";
 import { language } from "solid-heroicons/solid";
-import { ln, setLn } from "../core/dg";
+import { ln, useNavigate } from "../core/dg";
 
 type Lang = { [key: string]: string }
 
@@ -42,10 +42,14 @@ const Select: ParentComponent<{
     );
 };
 export const LanguageSelect: ParentComponent<{}> = (props) => {
+    const nav = useNavigate()
     // change the language has to change the route. It doesn't change the store
     const update = (e: string) => {
-        setLn(e)
+        const p = window.location.pathname.split('/')
+        p[2] = e
+        nav(p.join('/'))
     }
+
     return (<Select entries={lang()} value={ln()} onChange={update}>
         <Icon class='h-6 w-6' path={language} /></Select>)
 }

@@ -21,6 +21,7 @@ type InputProps = {
     id?: string,
     name?: string,
     type?: string,
+    value?: string,
     autocomplete?: string,
     placeholder?: string,
     autofocus?: boolean,
@@ -41,10 +42,11 @@ export const Input = (props: InputProps) => {
         }
     })
 
-    // ring-1 ring-inset focus:ring-2 focus:ring-inset focus:ring-indigo-500 dark:focus:ring-indigo-500 
-
-    return <div><input {...props} ref={inp} value={props.reset ? props.reset() : ""} onInput={props.onInput?(e) => props.onInput!(e.target.value):undefined}
-        class="block mt-1 w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm sm:text-sm sm:leading-6 p-2" /></div>
+    return <div><input 
+    {...props} ref={inp} 
+    value={props.reset ? props.reset() : props.value} 
+    onInput={props.onInput?(e) => props.onInput!(e.target.value):undefined}
+        class="block w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm sm:text-sm sm:leading-6 p-2" /></div>
 }
 export const InputCell: Component<{ cell: Cell, autofocus?: boolean }> = (props) => {
     const ln = useLn()

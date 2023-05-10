@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"log"
+	"mime"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,6 +20,8 @@ import (
 
 func DefaultCommands(opt *Config) *cobra.Command {
 	godotenv.Load()
+
+	mime.AddExtensionType(".js", "application/javascript")
 
 	// should we make the service a pointer then so it can be optional?
 	if len(opt.Name) == 0 {

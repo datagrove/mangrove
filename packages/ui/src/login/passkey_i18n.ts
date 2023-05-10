@@ -1,6 +1,6 @@
 
 import { JSX } from "solid-js/web/types/jsx"
-import { ln } from "../core/dg"
+import { ln, useLocation } from "../core/dg"
 // interface Ln {
 //     signin: string
 //     register: string
@@ -55,6 +55,7 @@ const en = {
     show: "Show",
     hide: "Hide",
     enterUsername: "Enter username",
+    viewPasskey: "Tap to view passkey",
     enterPasskey: "Choose passkey",
     choosePasskey: "Choose passkey",
     more2fa: "More choices",
@@ -68,6 +69,10 @@ const en = {
     invalidPassword: "Invalid user name or password",
     recover: "Recover account",
     invalidLogin: "Invalid login",
+    save: "Save",
+    cancel: "Cancel",
+    enterCode: "123456",
+    test: "Test",
 }
 type Ln = typeof en
 const es: Ln = {
@@ -99,7 +104,12 @@ const allLn: { [key: string]: Ln } = {
 
 export const useLn = (): () => Ln => {
     //const p = useParams<{ ln: string }>();
-    return () => allLn[ln()] ?? allLn['en']
+    const loc = useLocation()
+   
+    return () => {
+        const ln = loc.pathname.split('/')[2]
+        return allLn[ln] ?? allLn['en']
+    }
 }
 
 export function lx(key: string): string {

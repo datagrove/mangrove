@@ -337,7 +337,11 @@ func (s *Server) GetSettings(sess *Session) (*Settings, error) {
 
 }
 func (s *Server) Configure(sess *Session, li *Settings) error {
-	s.Db.qu.UpdateOrg(context.Background(), mangrove_sql.UpdateOrgParams{})
+	s.Db.qu.UpdateOrg(context.Background(), mangrove_sql.UpdateOrgParams{
+		Oid:    sess.Oid,
+		Email:  pt(li.Email),
+		Mobile: pt(li.Phone),
+	})
 	return nil
 }
 
@@ -777,6 +781,7 @@ func (s *Server) LoadWebauthnUser(sess *Session, id string) error {
 		return e
 	}
 	a, e := s.Db.qu.SelectOrg(context.Background(), idn)
+	sess.Oid = a.Oid
 	sess.Username = a.Name
 	sess.Password = string(a.Password)
 	if e != nil {
