@@ -290,8 +290,8 @@ export const SiteMenuContent: Component<{}> = (props) => {
     if (!s) {
       return undefined
     }
-    const h = loc().hash
-    const ts = loc().hash == "#1" ? 1 : 0
+    const h = loc.hash
+    const ts = loc.hash == "#1" ? 1 : 0
     params.ln ?? 'en'
     const p = s.path.get(params.path ?? "") ?? s.home
     const r: PageDescription = {
@@ -300,7 +300,7 @@ export const SiteMenuContent: Component<{}> = (props) => {
       lang: "",
       page: p!,
       topSection: ts,
-      loc: loc(),
+      loc: loc,
     }
     console.log('page', loc, params, r)
     setPd(r)

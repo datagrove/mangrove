@@ -1,5 +1,6 @@
 import { Component, Show, createSignal } from "solid-js"
-import { A, Body, Page } from "../layout/nav"
+import {  Body, Page } from "../layout/nav"
+import { A } from '../core/dg'
 import { Center, FieldSet } from "../lib/form"
 import { createUser, generatePassPhrase, security, setError, setLogin, setSecurity } from "../lib/crypto"
 import {

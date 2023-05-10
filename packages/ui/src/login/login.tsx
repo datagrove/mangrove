@@ -8,7 +8,7 @@ import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { createWs } from "../core/socket";
 import { Segment } from "../lib/progress";
 import { Cell, CellOptions, cell } from "../db/client";
-import { AnchorProps, useNavigate } from "../core/dg";
+import { A, AnchorProps, hashPath, useNavigate } from "../core/dg";
 // instead of localstorage, why not cookies?
 // cookies are less convenient for webrtc
 // websockets can use them though.
@@ -58,15 +58,12 @@ export const GreyButton: Component<ButtonProps> = (props) => {
         {props.children}
     </button>
 }
-export const Ag: Component<AnchorProps> = (props) => {
-    const nav = useNavigate()
-    const click = (e: any) => {
-        e.preventDefault()
-        nav(props.href)
-    }
-    return <a {...props} class="text-sm block font-semibold hover:underline text-indigo-500 hover:text-indigo-700 dark:text-neutral-500 dark:hover:text-indigo-300">
+
+// when using hashes, we need to adjust the path according to the hash.
+export const Ag: Component<any> = (props) => {
+    return <A {...props}  class="text-sm block font-semibold hover:underline text-indigo-500 hover:text-indigo-700 dark:text-neutral-500 dark:hover:text-indigo-300">
         {props.children}
-    </a>
+    </A>
 }
 
 export interface LoginProps {
@@ -227,8 +224,8 @@ const Login: Component<LoginProps> = (props) => {
                 <div class="mt-6 space-y-4">
                     <div class='flex'><Spc /><Ag href={props.createAccount ?? "/register"}>{ln().register}</Ag><Spc /></div>
 
-                    <Show when={props.recoverUser}><div class="flex"><Spc />
-                        <Ag href={props.recoverPassword!}>{ln().forgotPassword}</Ag>
+                    <Show when={props.recoverPassword}><div class="flex"><Spc />
+                        <Ag  href={props.recoverPassword!}>{ln().forgotPassword}</Ag>
                         <Spc /></div></Show>
                     <Show when={props.recoverUser}><div class="flex"><Spc />
                         <Ag href={props.recoverUser!}>{ln().forgotUsername}</Ag>
