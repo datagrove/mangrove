@@ -87,9 +87,13 @@ export const TextDivider: Component<{ children: string }> = (props) => {
     </div>
 }
 
-type KeyValue = [string, string]
+export type KeyValue = [string, string]
 export type StringSet = { [key: string]: boolean }
-const CheckboxSet: Component<{ opts: KeyValue[], value: StringSet, onChange: (x: StringSet) => void }> = (props) => {
+export const CheckboxSet: Component<{ 
+    opts: KeyValue[], 
+    value?: StringSet,
+    onChange?: (x: StringSet) => void }> = (props) => {
+
     const set = (key: string, value: boolean) => {
 
     }
@@ -99,7 +103,38 @@ const CheckboxSet: Component<{ opts: KeyValue[], value: StringSet, onChange: (x:
     return <>
         <fieldset>
             <For each={props.opts}>{(e, i) => {
-                return <Checkbox checked={() => true} onChange={(x: boolean) => { }} >{e[1]}</Checkbox>
+                return <Checkbox 
+                    checked={() => true} 
+                    onChange={(x: boolean) => { }} >
+                        {e[1]}</Checkbox>
             }}</For></fieldset>
     </>
 }
+
+export const Radio = (props: { name?: string,  checked: ()=>boolean, onChange: (x: boolean) => void }) => {
+    return   <div class="flex items-center">
+        <input id="email" name="notification-method" type="radio" checked class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600"/>
+        <label for="email" class="ml-3 block text-sm font-medium leading-6 text-gray-900 dark:text-neutral-400">{props.name}</label>
+      </div>
+}
+
+export const Heading: Component<{ children: string, title: string  }> = (props) => {
+    return <><label class="text-base font-semibold text-gray-900">{props.title}</label>
+    <p class="text-sm text-gray-500">{props.children}</p></>
+}
+
+export const RadioGroup: Component<{opts: string[]}> = (props) => {
+  return <div>
+        
+        <fieldset class="">
+            <legend class="sr-only">Notification method</legend>
+            <div class="space-y-4">
+                <For each={props.opts}>{(e, i) => {
+                    return <Radio name={e} checked={() => true} onChange={(x: boolean) => { }}/>
+                }}</For>
+
+            </div>
+        </fieldset>
+        </div>
+}
+

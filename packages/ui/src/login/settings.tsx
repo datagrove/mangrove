@@ -1,5 +1,5 @@
 import { Component, JSX, JSXElement, Match, Show, Switch, children, createSignal } from "solid-js"
-import { BlueButton, Center, LightButton } from "../lib/form"
+import { BlueButton, Center, CheckboxSet, KeyValue, LightButton, RadioGroup } from "../lib/form"
 import { AddPasskey, Dialog, DialogPage, EmailInput, GetSecret, Input, InputLabel, LoginInfo, PhoneInput, Username } from "./passkey_add"
 import { Bb, H2, SimplePage } from "../layout/nav"
 import {
@@ -70,7 +70,7 @@ const Bs1 = (props: ButtonProps) => {
 const Bs = (props: ButtonProps) => {
     return <div class='w-24'><LightButton {...props} /></div>
 }
-export const Checkbox: Component<any> = (props) => {
+export const BareCheckbox: Component<any> = (props) => {
     const [checked, setChecked] = createSignal(props.checked)
     const toggle = () => setChecked(!checked())
     // Enabled: "bg-indigo-600", Not Enabled: "bg-gray-200" -
@@ -96,7 +96,9 @@ export const Checkbox: Component<any> = (props) => {
         </button>
     );
 };
-
+const Checkbox: Component<{ children: JSXElement, checked?: boolean, onClick?: () => void }> = (props) => {
+    return <div class='flex items-center space-x-2'><div><BareCheckbox checked={props.checked} onClick={props.onClick} /></div> <div class='text-neutral-400 text-sm font-medium'>{props.children}</div></div>
+}
 // we should have loginInfo here, since we must be logged in for this to make sense.
 // but we could have moved away from the page, so we need to use the login cookie or similar to restore the login info. We can keep everything in sessionStorage? It depends on how we want to manage logins, if we want to log back in without challenge then we need to keep in localStorage.
 
@@ -150,6 +152,14 @@ const InputButton = (props: {
         <div class='w-16'><LightButton onClick={props.onClick}>{props.buttonLabel ?? "Test"}</LightButton></div></div>
 }
 
+const oauth : KeyValue[] = [
+    "Apple",
+    "Google",
+    "Facebook",
+    "Twitter",
+    "Github",
+    "Microsoft",
+].map((x) => [x,x])
 
 export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (props) => {
     const ws = createWs()
@@ -220,15 +230,17 @@ export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (pro
 
     const [x, setX] = createSignal(false)
 
+    const Keyset: Component<{ x: string }> = (props) => <RadioGroup opts={[props.x + " only", props.x + " with password", "Never"]} />
+
     const active = (b: any) => { return b ? "Active" : "Inactive" }
     return <div class='space-y-6'>
         <P>Activate one or more factors to protect your account. </P>
-        <div class='flex items-center space-x-2'><div><Checkbox checked={x()} onClick={() => setX(!x())} /></div> <div >Activate</div></div>
+
         <Show when={settings()}>
             <Disclosure defaultOpen={open} as='div'>
                 <Db> Passkey: {active(settings()!.activate_passkey)}</Db>
                 <Dp>
-
+                    <Keyset x="Passkey" />
                     <InputButton
                         onClick={testPasskey}>
                         <Input
@@ -241,14 +253,19 @@ export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (pro
 
             <Disclosure defaultOpen={open} as='div'>
                 <Db> Time Based Code: {active(settings()!.activate_totp)}</Db>
-                <Dp><div class='text-center w-full'><img class='mt-2' src={dataUrl()} /></div>
+                <Dp>
+                    <div class=''><img class='mt-2' src={dataUrl()} /></div>
+                    <Keyset x="TOTP" />
+
                     <P>Scan the QR code with a time based password program like Google Authenticator or Authy. Then enter the code it generates below to test</P>
                     <InputButton onClick={testOtp}>
                         <Input
 
                             placeholder={ln().enterCode}
                             autofocus onInput={(e) => setCode(e)} />
-                    </InputButton></Dp>
+                    </InputButton>
+
+                </Dp>
             </Disclosure>
 
             <Disclosure defaultOpen={open} as='div'>
@@ -287,6 +304,24 @@ export const FactorSettings: Component<{ onClose: (x: boolean) => void }> = (pro
                 </Dp>
             </Disclosure>
 
+            <Disclosure defaultOpen={open} as='div'>
+                <Db>SSH keys</Db>
+                <Dp><textarea placeholder={"Paste public SSH keys here"} class='w-full' rows='6'></textarea>
+
+                    <div class='flex items-center'>
+
+                        <textarea class='flex-1 mr-2' placeholder={"Test your keys by signing the word 'test' and pasting the result here"} rows='3'></textarea>
+                        <div class='w-16'><LightButton class='h-6' onClick={testApp}>{ln().test}</LightButton></div>
+                    </div>
+
+                </Dp>
+            </Disclosure>
+            <Disclosure defaultOpen={open} as='div'>
+                <Db>Sign in with Apple, etc</Db>
+                <Dp>
+                    <CheckboxSet opts={oauth} />
+                </Dp>
+            </Disclosure>
             <ButtonSet>
                 <Bs1 onClick={save}>{ln().save}</Bs1>
                 <Bs onClick={() => props.onClose(true)}>{ln().cancel}</Bs>

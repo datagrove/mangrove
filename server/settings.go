@@ -11,7 +11,7 @@ import (
 
 const (
 	// test without logging in
-	testLogin = true
+	testLogin = false
 )
 
 func SettingsApi(mg *Server) error {
