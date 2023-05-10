@@ -1,5 +1,5 @@
-import { Component, JSX, JSXElement, Match, Show, Switch, children, createSignal } from "solid-js"
-import { BlueButton, Center, CheckboxSet, KeyValue, LightButton, RadioGroup, Select } from "../lib/form"
+import { Component, JSX, JSXElement, Match, Show, Signal, Switch, children, createSignal, onMount } from "solid-js"
+import { BlueButton, Center, CheckboxSet, InputButton, KeyValue, LightButton, P, RadioGroup, Select } from "../lib/form"
 import { AddPasskey, Dialog, DialogPage, EmailInput, GetSecret, Input, InputLabel, LoginInfo, PhoneInput, Username } from "./passkey_add"
 import { Bb, H2, SimplePage } from "../layout/nav"
 import {
@@ -101,11 +101,9 @@ const Checkbox: Component<{ children: JSXElement, checked?: boolean, onClick?: (
 }
 // we should have loginInfo here, since we must be logged in for this to make sense.
 // but we could have moved away from the page, so we need to use the login cookie or similar to restore the login info. We can keep everything in sessionStorage? It depends on how we want to manage logins, if we want to log back in without challenge then we need to keep in localStorage.
-
 // must use cbor to get uint8array
 
-// first we need to login, then we can change the settings
-// save goes back to the logout state
+
 const social = ["Apple",
     "Google",
     "Facebook",
@@ -115,53 +113,89 @@ const social = ["Apple",
 ]
 const base: KeyValue[] = ["Passkey", "Passkey and Password", "TOTP", "TOTP and Password", "Email", "Phone", "App", "SSH"].map(x => [x, x])
 
-
-const roles: KeyValue[] = ["Base", "Admin"].map(x => [x, x])
-const oauth: KeyValue[] = social.map((x) => [x, x])
-const options: KeyValue[] = [
-    ...base,
-    ...oauth
-]
 // each security role can have its own settings
 
 export interface RoleOptions {
     admin: boolean
-    social: string[]
+    options: string[]
 }
+// this is site-wide, but
 export interface FactorOptions {
-    role: string  // current user
     roles: {      // all roles if admin
         [key: string]: RoleOptions
     }
-
 }
-export const SettingsPage: Component<{}> = (props) => {
-    const [loggedin, setLoggedin] = createSignal(true)
 
-    const finishLogin = (l: LoginInfo) => {
-        setLoggedin(true)
-    }
-    const getOpt = (): FactorOptions => {
-        return {
-            role: "Base",
-            roles: {
-                Base: {
-                    admin: false,
-                    social: [],
-                },
-                Admin: {
-                    admin: true,
-                    social: [],
-                }
+// this is what we can load and save per user
+export interface Settings {
+    role: string  // current user
+    user_secret: string
+    img: Uint8Array | undefined
+    email: string
+    phone: string
+    activate_passkey: boolean
+    activate_totp: boolean
+    activate_app: boolean
+}
+
+const defaultSettings: Settings = {
+    role: "",
+    user_secret: "",
+    img: undefined,
+    email: "jimh@datagrove.com",
+    phone: "",
+    activate_passkey: false,
+    activate_totp: false,
+    activate_app: false
+}
+const defaultOptions: FactorOptions = {      
+        roles: {
+            Base: {
+                admin: false,
+                options: [],
+            },
+            Admin: {
+                admin: true,
+                options: [],
             }
         }
+}
+
+// how do we skip this page if we are already logged in? do we want to?
+export const SettingsPage: Component<{}> = (props) => {
+    const ws = createWs()
+    const ln = useLn()
+    const nav = useNavigate()
+
+    const [settings, setSettings] =  createSignal<Settings>(defaultSettings)
+    const [opt,setOpt] = createSignal< FactorOptions> ( defaultOptions)
+    const [login,setLogin] = createSignal(true)
+
+ 
+
+    // we should use a resource like thing to get the current settings using the secret that's in the login info.
+    const finishLogin = async (l: LoginInfo) => {
+        const [o, e] :[Settings|undefined,string]= await ws.rpce<Settings>("settings", {})
+        console.log("settings", o)
+        if (e) {
+            return
+        }
+        setSettings(o!)
+        setLogin(true)
     }
+    
+    const done = async (save: boolean) => {
+        setLogin(false)
+    }
+
     return <SimplePage>
+        wtf {login()}wtf
         <Switch>
-            <Match when={loggedin()}>
+            <Match when={login()}>
                 <FactorSettings
-                    opt={getOpt()}
-                    onClose={() => { }} />
+                    opt={[opt, setOpt]}
+                    settings={[settings, setSettings]}
+                    onClose={done} />
             </Match>
             <Match when={true}>
                 <H2 class='mb-2'>Change Security Settings</H2>
@@ -172,65 +206,32 @@ export const SettingsPage: Component<{}> = (props) => {
     </SimplePage>
 }
 
-
-
-export interface Settings {
-    user_secret: string
-    img: Uint8Array | undefined
-    email: string
-    phone: string
-    activate_passkey: boolean
-    activate_totp: boolean
-    activate_app: boolean
-}
-const P = (props: { children: JSX.Element, class?: string }) => {
-    return <p class={`dark:text-neutral-400 ${props.class} `}>{props.children} </p>
-}
-const InputButton = (props: {
-    onClick: () => void,
-    buttonLabel?: string,
-    children: JSX.Element
-}) => {
-    return <div class='w-full flex items-center space-x-2 '>
-        <div class='flex-1'>
-            {props.children}</div>
-        <div class='w-16'><LightButton onClick={props.onClick}>{props.buttonLabel ?? "Test"}</LightButton></div></div>
-}
-
-
-
-
-
-export const FactorSettings: Component<{ opt: FactorOptions, onClose: (x: boolean) => void }> = (props) => {
+export const FactorSettings: Component<{ settings: Signal<Settings>, opt: Signal<FactorOptions>, onClose: (x: boolean) => void }> = (props) => {
     const ws = createWs()
-
-    // we need to know the role of this user, so we can show the right settings.
-    const opt = props.opt.roles[props.opt.role]
-
     const ln = useLn()
     const nav = useNavigate()
-    const [settings, setSettings] = createSignal<Settings | undefined>()
+    const [settings, setSettings] = props.settings
+    const [opt,setOpt] = props.opt
+
+    const myopt = () => opt().roles[settings().role]
+
     const [dataUrl, setDataUrl] = createSignal<string>("")
     const [code, setCode] = createSignal("")
+    // these need errors in the input group, figure out cell state
+    const [error, setError] = createSignal<{ [key: string]: JSX.Element }>({})
 
-    // we should use a resource like thing to get the current settings using the secret that's in the login info.
-
-    const getSettings = async () => {
-        const [settings, e] = await ws.rpce<Settings>("settings", {})
-        console.log("settings", settings)
-        if (e) {
-            return
-        }
-        setSettings(settings)
-        const bl = new Blob([settings!.img!], { type: 'image/png' });
+    const redText = (s: string) => {
+        return <div class="text-sm text-red-600 ">{s}</div>
+    }
+    onMount(async () => {
+        const bl = new Blob([settings().img!], { type: 'image/png' });
         const reader = new FileReader();
         reader.readAsDataURL(bl);
         reader.onloadend = () => {
             const dataUrl = reader.result as string;
             setDataUrl(dataUrl)
         }
-    }
-    getSettings()
+    })
 
     const save = async () => {
         ws.rpce("configure", settings())
@@ -243,37 +244,33 @@ export const FactorSettings: Component<{ opt: FactorOptions, onClose: (x: boolea
         })
     }
 
-    // these need errors in the input group, figure out cell state
-    const [error, setError] = createSignal<{ [key: string]: string }>({})
-    const testrun = (p: string) => {
-
-    }
+    const ok = "Success!"
     const testOtp = async () => {
         const [_, e] = await ws.rpcje("testOtp", { code: code() })
         setError({
             ...error(),
-            totp: e ?? ""
+            totp: e ?? ok
         })
     }
     const testEmail = async (s: string) => {
         const [_, e] = await ws.rpcje("testEmail", { email: s })
         setError({
             ...error(),
-            email: e ?? ""
+            email: e ?? ok
         })
     }
     const testText = async (s: string) => {
         const [_, e] = await ws.rpcje("testSms", { phone: s })
         setError({
             ...error(),
-            phone: e ?? ""
+            phone: e ?? ok
         })
     }
     const testVoice = async () => {
         const [_, e] = await ws.rpcje("testVoice", { phone: settings()!.phone })
         setError({
             ...error(),
-            phone: e ?? ""
+            phone: e ?? ok
         })
     }
     const testPasskey = async () => {
@@ -288,13 +285,6 @@ export const FactorSettings: Component<{ opt: FactorOptions, onClose: (x: boolea
     }
 
     const open = false
-
-    const SwitchVoice = () => {
-        // disabled={!!settings()!.phone}
-        return <Bb onClick={testVoice}>Send as voice</Bb>
-    }
-
-    const [x, setX] = createSignal(false)
 
     const Keyset: Component<{ x: string }> = (props) => <RadioGroup opts={[props.x + " only", props.x + " with password", "Never"]} />
 
@@ -348,7 +338,7 @@ export const FactorSettings: Component<{ opt: FactorOptions, onClose: (x: boolea
                             autofocus
                             onInput={(e) => update({ phone: e! })} />
                     </InputButton>
-                    <SwitchVoice />
+                    <Bb onClick={testVoice}>Send as voice</Bb>
                 </Dp>
             </Disclosure>
 
@@ -390,7 +380,7 @@ export const FactorSettings: Component<{ opt: FactorOptions, onClose: (x: boolea
                     <OauthOptions />
                 </Dp>
             </Disclosure>
-            <Show when={opt.admin}>
+            <Show when={myopt().admin}>
                 <Disclosure defaultOpen={open} as='div'>
                     <Db>Admin: Login Options</Db>
                     <Dp>
@@ -406,7 +396,13 @@ export const FactorSettings: Component<{ opt: FactorOptions, onClose: (x: boolea
     </div>
 }
 
-
+// instead these should map values through ln()
+const roles: KeyValue[] = ["Base", "Admin"].map(x => [x, x])
+const oauth: KeyValue[] = social.map((x) => [x, x])
+const options: KeyValue[] = [
+    ...base,
+    ...oauth
+]
 type BoolMap = { [key: string]: boolean }
 export const OauthOptions = (props: {}) => {
     const vs = createSignal<BoolMap>({})

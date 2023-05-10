@@ -179,3 +179,18 @@ export const RadioGroup: Component<{opts: string[]}> = (props) => {
         </div>
 }
 
+export const P = (props: { children: JSX.Element, class?: string }) => {
+    return <p class={`dark:text-neutral-400 ${props.class} `}>{props.children} </p>
+}
+
+// input + some buttons on the right
+export const InputButton = (props: {
+    onClick: () => void,
+    buttonLabel?: string,
+    children: JSX.Element
+}) => {
+    return <div class='w-full flex items-center space-x-2 '>
+        <div class='flex-1'>
+            {props.children}</div>
+        <div class='w-16'><LightButton onClick={props.onClick}>{props.buttonLabel ?? "Test"}</LightButton></div></div>
+}

@@ -34,7 +34,7 @@ export const InputLabel = (props: any) => {
     return <div><label {...props} class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</label></div>
 }
 
-export const Input = (props: InputProps & { error?: () => string }) => {
+export const Input = (props: InputProps & { error?: () => JSX.Element }) => {
     let inp!: HTMLInputElement
     onMount(() => {
         if (props.autofocus) {
@@ -48,7 +48,7 @@ export const Input = (props: InputProps & { error?: () => string }) => {
         onInput={props.onInput ? (e) => props.onInput!(e.target.value) : undefined}
         class="block w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm sm:text-sm sm:leading-6 p-2" /></div>
         <Show when={props.error && props.error()}>
-            <div class="text-sm text-red-600 mt-2">{props.error!()}</div>
+            <div class='mt-2'>{props.error!()}</div>
         </Show>
     </>
 }
@@ -268,8 +268,6 @@ export const AddPasskey: Component<{
     let btnSaveEl: HTMLButtonElement | null = null;
     let btnNot: HTMLButtonElement | null = null;
 
-    const [more, setMore] = createSignal(false)
-
     const add = async (e: any) => {
         const o = await ws.rpcj<any>("addpasskey", {})
         const cco = parseCreationOptionsFromJSON(o)
@@ -288,11 +286,7 @@ export const AddPasskey: Component<{
 
         props.onClose(false)
     }
-    return <Switch>
-        <Match when={more()}>
-            <FactorSettings onClose={props.onClose} />
-        </Match>
-        <Match when={!more()}><Dialog> <DialogPage >
+    return <Dialog> <DialogPage >
             <div class="space-y-6 ">
                 <Icon path={key} class="w-24 h-24 mx-auto" />
                 <p >{ln().addPasskey1}</p>
@@ -304,10 +298,8 @@ export const AddPasskey: Component<{
                 <div class='w-24'><LightButton tabindex='0' onClick={notEver}>{ln().notEver}</LightButton></div>
             </div>
             <div class=' flex'><Bb onClick={() => {
-                setMore(true)
+                //setMore(true)
             }}>{ln().more2fa}</Bb></div></DialogPage> </Dialog>
-        </Match></Switch>
-
 }
 
 
