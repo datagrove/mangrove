@@ -18,7 +18,7 @@ export const Checkbox: Component<{
 }> = (props) => {
     return <div class="relative flex items-start">
         <div class="flex h-6 items-center">
-            <input checked={props.checked()} id="comments" aria-describedby="comments-description" onInput={() => props.onChange(!props.checked())} name="comments" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-200 focus:ring-indigo-600" />
+            <input checked={props.checked()} id="comments" aria-describedby="comments-description" onInput={() => props.onChange(!props.checked())} name="comments" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-200 dark:text-neutral-800 dark:focus:ring-neutral-500 focus:ring-indigo-600" />
         </div>
         <div class="ml-3 text-sm leading-6">
             <label for="comments" class="font-medium dark:text-white text-gray-900">{props.children}</label>
@@ -89,47 +89,52 @@ export const TextDivider: Component<{ children: string }> = (props) => {
 }
 
 const ax = createSignal<{ [key: string]: boolean }>({})
-export type KeyValue = [string, string]
-export type StringSet = Signal<{ [key: string]: boolean }>
-export const CheckboxSet: Component<{ 
-    opts: KeyValue[], 
-    value: StringSet,
-     }> = (props) => {
+export type KeyValue = [string, any]
+export type KeyValueMap = {
+    [key: string]: any
+}
+
+export const CheckboxSet: Component<{
+    opts: KeyValue[],
+    value: Signal<KeyValueMap>,
+}> = (props) => {
     const [value, setValue] = props.value
 
     const set = (key: string, v: boolean) => {
         setValue({
             ...value(),
-            [key]: v
+
+            [key]: v ? key : undefined
+
         })
     }
 
     const setAll = (v: boolean) => {
-        const o : {[key:string]:boolean} = {}
+        const o: KeyValueMap = {}
         for (let x of props.opts) {
-            o[x[0]] = v
+            o[x[0]] = v ? x[0] : undefined
         }
         setValue(o)
     }
 
     return <>
+        <div class='flex mb-2 space-x-4 font-medium'><Bb onClick={() => { setAll(true) }}>ALL</Bb>  <Bb onClick={() => { setAll(false) }}>NONE</Bb></div>
         <fieldset>
-            
             <For each={props.opts}>{(e, i) => {
-                return <Checkbox 
-                    checked={() => value()[e[0]]} 
-                    onChange={(x: boolean) => {  set(e[0],x)}} >
-                        {e[1]}</Checkbox>
+                return <Checkbox
+                    checked={() => value()[e[0]] != undefined}
+                    onChange={(x: boolean) => { set(e[0], x) }} >
+                    {e[1]}</Checkbox>
             }}</For>
-            <Bb onClick={() => { setAll(true)}}>All</Bb>  <Bb onClick={() => {setAll(false) }}>None</Bb>
-            </fieldset>
+
+        </fieldset>
     </>
 }
 
 export const Select: Component<{
     opts: KeyValue[]
-    value: Signal<string> 
-} > = (props) => {
+    value: Signal<string>
+}> = (props) => {
     const [value, setValue] = props.value
     console.log("select", props.opts, props.value[0]())
     return (<div class='flex  text-black dark:text-white rounded-md items-center '>
@@ -139,7 +144,7 @@ export const Select: Component<{
             aria-label="Select language"
             class='flex-1  rounded-md dark:bg-neutral-900 text-black dark:text-white '
             oninput={(e) => {
-                setValue( e.currentTarget.value)
+                setValue(e.currentTarget.value)
             }}
         >
             {props.opts.map(([code, name]) => (
@@ -152,31 +157,34 @@ export const Select: Component<{
     );
 };
 
-export const Radio = (props: { name?: string,  checked: ()=>boolean, onChange: (x: boolean) => void }) => {
-    return   <div class="flex items-center">
-        <input id="email" name="notification-method" type="radio" checked class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600"/>
-        <label for="email" class="ml-3 block text-sm font-medium leading-6 text-gray-900 dark:text-neutral-400">{props.name}</label>
-      </div>
-}
 
-export const Heading: Component<{ children: string, title: string  }> = (props) => {
+
+export const Heading: Component<{ children: string, title: string }> = (props) => {
     return <><label class="text-base font-semibold text-gray-900">{props.title}</label>
-    <p class="text-sm text-gray-500">{props.children}</p></>
+        <p class="text-sm text-gray-500">{props.children}</p></>
 }
 
-export const RadioGroup: Component<{opts: string[]}> = (props) => {
-  return <div>
-        
+
+export const RadioGroup: Component<{ opts: KeyValue[], value: Signal<string> }> = (props) => {
+    const [value, setValue] = props.value
+    const ch = (e: Event) => {
+        setValue((e.target as HTMLInputElement).name)
+    }
+    return <div>
+
         <fieldset class="">
-            <legend class="sr-only">Notification method</legend>
             <div class="space-y-4">
                 <For each={props.opts}>{(e, i) => {
-                    return <Radio name={e} checked={() => true} onChange={(x: boolean) => { }}/>
+                    const [k, v] = e
+                    return <div class="flex items-center">
+                        <input name={k} type="radio" checked={value() == k} class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600" onChange={ch} />
+                        <label for="email" class="ml-3 block text-sm font-medium leading-6 text-gray-900 dark:text-neutral-400">{v}</label>
+                    </div>
                 }}</For>
 
             </div>
         </fieldset>
-        </div>
+    </div>
 }
 
 export const P = (props: { children: JSX.Element, class?: string }) => {

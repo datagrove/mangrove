@@ -1,165 +1,84 @@
-import { Component, JSX, JSXElement, Match, Show, Signal, Switch, children, createSignal, onMount } from "solid-js"
-import { BlueButton, Center, CheckboxSet, InputButton, KeyValue, LightButton, P, RadioGroup, Select } from "../lib/form"
-import { AddPasskey, Dialog, DialogPage, EmailInput, GetSecret, Input, InputLabel, LoginInfo, PhoneInput, Username } from "./passkey_add"
+import { Component, JSX, Match, Setter, Show, Signal, Switch, createEffect, createSignal, onMount } from "solid-js"
+import { CheckboxSet, InputButton, KeyValue, KeyValueMap, LightButton, P, RadioGroup, Select } from "../lib/form"
+import { Input, LoginInfo } from "./passkey_add"
 import { Bb, H2, SimplePage } from "../layout/nav"
-import {
-    parseCreationOptionsFromJSON,
-    create,
-    get,
-    parseRequestOptionsFromJSON,
-} from "@github/webauthn-json/browser-ponyfill";
 
-import { Icon } from "solid-heroicons";
-import { key } from "solid-heroicons/solid";
-import { addMock, createWs } from "../core/socket";
-import { useLn, Factor, factors } from "./passkey_i18n";
-import { Disclosure, DisclosureButton, DisclosurePanel } from "solid-headless";
-import { Login, LoginPage, loginInfo } from "./login";
-import { A, useNavigate } from "../core/dg";
+import { createWs } from "../core/socket";
+import { useLn } from "./passkey_i18n";
+import { Disclosure } from "solid-headless";
+import { Login } from "./login";
+import { useNavigate } from "../core/dg";
+import { Db, Dp, ButtonSet, Bs1, Bs } from "./settings2";
+import { SetStoreFunction, createStore, produce, unwrap } from "solid-js/store";
 
-
-function ChevronUpIcon(props: JSX.IntrinsicElements['svg']): JSX.Element {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            {...props}
-        >
-            <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M5 15l7-7 7 7"
-            />
-        </svg>
-    );
+const allOptions = {
+    social: [
+        "Apple",
+        "Google",
+        "Facebook",
+        "Twitter",
+        "Github",
+        "Microsoft"
+    ],
+    other: [
+        "Passkey",
+        "Passkey and Password",
+        "TOTP",
+        "TOTP and Password",
+        "Email",
+        "Phone",
+        "App",
+        "SSH"]
 }
-const Db = (props: { children: JSX.Element }) => {
-    return <DisclosureButton as="div" class="flex justify-between w-full px-4 py-2 text-sm font-medium text-left text-neutral-900 bg-neutral-100 rounded-lg hover:bg-neutral-200 focus:outline-none focus-visible:ring focus-visible:ring-neutral-500 focus-visible:ring-opacity-75">
-        {({ isOpen }) => (
-            <>
-                {props.children}
-                <ChevronUpIcon
-                    class={`${isOpen() ? 'transform rotate-180' : ''} w-5 h-5 text-neutral-500`}
-                />
-            </>
-        )}
-    </DisclosureButton>
+function makeKvm(list: string[]): KeyValueMap {
+    const o: KeyValueMap = {}
+    list.forEach((k) => o[k] = k)
+    return o
 }
-const Dp = (props: { children: JSX.Element }) => {
-    return <DisclosurePanel class="px-2 mt-2 pt-2 space-y-2  text-sm text-gray-500">
-        {props.children}
-    </DisclosurePanel>
-}
-
-const ButtonSet = (props: { children: JSX.Element[] }) => {
-    return <div class='flex space-x-4'>
-        {props.children}
-    </div>
-}
-interface ButtonProps {
-    autofocus?: boolean
-    onClick: () => void
-    children: JSX.Element
-}
-const Bs1 = (props: ButtonProps) => {
-    return <div class='w-24'><BlueButton {...props} /></div>
-}
-const Bs = (props: ButtonProps) => {
-    return <div class='w-24'><LightButton {...props} /></div>
-}
-export const BareCheckbox: Component<any> = (props) => {
-    const [checked, setChecked] = createSignal(props.checked)
-    const toggle = () => setChecked(!checked())
-    // Enabled: "bg-indigo-600", Not Enabled: "bg-gray-200" -
-    const bclass = () => `${checked() ? "bg-indigo-600" : "bg-gray-200"} relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2`
-    return (
-        <button {...props} onClick={toggle} type="button" class={bclass()} role="switch" aria-checked="false">
-            <span class="sr-only">Use setting</span>
-            {/* Enabled: , Not Enabled: "translate-x-0" */}
-            <span class={`${checked() ? "translate-x-5" : "translate-x-0"} pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}>
-                {/*  Enabled: , Not Enabled: "opacity-100 duration-200 ease-in" */}
-                <span class={`${checked() ? "opacity-0 duration-100 ease-out" : "opacity-100 duration-200 ease-in"} absolute inset-0 flex h-full w-full items-center justify-center transition-opacity`} aria-hidden="true">
-                    <svg class="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 12 12">
-                        <path d="M4 8l2-2m0 0l2-2M6 6L4 4m2 2l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                </span>
-                {/* Enabled: "opacity-100 duration-200 ease-in", Not Enabled: "opacity-0 duration-100 ease-out" */}
-                <span class={`${checked() ? "opacity-100 duration-200 ease-in" : "opacity-0 duration-100 ease-out"} absolute inset-0 flex h-full w-full items-center justify-center transition-opacity`} aria-hidden="true">
-                    <svg class="h-3 w-3 text-indigo-600" fill="currentColor" viewBox="0 0 12 12">
-                        <path d="M3.707 5.293a1 1 0 00-1.414 1.414l1.414-1.414zM5 8l-.707.707a1 1 0 001.414 0L5 8zm4.707-3.293a1 1 0 00-1.414-1.414l1.414 1.414zm-7.414 2l2 2 1.414-1.414-2-2-1.414 1.414zm3.414 2l4-4-1.414-1.414-4 4 1.414 1.414z" />
-                    </svg>
-                </span>
-            </span>
-        </button>
-    );
-};
-const Checkbox: Component<{ children: JSXElement, checked?: boolean, onClick?: () => void }> = (props) => {
-    return <div class='flex items-center space-x-2'><div><BareCheckbox checked={props.checked} onClick={props.onClick} /></div> <div class='text-neutral-400 text-sm font-medium'>{props.children}</div></div>
-}
-// we should have loginInfo here, since we must be logged in for this to make sense.
-// but we could have moved away from the page, so we need to use the login cookie or similar to restore the login info. We can keep everything in sessionStorage? It depends on how we want to manage logins, if we want to log back in without challenge then we need to keep in localStorage.
-// must use cbor to get uint8array
-
-
-const social = ["Apple",
-    "Google",
-    "Facebook",
-    "Twitter",
-    "Github",
-    "Microsoft"
-]
-const base: KeyValue[] = ["Passkey", "Passkey and Password", "TOTP", "TOTP and Password", "Email", "Phone", "App", "SSH"].map(x => [x, x])
-
-// each security role can have its own settings
-
-export interface RoleOptions {
-    admin: boolean
-    options: string[]
-}
-// this is site-wide, but
-export interface FactorOptions {
-    roles: {      // all roles if admin
-        [key: string]: RoleOptions
-    }
+export interface RoleSet {
+    [key: string]: KeyValueMap
 }
 
 // this is what we can load and save per user
 export interface Settings {
     role: string  // current user
-    user_secret: string
+    password: string
     img: Uint8Array | undefined
     email: string
     phone: string
-    activate_passkey: boolean
-    activate_totp: boolean
-    activate_app: boolean
+    passkey: number
+    totp: number
+    app: number
+    social: KeyValueMap
 }
 
 const defaultSettings: Settings = {
-    role: "",
-    user_secret: "",
+    role: "Admin",
+    password: "",
     img: undefined,
     email: "jimh@datagrove.com",
     phone: "",
-    activate_passkey: false,
-    activate_totp: false,
-    activate_app: false
+    passkey: 0,
+    totp: 0,
+    app: 0,
+    social: {}
 }
-const defaultOptions: FactorOptions = {      
-        roles: {
-            Base: {
-                admin: false,
-                options: [],
-            },
-            Admin: {
-                admin: true,
-                options: [],
-            }
-        }
+const defaultOptions: RoleSet = {
+    "Admin": {
+        "Admin": true,
+        ...makeKvm(allOptions.social),
+        ...makeKvm(allOptions.other)
+    },
+    "Base": {
+        ...makeKvm(allOptions.social),
+        ...makeKvm(allOptions.other)
+    }
 }
+
+// not stored, this represents possible options
+
+
+type Store<T> = [T, SetStoreFunction<T>]
 
 // how do we skip this page if we are already logged in? do we want to?
 export const SettingsPage: Component<{}> = (props) => {
@@ -167,15 +86,13 @@ export const SettingsPage: Component<{}> = (props) => {
     const ln = useLn()
     const nav = useNavigate()
 
-    const [settings, setSettings] =  createSignal<Settings>(defaultSettings)
-    const [opt,setOpt] = createSignal< FactorOptions> ( defaultOptions)
-    const [login,setLogin] = createSignal(true)
-
- 
+    const [settings, setSettings] = createStore<Settings>(defaultSettings)
+    const [opt, setOpt] = createStore<RoleSet>(defaultOptions)
+    const [login, setLogin] = createSignal(true)
 
     // we should use a resource like thing to get the current settings using the secret that's in the login info.
     const finishLogin = async (l: LoginInfo) => {
-        const [o, e] :[Settings|undefined,string]= await ws.rpce<Settings>("settings", {})
+        const [o, e]: [Settings | undefined, string] = await ws.rpce<Settings>("settings", {})
         console.log("settings", o)
         if (e) {
             return
@@ -183,19 +100,26 @@ export const SettingsPage: Component<{}> = (props) => {
         setSettings(o!)
         setLogin(true)
     }
-    
+
     const done = async (save: boolean) => {
+        console.log("done", unwrap(settings), unwrap(opt))
+        if (save) {
+            ws.rpce("configure", settings)
+        }
         setLogin(false)
     }
 
     return <SimplePage>
-        wtf {login()}wtf
         <Switch>
             <Match when={login()}>
                 <FactorSettings
                     opt={[opt, setOpt]}
                     settings={[settings, setSettings]}
-                    onClose={done} />
+                />
+                <div class='mt-2' ><ButtonSet>
+                    <Bs1 onClick={() => done(true)}>{ln().save}</Bs1>
+                    <Bs onClick={() => done(false)}>{ln().cancel}</Bs>
+                </ButtonSet></div>
             </Match>
             <Match when={true}>
                 <H2 class='mb-2'>Change Security Settings</H2>
@@ -205,26 +129,44 @@ export const SettingsPage: Component<{}> = (props) => {
         </Switch>
     </SimplePage>
 }
-
-export const FactorSettings: Component<{ settings: Signal<Settings>, opt: Signal<FactorOptions>, onClose: (x: boolean) => void }> = (props) => {
+const kvl = (k: string[]): KeyValue[] => k.map(x => [x, x])
+export const FactorSettings: Component<{ settings: Store<Settings>, opt: Store<RoleSet> }> = (props) => {
     const ws = createWs()
     const ln = useLn()
     const nav = useNavigate()
     const [settings, setSettings] = props.settings
-    const [opt,setOpt] = props.opt
+    const [opt, setOpt] = props.opt
 
-    const myopt = () => opt().roles[settings().role]
+    const myopt = () => opt[settings.role]
+
+    console.log("settings", settings)
+    console.log("opt", opt)
+    console.log("myopt", myopt())
+
+
+    const [role, setRole] = createSignal(settings.role)
+
+    // user options
+    const [sopt, setSopt] = createSignal<KeyValueMap>(settings.social)
+    // site options
+    const [ropt, setRopt] = createSignal<KeyValueMap>(myopt())
+
+
 
     const [dataUrl, setDataUrl] = createSignal<string>("")
     const [code, setCode] = createSignal("")
     // these need errors in the input group, figure out cell state
     const [error, setError] = createSignal<{ [key: string]: JSX.Element }>({})
-
+    const roles = kvl(["Base", "Admin"])
+    const options = kvl([
+        ...allOptions.other,
+        ...allOptions.social
+    ])
     const redText = (s: string) => {
         return <div class="text-sm text-red-600 ">{s}</div>
     }
     onMount(async () => {
-        const bl = new Blob([settings().img!], { type: 'image/png' });
+        const bl = new Blob([settings.img!], { type: 'image/png' });
         const reader = new FileReader();
         reader.readAsDataURL(bl);
         reader.onloadend = () => {
@@ -232,17 +174,6 @@ export const FactorSettings: Component<{ settings: Signal<Settings>, opt: Signal
             setDataUrl(dataUrl)
         }
     })
-
-    const save = async () => {
-        ws.rpce("configure", settings())
-    }
-
-    const update = (x: Partial<Settings>) => {
-        setSettings({
-            ...settings()!,
-            ...x
-        })
-    }
 
     const ok = "Success!"
     const testOtp = async () => {
@@ -267,7 +198,7 @@ export const FactorSettings: Component<{ settings: Signal<Settings>, opt: Signal
         })
     }
     const testVoice = async () => {
-        const [_, e] = await ws.rpcje("testVoice", { phone: settings()!.phone })
+        const [_, e] = await ws.rpcje("testVoice", { phone: settings.phone })
         setError({
             ...error(),
             phone: e ?? ok
@@ -277,7 +208,7 @@ export const FactorSettings: Component<{ settings: Signal<Settings>, opt: Signal
 
     }
     const testApp = async () => {
-        const [_, e] = await ws.rpcje("testVoice", { phone: settings()!.phone })
+        const [_, e] = await ws.rpcje("testVoice", { phone: settings.phone })
         setError({
             ...error(),
             app: e ?? ""
@@ -286,125 +217,161 @@ export const FactorSettings: Component<{ settings: Signal<Settings>, opt: Signal
 
     const open = false
 
-    const Keyset: Component<{ x: string }> = (props) => <RadioGroup opts={[props.x + " only", props.x + " with password", "Never"]} />
+    const PasskeySet: Component<{}> = (props) => {
+        const opts: KeyValue[] = [
+            ["0", "Passkey only"],
+            ["1", "Passkey with password"],
+            ["2", "Never"]
+        ]
+
+        const [v, setV] = createSignal(settings.passkey + "")
+        createEffect(() => {
+            setSettings({
+                ...settings,
+                passkey: parseInt(v())
+            })
+        })
+        return <RadioGroup opts={opts} value={[v, setV]} />
+    }
+    const TotpSet: Component<{}> = (props) => {
+        const opts: KeyValue[] = [
+            ["0", "Totp only"],
+            ["1", "Totp with password"],
+            ["2", "Never"]
+        ]
+        const [v, setV] = createSignal(settings.totp + "")
+        createEffect(() => {
+            setSettings({
+                ...settings,
+                passkey: parseInt(v())
+            })
+        })
+        return <RadioGroup opts={opts} value={[v, setV]} />
+    }
 
     const active = (b: any) => { return b ? "Active" : "Inactive" }
 
     return <div class='space-y-6'>
         <P>Activate one or more factors to protect your account. </P>
 
-        <Show when={settings()}>
-            <Disclosure defaultOpen={open} as='div'>
-                <Db> Passkey: {active(settings()!.activate_passkey)}</Db>
-                <Dp>
-                    <Keyset x="Passkey" />
-                    <InputButton
-                        onClick={testPasskey}>
-                        <Input
-                            error={() => error().passkey}
-                            placeholder={ln().viewPasskey}
-                            id="username" name="username" type="text" autocomplete="username webauthn" />
-                    </InputButton>
-                </Dp>
+        <Show when={ropt()["Passkey"]}> <Disclosure defaultOpen={open} as='div'>
+            <Db> Passkey: {active(settings.passkey != 2)}</Db>
+            <Dp>
+                <PasskeySet />
+                <InputButton
+                    onClick={testPasskey}>
+                    <Input
+                        error={() => error().passkey}
+                        placeholder={ln().viewPasskey}
+                        id="username" name="username" type="text" autocomplete="username webauthn" />
+                </InputButton>
+            </Dp>
 
-            </Disclosure>
+        </Disclosure></Show>
 
-            <Disclosure defaultOpen={open} as='div'>
-                <Db> Time Based Code: {active(settings()!.activate_totp)}</Db>
-                <Dp>
-                    <div class=''><img class='mt-2' src={dataUrl()} /></div>
-                    <Keyset x="TOTP" />
+        <Disclosure defaultOpen={open} as='div'>
+            <Db> Time Based Code: {active(settings.totp != 2)}</Db>
+            <Dp>
+                <div class=''><img class='mt-2' src={dataUrl()} /></div>
+                <TotpSet />
 
-                    <P>Scan the QR code with a time based password program like Google Authenticator or Authy. Then enter the code it generates below to test</P>
-                    <InputButton onClick={testOtp}>
-                        <Input
-                            error={() => error().totp}
-                            placeholder={ln().enterCode}
-                            autofocus onInput={(e) => setCode(e)} />
-                    </InputButton>
+                <P>Scan the QR code with a time based password program like Google Authenticator or Authy. Then enter the code it generates below to test</P>
+                <InputButton onClick={testOtp}>
+                    <Input
+                        error={() => error().totp}
+                        placeholder={ln().enterCode}
+                        autofocus onInput={(e) => setCode(e)} />
+                </InputButton>
 
-                </Dp>
-            </Disclosure>
+            </Dp>
+        </Disclosure>
 
-            <Disclosure defaultOpen={open} as='div'>
-                <Db>Phone number: {active(settings()!.phone)}</Db>
-                <Dp>
+        <Disclosure defaultOpen={open} as='div'>
+            <Db>Phone number: {active(settings.phone)}</Db>
+            <Dp>
 
-                    <InputButton
-                        onClick={() => testText(settings()!.phone)}>
-                        <Input
-                            value={settings()!.phone}
-                            placeholder={ln().phone}
-                            autofocus
-                            onInput={(e) => update({ phone: e! })} />
-                    </InputButton>
-                    <Bb onClick={testVoice}>Send as voice</Bb>
-                </Dp>
-            </Disclosure>
-
-            <Disclosure defaultOpen={open} as='div'>
-                <Db>Email: {active(settings()!.email)}</Db>
-                <Dp> <InputButton
-                    onClick={() => testText(settings()!.email)}> <Input
-                        value={settings()!.email}
-                        autocomplete="email"
-                        placeholder={ln().email}
+                <InputButton
+                    onClick={() => testText(settings.phone)}>
+                    <Input
+                        value={settings.phone}
+                        placeholder={ln().phone}
                         autofocus
-                        onInput={(e) => update({ email: e! })} /></InputButton>
-                </Dp>
-            </Disclosure>
+                        onInput={(e) => {
+                            setSettings(produce((s) => {
+                                s.phone = e
+                            }))
+                        }} />
+                </InputButton>
+                <Bb onClick={testVoice}>Send as voice</Bb>
+            </Dp>
+        </Disclosure>
 
+        <Disclosure defaultOpen={open} as='div'>
+            <Db>Email: {active(settings.email)}</Db>
+            <Dp> <InputButton
+                onClick={() => testText(settings.email)}> <Input
+                    value={settings.email}
+                    autocomplete="email"
+                    placeholder={ln().email}
+                    autofocus
+                    onInput={(e) => setSettings({ ...settings, email: e! })} /></InputButton>
+            </Dp>
+        </Disclosure>
+
+        <Disclosure defaultOpen={open} as='div'>
+            <Db>IPhone or Android: {active(settings.app)}</Db>
+            <Dp>
+                <P >To activate install the iMIS application on your mobile device. Tap the test button, then pick 42 on your phone.</P>
+                <div class='w-16'><LightButton onClick={testApp}>{ln().test}</LightButton></div>
+            </Dp>
+        </Disclosure>
+
+        <Disclosure defaultOpen={open} as='div'>
+            <Db>SSH keys</Db>
+            <Dp><textarea placeholder={"Paste public SSH keys here"} class='w-full' rows='6'></textarea>
+
+                <div class='flex items-center'>
+
+                    <textarea class='flex-1 mr-2' placeholder={"Test your keys by signing the word 'test' and pasting the result here"} rows='3'></textarea>
+                    <div class='w-16'><LightButton class='h-6' onClick={testApp}>{ln().test}</LightButton></div>
+                </div>
+
+            </Dp>
+        </Disclosure>
+        <Disclosure defaultOpen={open} as='div'>
+            <Db>Sign in with Apple, etc</Db>
+            <Dp>
+                <div><CheckboxSet opts={kvl(allOptions.social)} value={[sopt, setSopt]} /> </div>
+            </Dp>
+        </Disclosure>
+        <Show when={ropt()["Admin"]}>
             <Disclosure defaultOpen={open} as='div'>
-                <Db>IPhone or Android: {active(settings()!.activate_app)}</Db>
+                <Db>Admin: Login Options</Db>
                 <Dp>
-                    <P >To activate install the iMIS application on your mobile device. Tap the test button, then pick 42 on your phone.</P>
-                    <div class='w-16'><LightButton onClick={testApp}>{ln().test}</LightButton></div>
-                </Dp>
-            </Disclosure>
-
-            <Disclosure defaultOpen={open} as='div'>
-                <Db>SSH keys</Db>
-                <Dp><textarea placeholder={"Paste public SSH keys here"} class='w-full' rows='6'></textarea>
-
-                    <div class='flex items-center'>
-
-                        <textarea class='flex-1 mr-2' placeholder={"Test your keys by signing the word 'test' and pasting the result here"} rows='3'></textarea>
-                        <div class='w-16'><LightButton class='h-6' onClick={testApp}>{ln().test}</LightButton></div>
+                    <div>
+                        <div class='mb-2'>
+                            <Select opts={roles} value={[role, setRole]} /></div>
+                        <CheckboxSet opts={options} value={[ropt, setRopt]} />
                     </div>
-
                 </Dp>
             </Disclosure>
-            <Disclosure defaultOpen={open} as='div'>
-                <Db>Sign in with Apple, etc</Db>
-                <Dp>
-                    <OauthOptions />
-                </Dp>
-            </Disclosure>
-            <Show when={myopt().admin}>
-                <Disclosure defaultOpen={open} as='div'>
-                    <Db>Admin: Login Options</Db>
-                    <Dp>
-                        <AdminOptions />
-                    </Dp>
-                </Disclosure>
-            </Show>
-            <ButtonSet>
-                <Bs1 onClick={save}>{ln().save}</Bs1>
-                <Bs onClick={() => props.onClose(true)}>{ln().cancel}</Bs>
-            </ButtonSet>
         </Show>
+
+
     </div>
 }
 
 // instead these should map values through ln()
-const roles: KeyValue[] = ["Base", "Admin"].map(x => [x, x])
-const oauth: KeyValue[] = social.map((x) => [x, x])
-const options: KeyValue[] = [
-    ...base,
-    ...oauth
-]
+// const roles: KeyValue[] = ["Base", "Admin"].map(x => [x, x])
+// const oauth: KeyValue[] = social.map((x) => [x, x])
+// const options: KeyValue[] = [
+//     ...base,
+//     ...oauth
+// ]
+/*
 type BoolMap = { [key: string]: boolean }
 export const OauthOptions = (props: {}) => {
+    const oauth = kvl(allOptions.social)
     const vs = createSignal<BoolMap>({})
     return <div>
         <CheckboxSet opts={oauth} value={vs} />
@@ -413,6 +380,11 @@ export const OauthOptions = (props: {}) => {
 export const AdminOptions = (props: {}) => {
     const r = createSignal<string>("Base")
     const vs = createSignal<BoolMap>({})
+    const roles = kvl(["Base", "Admin"])
+    const options = kvl([
+        ...allOptions.other,
+        ...allOptions.social
+    ])
     return <div>
         <div class='mb-2'><Select opts={roles} value={r}></Select></div>
         <CheckboxSet opts={options} value={vs} />
@@ -422,7 +394,7 @@ export const AdminOptions = (props: {}) => {
 
 
 
-/*
+
     const closeSecret = () => {
         setIsOpenGetSecret(false)
         // this onclose should finalize the login
