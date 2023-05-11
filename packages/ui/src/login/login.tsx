@@ -7,6 +7,7 @@ import { Username, Password, AddPasskey, GetSecret, ChallengeNotify, LoginInfo }
 import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { createWs } from "../core/socket";
 import { A, useNavigate } from "../core/dg";
+import { LoginWith } from "./login_with";
 // instead of localstorage, why not cookies?
 // cookies are less convenient for webrtc
 // websockets can use them though.
@@ -59,13 +60,15 @@ export const GreyButton: Component<ButtonProps> = (props) => {
 
 // when using hashes, we need to adjust the path according to the hash.
 export const Ag: Component<any> = (props) => {
+    return <a {...props} class="text-sm block font-semibold hover:underline text-indigo-500 hover:text-indigo-700 dark:text-neutral-500 dark:hover:text-indigo-300">
+        {props.children}
+    </a>
+}
+export const Agl: Component<any> = (props) => {
     return <A {...props} class="text-sm block font-semibold hover:underline text-indigo-500 hover:text-indigo-700 dark:text-neutral-500 dark:hover:text-indigo-300">
         {props.children}
     </A>
 }
-
-
-
 
 export interface LoginProps {
     createAccount?: string
@@ -237,6 +240,7 @@ export const Login: Component<LoginProps2> = (props) => {
                     <Username autofocus onInput={(e: string) => setUser(e)} />
                     <Password onInput={(e: string) => setPassword(e)} />
                     <BlueButton  >{ln().signin}</BlueButton>
+                    <LoginWith/>
                 </form>
 
                 <div class="mt-6 space-y-4">
@@ -249,6 +253,9 @@ export const Login: Component<LoginProps2> = (props) => {
                         <Spc /></div></Show>
                     <Show when={props.recoverUser}><div class="flex"><Spc />
                         <Ag href={props.recoverUser!}>{ln().forgotUsername}</Ag>
+                        <Spc /></div></Show>
+                   <Show when={props.recoverUser}><div class="flex"><Spc />
+                        <Agl href={'../settings'}>{ln().changeLoginSettings}</Agl>
                         <Spc /></div></Show>
                 </div></Match>
         </Switch>

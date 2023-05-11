@@ -11,19 +11,19 @@ import {
 import { type PublicKeyCredentialDescriptorJSON } from "@github/webauthn-json";
 import { RegistrationPublicKeyCredential } from "@github/webauthn-json/browser-ponyfill"
 import type { RegistrationResponseExtendedJSON } from "@github/webauthn-json/browser-ponyfill/extended"
-import { A, P } from '../layout/nav'
+
 import { createWs } from "../core/socket";
 
 
 import * as bip39 from 'bip39'
 import * as nacl from 'tweetnacl'
 import { Ws } from "../core/socket";
-import { BlueButton, Center, Checkbox, FieldSet, Input, TextDivider, ToggleSection } from "../lib/form";
-import { LoginWith } from "../lib/login_with";
+import { BlueButton, Center, Checkbox, FieldSet, Input, P, TextDivider, ToggleSection } from "../lib/form";
+import { LoginWith } from "../login/login_with";
 import { Buffer } from 'buffer'
 import { bufferToHex } from "../lib/encode";
 import { error, setError, setLogin } from "../lib/crypto";
-import { useNavigate } from "../core/dg";
+import { A, useNavigate } from "../core/dg";
 // @ts-ignore
 
 const [user,setUser] = createSignal("")

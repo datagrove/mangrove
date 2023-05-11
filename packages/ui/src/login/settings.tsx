@@ -100,7 +100,7 @@ export const SettingsPage: Component<{}> = (props) => {
     const [settings, setSettings] = createStore<Settings>(defaultSettings)
 
 
-    const [login, setLogin] = createSignal(true)
+    const [login, setLogin] = createSignal(false)
     const [dataUrl, setDataUrl] = createSignal<string>("")
 
     // we should use a resource like thing to get the current settings using the secret that's in the login info.

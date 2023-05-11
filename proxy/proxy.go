@@ -94,7 +94,7 @@ func main() {
 			}
 			if strings.HasPrefix(r.URL.Path, "/iCore/Contacts/Sign_In") ||
 				strings.HasPrefix(r.URL.Path, "/MBRR/SignIn") {
-				http.Redirect(w, r, "/embed/", http.StatusFound)
+				http.Redirect(w, r, "/embed/en/login", http.StatusFound)
 				return
 			}
 			// we don't need to do anything with create.

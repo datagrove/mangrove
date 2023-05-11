@@ -53,12 +53,8 @@ export const Ab: Component<AnchorProps> = (props) => {
 export const Bb: Component<ButtonProps> = (props) => {
   return <button {...props} class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`} onClick={props.onClick}>{props.children}</button>
 }
-export const P: Component<{ children: JSXElement, class?: string }> = (props) => {
-  return <p class={`${props.class ?? ""} mt-2`}  >{props.children}</p>
-}
-{
 
-}
+
 
 // the drawer can be
 // full screen | overlay | side

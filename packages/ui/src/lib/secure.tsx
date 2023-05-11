@@ -1,6 +1,6 @@
 import { Component, For, Show, createSignal } from "solid-js"
 import { Checkbox, FieldSet, Input, TextDivider, ToggleSection } from "./form"
-import { LoginWith } from "./login_with"
+import { LoginWith } from "../login/login_with"
 import { A, H2, InlineButton, P, Page, Title } from "../layout/nav"
 import { security, site, welcome } from "./crypto"
 // this should be a settings page that is the start page on a new account

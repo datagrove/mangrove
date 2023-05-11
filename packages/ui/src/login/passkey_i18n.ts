@@ -73,6 +73,7 @@ const en = {
     cancel: "Cancel",
     enterCode: "123456",
     test: "Test",
+    changeLoginSettings: "Change login settings",
 
     "passkey": "Passkey",
     "passkeyp": "Passkey and Password",
