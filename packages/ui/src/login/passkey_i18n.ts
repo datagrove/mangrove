@@ -73,6 +73,13 @@ const en = {
     cancel: "Cancel",
     enterCode: "123456",
     test: "Test",
+
+    "passkey": "Passkey",
+    "passkeyp": "Passkey and Password",
+    "totp": "Time Code",
+    "totpp": "Time Code and Password",
+    "app": "Phone App",
+    "ssh": "SSH",
 }
 type Ln = typeof en
 const es: Ln = {

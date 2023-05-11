@@ -1,5 +1,5 @@
 import { Component, JSX, Match, Setter, Show, Signal, Switch, createEffect, createSignal, onMount } from "solid-js"
-import { CheckboxSet, InputButton, KeyValue, KeyValueMap, LightButton, P, RadioGroup, Select } from "../lib/form"
+import { CheckboxSet, DecisionMap, InputButton, KeyValue, KeyValueMap, LightButton, P, RadioGroup, Select, StorePair, TernarySet } from "../lib/form"
 import { Input, LoginInfo } from "./passkey_add"
 import { Bb, H2, SimplePage } from "../layout/nav"
 
@@ -9,35 +9,18 @@ import { Disclosure } from "solid-headless";
 import { Login } from "./login";
 import { useNavigate } from "../core/dg";
 import { Db, Dp, ButtonSet, Bs1, Bs } from "./settings2";
-import { SetStoreFunction, createStore, produce, unwrap } from "solid-js/store";
+import { SetStoreFunction,  createStore, produce, unwrap } from "solid-js/store";
 
-const allOptions = {
-    social: [
-        "Apple",
-        "Google",
-        "Facebook",
-        "Twitter",
-        "Github",
-        "Microsoft"
-    ],
-    other: [
-        "Passkey",
-        "Passkey and Password",
-        "TOTP",
-        "TOTP and Password",
-        "Email",
-        "Phone",
-        "App",
-        "SSH"]
-}
-function makeKvm(list: string[]): KeyValueMap {
-    const o: KeyValueMap = {}
-    list.forEach((k) => o[k] = k)
-    return o
-}
+// roleset limits what you can do, and what you can see
+// there is no limit on what the admin user sees.
+
+// multivalue logic gets super awkward with the admin choosing which options are available. Try to do everything with binary/ternary logic
+// -1 = don't care, 0 = no, 1 = yes
+
 export interface RoleSet {
-    [key: string]: KeyValueMap
+    [key: string]: DecisionMap
 }
+
 
 // this is what we can load and save per user
 export interface Settings {
@@ -51,6 +34,42 @@ export interface Settings {
     app: number
     social: KeyValueMap
 }
+const allOptions = {
+    social: [
+        "Apple",
+        "Google",
+        "Facebook",
+        "Twitter",
+        "Github",
+        "Microsoft"
+    ],
+    other: [
+        "passkey",
+        "passkeyp",
+        "totp",
+        "totpp",
+        "email",
+        "phone",
+        "app",
+        "ssh"]
+}
+function makeKvm(list: string[]): KeyValueMap {
+    const o: KeyValueMap = {}
+    list.forEach((k) => o[k] = -1)
+    return o
+}
+const defaultOptions: RoleSet = {
+    "Admin": {
+        "Admin": "1",
+        ...makeKvm(allOptions.social),
+        ...makeKvm(allOptions.other)
+    },
+    "Base": {
+        "Admin": "0",
+        ...makeKvm(allOptions.social),
+        ...makeKvm(allOptions.other)
+    }
+}
 
 const defaultSettings: Settings = {
     role: "Admin",
@@ -63,22 +82,9 @@ const defaultSettings: Settings = {
     app: 0,
     social: {}
 }
-const defaultOptions: RoleSet = {
-    "Admin": {
-        "Admin": true,
-        ...makeKvm(allOptions.social),
-        ...makeKvm(allOptions.other)
-    },
-    "Base": {
-        ...makeKvm(allOptions.social),
-        ...makeKvm(allOptions.other)
-    }
-}
 
 // not stored, this represents possible options
 
-
-type Store<T> = [T, SetStoreFunction<T>]
 
 // how do we skip this page if we are already logged in? do we want to?
 export const SettingsPage: Component<{}> = (props) => {
@@ -86,9 +92,16 @@ export const SettingsPage: Component<{}> = (props) => {
     const ln = useLn()
     const nav = useNavigate()
 
-    const [settings, setSettings] = createStore<Settings>(defaultSettings)
+    // there is a set of options for each security role
+    // eg. 2FA may be required for staff, but optional for guests
     const [opt, setOpt] = createStore<RoleSet>(defaultOptions)
+
+    // settings are the options selected by the user from the options made available by the host admin
+    const [settings, setSettings] = createStore<Settings>(defaultSettings)
+
+
     const [login, setLogin] = createSignal(true)
+    const [dataUrl, setDataUrl] = createSignal<string>("")
 
     // we should use a resource like thing to get the current settings using the secret that's in the login info.
     const finishLogin = async (l: LoginInfo) => {
@@ -96,6 +109,13 @@ export const SettingsPage: Component<{}> = (props) => {
         console.log("settings", o)
         if (e) {
             return
+        }
+        const bl = new Blob([settings.img!], { type: 'image/png' });
+        const reader = new FileReader();
+        reader.readAsDataURL(bl);
+        reader.onloadend = () => {
+            const dataUrl = reader.result as string;
+            setDataUrl(dataUrl)
         }
         setSettings(o!)
         setLogin(true)
@@ -115,6 +135,7 @@ export const SettingsPage: Component<{}> = (props) => {
                 <FactorSettings
                     opt={[opt, setOpt]}
                     settings={[settings, setSettings]}
+                    totpImg = { dataUrl()}
                 />
                 <div class='mt-2' ><ButtonSet>
                     <Bs1 onClick={() => done(true)}>{ln().save}</Bs1>
@@ -130,50 +151,53 @@ export const SettingsPage: Component<{}> = (props) => {
     </SimplePage>
 }
 const kvl = (k: string[]): KeyValue[] => k.map(x => [x, x])
-export const FactorSettings: Component<{ settings: Store<Settings>, opt: Store<RoleSet> }> = (props) => {
+
+export const FactorSettings: Component<{ 
+    settings: StorePair<Settings>, 
+    opt: StorePair<RoleSet> 
+    totpImg: string
+    }> = (props) => {
+    // does this lose reactivity? is the nested role a problem?
+    const [settings, setSettings] = props.settings
+    const [opt, setOpt] = props.opt
+    console.log("settings", settings)
+    console.log("opt", opt)
+    const getRoleOpt = () : DecisionMap => {
+        return opt[role()]
+    }
     const ws = createWs()
     const ln = useLn()
     const nav = useNavigate()
-    const [settings, setSettings] = props.settings
-    const [opt, setOpt] = props.opt
 
-    const myopt = () => opt[settings.role]
+    const roles = kvl(Object.keys(opt))
 
-    console.log("settings", settings)
-    console.log("opt", opt)
-    console.log("myopt", myopt())
-
-
-    const [role, setRole] = createSignal(settings.role)
-
-    // user options
-    const [sopt, setSopt] = createSignal<KeyValueMap>(settings.social)
-    // site options
-    const [ropt, setRopt] = createSignal<KeyValueMap>(myopt())
-
-
-
-    const [dataUrl, setDataUrl] = createSignal<string>("")
     const [code, setCode] = createSignal("")
     // these need errors in the input group, figure out cell state
     const [error, setError] = createSignal<{ [key: string]: JSX.Element }>({})
-    const roles = kvl(["Base", "Admin"])
-    const options = kvl([
-        ...allOptions.other,
-        ...allOptions.social
-    ])
+    const [role, setRole] = createSignal(settings.role)
+
+    const hasOpt = (key: string) => {
+        return opt[role()][key] !== undefined
+    }
+
+    // the problem is that the ternaryset is not seeing this set event?
+    // can it manage its own internally? this isn't ideal because we want to have cells that can react to the database
+    const setOpt1 = (key: string, val: string) => {
+        setOpt(role(), produce((o:DecisionMap) => {
+            o[key] = val
+            console.log("setopt1", opt[role()], role(), key, val)
+        }))
+    }
+    const setSetting =  (key: string, val: number) => {
+        setSettings(produce((s:Settings) => {
+            s.social[key] = val
+        }))
+    }
+
     const redText = (s: string) => {
         return <div class="text-sm text-red-600 ">{s}</div>
     }
-    onMount(async () => {
-        const bl = new Blob([settings.img!], { type: 'image/png' });
-        const reader = new FileReader();
-        reader.readAsDataURL(bl);
-        reader.onloadend = () => {
-            const dataUrl = reader.result as string;
-            setDataUrl(dataUrl)
-        }
-    })
+
 
     const ok = "Success!"
     const testOtp = async () => {
@@ -217,6 +241,9 @@ export const FactorSettings: Component<{ settings: Store<Settings>, opt: Store<R
 
     const open = false
 
+
+
+
     const PasskeySet: Component<{}> = (props) => {
         const opts: KeyValue[] = [
             ["0", "Passkey only"],
@@ -254,7 +281,7 @@ export const FactorSettings: Component<{ settings: Store<Settings>, opt: Store<R
     return <div class='space-y-6'>
         <P>Activate one or more factors to protect your account. </P>
 
-        <Show when={ropt()["Passkey"]}> <Disclosure defaultOpen={open} as='div'>
+        <Show when={hasOpt('Passkey')||hasOpt('Passkeyp')}> <Disclosure defaultOpen={open} as='div'>
             <Db> Passkey: {active(settings.passkey != 2)}</Db>
             <Dp>
                 <PasskeySet />
@@ -272,7 +299,7 @@ export const FactorSettings: Component<{ settings: Store<Settings>, opt: Store<R
         <Disclosure defaultOpen={open} as='div'>
             <Db> Time Based Code: {active(settings.totp != 2)}</Db>
             <Dp>
-                <div class=''><img class='mt-2' src={dataUrl()} /></div>
+                <div class=''><img class='mt-2' src={props.totpImg} /></div>
                 <TotpSet />
 
                 <P>Scan the QR code with a time based password program like Google Authenticator or Authy. Then enter the code it generates below to test</P>
@@ -339,19 +366,26 @@ export const FactorSettings: Component<{ settings: Store<Settings>, opt: Store<R
             </Dp>
         </Disclosure>
         <Disclosure defaultOpen={open} as='div'>
-            <Db>Sign in with Apple, etc</Db>
+            <Db>Social signin</Db>
             <Dp>
-                <div><CheckboxSet opts={kvl(allOptions.social)} value={[sopt, setSopt]} /> </div>
+                <div><CheckboxSet 
+                    opts={kvl(allOptions.social)} 
+                    value={settings.social}
+                    setValue={setSetting}
+                     /> </div>
             </Dp>
         </Disclosure>
-        <Show when={ropt()["Admin"]}>
+        <Show when={settings.role=="Admin"}>
             <Disclosure defaultOpen={open} as='div'>
                 <Db>Admin: Login Options</Db>
                 <Dp>
                     <div>
                         <div class='mb-2'>
                             <Select opts={roles} value={[role, setRole]} /></div>
-                        <CheckboxSet opts={options} value={[ropt, setRopt]} />
+                        <TernarySet 
+                            opts={kvl([...allOptions.other,...allOptions.social])}
+                            value={getRoleOpt()}
+                            setValue={setOpt1} />
                     </div>
                 </Dp>
             </Disclosure>

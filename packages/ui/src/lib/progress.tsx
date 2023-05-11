@@ -22,24 +22,6 @@ export const Select: Component<{}> = () => {
 
 
 
-//       <!-- Current: "text-gray-900", Default: "text-gray-500 hover:text-gray-700" -->
-export const Segment: Component<{ option: string[], value: () => string, onChange: (_: string) => void }> = (props) => {
-    const ln = useLn()
-
-    const selected = (x: boolean) => "block text-center flex-1 rounded-md px-3 py-2 text-sm font-medium " + (x ? "bg-gray-100 text-gray-700" : "text-gray-500 hover:text-gray-700")
-    return <div>
-        <div class="hidden sm:block">
-            <nav class="isolate flex rounded-lg shadow" aria-label="Tabs">
-                <For each={props.option}>{(e, i) => {
-
-                    let cl = () => selected(e === props.value())
-                    return <a href="#" onClick={() => props.onChange(e)} class={cl()} aria-current="page">{lx(e)}</a>
-                }}</For>
-            </nav>
-        </div>
-    </div>
-}
-
 
 
 const Underline: Component<{ checked: boolean }> = (props) => {

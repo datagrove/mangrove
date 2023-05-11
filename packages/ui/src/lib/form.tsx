@@ -1,6 +1,9 @@
 import { ButtonProps } from "solid-headless"
-import { Accessor, Component, For, JSX, JSXElement, ParentComponent, Show, Signal, createSignal } from "solid-js"
+import { Accessor, Component, For, JSX, JSXElement, ParentComponent, Show, Signal, createEffect, createSignal } from "solid-js"
 import { Bb } from "../layout/nav"
+import { SetStoreFunction, Store, produce } from "solid-js/store"
+import { BlobOptions } from "buffer"
+import { lx, useLn } from "../login/passkey_i18n"
 
 
 export const FieldSet: Component<{ children: JSXElement }> = (props) => {
@@ -87,49 +90,43 @@ export const TextDivider: Component<{ children: string }> = (props) => {
         </div>
     </div>
 }
-
+export type StorePair<T> = [T, SetStoreFunction<T>]
 const ax = createSignal<{ [key: string]: boolean }>({})
-export type KeyValue = [string, any]
+export type KeyValue = [string, string]
 export type KeyValueMap = {
     [key: string]: any
 }
-
+export type DecisionMap = {
+    [key: string]: string
+}
+// probably make this generic, not requrire number.
 export const CheckboxSet: Component<{
     opts: KeyValue[],
-    value: Signal<KeyValueMap>,
+    value: DecisionMap,
+    setValue: (x: string, y: number) => void
 }> = (props) => {
-    const [value, setValue] = props.value
+    const setAll = (v: number) => {
 
-    const set = (key: string, v: boolean) => {
-        setValue({
-            ...value(),
-
-            [key]: v ? key : undefined
-
-        })
-    }
-
-    const setAll = (v: boolean) => {
-        const o: KeyValueMap = {}
         for (let x of props.opts) {
-            o[x[0]] = v ? x[0] : undefined
+            props.setValue(x[0], v)
         }
-        setValue(o)
+
     }
 
     return <>
-        <div class='flex mb-2 space-x-4 font-medium'><Bb onClick={() => { setAll(true) }}>ALL</Bb>  <Bb onClick={() => { setAll(false) }}>NONE</Bb></div>
+        <div class='flex mb-2 space-x-4 font-medium'><Bb onClick={() => { setAll(1) }}>ALL</Bb>  <Bb onClick={() => { setAll(0) }}>NONE</Bb></div>
         <fieldset>
             <For each={props.opts}>{(e, i) => {
                 return <Checkbox
-                    checked={() => value()[e[0]] != undefined}
-                    onChange={(x: boolean) => { set(e[0], x) }} >
+                    checked={() => props.value[e[0]] == "1"}
+                    onChange={(x: boolean) => { props.setValue(e[0], x ? 1 : 0) }} >
                     {e[1]}</Checkbox>
             }}</For>
 
         </fieldset>
     </>
 }
+
 
 export const Select: Component<{
     opts: KeyValue[]
@@ -156,8 +153,85 @@ export const Select: Component<{
     </div>
     );
 };
+//       <!-- Current: "text-gray-900", Default: "text-gray-500 hover:text-gray-700" -->
+export const Segment: Component<{
+    option: KeyValue[],
+    value: string,  // can't really be any, its used as key in a map
+    onChange: (_: any) => void
+}> = (props) => {
+    const ln = useLn()
 
+    const onClick = (k: string) => {
+        console.log("click", k)
+        props.onChange(k)
+    }
+    const selected = (x: boolean) => "block text-center flex-1 rounded-md px-3 py-2 text-sm font-medium " + (x ? "bg-gray-100 text-gray-700" : "text-gray-500 hover:text-gray-700")
+    return <div>
+        <div class="hidden sm:block">
+            <nav class="isolate flex rounded-lg shadow" aria-label="Tabs">
+                <For each={props.option}>{(e: KeyValue, i) => {
+                    let [k, desc] = e
+                    return <a href="#" 
+                        onClick={()=>onClick(k)} 
+                        class={selected(k == props.value)} 
+                        aria-current="page">{desc}</a>
+                }}</For>
+            </nav>
+        </div>
+    </div>
+}
+/*
+<Checkbox
+                    checked={() => props.value[e[0]] ==1}
+                    onChange={(x: boolean) => { props.setValue(e[0], 1) }} >
+                    {e[1]}</Checkbox>*/
 
+export interface TernarySetProps {
+    opts: KeyValue[],
+    value: Store<DecisionMap>,  // intended to be a proxy from createstore
+    setValue: (x: string, y: string) => void
+}
+export function TernarySet(props:TernarySetProps){
+    const setAll = (v: string) => {
+        for (let x of props.opts) {
+            props.setValue(x[0], v)
+        }
+    }
+    // when should this be called? when the value changes? any props?
+    createEffect(()=>{
+        console.log("ternary set",props.value)
+    })
+
+    const val = (k: string) => {
+        return props.value[k]
+    }
+    const setVal = (k: string, v: string) => {
+        console.log("setval",k,v)
+        props.setValue(k, v)
+    }
+    // this is called every time its mounted by disclosure.
+    return <>
+        <div class='flex mb-2 space-x-4 font-medium'>
+            <div>Set All:</div>
+            <div ><Bb onClick={() => { setAll("1") }}>YES</Bb></div>
+            <div><Bb onClick={() => { setAll("0") }}>NO</Bb></div>
+            <div ><Bb onClick={() => { setAll("-1") }}>ALLOW</Bb></div></div>
+        <fieldset class='space-y-2'>
+            <For each={props.opts}>{(e, i) => {
+                const [k, v] = e
+                return <div class='flex items-center'>
+                    <div class='w-48'><Segment option={[
+                        ["1", 'Yes'],
+                        ["0", 'No'],
+                        ["-1", 'Allow']
+                    ]}
+                        value={val(k)}
+                        onChange={(v)=>setVal(k,v)} /></div>
+                    <div class='ml-6'>{e[1]}  </div></div>
+            }}</For>
+        </fieldset>
+    </>
+}
 
 export const Heading: Component<{ children: string, title: string }> = (props) => {
     return <><label class="text-base font-semibold text-gray-900">{props.title}</label>

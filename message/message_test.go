@@ -37,7 +37,16 @@ func Test_sms(t *testing.T) {
 	}
 
 }
-
+func Test_sms_aws(t *testing.T) {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	err = Sms_aws("+14843664923", "yo, wassup from aws")
+	if err != nil {
+		panic(err)
+	}
+}
 func Test_voice(t *testing.T) {
 	err := godotenv.Load()
 	if err != nil {

@@ -7,6 +7,8 @@ github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f h1:tCbYj7/299ek
 github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f/go.mod h1:gcr0kNtGBqin9zDW9GOHcVntrwnjrK+qdJ06mWYBybw=
 github.com/ProtonMail/gopenpgp/v2 v2.6.1 h1:/10PjfK/3JrJl3mXfV27US8sAYd3CX3wl9GkPjG4xZU=
 github.com/ProtonMail/gopenpgp/v2 v2.6.1/go.mod h1:/BU5gfAVwqyd8EfC3Eu7zmuhwYQpKs+cGD8M//iiaxs=
+github.com/Timothylock/go-signin-with-apple v0.2.0 h1:vP/4aKkp1eX2bGizNanWR79yixL3hWnwnxhvqr1hufk=
+github.com/Timothylock/go-signin-with-apple v0.2.0/go.mod h1:EwflTtMTDy1azEwzpQHgAKgSDzogPwdp0eHK8znMiOY=
 github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da h1:KjTM2ks9d14ZYCvmHS9iAKVt9AyzRSqNU1qabPih5BY=
 github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da/go.mod h1:eHEWzANqSiWQsof+nXEI9bUVUyV6F53Fp89EuCh2EAA=
 github.com/aead/chacha20poly1305 v0.0.0-20170617001512-233f39982aeb h1:6Z/wqhPFZ7y5ksCEV/V5MXOazLaeu/EW97CU5rz8NWk=
