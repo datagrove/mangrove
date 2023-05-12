@@ -15,22 +15,19 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func AddHandlers(p *mux.Router, host, prefix string) {
+func AddHandlers(p *mux.Router, host, prefix string, done func(res http.ResponseWriter, req *http.Request, user goth.User)) {
 	godotenv.Load()
-	gothic.Store = sessions.NewCookieStore([]byte("<your secret here>"))
+	gothic.Store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_SECRET")))
 	goth.UseProviders(
 		google.New(os.Getenv("GOOGLE_KEY"), os.Getenv("GOOGLE_SECRET"), host+prefix+"/google/callback"),
 	)
 	p.HandleFunc(prefix+"/{provider}/callback", func(res http.ResponseWriter, req *http.Request) {
 		user, err := gothic.CompleteUserAuth(res, req)
+
 		if err != nil {
 			return
 		}
-		b, e := json.Marshal(&user)
-		if e != nil {
-			return
-		}
-		res.Write(b)
+		done(res, req, user)
 	})
 
 	// starts the process.

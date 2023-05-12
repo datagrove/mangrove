@@ -14,10 +14,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/datagrove/mangrove/oauth"
 	"github.com/gliderlabs/ssh"
+	"github.com/gorilla/mux"
 	"github.com/lesismal/llib/std/crypto/tls"
 	"github.com/lesismal/nbio/nbhttp"
 	"github.com/lesismal/nbio/nbhttp/websocket"
+	"github.com/markbates/goth"
 	"github.com/pkg/sftp"
 
 	"github.com/fsnotify/fsnotify"
@@ -185,6 +188,7 @@ type spaFileSystem struct {
 func (fs *spaFileSystem) Open(name string) (http.File, error) {
 	f, err := fs.root.Open(name)
 	if os.IsNotExist(err) {
+		log.Printf("not found %s", name)
 		return fs.root.Open("index.html")
 	}
 	return f, err
@@ -195,14 +199,38 @@ func (fs *spaFileSystem) Open(name string) (http.File, error) {
 func NewServer(optc *Config) (*Server, error) {
 
 	var staticFS = fs.FS(optc.Ui)
-	// should this be in config?
+	// ui/dist should be in config?
 	htmlContent, err := fs.Sub(staticFS, "ui/dist")
 	if err != nil {
 		return nil, err
 	}
 	fs := http.FileServer(&spaFileSystem{http.FS(htmlContent)})
 
-	mux := http.NewServeMux()
+	mmux := mux.NewRouter()
+	done := func(w http.ResponseWriter, r *http.Request, user goth.User) {
+		// here we have to do our fake login and set the cookies.
+		// we have to try to get the password from our database.
+		// pass, e := s.GetPasswordFromEmail(user.Email)
+		// if e != nil {
+		// 	// !!todo this email address has not been registered, we need to allow them to enter their password first
+		// 	// we should prepopulate their email address and store their choice of social login. Put these in local storage?
+		// 	http.Redirect(w, r, prefix+"/en/login", http.StatusFound)
+		// }
+		// u, e := proxyLogin(user.Email, pass)
+		// if e != nil {
+		// 	log.Printf("failed to login %s", e.Error())
+		// 	return
+		// }
+		// // this should be simpler, post the email and password to the login and be done with it?
+		// for _, c := range u.Cookies {
+		// 	if strings.HasPrefix(c, "login=") {
+		// 		w.Header().Add("Set-Cookie", c+"; Path=/; ")
+		// 		log.Printf("cookie %s", c)
+		// 	}
+		// }
+		http.Redirect(w, r, "/home", http.StatusFound)
+	}
+	oauth.AddHandlers(mmux, "http://localhost:3000", "/datagrove", done)
 
 	var tlsConfig *tls.Config
 	if len(optc.AddrsTLS) > 0 {
@@ -221,7 +249,7 @@ func NewServer(optc *Config) (*Server, error) {
 		}
 	}
 
-	handler := cors.Default().Handler(mux)
+	handler := cors.Default().Handler(mmux)
 	ws := nbhttp.NewServer(nbhttp.Config{
 		Network: "tcp",
 		// either can be empty
@@ -237,7 +265,7 @@ func NewServer(optc *Config) (*Server, error) {
 	svr := &Server{
 		Config:       optc,
 		Db:           db,
-		Mux:          mux,
+		Mux:          mmux,
 		Home:         "",
 		Ws:           ws,
 		Cert:         "",

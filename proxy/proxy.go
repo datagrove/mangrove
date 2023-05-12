@@ -12,8 +12,10 @@ import (
 	"github.com/datagrove/mangrove/oauth"
 	"github.com/datagrove/mangrove/scrape"
 	"github.com/datagrove/mangrove/server"
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/gorilla/mux"
 	"github.com/kardianos/service"
+	"github.com/markbates/goth"
 )
 
 var (
@@ -25,13 +27,6 @@ var (
 const (
 	userFieldName = "ctl01$TemplateBody$WebPartManager1$gwpciNewContactSignInCommon$ciNewContactSignInCommon$signInUserName"
 	passFieldName = "ctl01$TemplateBody$WebPartManager1$gwpciNewContactSignInCommon$ciNewContactSignInCommon$signInPassword"
-
-	emailFieldName = "ctl01$TemplateBody$WebPartManager1$gwpciNewContactAccountCreatorCommon$ciNewContactAccountCreatorCommon$Email"
-
-	passCreateFieldName = "ctl01$TemplateBody$WebPartManager1$gwpciNewContactAccountCreatorCommon$ciNewContactAccountCreatorCommon$Password"
-
-	phoneFieldName  = "ctl01$TemplateBody$WebPartManager1$gwpciNewContactAccountCreatorCommon$ciNewContactAccountCreatorCommon$Phone"
-	mobileFieldName = "ctl01$TemplateBody$WebPartManager1$gwpciNewContactAccountCreatorCommon$ciNewContactAccountCreatorCommon$MobilePhone"
 )
 
 func main() {
@@ -41,6 +36,7 @@ func main() {
 	imis := "https://datagrove_servr"
 	host := proxy_proto + "://" + proxy_ip
 	prefix := "/auth"
+	home := proxy_proto + "://" + proxy_ip + "/iSamples/MemberR/MemberHome.aspx"
 
 	proxyLogin := func(user, password string) (*server.ProxyLogin, error) {
 		cl, e := scrape.NewClient(imis + "/iCore/Contacts/Sign_In.aspx?LoginRedirect=true&returnurl=%2fMBRR")
@@ -61,7 +57,7 @@ func main() {
 					enc = append(enc, c.String())
 				}
 				pl := &server.ProxyLogin{
-					Home:    proxy_proto + "://" + proxy_ip + "/iSamples/MemberR/MemberHome.aspx",
+					Home:    home,
 					Email:   "",
 					Phone:   "",
 					Cookies: enc,
@@ -92,37 +88,27 @@ func main() {
 		}
 
 		ProxyRequestHandler := func(w http.ResponseWriter, r *http.Request) {
+			log.Printf("Url %s", r.URL.Path)
 			if r.URL.Path == "/" {
 				http.Redirect(w, r, "/MBRR/", http.StatusFound)
 				return
 			}
+
+			// this is the signin. If they have previously chosen a social login we can try that first, then fall back to the proxy login
+			// the social login can be stored in a cookie, so that we get it back here.
 			if strings.HasPrefix(r.URL.Path, "/iCore/Contacts/Sign_In") ||
 				strings.HasPrefix(r.URL.Path, "/MBRR/SignIn") {
+
+				// get the cookie indicating the social login, then redirect to the social login
+				// note that this is not too obscure because we likely have timed them out of the site cookie, but they will be logged into their social account
+				// we don't want to check automatically, because that's going to potentially pull them away from the site and show unrequest dialogs
+				// with some logins (e.g. google) we can check automatically and show them as logged in even from the home page.
+				// google identity services. automatic signin
+
 				http.Redirect(w, r, prefix+"/en/login", http.StatusFound)
 				return
 			}
-			// we don't need to do anything with create.
-			if false && strings.HasPrefix(r.URL.Path, "/MBRR/iCore/Contacts/CreateAccount.aspx") && r.Method == "POST" {
-				// parse the form, get email and password
-				r.ParseForm()
-				email := r.Form.Get(emailFieldName)
-				pass := r.Form.Get(passCreateFieldName)
-				phone := r.Form.Get(phoneFieldName)
-				mobile := r.Form.Get(mobileFieldName)
-				if len(mobile) > 0 {
-					phone = mobileFieldName
-				}
 
-				log.Printf("email: %s, pass: %s", email, pass)
-
-				r.Host = pt.Host
-				proxy.ServeHTTP(w, r)
-				// if the response is ok, then create the user and password.
-				ok := true
-				if ok {
-					s.CreateUser(email, pass, phone)
-				}
-			}
 			if strings.HasPrefix(r.URL.Path, prefix+"/") || r.URL.Path == prefix {
 				if r.URL.Path == prefix+"/wss" {
 					s.WsHandler(w, r)
@@ -137,23 +123,56 @@ func main() {
 			}
 		}
 
+		done := func(w http.ResponseWriter, r *http.Request, user goth.User) {
+			// here we have to do our fake login and set the cookies.
+			// we have to try to get the password from our database.
+			pass, e := s.GetPasswordFromEmail(user.Email)
+			if e != nil {
+				// !!todo this email address has not been registered, we need to allow them to enter their password first
+				// we should prepopulate their email address and store their choice of social login. Put these in local storage?
+				http.Redirect(w, r, prefix+"/en/login", http.StatusFound)
+			}
+			u, e := proxyLogin(user.Email, pass)
+			if e != nil {
+				log.Printf("failed to login %s", e.Error())
+				return
+			}
+			// this should be simpler, post the email and password to the login and be done with it?
+			for _, c := range u.Cookies {
+				if strings.HasPrefix(c, "login=") {
+					w.Header().Add("Set-Cookie", c+"; Path=/; ")
+					log.Printf("cookie %s", c)
+				}
+			}
+			http.Redirect(w, r, home, http.StatusFound)
+		}
+		//
 		mux := mux.NewRouter()
 		mux.HandleFunc("/", ProxyRequestHandler)
 		mux.NotFoundHandler = http.HandlerFunc(ProxyRequestHandler)
-		oauth.AddHandlers(mux, host, prefix)
+		oauth.AddHandlers(mux, host, prefix, done)
+		mux.HandleFunc("/wss", func(w http.ResponseWriter, r *http.Request) {
+			s.WsHandler(w, r)
+		})
 		log.Fatal(http.ListenAndServe(":3000", mux))
 		return nil
 	}
-
+	wconfig := &webauthn.Config{
+		RPDisplayName: "Go Webauthn",                                                                         // Display Name for your site
+		RPID:          "localhost",                                                                           // Generally the FQDN for your site
+		RPOrigins:     []string{"https://localhost:5078", "http://localhost:3000", "https://localhost:5783"}, // The origin URLs allowed for WebAuthn requests
+	}
 	opt := &server.Config{
 		Config: service.Config{
 			Name: "ImisProxy",
 		},
 		ConfigJson: server.ConfigJson{
-			AddrsTLS:    []string{},
-			Addrs:       []string{proxy_ip},
-			EmailSource: "jimh@datagrove.com",
+			AddrsTLS:      []string{},
+			Addrs:         []string{proxy_ip},
+			EmailSource:   "jimh@datagrove.com",
+			PasskeyConfig: wconfig,
 		},
+		// this replaces the default behavior so we can controll all urls
 		Start:      start,
 		ProxyLogin: proxyLogin,
 		Ui:         Res,
@@ -162,3 +181,36 @@ func main() {
 	cmd := server.DefaultCommands(opt)
 	cmd.Execute()
 }
+
+/*
+	emailFieldName = "ctl01$TemplateBody$WebPartManager1$gwpciNewContactAccountCreatorCommon$ciNewContactAccountCreatorCommon$Email"
+
+	passCreateFieldName = "ctl01$TemplateBody$WebPartManager1$gwpciNewContactAccountCreatorCommon$ciNewContactAccountCreatorCommon$Password"
+
+	phoneFieldName  = "ctl01$TemplateBody$WebPartManager1$gwpciNewContactAccountCreatorCommon$ciNewContactAccountCreatorCommon$Phone"
+	mobileFieldName = "ctl01$TemplateBody$WebPartManager1$gwpciNewContactAccountCreatorCommon$ciNewContactAccountCreatorCommon$MobilePhone"
+
+
+	// we don't need to do anything with create.
+	if false && strings.HasPrefix(r.URL.Path, "/MBRR/iCore/Contacts/CreateAccount.aspx") && r.Method == "POST" {
+		// parse the form, get email and password
+		r.ParseForm()
+		email := r.Form.Get(emailFieldName)
+		pass := r.Form.Get(passCreateFieldName)
+		phone := r.Form.Get(phoneFieldName)
+		mobile := r.Form.Get(mobileFieldName)
+		if len(mobile) > 0 {
+			phone = mobileFieldName
+		}
+
+		log.Printf("email: %s, pass: %s", email, pass)
+
+		r.Host = pt.Host
+		proxy.ServeHTTP(w, r)
+		// if the response is ok, then create the user and password.
+		ok := true
+		if ok {
+			s.CreateUser(email, pass, phone)
+		}
+	}
+*/

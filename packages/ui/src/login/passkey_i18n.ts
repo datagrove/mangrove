@@ -74,13 +74,16 @@ const en = {
     enterCode: "123456",
     test: "Test",
     changeLoginSettings: "Change login settings",
-
+    welcomeback: "Welcome back!",
+    help: "Get Help",
+    ifnew: "Start 14 Day free trial!",
     "passkey": "Passkey",
     "passkeyp": "Passkey and Password",
     "totp": "Time Code",
     "totpp": "Time Code and Password",
     "app": "Phone App",
     "ssh": "SSH",
+    continueWith: "Or continue with",
 }
 type Ln = typeof en
 const es: Ln = {
@@ -103,6 +106,17 @@ const iw: Ln = {
     show: "הצג",
     hide: "הסתר",
     register: "צור חשבון",
+    addPasskey1: "האם ברצונך להוסיף קוד סודי לחשבונך?",
+    addPasskey2: "קודי סודי הם יותר בטוחים מסיסמאות וניתן להשתמש בהם להתחברות לחשבונך.",
+    add: "הוסף",
+    notNow: "לא עכשיו",
+    notEver: "לא",
+    enterUsername: "הזן שם משתמש",
+    welcomeback: "ברוך שובך",
+    enterPassword: "הזן סיסמה",
+    forgotPassword: "שכחת סיסמה?",
+    forgotUsername: "שכחת שם משתמש?",
+    changeLoginSettings: "שנה הגדרות התחברות",
 }
 const allLn: { [key: string]: Ln } = {
     en,

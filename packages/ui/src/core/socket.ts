@@ -56,6 +56,7 @@ export class Ws {
     ws?: WebSocket
     listen = new Map<number, (r: UpdateRow<any>[]) => void>()
     constructor(public url: string) {
+        
     }
     async did(): Promise<string> {
         return new Promise((resolve, reject) => {
@@ -70,8 +71,22 @@ export class Ws {
 
     connect(): Promise<any> {
         this.ws = new WebSocket(this.url)
+        if (!this.ws) {
+            throw new Error("no websocket")
+        }
         this.ws.onclose = (e) => {
             this.ws = undefined
+        }
+        this.ws.onerror = (e) => {
+            console.log("websocket error", e)
+            this.ws = undefined
+        }
+        this.ws.onclose = (e) => {      
+            console.log("websocket close", e)
+            this.ws = undefined
+        }
+        this.ws.onopen = () => {
+            console.log("websocket open")
         }
         this.ws.onmessage = async (e: MessageEvent) => {
             // we need to parse the message.
@@ -221,7 +236,9 @@ export class Ws {
 
 let ws_: Ws //= new Ws('ws://localhost:8088/wss')
 export function initWs(url: string) {
+    console.log("initWs", url)
     ws_ = new Ws(url )
+    ws_.connect()
 }
 export function createWs(url?: string): Ws {
     return ws_

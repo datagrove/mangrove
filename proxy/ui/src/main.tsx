@@ -1,6 +1,6 @@
 import "./index.css"
 import { render } from "solid-js/web"
-import { LoginPage, initWs, } from '../../../packages/ui/src'
+import { LoginPage, SettingsPage, initWs, } from '../../../packages/ui/src'
 import { Route, Router, Routes } from "../../../packages/ui/src/core/dg"
 
 const prefix = "/auth"
@@ -13,9 +13,10 @@ function Login() {
 }
 
 function App() {
+    //return <div>{`${prefix}/:ln/login`}</div>
     return <Routes>
-        <Route path={`${prefix}/:ln/login" component={Login}`} />
-        <Route path={`${prefix}/:ln/settings" component={SettingsPage}`} />
+        <Route path={`${prefix}/:ln/login`} component={Login} />
+        <Route path={`${prefix}/:ln/settings`} component={SettingsPage} />
         <Route path="*">
             <div>404 </div>
         </Route>
@@ -23,7 +24,7 @@ function App() {
 }
 
 let s = `ws://${window.location.host}${prefix}/wss`
-//s = `ws://localhost:8080/${prefix}/wss`
+s = `ws://localhost:3000/wss`
 initWs(s)
 render(() => (<Router><App /></Router>), document.getElementById("app")!)
 

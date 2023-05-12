@@ -9,6 +9,8 @@ import (
 	"sync"
 
 	"github.com/gliderlabs/ssh"
+	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/gorilla/mux"
 	"github.com/kardianos/service"
 	"github.com/lesismal/nbio/nbhttp"
 	"github.com/skip2/go-qrcode"
@@ -22,7 +24,7 @@ type Server struct {
 	*Config
 	*Db
 	//*FileWatcher
-	Mux  *http.ServeMux
+	Mux  *mux.Router //*http.ServeMux
 	Home string
 	Ws   *nbhttp.Server
 	Cert string
@@ -94,8 +96,9 @@ type ConfigJson struct {
 	Https string `json:"https,omitempty"`
 	Sftp  string `json:"sftp,omitempty"`
 
-	HttpsCert    string `json:"https_cert,omitempty"`
-	HttpsPrivate string `json:"https_private,omitempty"`
+	HttpsCert     string           `json:"https_cert,omitempty"`
+	HttpsPrivate  string           `json:"https_private,omitempty"`
+	PasskeyConfig *webauthn.Config `json:"passkey_config,omitempty"`
 }
 type Config struct {
 	ConfigJson
@@ -195,6 +198,7 @@ func (s *Server) Start2() {
 	if s.Config.Start != nil {
 		log.Fatal(s.Config.Start(s))
 	} else {
+		s.Mux.NotFoundHandler = s.EmbedHandler
 		s.Mux.Handle("/", s.EmbedHandler)
 		s.Mux.HandleFunc("/wss", s.WsHandler)
 		// generate a QR from a url
@@ -210,6 +214,7 @@ func (s *Server) Start2() {
 		})
 
 		go s.Run()
-		log.Fatal(http.ListenAndServe(":8080", s.Mux))
+		log.Printf("listening on %s", s.Addrs[0])
+		log.Fatal(http.ListenAndServe(s.Addrs[0], s.Mux))
 	}
 }

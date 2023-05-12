@@ -2,10 +2,12 @@ import { Component, createSignal, Switch, Match } from "solid-js"
 import { createWs } from "../core/socket"
 import { BlueButton } from "../lib/form"
 
-import { PhoneInput, EmailInput, Username, Password, DirectiveText, email, password, phone, user, InputCell } from "./passkey_add"
+import { DirectiveText, email, password, phone, user } from "./passkey_add"
 import { useLn } from "./passkey_i18n"
-import { SimplePage } from "../layout/nav"
+
 import { cell } from "../db/client"
+import { InputCell } from "../lib/input"
+import { SimplePage } from "./simplepage"
 
 enum RecoverScreen {
     Recover,

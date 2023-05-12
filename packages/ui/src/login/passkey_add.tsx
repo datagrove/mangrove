@@ -14,19 +14,9 @@ import { Cell, CellOptions } from "../db/client";
 import { Ab, Bb } from "../layout/nav";
 import { on } from "events";
 import { FactorSettings } from "./settings";
+import { Input, InputProps } from "../lib/input";
 // type InputProps = JSX.HTMLAttributes<HTMLInputElement> & { placeholder?: string, autofocus?: boolean, name?: string, autocomplete?: string, type?: string, value?: string, id?: string, required?: boolean }
-type InputProps = {
-    reset?: () => string,   // should not be same signal as onInput
-    class?: string,
-    id?: string,
-    name?: string,
-    type?: string,
-    value?: string,
-    autocomplete?: string,
-    placeholder?: string,
-    autofocus?: boolean,
-    onInput?: (value: string) => void,
-}
+
 export const DirectiveText = (props: any) => {
     return <div class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</div>
 }
@@ -34,63 +24,7 @@ export const InputLabel = (props: any) => {
     return <div><label {...props} class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</label></div>
 }
 
-export const Input = (props: InputProps & { error?: () => JSX.Element }) => {
-    let inp!: HTMLInputElement
-    onMount(() => {
-        if (props.autofocus) {
-            setTimeout(() => inp.focus())
-        }
-    })
 
-    return <><div><input
-        {...props} ref={inp}
-        value={props.reset ? props.reset() : props.value}
-        onInput={props.onInput ? (e) => props.onInput!(e.target.value) : undefined}
-        class="block w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm sm:text-sm sm:leading-6 p-2" /></div>
-        <Show when={props.error && props.error()}>
-            <div class='mt-2'>{props.error!()}</div>
-        </Show>
-    </>
-}
-export const InputCell: Component<{ cell: Cell, autofocus?: boolean }> = (props) => {
-    const ln = useLn()
-    const n = props.cell.name
-    const setCell = (e: string) => {
-        props.cell.clearErrors()
-        props.cell.commit(e)
-    }
-    return <div >
-        <div class="flex items-center justify-between">
-            <InputLabel for={n} >{_(n)}</InputLabel>
-            <Show when={props.cell.topAction}>
-                <div />
-                <div>{props.cell.topAction!()}</div>
-            </Show>
-        </div>
-        <div >
-            <Input {...props} autofocus={props.autofocus || props.cell.autofocus} onInput={setCell} placeholder={_(n)} id={n} name={n} type={props.cell.type ?? "text"} autocomplete={props.cell.autocomplete} />
-        </div>
-        <div>
-            <Show when={props.cell.error()}>
-                <div class="text-sm text-red-600 mt-2">{props.cell.error()![0].message}</div>
-            </Show>
-        </div>
-
-    </div>
-}
-export const PasswordCell: Component<{ cell: Cell }> = (props) => {
-    const ln = useLn()
-    const [hide, setHide] = createSignal(true)
-    const top = () => <Bb onClick={() => setHide(!hide())} >{hide() ? ln().show : ln().hide}</Bb>
-    const c = () => {
-        return {
-            ...props.cell,
-            type: hide() ? "password" : "text",
-            topAction: top
-        }
-    }
-    return <InputCell cell={c()} />
-}
 // for 1199 I can create a password and send it.
 export const user: CellOptions = {
     name: "username",
@@ -110,7 +44,6 @@ export const email: CellOptions = {
 }
 
 
-
 export const Username: Component<InputProps> = (props) => {
     const ln = useLn()
 
@@ -125,53 +58,6 @@ export const Username: Component<InputProps> = (props) => {
     </div>
 }
 
-export const Password: Component<InputProps & { required?: boolean }> = (props) => {
-    const ln = useLn()
-    const [hide, setHide] = createSignal(true)
-    let el: HTMLInputElement
-
-    const toggle = (e: any) => {
-        e.preventDefault()
-        setHide(!hide())
-        if (!hide()) {
-            el.type = 'text';
-        } else {
-            el.type = 'password';
-        }
-    }
-
-    return <div>
-        <div class="flex items-center justify-between">
-            <InputLabel for="password" >{ln().password}</InputLabel>
-            <div class="text-sm">
-                <button tabindex='-1' onClick={toggle} class="font-semibold hover:underline text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300">{hide() ? ln().show : ln().hide} {ln().password}</button>
-            </div>
-        </div>
-        <div >
-            <Input {...props} ref={el!} id="password" name="password" type={hide() ? "password" : "text"} autocomplete="current-password" placeholder={ln().enterPassword} />
-        </div>
-
-    </div>
-}
-
-export const EmailInput: Component<InputProps> = (props) => {
-    const ln = useLn()
-    return <div>
-        <div class="flex items-center justify-between">
-            <InputLabel for="username" >{ln().email}</InputLabel>
-        </div>
-        <div class="mt-2"><Input {...props} placeholder={ln().email} autocomplete='email' /></div>
-    </div>
-}
-export const PhoneInput = (props: InputProps) => {
-    const ln = useLn()
-    return <div>
-        <div class="flex items-center justify-between">
-            <InputLabel for="username" >{ln().phone}</InputLabel>
-        </div>
-        <div class="mt-2"><Input {...props} placeholder={ln().phone} autocomplete='phone' /></div>
-    </div>
-}
 
 
 export const InputSecret = (props: any) => {
@@ -259,8 +145,16 @@ export const GetSecret: Component<{
         </DialogPage></Dialog>
 }
 
+// onClose returns true if they added a passkey, false if they didn't
+// no matter what they should be logged in.
+// even if the add passkey fails, they should be logged in.
+export enum PasskeyChoice {
+    Add = 0,
+    NotNow = 1,
+    NotEver = 2,
+}
 export const AddPasskey: Component<{
-    onClose: (u: boolean) => void
+    onClose: (u: PasskeyChoice, error: string) => void
     allow?: string[],
 }> = (props) => {
     const ws = createWs()
@@ -268,23 +162,29 @@ export const AddPasskey: Component<{
     let btnSaveEl: HTMLButtonElement | null = null;
     let btnNot: HTMLButtonElement | null = null;
 
-    const add = async (e: any) => {
+    const add = async () => {
         const o = await ws.rpcj<any>("addpasskey", {})
         const cco = parseCreationOptionsFromJSON(o)
         const cred = await create(cco)
-        const token = await ws.rpcj<any>("addpasskey2", cred.toJSON())
-        props.onClose(true)
+        const [token,err] = await ws.rpcje<any>("addpasskey2", cred.toJSON())
+        if (err) {
+            props.onClose(PasskeyChoice.NotNow,err)
+            return
+        }
+        props.onClose(PasskeyChoice.Add,"")
     }
 
     // we just close and go on.
-    const notNow = () => { props.onClose(false) }
+    const notNow = () => { 
+        props.onClose(PasskeyChoice.NotNow,"") 
+    }
     // here we have to save our choice to the database
     const notEver = async () => {
         await ws.rpcje("addfactor", {
             type: Number(Factor.kNone),
         })
 
-        props.onClose(false)
+        props.onClose(PasskeyChoice.NotEver,"")
     }
     return <Dialog> <DialogPage >
             <div class="space-y-6 ">

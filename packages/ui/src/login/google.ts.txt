@@ -1,0 +1,39 @@
+
+// we don't want to load this script unless the user has previously requested google sign in
+// https://developers.google.com/identity/gsi/web/guides/client-library
+
+// Import the Google Identity Services library
+import { GoogleAuth, User } from 'google-auth-library';
+
+// Initialize the GoogleAuth object
+const googleAuth = new GoogleAuth();
+
+// Create a function to handle the sign-in process
+async function signIn(): Promise<User> {
+  // Get the user credentials
+  const auth = await googleAuth.getClient();
+  
+  // Check if there is already a signed-in user
+  if (!auth.isSignedIn.get()) {
+    // Prompt the user to sign in
+    await auth.signIn();
+
+    // Retrieve the user details
+    const user = auth.currentUser.get();
+    
+    // Return the signed-in user
+    return user;
+  } else {
+    // If a user is already signed in, return the current user
+    return auth.currentUser.get();
+  }
+}
+
+// Call the signIn function to initiate the sign-in process
+signIn()
+  .then((user) => {
+    console.log('Signed in as:', user.getBasicProfile().getName());
+  })
+  .catch((error) => {
+    console.error('Sign-in error:', error);
+  });

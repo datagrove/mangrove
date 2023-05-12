@@ -48,12 +48,11 @@ export const InlineButton: Component<ButtonProps> = (props) => {
   return <button {...props} class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`}>{props.children}</button>
 }
 export const Ab: Component<AnchorProps> = (props) => {
-  return <Ar {...props} class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`} href={props.href}>{props.children}</Ar>
+  return <Ar {...props} class={`dark:text-blue-400 text-blue-700 hover:text-blue-500 hover:underline ${props.class}`} href={props.href}>{props.children}</Ar>
 }
 export const Bb: Component<ButtonProps> = (props) => {
-  return <button {...props} class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`} onClick={props.onClick}>{props.children}</button>
+  return <button {...props} class={`dark:text-blue-400 text-blue-700 hover:text-blue-500 hover:underline ${props.class}`} onClick={props.onClick}>{props.children}</button>
 }
-
 
 
 // the drawer can be
@@ -144,16 +143,7 @@ export const Body: Component<{ children: JSXElement }> = (props) => {
 
   </div>
 }
-export const SimplePage: Component<{ children: JSXElement }> = (props) => {
-  const ln = useLn()
-  return <><div dir={ln().dir} class='px-2 space-x-1 my-2 fixed w-screen flex flex-row items-center'>
-    <div class='flex-1 '/>
-    <div class='w-48 '><LanguageSelect /></div>
-    <DarkButton /></div>
-    <Center>
-      {props.children}
-    </Center></>
-}
+
 export const Page: Component<{ children: JSXElement }> = (props) => {
   return <div class='flex h-screen v-screen '>
     <div class='w-80 h-full overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><SiteMenuContent></SiteMenuContent></div>

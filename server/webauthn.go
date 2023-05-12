@@ -98,13 +98,7 @@ type Update struct {
 // cbor messages can begin with 0 - that doesn't make sense for json
 // make into websockets?
 func WebauthnSocket(mg *Server) error {
-	wconfig := &webauthn.Config{
-		RPDisplayName: "Go Webauthn",                                                                         // Display Name for your site
-		RPID:          "localhost",                                                                           // Generally the FQDN for your site
-		RPOrigins:     []string{"https://localhost:5078", "http://localhost:8080", "https://localhost:5783"}, // The origin URLs allowed for WebAuthn requests
-	}
-
-	web, err := webauthn.New(wconfig)
+	web, err := webauthn.New(mg.PasskeyConfig)
 	if err != nil {
 		return err
 	}

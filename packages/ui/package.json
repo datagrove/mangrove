@@ -44,6 +44,7 @@
     "buffer": "^6.0.3",
     "cbor-x": "^1.5.2",
     "did-jwt": "^7.0.0",
+    "google-auth-library": "^8.8.0",
     "highlight.js": "^11.7.0",
     "idb": "^7.1.1",
     "rehype-sanitize": "^5.0.1",

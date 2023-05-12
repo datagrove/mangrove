@@ -1,7 +1,7 @@
 import { Component, JSX, Match, Setter, Show, Signal, Switch, createEffect, createSignal, onMount } from "solid-js"
 import { CheckboxSet, DecisionMap, InputButton, KeyValue, KeyValueMap, LightButton, P, RadioGroup, Select, StorePair, TernarySet } from "../lib/form"
-import { Input, LoginInfo } from "./passkey_add"
-import { Bb, H2, SimplePage } from "../layout/nav"
+import {  LoginInfo } from "./passkey_add"
+import { Bb, H2 } from "../layout/nav"
 
 import { createWs } from "../core/socket";
 import { useLn } from "./passkey_i18n";
@@ -10,6 +10,8 @@ import { Login } from "./login";
 import { useNavigate } from "../core/dg";
 import { Db, Dp, ButtonSet, Bs1, Bs } from "./settings2";
 import { SetStoreFunction,  createStore, produce, unwrap } from "solid-js/store";
+import { Input } from "../lib/input";
+import { SimplePage } from "./simplepage";
 
 // roleset limits what you can do, and what you can see
 // there is no limit on what the admin user sees.
@@ -26,7 +28,7 @@ export interface RoleSet {
 export interface Settings {
     role: string  // current user
     password: string
-    img: Uint8Array | undefined
+    img: Uint8Array
     email: string
     phone: string
     passkey: number
@@ -74,7 +76,7 @@ const defaultOptions: RoleSet = {
 const defaultSettings: Settings = {
     role: "Admin",
     password: "",
-    img: undefined,
+    img: new Uint8Array(),
     email: "jimh@datagrove.com",
     phone: "",
     passkey: 0,
@@ -85,7 +87,7 @@ const defaultSettings: Settings = {
 
 // not stored, this represents possible options
 
-
+const [dataUrl, setDataUrl] = createSignal<string>("")
 // how do we skip this page if we are already logged in? do we want to?
 export const SettingsPage: Component<{}> = (props) => {
     const ws = createWs()
@@ -98,25 +100,28 @@ export const SettingsPage: Component<{}> = (props) => {
 
     // settings are the options selected by the user from the options made available by the host admin
     const [settings, setSettings] = createStore<Settings>(defaultSettings)
-
-
     const [login, setLogin] = createSignal(false)
-    const [dataUrl, setDataUrl] = createSignal<string>("")
+
 
     // we should use a resource like thing to get the current settings using the secret that's in the login info.
     const finishLogin = async (l: LoginInfo) => {
         const [o, e]: [Settings | undefined, string] = await ws.rpce<Settings>("settings", {})
         console.log("settings", o)
-        if (e) {
+        if (e || !o) {
+            console.log("error", e)
             return
         }
-        const bl = new Blob([settings.img!], { type: 'image/png' });
+        const bl = new Blob([o.img], { type: 'image/png' });
+        console.log(o.img, bl)
+        await bl.arrayBuffer()
         const reader = new FileReader();
         reader.readAsDataURL(bl);
-        reader.onloadend = () => {
-            const dataUrl = reader.result as string;
-            setDataUrl(dataUrl)
+        reader.onload = () => {
+            setDataUrl(reader.result as string)
+            console.log("dataurl", dataUrl())
         }
+        reader.onerror = (error) => { throw error}
+        reader.onabort = (e) => { throw e}
         setSettings(o!)
         setLogin(true)
     }
@@ -135,7 +140,7 @@ export const SettingsPage: Component<{}> = (props) => {
                 <FactorSettings
                     opt={[opt, setOpt]}
                     settings={[settings, setSettings]}
-                    totpImg = { dataUrl()}
+
                 />
                 <div class='mt-2' ><ButtonSet>
                     <Bs1 onClick={() => done(true)}>{ln().save}</Bs1>
@@ -155,7 +160,7 @@ const kvl = (k: string[]): KeyValue[] => k.map(x => [x, x])
 export const FactorSettings: Component<{ 
     settings: StorePair<Settings>, 
     opt: StorePair<RoleSet> 
-    totpImg: string
+
     }> = (props) => {
     // does this lose reactivity? is the nested role a problem?
     const [settings, setSettings] = props.settings
@@ -299,7 +304,7 @@ export const FactorSettings: Component<{
         <Disclosure defaultOpen={open} as='div'>
             <Db> Time Based Code: {active(settings.totp != 2)}</Db>
             <Dp>
-                <div class=''><img class='mt-2' src={props.totpImg} /></div>
+                <div class=''><img class='mt-2' src={dataUrl()} /></div>
                 <TotpSet />
 
                 <P>Scan the QR code with a time based password program like Google Authenticator or Authy. Then enter the code it generates below to test</P>
@@ -307,7 +312,7 @@ export const FactorSettings: Component<{
                     <Input
                         error={() => error().totp}
                         placeholder={ln().enterCode}
-                        autofocus onInput={(e) => setCode(e)} />
+                        autofocus onInput={(e:string) => setCode(e)} />
                 </InputButton>
 
             </Dp>
@@ -356,9 +361,7 @@ export const FactorSettings: Component<{
         <Disclosure defaultOpen={open} as='div'>
             <Db>SSH keys</Db>
             <Dp><textarea placeholder={"Paste public SSH keys here"} class='w-full' rows='6'></textarea>
-
                 <div class='flex items-center'>
-
                     <textarea class='flex-1 mr-2' placeholder={"Test your keys by signing the word 'test' and pasting the result here"} rows='3'></textarea>
                     <div class='w-16'><LightButton class='h-6' onClick={testApp}>{ln().test}</LightButton></div>
                 </div>
@@ -390,8 +393,6 @@ export const FactorSettings: Component<{
                 </Dp>
             </Disclosure>
         </Show>
-
-
     </div>
 }
 

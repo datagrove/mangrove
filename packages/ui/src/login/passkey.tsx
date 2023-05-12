@@ -1,5 +1,5 @@
 import { Component, JSXElement, Match, Show, Switch, createSignal } from "solid-js"
-import { Ab, SimplePage } from "../layout/nav"
+import { Ab } from "../layout/nav"
 import { BlueButton, Center } from "../lib/form"
 import { generatePassPhrase, security, setError, setLogin, setSecurity } from "../lib/crypto"
 import {
@@ -15,6 +15,7 @@ import { LanguageSelect } from "../i18n/i18"
 import { useNavigate } from "../core/dg";
 import { abort } from "process";
 import { LoginInfo } from "./passkey_add";
+import { SimplePage } from "./simplepage";
 
 //if password is empty, then this is for a new
 // const register = async (user: string, password: string) => {

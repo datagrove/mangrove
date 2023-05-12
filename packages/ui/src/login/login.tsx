@@ -1,13 +1,18 @@
 
-import { H2, SimplePage } from "..";
+import { Ab, H2 } from "..";
 import { Component, JSX, Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { Factor, useLn } from "./passkey_i18n";
-import { BlueButton, P } from "../lib/form";
-import { Username, Password, AddPasskey, GetSecret, ChallengeNotify, LoginInfo } from "./passkey_add";
+import { BlueButton, P, TextDivider } from "../lib/form";
+import { Username,  AddPasskey, GetSecret, ChallengeNotify, LoginInfo, PasskeyChoice } from "./passkey_add";
 import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { createWs } from "../core/socket";
 import { A, useNavigate } from "../core/dg";
 import { LoginWith } from "./login_with";
+import { Password } from "./password";
+import { SimplePage } from "./simplepage";
+
+// I need a way to simplify the page when returning.
+
 // instead of localstorage, why not cookies?
 // cookies are less convenient for webrtc
 // websockets can use them though.
@@ -85,25 +90,22 @@ export interface LocalSettings {
     ExpectPasskey?: boolean
 }
 export const LoginPage: Component<LoginProps> = (props) => {
+    const ln = useLn()
     const [suspense, Suspense] = createSignal(false)
     const finishLogin = (i: LoginInfo) => {
-
+        console.log("finish login", i)
         i.cookies.forEach((c) => {
             document.cookie = c + ";path=/"
         })
-
         //location.href = i.home
         // we can't nav here because it may go to a different page
-        // this will force a reload, so maybe w
         const h = i.home ? i.home : props.afterLogin ?? "/"
         location.href = h
-        // nav(h)
-        //window.open(i.home, "_blank")
-        //console.log("login info", i)
     }
     return <SimplePage>
-        <H2 class='mb-2'>Forget your password with Passkey</H2>
-        <P class='mb-4'>No passwords, no phish: add a Passkey to your account.</P>
+        <H2 class='mb-2'>{ln().signin}</H2>
+        <P class='mb-4'>{ln().welcomeback}
+       </P>
         <Login {...props} finishLogin={finishLogin} />
     </SimplePage>
 }
@@ -146,7 +148,7 @@ export const Login: Component<LoginProps2> = (props) => {
         try {
             const i = await initPasskey()
             if (i) {
-                finishLogin(i)
+                props.finishLogin(i)
             }
             else console.log("passkey watch cancelled")
         }
@@ -164,9 +166,6 @@ export const Login: Component<LoginProps2> = (props) => {
         setScreen_(r)
     }
 
-    const finishLogin = (i: LoginInfo) => {
-        props.finishLogin(i)
-    }
 
     // we might nag them here to add a second factor, or even require it.
     // if they send a password, but require a passkey, we need to trigger that
@@ -195,11 +194,11 @@ export const Login: Component<LoginProps2> = (props) => {
             case Factor.kPasskey:
             case Factor.kPasskeyp:
                 const li = await webauthnLogin()
-                finishLogin(li)
+                props.finishLogin(li)
                 break
             case Factor.kNone:
                 // we must have login here, because if we didn't we would have gotten an error
-                finishLogin(ch.login_info!)
+                props.finishLogin(ch.login_info!)
                 break
             default:
                 setScreen(Screen.Secret)
@@ -213,16 +212,16 @@ export const Login: Component<LoginProps2> = (props) => {
             if (!loginInfo()) {
                 setError("challenge failed")
             } else {
-                finishLogin(loginInfo()!)
+                props.finishLogin(loginInfo()!)
             }
         }
     }
 
-    const onCloseAddKey = (e: any) => {
+    const onCloseAddKey = (choice: PasskeyChoice, err: string) => {
         console.log("closed passkey dialog")
-        setScreen(Screen.Login)
+        setScreen(Screen.Suspense)
         // we must have login info here, or we wouldn't be asking to add a passkey
-        finishLogin(loginInfo()!)
+        props.finishLogin(loginInfo()!)
     }
 
 
@@ -250,10 +249,22 @@ export const Login: Component<LoginProps2> = (props) => {
                     <Username autofocus onInput={(e: string) => setUser(e)} />
                     <Password onInput={(e: string) => setPassword(e)} />
                     <BlueButton  >{ln().signin}</BlueButton>
+                    <TextDivider>{ln().continueWith}</TextDivider>
                     <LoginWith />
                 </form>
+                <div class="flex mt-4"><Spc />
+                <Ab href='../register'>{ln().ifnew}</Ab>
+                        <Spc /></div>
+                </Match>
+        </Switch>
 
-                <div class="mt-6 space-y-4">
+    </div>
+}
+
+/* 
+ <Ab href={props.recoverPassword!}>{ln().help}</Ab>
+Imis specifically
+<div class="mt-6 space-y-4">
                     <Show when={props.createAccount}>
                         <div class='flex'><Spc />
                             <Ag href={props.createAccount ?? "/register"}>{ln().register}</Ag><Spc /></div></Show>
@@ -267,9 +278,5 @@ export const Login: Component<LoginProps2> = (props) => {
                     <Show when={props.recoverUser}><div class="flex"><Spc />
                         <Agl href={'../settings'}>{ln().changeLoginSettings}</Agl>
                         <Spc /></div></Show>
-                </div></Match>
-        </Switch>
-
-    </div>
-}
-
+                </div>
+                */

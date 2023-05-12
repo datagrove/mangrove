@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/datagrove/mangrove/mangrove_sql/mangrove_sql"
+	sq "github.com/datagrove/mangrove/mangrove_sql/mangrove_sql"
 	"github.com/datagrove/mangrove/message"
 	"github.com/datagrove/mangrove/ucan"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -22,10 +23,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
-
-	sq "github.com/datagrove/mangrove/mangrove_sql/mangrove_sql"
 )
 
 const (
@@ -175,24 +175,39 @@ func pt(s string) pgtype.Text {
 // 	return "", e
 // }
 
-// this is for the proxy to create a new user
-// this is from http, how can we get the session, do we need it?
-func (s *Server) CreateUser(user, pass, ph string) error {
+func (s *Server) TotpSecret(user string) (string, error) {
 	key, e := totp.Generate(totp.GenerateOpts{
 		Issuer:      s.Name,
 		AccountName: user,
 	})
 	if e != nil {
-		return e
+		return "", e
+	}
+	return key.URL(), nil
+}
+
+func (s *Server) TotpBytes(url string) ([]byte, error) {
+	key, e := otp.NewKeyFromURL(url)
+	if e != nil {
+		return nil, e
 	}
 	// Convert TOTP key into a PNG
 	var buf bytes.Buffer
 	img, err := key.Image(200, 200)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	png.Encode(&buf, img)
+	return buf.Bytes(), nil
+}
 
+// this is for the proxy to create a new user
+// this is from http, how can we get the session, do we need it?
+func (s *Server) CreateUser(user, pass, ph string) error {
+	key, e := s.TotpSecret(user)
+	if e != nil {
+		return e
+	}
 	_, e = s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
 		Name:     user,
 		IsUser:   true,
@@ -202,8 +217,7 @@ func (s *Server) CreateUser(user, pass, ph string) error {
 		Mobile:   pt(ph),
 		Pin:      "",
 		Webauthn: "",
-		Totp:     key.Secret(),
-		TotpPng:  buf.Bytes(),
+		Totp:     key,
 		Flags:    0,
 	})
 
@@ -263,9 +277,16 @@ func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (
 		if e != nil {
 			return nil, e
 		}
+
+		// there is a lot of duplication of this code!
+
 		// no bcrypt, we wouldn't be able to proxy, should be optional when not a proxy though
 		// pass, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		// store the user locally
+		key, e := s.TotpSecret(user)
+		if e != nil {
+			return nil, e
+		}
 		oid, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
 			Name:          user,
 			IsUser:        true,
@@ -275,7 +296,7 @@ func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (
 			Mobile:        pt(li.Phone),
 			Pin:           "",
 			Webauthn:      "",
-			Totp:          "",
+			Totp:          key,
 			Flags:         0,
 			TotpPng:       []byte{},
 			DefaultFactor: 0,
@@ -326,9 +347,13 @@ func (s *Server) GetSettings(sess *Session) (*Settings, error) {
 	if e != nil {
 		return nil, e
 	}
+	png, e := s.TotpBytes(string(a.Totp))
+	if e != nil {
+		return nil, e
+	}
 	return &Settings{
 		UserSecret:      "",
-		Img:             a.TotpPng,
+		Img:             png,
 		Email:           a.Email.String,
 		Phone:           a.Mobile.String,
 		ActivatePasskey: true,
@@ -337,12 +362,21 @@ func (s *Server) GetSettings(sess *Session) (*Settings, error) {
 
 }
 func (s *Server) Configure(sess *Session, li *Settings) error {
-	s.Db.qu.UpdateOrg(context.Background(), mangrove_sql.UpdateOrgParams{
-		Oid:    sess.Oid,
-		Email:  pt(li.Email),
-		Mobile: pt(li.Phone),
-	})
+	// this doesn't work, we need all the fields
+	// s.Db.qu.UpdateOrg(context.Background(), mangrove_sql.UpdateOrgParams{
+	// 	Oid:    sess.Oid,
+	// 	Email:  pt(li.Email),
+	// 	Mobile: pt(li.Phone),
+	// })
 	return nil
+}
+
+func (s *Server) GetPasswordFromEmail(email string) (string, error) {
+	a, e := s.Db.qu.SelectOrgByName(context.Background(), email)
+	if e != nil {
+		return "", e
+	}
+	return string(a.Password), nil
 }
 
 // logging in always sends the ChallengeNotify, but we can also send it after logging in to confirm configuration changes.
@@ -489,7 +523,12 @@ func (mg *Server) ValidateChallenge(sess *Session, value string) bool {
 	case kMobile, kVoice, kEmail:
 		return value == sess.Challenge
 	case kTotp:
-		return totp.Validate(value, sess.Totp)
+		key, e := otp.NewKeyFromURL(sess.Totp)
+		if e != nil {
+			log.Printf("error validating totp: %s", e)
+			return false
+		}
+		return totp.Validate(value, key.Secret())
 	}
 	return false
 }
