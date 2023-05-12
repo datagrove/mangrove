@@ -76,6 +76,14 @@ export interface LoginProps {
     recoverPassword?: string
     afterLogin?: string
 }
+
+// we don't know who the user is in general, but if they have logged in before we can have local storage.
+export interface LocalSettings {
+    // if we expect a passkey we can eliminame the password field 
+    // if we expect a social login we can just try that login first.
+    // we can make loginwith have fewer choices.
+    ExpectPasskey?: boolean
+}
 export const LoginPage: Component<LoginProps> = (props) => {
     const [suspense, Suspense] = createSignal(false)
     const finishLogin = (i: LoginInfo) => {
@@ -94,7 +102,7 @@ export const LoginPage: Component<LoginProps> = (props) => {
         //console.log("login info", i)
     }
     return <SimplePage>
-        <H2 class='mb-2'>Forget you password with Passkey</H2>
+        <H2 class='mb-2'>Forget your password with Passkey</H2>
         <P class='mb-4'>No passwords, no phish: add a Passkey to your account.</P>
         <Login {...props} finishLogin={finishLogin} />
     </SimplePage>
@@ -242,7 +250,7 @@ export const Login: Component<LoginProps2> = (props) => {
                     <Username autofocus onInput={(e: string) => setUser(e)} />
                     <Password onInput={(e: string) => setPassword(e)} />
                     <BlueButton  >{ln().signin}</BlueButton>
-                    <LoginWith/>
+                    <LoginWith />
                 </form>
 
                 <div class="mt-6 space-y-4">
@@ -256,7 +264,7 @@ export const Login: Component<LoginProps2> = (props) => {
                     <Show when={props.recoverUser}><div class="flex"><Spc />
                         <Ag href={props.recoverUser!}>{ln().forgotUsername}</Ag>
                         <Spc /></div></Show>
-                   <Show when={props.recoverUser}><div class="flex"><Spc />
+                    <Show when={props.recoverUser}><div class="flex"><Spc />
                         <Agl href={'../settings'}>{ln().changeLoginSettings}</Agl>
                         <Spc /></div></Show>
                 </div></Match>

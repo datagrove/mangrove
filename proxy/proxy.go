@@ -11,6 +11,7 @@ import (
 
 	"github.com/datagrove/mangrove/scrape"
 	"github.com/datagrove/mangrove/server"
+	"github.com/gorilla/mux"
 	"github.com/kardianos/service"
 )
 
@@ -34,7 +35,7 @@ const (
 
 func main() {
 	// we should move these to command line parameters and config file
-	proxy_ip := "localhost:8080"
+	proxy_ip := "localhost:3000"
 	proxy_proto := "http"
 	imis := "https://datagrove_servr"
 
@@ -133,9 +134,11 @@ func main() {
 			}
 		}
 
-		mux := http.NewServeMux()
+		mux := mux.NewRouter()
 		mux.HandleFunc("/", ProxyRequestHandler)
-		log.Fatal(http.ListenAndServe(":8080", mux))
+		mux.NotFoundHandler = http.HandlerFunc(ProxyRequestHandler)
+		//oauth.AddHandlers(mux)
+		log.Fatal(http.ListenAndServe(":3000", mux))
 		return nil
 	}
 

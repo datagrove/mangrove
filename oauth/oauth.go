@@ -2,11 +2,12 @@ package oauth
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 
-	"github.com/gorilla/pat"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
@@ -15,20 +16,13 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// OpenID Connect is based on OpenID Connect Auto Discovery URL (https://openid.net/specs/openid-connect-discovery-1_0-17.html)
-// because the OpenID Connect provider initialize itself in the New(), it can return an error which should be handled or ignored
-// ignore the error for now
-func main() {
+func AddHandlers(p *mux.Router) {
 	godotenv.Load()
 	gothic.Store = sessions.NewCookieStore([]byte("<your secret here>"))
 	goth.UseProviders(
 		google.New(os.Getenv("GOOGLE_KEY"), os.Getenv("GOOGLE_SECRET"), "http://localhost:3000/auth/google/callback"),
 	)
-	p := pat.New()
-
-	// completes the process: note this has to come first because PAT will match in order.
-	// this needs to be registered with provider
-	p.Get("/auth/{provider}/callback", func(res http.ResponseWriter, req *http.Request) {
+	p.HandleFunc("/auth/{provider}/callback", func(res http.ResponseWriter, req *http.Request) {
 		user, err := gothic.CompleteUserAuth(res, req)
 		if err != nil {
 			return
@@ -41,7 +35,7 @@ func main() {
 	})
 
 	// starts the process.
-	p.Get("/auth/{provider}", func(res http.ResponseWriter, req *http.Request) {
+	p.HandleFunc("/auth/{provider}", func(res http.ResponseWriter, req *http.Request) {
 		// try to get the user without re-authenticating
 		if gothUser, err := gothic.CompleteUserAuth(res, req); err == nil {
 			b, e := json.Marshal(&gothUser)
@@ -55,17 +49,73 @@ func main() {
 		}
 	})
 
-	p.Get("/logout/{provider}", func(res http.ResponseWriter, req *http.Request) {
+	p.HandleFunc("/logout/{provider}", func(res http.ResponseWriter, req *http.Request) {
 		gothic.Logout(res, req)
 		res.Header().Set("Location", "/")
 		res.WriteHeader(http.StatusTemporaryRedirect)
 	})
-	p.Get("/", func(res http.ResponseWriter, req *http.Request) {
+	p.HandleFunc("/auth/{provider}/test", func(res http.ResponseWriter, req *http.Request) {
+		vars := mux.Vars(req)
+		provider := vars["provider"]
+		res.Write([]byte(fmt.Sprintf("<p><a href='/auth/%s'>Log in with %s</a></p>", provider, provider)))
+	})
+}
+
+// OpenID Connect is based on OpenID Connect Auto Discovery URL (https://openid.net/specs/openid-connect-discovery-1_0-17.html)
+// because the OpenID Connect provider initialize itself in the New(), it can return an error which should be handled or ignored
+// ignore the error for now
+func main() {
+
+	p := mux.NewRouter()
+	p.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
 		res.Write([]byte("<p><a href='/auth/google'>Log in with Google</a></p>"))
 	})
 
+	AddHandlers(p)
 	log.Println("listening on localhost:3000")
 	log.Fatal(http.ListenAndServe(":3000", p))
+	/*
+		p := pat.New()
+
+		// completes the process: note this has to come first because PAT will match in order.
+		// this needs to be registered with provider
+		p.Get("/auth/{provider}/callback", func(res http.ResponseWriter, req *http.Request) {
+			user, err := gothic.CompleteUserAuth(res, req)
+			if err != nil {
+				return
+			}
+			b, e := json.Marshal(&user)
+			if e != nil {
+				return
+			}
+			res.Write(b)
+		})
+
+		// starts the process.
+		p.Get("/auth/{provider}", func(res http.ResponseWriter, req *http.Request) {
+			// try to get the user without re-authenticating
+			if gothUser, err := gothic.CompleteUserAuth(res, req); err == nil {
+				b, e := json.Marshal(&gothUser)
+				if e != nil {
+					return
+				}
+				res.Write(b)
+			} else {
+				// otherwise start.
+				gothic.BeginAuthHandler(res, req)
+			}
+		})
+
+		p.Get("/logout/{provider}", func(res http.ResponseWriter, req *http.Request) {
+			gothic.Logout(res, req)
+			res.Header().Set("Location", "/")
+			res.WriteHeader(http.StatusTemporaryRedirect)
+		})
+		p.Get("/", func(res http.ResponseWriter, req *http.Request) {
+			res.Write([]byte("<p><a href='/auth/google'>Log in with Google</a></p>"))
+		})
+	*/
+
 }
 
 type ProviderIndex struct {
