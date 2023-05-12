@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/datagrove/mangrove/oauth"
 	"github.com/datagrove/mangrove/scrape"
 	"github.com/datagrove/mangrove/server"
 	"github.com/gorilla/mux"
@@ -38,6 +39,8 @@ func main() {
 	proxy_ip := "localhost:3000"
 	proxy_proto := "http"
 	imis := "https://datagrove_servr"
+	host := proxy_proto + "://" + proxy_ip
+	prefix := "/auth"
 
 	proxyLogin := func(user, password string) (*server.ProxyLogin, error) {
 		cl, e := scrape.NewClient(imis + "/iCore/Contacts/Sign_In.aspx?LoginRedirect=true&returnurl=%2fMBRR")
@@ -95,7 +98,7 @@ func main() {
 			}
 			if strings.HasPrefix(r.URL.Path, "/iCore/Contacts/Sign_In") ||
 				strings.HasPrefix(r.URL.Path, "/MBRR/SignIn") {
-				http.Redirect(w, r, "/embed/en/login", http.StatusFound)
+				http.Redirect(w, r, prefix+"/en/login", http.StatusFound)
 				return
 			}
 			// we don't need to do anything with create.
@@ -120,12 +123,12 @@ func main() {
 					s.CreateUser(email, pass, phone)
 				}
 			}
-			if strings.HasPrefix(r.URL.Path, "/embed/") || r.URL.Path == "/embed" {
-				if r.URL.Path == "/embed/wss" {
+			if strings.HasPrefix(r.URL.Path, prefix+"/") || r.URL.Path == prefix {
+				if r.URL.Path == prefix+"/wss" {
 					s.WsHandler(w, r)
 					return
 				}
-				// Serve files from the embedded file system at /embed
+				// Serve files from the embedded file system
 				r.URL.Path = r.URL.Path[9:]
 				s.EmbedHandler.ServeHTTP(w, r)
 			} else {
@@ -137,7 +140,7 @@ func main() {
 		mux := mux.NewRouter()
 		mux.HandleFunc("/", ProxyRequestHandler)
 		mux.NotFoundHandler = http.HandlerFunc(ProxyRequestHandler)
-		//oauth.AddHandlers(mux)
+		oauth.AddHandlers(mux, host, prefix)
 		log.Fatal(http.ListenAndServe(":3000", mux))
 		return nil
 	}
