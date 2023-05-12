@@ -2,7 +2,7 @@
 import { H2, SimplePage } from "..";
 import { Component, JSX, Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { Factor, useLn } from "./passkey_i18n";
-import { BlueButton } from "../lib/form";
+import { BlueButton, P } from "../lib/form";
 import { Username, Password, AddPasskey, GetSecret, ChallengeNotify, LoginInfo } from "./passkey_add";
 import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { createWs } from "../core/socket";
@@ -94,8 +94,10 @@ export const LoginPage: Component<LoginProps> = (props) => {
         //console.log("login info", i)
     }
     return <SimplePage>
-        <Login {...props} finishLogin={finishLogin}/>
-        </SimplePage>
+        <H2 class='mb-2'>Forget you password with Passkey</H2>
+        <P class='mb-4'>No passwords, no phish: add a Passkey to your account.</P>
+        <Login {...props} finishLogin={finishLogin} />
+    </SimplePage>
 }
 // todo: send language in requests so that we can localize the error messages
 
@@ -140,8 +142,8 @@ export const Login: Component<LoginProps2> = (props) => {
             }
             else console.log("passkey watch cancelled")
         }
-        catch(e){
-            setError(e+"")
+        catch (e) {
+            setError(e + "")
         }
     }
     init()
