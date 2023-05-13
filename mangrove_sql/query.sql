@@ -70,12 +70,11 @@ insert into mg.dbentry (fid, start, data) values ($1, $2, $3);
 delete from mg.dbentry where fid = $1 and start between $2 and $3;
 
 
+-- name: InsertPasskey :exec
+insert into mg.passkey (cid, oid, name, type, value) values ($1, $2, $3, $4, $5);
 
--- name: SelectCredential :many
-select * from mg.credential where oid = $1;
-
--- name: InsertCredential :exec
-insert into mg.credential (oid, name, type, value) values ($1, $2, $3, $4);
+-- name: SelectPasskey :one
+select * from mg.passkey where cid = $1;
 
 -- name: UpdatePassword :exec
 update mg.org set password = $2 where oid = $1;

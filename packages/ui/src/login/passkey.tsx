@@ -88,10 +88,12 @@ export async function initPasskey(): Promise<LoginInfo | null> {
                 // @ts-ignore
                 mediation: 'conditional'
             })
+            console.log("got sign")
             if (abortController.signal.aborted) {
+                console.log("aborted")
                 return null
             }
-            console.log("got sign")
+        
 
             // token is not the socket challenge, it can be shared across tabs.
             // we need to get back the site store here, does it also keep a token?
@@ -100,6 +102,7 @@ export async function initPasskey(): Promise<LoginInfo | null> {
             return await ws.rpcj<LoginInfo>("login2", o.toJSON())
         } catch (e: any) {
             // don't show error here, we probably just aborted the signal
+            console.log("error", e)
         }
     }
     // instead of navigate we need get the site first

@@ -42,9 +42,9 @@ func (u *PasskeyCredential) WebAuthnDisplayName() string {
 	return u.Name
 }
 
-// WebAuthnCredentials provides the list of Credential objects owned by the user.
+// WebAuthnCredentials provides the list of Credential objects owned by the user. (why more than one?
 func (u *PasskeyCredential) WebAuthnCredentials() []webauthn.Credential {
-	return u.Credential
+	return []webauthn.Credential{u.Credential}
 }
 
 // WebAuthnIcon is a deprecated option.
@@ -184,10 +184,11 @@ func WebauthnSocket(mg *Server) error {
 		return options, nil
 	})
 	mg.AddApi("removeCredential", true, func(r *Rpcp) (any, error) {
-		r.PasskeyCredential.Credential = Filter(r.PasskeyCredential.Credential, func(e webauthn.Credential) bool {
-			return string(e.ID) == string(r.Params)
-		})
-		mg.SaveUser(&r.PasskeyCredential)
+
+		// r.PasskeyCredential.Credential = Filter(r.PasskeyCredential.Credential, func(e webauthn.Credential) bool {
+		// 	return string(e.ID) == string(r.Params)
+		// })
+		// mg.SaveUser(&r.PasskeyCredential)
 		return nil, nil
 	})
 
@@ -241,6 +242,7 @@ func WebauthnSocket(mg *Server) error {
 	})
 
 	// user name, not unique. produce challenge
+	// change device id to be random, then don't use it that often.
 	mg.AddApij("register", false, func(r *Rpcpj) (any, error) {
 		var v struct {
 			Name string `json:"name"`
@@ -249,8 +251,14 @@ func WebauthnSocket(mg *Server) error {
 		if e != nil {
 			return nil, e
 		}
+
 		r.DisplayName = r.Name
 		r.Name = v.Name
+		r.ID, e = GenerateRandomString(32)
+		if e != nil {
+			return nil, e
+		}
+
 		options, session, err := web.BeginRegistration(&r.PasskeyCredential)
 		if err != nil {
 			return nil, err
@@ -270,8 +278,8 @@ func WebauthnSocket(mg *Server) error {
 		if err != nil {
 			return nil, err
 		}
-		_ = credential
-		//mg.RegisterPasskey(r.Session, credential)
+		r.Session.PasskeyCredential.Credential = *credential
+		mg.RegisterPasskey(r.Session)
 		return true, nil
 	})
 
@@ -322,7 +330,7 @@ func WebauthnSocket(mg *Server) error {
 		}
 		// may not exist yet, that's not an error
 		_ = mg.LoadDevice(&r.PasskeyCredential, r.ID)
-		r.PasskeyCredential.Credential = append(r.Session.PasskeyCredential.Credential, *credential)
+		r.PasskeyCredential.Credential = *credential
 		e = mg.NewDevice(&r.Session.PasskeyCredential)
 		if e != nil {
 			return nil, e
@@ -463,16 +471,7 @@ func WebauthnSocket(mg *Server) error {
 			return nil, err
 		}
 
-		// we already have a challenge before now. return the user site
-		// or potentially return a hash of the document (latest commit?)
-		// we are going to subscribe to this document and always get updates
-		// so we can return a subscription handle to it? this could be a random handle
-		// we could also use the did as a handle. we could use 64 bit int, and keep it in a local map. basically watch handle for a recursive directory.
-		//ws, e := mg.AddWatch(v.Path, r.Session, r.Id, v.Filter, 0)
-		// the handle returned is specific to the session.
-
-		return mg.GetLoginInfo(r.Session)
-
+		return mg.LoginInfoFromOid(r.Session, r.Oid)
 	})
 	// take the user name and return a challenge
 	// we might want to allow this to log directly into a user?

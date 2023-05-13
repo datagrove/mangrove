@@ -1,12 +1,17 @@
 create schema if not exists mg;
 
-create table  mg.org( 
+-- note that did, username, email and mobile are unique but can be null
+-- this is needed so we can index them.
+-- drop table mg.org;
+create table  mg.org ( 
     oid bigserial primary key,
-    name text unique not null, 
+    did bytea unique,
+    username text unique, --unique, but may be null if passkey
+    name text not null, -- purely descriptive
     is_user boolean not null,
-    password bytea,
-    hash_alg text,
-    email text unique ,
+    password bytea not null,
+    hash_alg text not null,
+    email text unique,
     mobile text unique,
     pin text not null,
     webauthn text not null,
@@ -15,14 +20,15 @@ create table  mg.org(
     totp_png bytea not null,
     default_factor int not null
 );
-create table mg.credential (
+create table mg.passkey (
+    cid bytea unique not null,
     oid bigint not null,
-    id serial,
-    name text,
-    type text,
+    name text, -- not used, but could capture some context about device
+    type text, -- not used, but could be version of passkey
     value bytea,
-    primary key(oid,id)
+    primary key(cid)
  );
+ 
 create table mg.org_db(
     oid bigint not null, 
     db bigserial not null,  
@@ -74,10 +80,3 @@ create table if not exists mg.device(
 	 ucan text not null,
 	 primary key (device, oid));
 
--- session is a capability to access a user's data
-create table session (
-    sid bytea not null,
-    oid bigint not null,
-    expire timestamp(6) not null
-    primary key (sid)
-)

@@ -5,3 +5,5 @@ export * from "./lib/form"
 export * from "./core/socket"
 
 export * from "./login"
+
+export * from "./home"

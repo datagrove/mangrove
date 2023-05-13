@@ -75,6 +75,7 @@ type PasskeyCredential struct {
 	Credential webauthn.Credential `json:"credentials,omitempty"`
 }
 
+// Passkey credential must implement webauthn.User
 var _ webauthn.User = (*PasskeyCredential)(nil)
 
 type UserMore struct {

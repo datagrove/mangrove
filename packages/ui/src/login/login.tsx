@@ -1,6 +1,6 @@
 
 import { Ab, H2 } from "..";
-import { Component, JSX, Match, Show, Switch, createEffect, createSignal } from "solid-js";
+import { Component, JSX, Match, Show, Switch, createEffect, createSignal, onCleanup } from "solid-js";
 import { Factor, useLn } from "./passkey_i18n";
 import { BlueButton, P, TextDivider } from "../lib/form";
 import { Username,  AddPasskey, GetSecret, ChallengeNotify, LoginInfo, PasskeyChoice } from "./passkey_add";
@@ -91,6 +91,7 @@ export interface LocalSettings {
 }
 export const LoginPage: Component<LoginProps> = (props) => {
     const ln = useLn()
+    const nav = useNavigate()
     const [suspense, Suspense] = createSignal(false)
     const finishLogin = (i: LoginInfo) => {
         console.log("finish login", i)
@@ -99,8 +100,17 @@ export const LoginPage: Component<LoginProps> = (props) => {
         })
         //location.href = i.home
         // we can't nav here because it may go to a different page
-        const h = i.home ? i.home : props.afterLogin ?? "/"
-        location.href = h
+
+        
+        // conditionally we may want to do nav here instead of location.href
+        // how do we know? maybe h is empty?
+        //location.href = h
+        if (i.home=="../home")
+            nav("../home")
+        else {
+            const h = i.home ? i.home : props.afterLogin ?? "/"
+            location.href = h
+        }
     }
     return <SimplePage>
         <H2 class='mb-2'>{ln().signin}</H2>
@@ -137,6 +147,10 @@ export const Login: Component<LoginProps2> = (props) => {
     createEffect(() => {
         console.log("screen", screen())
     })
+    onCleanup(() => {
+        abortController.abort()
+    })
+
     const setError = (e: string) => {
         setScreen(Screen.Login)
         setError_((ln() as any)[e] ?? e)

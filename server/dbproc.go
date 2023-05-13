@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -212,7 +211,7 @@ func (s *Server) CreateUser(user, pass, ph string) error {
 		Name:     user,
 		IsUser:   true,
 		Password: []byte(pass),
-		HashAlg:  pgtype.Text{String: "", Valid: true},
+		HashAlg:  "",
 		Email:    pt(user),
 		Mobile:   pt(ph),
 		Pin:      "",
@@ -225,8 +224,8 @@ func (s *Server) CreateUser(user, pass, ph string) error {
 
 }
 
-// a credential in two parts; first get the serial number
 func (s *Server) AddCredential1(sess *Session) (int64, error) {
+
 	return 0, nil // s.Db.qu.GetCredentialNumber()
 }
 func (s *Server) AddCredential2(sess *Session, cred *webauthn.Credential) error {
@@ -239,13 +238,13 @@ func (s *Server) AddCredential2(sess *Session, cred *webauthn.Credential) error 
 	// 	}
 	// 	a.Webauthn = string(b)
 	// }
-	return s.Db.qu.InsertCredential(context.Background(), mangrove_sql.InsertCredentialParams{
-		Oid:   sess.CredentialId,
-		Name:  pgtype.Text{},
-		Type:  pgtype.Text{},
-		Value: []byte{},
-	})
-
+	// return s.Db.qu.InsertCredential(context.Background(), mangrove_sql.InsertCredentialParams{
+	// 	Oid:   sess.CredentialId,
+	// 	Name:  pgtype.Text{},
+	// 	Type:  pgtype.Text{},
+	// 	Value: []byte{},
+	// })
+	panic("not implemented")
 }
 func (s *Server) RegisterEmailSocial(sess *Session, email, social string) error {
 	// insert an org record. fail if email exists since that would get confusing.
@@ -254,6 +253,38 @@ func (s *Server) RegisterEmailSocial(sess *Session, email, social string) error 
 func (s *Server) RegisterEmailPassword(sess *Session, email, password string) error {
 	// insert an org record. fail if email exists since that would get confusing.
 	return nil
+}
+func (s *Server) RegisterPasskey(sess *Session) error {
+	n, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
+		Name:          sess.Name,
+		IsUser:        false,
+		Password:      []byte{},
+		HashAlg:       "",
+		Email:         pgtype.Text{},
+		Mobile:        pgtype.Text{},
+		Pin:           "",
+		Webauthn:      "",
+		Totp:          "",
+		Flags:         0,
+		TotpPng:       []byte{},
+		DefaultFactor: 0,
+	})
+	if e != nil {
+		return e
+	}
+	// should be cbor?
+	b, e := json.Marshal(&sess.PasskeyCredential)
+	if e != nil {
+		return e
+	}
+	return s.Db.qu.InsertPasskey(context.Background(), mangrove_sql.InsertPasskeyParams{
+		Cid:   []byte(sess.ID),
+		Oid:   n,
+		Name:  pgtype.Text{},
+		Type:  pgtype.Text{},
+		Value: b,
+	})
+
 }
 func (s *Server) Register(sess *Session) (string, error) {
 	user := sess.Username
@@ -277,7 +308,7 @@ func (s *Server) Register(sess *Session) (string, error) {
 		Name:     user,
 		IsUser:   true,
 		Password: []byte(sess.Password),
-		HashAlg:  pgtype.Text{String: "", Valid: true},
+		HashAlg:  "",
 		Email:    pt(sess.Email),
 		Mobile:   pt(sess.Phone),
 		Pin:      "",
@@ -321,7 +352,7 @@ func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (
 			Name:          user,
 			IsUser:        true,
 			Password:      []byte(password),
-			HashAlg:       pt(""),
+			HashAlg:       (""),
 			Email:         pt(li.Email),
 			Mobile:        pt(li.Phone),
 			Pin:           "",
@@ -345,7 +376,7 @@ func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (
 
 	}
 
-	switch a.HashAlg.String {
+	switch a.HashAlg {
 	case "bcrypt":
 		e = bcrypt.CompareHashAndPassword([]byte(a.Password), []byte(password))
 		if e != nil {
@@ -409,6 +440,38 @@ func (s *Server) GetPasswordFromEmail(email string) (string, error) {
 	return string(a.Password), nil
 }
 
+// call this based on successfully finding the oid in a passkey record
+func (s *Server) LoginInfoFromOid(sess *Session, oid int64) (*LoginInfo, error) {
+	a, e := s.Db.qu.SelectOrg(context.Background(), sess.Oid)
+	if e != nil {
+		return nil, e
+	}
+	if s.ProxyLogin != nil {
+		// why do we know these things here? shouldn't they be parameters
+		// these things are meaningless if there is no proxy
+		li, e := s.ProxyLogin(a.Name, string(a.Password))
+		if e != nil {
+			return nil, e
+		}
+		li.UserSecret, e = s.UserToSecret(sess.Oid)
+		if e != nil {
+			return nil, e
+		}
+		return li, nil
+	}
+
+	return &LoginInfo{
+		Home:            "../home",
+		Email:           a.Email.String,
+		Phone:           a.Mobile.String,
+		Cookies:         []string{},
+		UserSecret:      "",
+		Options:         0,
+		ActivatePasskey: true,
+		ActivateTotp:    true,
+	}, nil
+}
+
 // logging in always sends the ChallengeNotify, but we can also send it after logging in to confirm configuration changes.
 // this should probably come from the database for scale reasons.
 // this is a password equivalent so care needs to be taken
@@ -416,18 +479,22 @@ func (s *Server) GetLoginInfo(sess *Session) (*LoginInfo, error) {
 	var li *LoginInfo
 	var e error
 	if s.ProxyLogin != nil {
+		// why do we know these things here? shouldn't they be parameters
+		// these things are meaningless if there is no proxy
 		li, e = s.ProxyLogin(sess.Username, sess.Password)
 		if e != nil {
 			return nil, e
 		}
 	} else {
 		li = &LoginInfo{
-			Home:       "",
-			Email:      "",
-			Phone:      "",
-			Cookies:    []string{},
-			UserSecret: "",
-			Options:    0,
+			Home:            "",
+			Email:           "",
+			Phone:           "",
+			Cookies:         []string{},
+			UserSecret:      "",
+			Options:         0,
+			ActivatePasskey: false,
+			ActivateTotp:    false,
 		}
 	}
 	li.UserSecret, e = s.UserToSecret(sess.Oid)
@@ -614,18 +681,6 @@ func (s *Server) StoreFactor(sess *Session, key int, value string, cred *webauth
 		DefaultFactor: a.DefaultFactor,
 	})
 
-	s.Db.qu.InsertCredential(context.Background(), mangrove_sql.InsertCredentialParams{
-		Oid: sess.Oid,
-		Name: pgtype.Text{
-			String: "",
-			Valid:  false,
-		},
-		Type: pgtype.Text{
-			String: "",
-			Valid:  false,
-		},
-		Value: []byte{},
-	})
 	return nil
 }
 func (mg *Server) Open(sess *Session, w *OpenDb) (int64, error) {
@@ -840,18 +895,13 @@ func (s *Server) NewDevice(u *PasskeyCredential) error {
 	})
 }
 func (s *Server) LoadWebauthnUser(sess *Session, id string) error {
-	idn, e := strconv.ParseInt(id, 10, 64)
-	if e != nil {
-		return e
-	}
-	a, e := s.Db.qu.SelectOrg(context.Background(), idn)
+
+	a, e := s.Db.qu.SelectPasskey(context.Background(), []byte(id))
 	sess.Oid = a.Oid
-	sess.Username = a.Name
-	sess.Password = string(a.Password)
 	if e != nil {
 		return e
 	}
-	return json.Unmarshal([]byte(a.Webauthn), &sess.PasskeyCredential)
+	return json.Unmarshal([]byte(a.Value), &sess.PasskeyCredential)
 }
 func (s *Server) LoadDevice(u *PasskeyCredential, device string) error {
 	u.ID = device

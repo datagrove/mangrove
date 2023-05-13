@@ -56,27 +56,6 @@ func (q *Queries) GetDevice(ctx context.Context, device int64) (MgDevice, error)
 	return i, err
 }
 
-const insertCredential = `-- name: InsertCredential :exec
-insert into mg.credential (oid, name, type, value) values ($1, $2, $3, $4)
-`
-
-type InsertCredentialParams struct {
-	Oid   int64
-	Name  pgtype.Text
-	Type  pgtype.Text
-	Value []byte
-}
-
-func (q *Queries) InsertCredential(ctx context.Context, arg InsertCredentialParams) error {
-	_, err := q.db.Exec(ctx, insertCredential,
-		arg.Oid,
-		arg.Name,
-		arg.Type,
-		arg.Value,
-	)
-	return err
-}
-
 const insertDevice = `-- name: InsertDevice :exec
 insert into mg.device (device, webauthn) values ($1, $2)
 `
@@ -118,7 +97,7 @@ type InsertOrgParams struct {
 	Name          string
 	IsUser        bool
 	Password      []byte
-	HashAlg       pgtype.Text
+	HashAlg       string
 	Email         pgtype.Text
 	Mobile        pgtype.Text
 	Pin           string
@@ -149,6 +128,29 @@ func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) (int64, er
 	return oid, err
 }
 
+const insertPasskey = `-- name: InsertPasskey :exec
+insert into mg.passkey (cid, oid, name, type, value) values ($1, $2, $3, $4, $5)
+`
+
+type InsertPasskeyParams struct {
+	Cid   []byte
+	Oid   int64
+	Name  pgtype.Text
+	Type  pgtype.Text
+	Value []byte
+}
+
+func (q *Queries) InsertPasskey(ctx context.Context, arg InsertPasskeyParams) error {
+	_, err := q.db.Exec(ctx, insertPasskey,
+		arg.Cid,
+		arg.Oid,
+		arg.Name,
+		arg.Type,
+		arg.Value,
+	)
+	return err
+}
+
 const insertPrefix = `-- name: InsertPrefix :exec
 insert into mg.name_prefix (name,count) values ($1,0) on conflict do nothing
 `
@@ -170,7 +172,7 @@ func (q *Queries) NamePrefix(ctx context.Context, name string) (MgNamePrefix, er
 }
 
 const orgByEmail = `-- name: OrgByEmail :one
-select oid, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where email = $1
+select oid, did, username, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where email = $1
 `
 
 func (q *Queries) OrgByEmail(ctx context.Context, email pgtype.Text) (MgOrg, error) {
@@ -178,6 +180,8 @@ func (q *Queries) OrgByEmail(ctx context.Context, email pgtype.Text) (MgOrg, err
 	var i MgOrg
 	err := row.Scan(
 		&i.Oid,
+		&i.Did,
+		&i.Username,
 		&i.Name,
 		&i.IsUser,
 		&i.Password,
@@ -195,7 +199,7 @@ func (q *Queries) OrgByEmail(ctx context.Context, email pgtype.Text) (MgOrg, err
 }
 
 const orgByPhone = `-- name: OrgByPhone :one
-select oid, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where mobile = $1
+select oid, did, username, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where mobile = $1
 `
 
 func (q *Queries) OrgByPhone(ctx context.Context, mobile pgtype.Text) (MgOrg, error) {
@@ -203,6 +207,8 @@ func (q *Queries) OrgByPhone(ctx context.Context, mobile pgtype.Text) (MgOrg, er
 	var i MgOrg
 	err := row.Scan(
 		&i.Oid,
+		&i.Did,
+		&i.Username,
 		&i.Name,
 		&i.IsUser,
 		&i.Password,
@@ -263,38 +269,8 @@ func (q *Queries) RevokeDevice(ctx context.Context, arg RevokeDeviceParams) erro
 	return err
 }
 
-const selectCredential = `-- name: SelectCredential :many
-select oid, id, name, type, value from mg.credential where oid = $1
-`
-
-func (q *Queries) SelectCredential(ctx context.Context, oid int64) ([]MgCredential, error) {
-	rows, err := q.db.Query(ctx, selectCredential, oid)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []MgCredential
-	for rows.Next() {
-		var i MgCredential
-		if err := rows.Scan(
-			&i.Oid,
-			&i.ID,
-			&i.Name,
-			&i.Type,
-			&i.Value,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const selectOrg = `-- name: SelectOrg :one
-select oid, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where oid = $1
+select oid, did, username, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where oid = $1
 `
 
 func (q *Queries) SelectOrg(ctx context.Context, oid int64) (MgOrg, error) {
@@ -302,6 +278,8 @@ func (q *Queries) SelectOrg(ctx context.Context, oid int64) (MgOrg, error) {
 	var i MgOrg
 	err := row.Scan(
 		&i.Oid,
+		&i.Did,
+		&i.Username,
 		&i.Name,
 		&i.IsUser,
 		&i.Password,
@@ -319,7 +297,7 @@ func (q *Queries) SelectOrg(ctx context.Context, oid int64) (MgOrg, error) {
 }
 
 const selectOrgByName = `-- name: SelectOrgByName :one
-select oid, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where name = $1
+select oid, did, username, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where name = $1
 `
 
 func (q *Queries) SelectOrgByName(ctx context.Context, name string) (MgOrg, error) {
@@ -327,6 +305,8 @@ func (q *Queries) SelectOrgByName(ctx context.Context, name string) (MgOrg, erro
 	var i MgOrg
 	err := row.Scan(
 		&i.Oid,
+		&i.Did,
+		&i.Username,
 		&i.Name,
 		&i.IsUser,
 		&i.Password,
@@ -339,6 +319,23 @@ func (q *Queries) SelectOrgByName(ctx context.Context, name string) (MgOrg, erro
 		&i.Flags,
 		&i.TotpPng,
 		&i.DefaultFactor,
+	)
+	return i, err
+}
+
+const selectPasskey = `-- name: SelectPasskey :one
+select cid, oid, name, type, value from mg.passkey where cid = $1
+`
+
+func (q *Queries) SelectPasskey(ctx context.Context, cid []byte) (MgPasskey, error) {
+	row := q.db.QueryRow(ctx, selectPasskey, cid)
+	var i MgPasskey
+	err := row.Scan(
+		&i.Cid,
+		&i.Oid,
+		&i.Name,
+		&i.Type,
+		&i.Value,
 	)
 	return i, err
 }
@@ -382,7 +379,7 @@ type UpdateOrgParams struct {
 	Name          string
 	IsUser        bool
 	Password      []byte
-	HashAlg       pgtype.Text
+	HashAlg       string
 	Email         pgtype.Text
 	Mobile        pgtype.Text
 	Pin           string
