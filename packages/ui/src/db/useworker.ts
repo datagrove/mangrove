@@ -228,7 +228,7 @@ export function createEditor(d: Cell, setError: (s: string) => void): [refset<HT
             const v = e.target?.value
             const r = d.validate!.safeParse(v)
             setError(r.success ? '' : r.error.message)
-            d.commit(v)
+            d.setValue(v)
         })
     }]
 }

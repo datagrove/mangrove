@@ -225,6 +225,36 @@ func (s *Server) CreateUser(user, pass, ph string) error {
 
 }
 
+// a credential in two parts; first get the serial number
+func (s *Server) AddCredential1(sess *Session) (int64, error) {
+	return 0, nil // s.Db.qu.GetCredentialNumber()
+}
+func (s *Server) AddCredential2(sess *Session, cred *webauthn.Credential) error {
+	// if cred != nil {
+	// 	// serialize credentials
+	// 	sess.UserDevice.Credentials = append(sess.UserDevice.Credentials, *cred)
+	// 	b, e := json.Marshal(&sess.UserDevice)
+	// 	if e != nil {
+	// 		return e
+	// 	}
+	// 	a.Webauthn = string(b)
+	// }
+	return s.Db.qu.InsertCredential(context.Background(), mangrove_sql.InsertCredentialParams{
+		Oid:   sess.CredentialId,
+		Name:  pgtype.Text{},
+		Type:  pgtype.Text{},
+		Value: []byte{},
+	})
+
+}
+func (s *Server) RegisterEmailSocial(sess *Session, email, social string) error {
+	// insert an org record. fail if email exists since that would get confusing.
+	return nil
+}
+func (s *Server) RegisterEmailPassword(sess *Session, email, password string) error {
+	// insert an org record. fail if email exists since that would get confusing.
+	return nil
+}
 func (s *Server) Register(sess *Session) (string, error) {
 	user := sess.Username
 
@@ -534,24 +564,19 @@ func (mg *Server) ValidateChallenge(sess *Session, value string) bool {
 }
 
 // called from register2 with webauthn
-// exclude credentials?
+// exclude credentials? advantage of uuid's for credential ids? it's immediately distributed
 func (s *Server) StoreFactor(sess *Session, key int, value string, cred *webauthn.Credential) error {
 	a, e := s.Db.qu.SelectOrg(context.Background(), sess.Oid)
 	if e != nil {
 		return e
 	}
-	if cred != nil {
-		// serialize credentials
-		if len(a.Webauthn) != 0 {
-			json.Unmarshal([]byte(a.Webauthn), &sess.Device)
-		}
-		sess.UserDevice.Credentials = append(sess.UserDevice.Credentials, *cred)
-		b, e := json.Marshal(&sess.UserDevice)
-		if e != nil {
-			return e
-		}
-		a.Webauthn = string(b)
+
+	sess.PasskeyCredential.Credential = *cred
+	b, e := json.Marshal(&sess.PasskeyCredential)
+	if e != nil {
+		return e
 	}
+	a.Webauthn = string(b)
 
 	a.DefaultFactor = int32(key)
 	switch key {
@@ -776,7 +801,7 @@ func (s *Server) SuggestName(name string) (string, error) {
 		return fmt.Sprintf("%s%d", name, a), nil
 	}
 }
-func (s *Server) SaveUser(u *UserDevice) error {
+func (s *Server) SaveUser(u *PasskeyCredential) error {
 	name := strings.ReplaceAll(u.ID, ":", "_")
 	b, e := json.MarshalIndent(u, "", " ")
 	if e != nil {
@@ -802,7 +827,7 @@ func (s *Server) OkName(sess *Session, name string) bool {
 	a, _ := s.Db.qu.AvailableName(context.Background(), name)
 	return a == 0
 }
-func (s *Server) NewDevice(u *UserDevice) error {
+func (s *Server) NewDevice(u *PasskeyCredential) error {
 	b := context.Background()
 
 	webauth, e := json.Marshal(u)
@@ -826,9 +851,9 @@ func (s *Server) LoadWebauthnUser(sess *Session, id string) error {
 	if e != nil {
 		return e
 	}
-	return json.Unmarshal([]byte(a.Webauthn), &sess.UserDevice)
+	return json.Unmarshal([]byte(a.Webauthn), &sess.PasskeyCredential)
 }
-func (s *Server) LoadDevice(u *UserDevice, device string) error {
+func (s *Server) LoadDevice(u *PasskeyCredential, device string) error {
 	u.ID = device
 	a, e := s.Db.qu.GetDevice(context.Background(), 0) //device)
 	if e != nil {
@@ -839,7 +864,7 @@ func (s *Server) LoadDevice(u *UserDevice, device string) error {
 
 // Save device is for adding a credential to an existing device
 // maybe a credential should be a device? Could look like things disappeared though.
-func (s *Server) UpdateDevice(u *UserDevice) error {
+func (s *Server) UpdateDevice(u *PasskeyCredential) error {
 	b, e := json.MarshalIndent(u, "", " ")
 	if e != nil {
 		return e

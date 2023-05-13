@@ -84,6 +84,11 @@ const en = {
     "app": "Phone App",
     "ssh": "SSH",
     continueWith: "Or continue with",
+    register1: "You are good to go!",
+    register2: "You don't need to share your email or phone number. We will generate a passkey for you that you can share among your devices. You can change your screen name now or later.",
+    register3: "That's ok!",
+    register4: "Just fill in your email and password. Or use an account that you already have.",
+    recoverWithPhone: "I want a password instead",
 }
 type Ln = typeof en
 const es: Ln = {
@@ -127,7 +132,7 @@ const allLn: { [key: string]: Ln } = {
 export const useLn = (): () => Ln => {
     //const p = useParams<{ ln: string }>();
     const loc = useLocation()
-   
+
     return () => {
         const ln = loc.pathname.split('/')[2]
         return allLn[ln] ?? allLn['en']

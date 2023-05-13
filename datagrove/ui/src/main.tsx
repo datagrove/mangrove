@@ -1,6 +1,6 @@
 import "./index.css"
 import { render } from "solid-js/web"
-import { LoginPage, SettingsPage, initWs, } from '../../../packages/ui/src'
+import { LoginPage, RegisterPage, RegisterPage2, SettingsPage, initWs, } from '../../../packages/ui/src'
 import { Route, Router, Routes, useNavigate } from "../../../packages/ui/src/core/dg"
 
 const prefix = "/datagrove"
@@ -10,12 +10,19 @@ const catchall = () => {
     nav(`${prefix}/en/login`)
     return <div>catchall</div>
 }
+const home = () => {
+    return <div>home</div>
+}
+
 function App() {
     const nav = useNavigate()
     //return <div>{`${prefix}/:ln/login`}</div>
     return <Routes>
         <Route path={`${prefix}/:ln/login`} component={LoginPage} />
         <Route path={`${prefix}/:ln/settings`} component={SettingsPage} />
+        <Route path={`${prefix}/:ln/register`} component={RegisterPage} />
+        <Route path={`${prefix}/:ln/register2`} component={RegisterPage2} />
+        <Route path={`${prefix}/:ln/home`} component={home} />
         <Route path="/*" component={catchall} />
     </Routes>
 }

@@ -20,7 +20,7 @@ type Device struct {
 	Name string
 }
 
-func (u *UserDevice) WebAuthnID() []byte {
+func (u *PasskeyCredential) WebAuthnID() []byte {
 	return []byte(u.ID)
 }
 
@@ -29,7 +29,7 @@ func (u *UserDevice) WebAuthnID() []byte {
 // choose this, and SHOULD NOT restrict the choice more than necessary.
 //
 // Specification: §5.4.3. User Account Parameters for Credential Generation (https://w3c.github.io/webauthn/#dictdef-publickeycredentialuserentity)
-func (u *UserDevice) WebAuthnName() string {
+func (u *PasskeyCredential) WebAuthnName() string {
 	return u.Name
 }
 
@@ -38,22 +38,22 @@ func (u *UserDevice) WebAuthnName() string {
 // SHOULD let the user choose this, and SHOULD NOT restrict the choice more than necessary.
 //
 // Specification: §5.4.3. User Account Parameters for Credential Generation (https://www.w3.org/TR/webauthn/#dom-publickeycredentialuserentity-displayname)
-func (u *UserDevice) WebAuthnDisplayName() string {
+func (u *PasskeyCredential) WebAuthnDisplayName() string {
 	return u.Name
 }
 
 // WebAuthnCredentials provides the list of Credential objects owned by the user.
-func (u *UserDevice) WebAuthnCredentials() []webauthn.Credential {
-	return u.Credentials
+func (u *PasskeyCredential) WebAuthnCredentials() []webauthn.Credential {
+	return u.Credential
 }
 
 // WebAuthnIcon is a deprecated option.
 // Deprecated: this has been removed from the specification recommendation. Suggest a blank string.
-func (u *UserDevice) WebAuthnIcon() string {
+func (u *PasskeyCredential) WebAuthnIcon() string {
 	return ""
 }
 
-var _ webauthn.User = (*UserDevice)(nil)
+var _ webauthn.User = (*PasskeyCredential)(nil)
 
 //	func response(w http.ResponseWriter, d string, c int) {
 //		w.Header().Set("Content-Type", "application/json")
@@ -77,8 +77,8 @@ var (
 // user = NewUser("test_user")
 )
 
-func NewUser(s string) *UserDevice {
-	u := &UserDevice{}
+func NewUser(s string) *PasskeyCredential {
+	u := &PasskeyCredential{}
 	u.Name = s
 	u.ID = s
 	return u
@@ -176,7 +176,7 @@ func WebauthnSocket(mg *Server) error {
 	// how should we safely confirm the recovery code? It's basically a password.
 	// add is mostly the same as register?
 	mg.AddApij("addCredential", true, func(r *Rpcpj) (any, error) {
-		options, session, err := web.BeginRegistration(&r.UserDevice)
+		options, session, err := web.BeginRegistration(&r.PasskeyCredential)
 		if err != nil {
 			return nil, err
 		}
@@ -184,10 +184,10 @@ func WebauthnSocket(mg *Server) error {
 		return options, nil
 	})
 	mg.AddApi("removeCredential", true, func(r *Rpcp) (any, error) {
-		r.UserDevice.Credentials = Filter(r.UserDevice.Credentials, func(e webauthn.Credential) bool {
+		r.PasskeyCredential.Credential = Filter(r.PasskeyCredential.Credential, func(e webauthn.Credential) bool {
 			return string(e.ID) == string(r.Params)
 		})
-		mg.SaveUser(&r.UserDevice)
+		mg.SaveUser(&r.PasskeyCredential)
 		return nil, nil
 	})
 
@@ -195,11 +195,11 @@ func WebauthnSocket(mg *Server) error {
 		if r.Oid < 0 {
 			return nil, errors.New("login_first")
 		}
-		r.UserDevice.ID = fmt.Sprintf("%d", r.Oid)
+		r.PasskeyCredential.ID = fmt.Sprintf("%d", r.Oid)
 		// does this get baked into credential? that would be an argument for getting a name first.
-		r.UserDevice.DisplayName = r.Name
-		r.UserDevice.Name = r.Name
-		options, session, err := web.BeginRegistration(&r.UserDevice)
+		r.PasskeyCredential.DisplayName = r.Name
+		r.PasskeyCredential.Name = r.Name
+		options, session, err := web.BeginRegistration(&r.PasskeyCredential)
 		if err != nil {
 			return nil, err
 		}
@@ -212,7 +212,7 @@ func WebauthnSocket(mg *Server) error {
 			return nil, err
 		}
 		// when we create this credential we need to also store it to the user file
-		credential, err := web.CreateCredential(&r.UserDevice, *r.Session.data, response)
+		credential, err := web.CreateCredential(&r.PasskeyCredential, *r.Session.data, response)
 		if err != nil {
 			return nil, err
 		}
@@ -228,11 +228,11 @@ func WebauthnSocket(mg *Server) error {
 		if e != nil {
 			return nil, e
 		}
-		r.UserDevice.ID = v.Device
+		r.PasskeyCredential.ID = v.Device
 		// does this get baked into credential? that would be an argument for getting a name first.
-		r.UserDevice.DisplayName = v.Device
-		r.UserDevice.Name = v.Device
-		options, session, err := web.BeginRegistration(&r.UserDevice)
+		r.PasskeyCredential.DisplayName = v.Device
+		r.PasskeyCredential.Name = v.Device
+		options, session, err := web.BeginRegistration(&r.PasskeyCredential)
 		if err != nil {
 			return nil, err
 		}
@@ -240,19 +240,56 @@ func WebauthnSocket(mg *Server) error {
 		return options, nil
 	})
 
-	// always creates with a password
-	// we don't have a way to proxy this yet, so disable for demo.
-	// we may want to handle this directly from the proxy anyway so we can use the existing form (not an option for login)
-	mg.AddApij("createuser", false, func(r *Rpcpj) (any, error) {
-		e := json.Unmarshal(r.Params, &r.Session.RegisterInfo)
+	// user name, not unique. produce challenge
+	mg.AddApij("register", false, func(r *Rpcpj) (any, error) {
+		var v struct {
+			Name string `json:"name"`
+		}
+		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
-		_, e = mg.Register(r.Session)
+		r.DisplayName = r.Name
+		r.Name = v.Name
+		options, session, err := web.BeginRegistration(&r.PasskeyCredential)
+		if err != nil {
+			return nil, err
+		}
+		r.Session.data = session
+		return options, nil
+	})
+	// part 2 of register, create a unique user.
+	mg.AddApij("registerb", false, func(r *Rpcpj) (any, error) {
+		response, err := protocol.ParseCredentialCreationResponseBody(bytes.NewReader(r.Params))
+		if err != nil {
+			return nil, err
+		}
+		// when we create this credential we need to also store it to the user file
+
+		credential, err := web.CreateCredential(&r.PasskeyCredential, *r.Session.data, response)
+		if err != nil {
+			return nil, err
+		}
+		_ = credential
+		//mg.RegisterPasskey(r.Session, credential)
+		return true, nil
+	})
+
+	// email and password
+	mg.AddApij("register2", false, func(r *Rpcpj) (any, error) {
+		var v struct {
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
 			return nil, e
 		}
-		return mg.GetLoginInfo(r.Session)
+		e = mg.RegisterEmailPassword(r.Session, v.Email, v.Password)
+		if e != nil {
+			return nil, e
+		}
+		return true, nil
 	})
 
 	// 	r.UserDevice.ID = fmt.Sprintf("%d", r.Oid)
@@ -279,14 +316,14 @@ func WebauthnSocket(mg *Server) error {
 			return nil, err
 		}
 		// when we create this credential we need to also store it to the user file
-		credential, err := web.CreateCredential(&r.UserDevice, *r.Session.data, response)
+		credential, err := web.CreateCredential(&r.PasskeyCredential, *r.Session.data, response)
 		if err != nil {
 			return nil, err
 		}
 		// may not exist yet, that's not an error
-		_ = mg.LoadDevice(&r.UserDevice, r.ID)
-		r.UserDevice.Credentials = append(r.Session.UserDevice.Credentials, *credential)
-		e = mg.NewDevice(&r.Session.UserDevice)
+		_ = mg.LoadDevice(&r.PasskeyCredential, r.ID)
+		r.PasskeyCredential.Credential = append(r.Session.PasskeyCredential.Credential, *credential)
+		e = mg.NewDevice(&r.Session.PasskeyCredential)
 		if e != nil {
 			return nil, e
 		}
@@ -417,7 +454,7 @@ func WebauthnSocket(mg *Server) error {
 			if e != nil {
 				return nil, e
 			} else {
-				return &r.UserDevice, nil
+				return &r.PasskeyCredential, nil
 			}
 		}
 		credential, err := web.ValidateDiscoverableLogin(handler, *r.Session.data, response)
@@ -446,13 +483,13 @@ func WebauthnSocket(mg *Server) error {
 			User   string `json:"user"`
 		}
 		json.Unmarshal(r.Params, &v)
-		e := mg.LoadDevice(&r.UserDevice, v.Device)
+		e := mg.LoadDevice(&r.PasskeyCredential, v.Device)
 		if e != nil {
 			return nil, e
 		}
 
 		// before we call this we need to load the user credentials
-		options, session, err := web.BeginLogin(&r.UserDevice)
+		options, session, err := web.BeginLogin(&r.PasskeyCredential)
 		if err != nil {
 			return nil, err
 		}
@@ -466,7 +503,7 @@ func WebauthnSocket(mg *Server) error {
 			return nil, err
 		}
 
-		credential, err := web.ValidateLogin(&r.UserDevice, *r.Session.data, response)
+		credential, err := web.ValidateLogin(&r.PasskeyCredential, *r.Session.data, response)
 		if err != nil {
 			return nil, err
 		}

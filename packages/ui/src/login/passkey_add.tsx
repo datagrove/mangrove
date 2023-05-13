@@ -43,7 +43,6 @@ export const email: CellOptions = {
     name: "email",
 }
 
-
 export const Username: Component<InputProps> = (props) => {
     const ln = useLn()
 
@@ -57,8 +56,6 @@ export const Username: Component<InputProps> = (props) => {
 
     </div>
 }
-
-
 
 export const InputSecret = (props: any) => {
     return <Input {...props} placeholder='code' />
@@ -166,17 +163,17 @@ export const AddPasskey: Component<{
         const o = await ws.rpcj<any>("addpasskey", {})
         const cco = parseCreationOptionsFromJSON(o)
         const cred = await create(cco)
-        const [token,err] = await ws.rpcje<any>("addpasskey2", cred.toJSON())
+        const [token, err] = await ws.rpcje<any>("addpasskey2", cred.toJSON())
         if (err) {
-            props.onClose(PasskeyChoice.NotNow,err)
+            props.onClose(PasskeyChoice.NotNow, err)
             return
         }
-        props.onClose(PasskeyChoice.Add,"")
+        props.onClose(PasskeyChoice.Add, "")
     }
 
     // we just close and go on.
-    const notNow = () => { 
-        props.onClose(PasskeyChoice.NotNow,"") 
+    const notNow = () => {
+        props.onClose(PasskeyChoice.NotNow, "")
     }
     // here we have to save our choice to the database
     const notEver = async () => {
@@ -184,22 +181,22 @@ export const AddPasskey: Component<{
             type: Number(Factor.kNone),
         })
 
-        props.onClose(PasskeyChoice.NotEver,"")
+        props.onClose(PasskeyChoice.NotEver, "")
     }
     return <Dialog> <DialogPage >
-            <div class="space-y-6 ">
-                <Icon path={key} class="w-24 h-24 mx-auto" />
-                <p >{ln().addPasskey1}</p>
-                <p class='text-neutral-500'>{ln().addPasskey2}</p>
-            </div>
-            <div class='flex space-x-4'>
-                <div class='w-24'><BlueButton autofocus tabindex='0' ref={btnSaveEl!} onClick={add}>{ln().add}</BlueButton></div>
-                <div class='w-24'><LightButton tabindex='0' ref={btnNot!} onClick={notNow}>{ln().notNow}</LightButton></div>
-                <div class='w-24'><LightButton tabindex='0' onClick={notEver}>{ln().notEver}</LightButton></div>
-            </div>
-            <div class=' flex'><Bb onClick={() => {
-                //setMore(true)
-            }}>{ln().more2fa}</Bb></div></DialogPage> </Dialog>
+        <div class="space-y-6 ">
+            <Icon path={key} class="w-24 h-24 mx-auto" />
+            <p >{ln().addPasskey1}</p>
+            <p class='text-neutral-500'>{ln().addPasskey2}</p>
+        </div>
+        <div class='flex space-x-4'>
+            <div class='w-24'><BlueButton autofocus tabindex='0' ref={btnSaveEl!} onClick={add}>{ln().add}</BlueButton></div>
+            <div class='w-24'><LightButton tabindex='0' ref={btnNot!} onClick={notNow}>{ln().notNow}</LightButton></div>
+            <div class='w-24'><LightButton tabindex='0' onClick={notEver}>{ln().notEver}</LightButton></div>
+        </div>
+        <div class=' flex'><Bb onClick={() => {
+            //setMore(true)
+        }}>{ln().more2fa}</Bb></div></DialogPage> </Dialog>
 }
 
 

@@ -5,7 +5,6 @@ import { SetStoreFunction, Store, produce } from "solid-js/store"
 import { BlobOptions } from "buffer"
 import { lx, useLn } from "../login/passkey_i18n"
 
-
 export const FieldSet: Component<{ children: JSXElement }> = (props) => {
     return <fieldset class="relative flex items-start ">
         <div class='space-y-5'>{props.children}</div></fieldset>
@@ -53,7 +52,11 @@ export const Center: Component<JSX.AnchorHTMLAttributes<HTMLDivElement>> = (prop
 }
 
 export const BlueButton: Component<ButtonProps> = (props) => {
-    return <button {...props} disabled={props.disabled} onClick={props.onClick} class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-indigo-600 disabled:opacity-50">{props.children}</button>
+    let b: HTMLButtonElement
+    createEffect(() => {
+        if (b.autofocus) b.focus()
+    })
+    return <button {...props} ref={b!} disabled={props.disabled} onClick={props.onClick} class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-indigo-600 disabled:opacity-50">{props.children}</button>
 }
 export const LightButton: Component<ButtonProps> = (props) => {
     return <button {...props} disabled={props.disabled} onClick={props.onClick} class="flex w-full justify-center rounded-md bg-neutral-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-neutral-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50">{props.children}</button>
@@ -151,9 +154,9 @@ export const Segment: Component<{
             <nav class="isolate flex rounded-lg shadow" aria-label="Tabs">
                 <For each={props.option}>{(e: KeyValue, i) => {
                     let [k, desc] = e
-                    return <a href="#" 
-                        onClick={()=>onClick(k)} 
-                        class={selected(k == props.value)} 
+                    return <a href="#"
+                        onClick={() => onClick(k)}
+                        class={selected(k == props.value)}
                         aria-current="page">{desc}</a>
                 }}</For>
             </nav>
@@ -171,22 +174,22 @@ export interface TernarySetProps {
     value: Store<DecisionMap>,  // intended to be a proxy from createstore
     setValue: (x: string, y: string) => void
 }
-export function TernarySet(props:TernarySetProps){
+export function TernarySet(props: TernarySetProps) {
     const setAll = (v: string) => {
         for (let x of props.opts) {
             props.setValue(x[0], v)
         }
     }
     // when should this be called? when the value changes? any props?
-    createEffect(()=>{
-        console.log("ternary set",props.value)
+    createEffect(() => {
+        console.log("ternary set", props.value)
     })
 
     const val = (k: string) => {
         return props.value[k]
     }
     const setVal = (k: string, v: string) => {
-        console.log("setval",k,v)
+        console.log("setval", k, v)
         props.setValue(k, v)
     }
     // this is called every time its mounted by disclosure.
@@ -206,7 +209,7 @@ export function TernarySet(props:TernarySetProps){
                         ["-1", 'Allow']
                     ]}
                         value={val(k)}
-                        onChange={(v)=>setVal(k,v)} /></div>
+                        onChange={(v) => setVal(k, v)} /></div>
                     <div class='ml-6'>{e[1]}  </div></div>
             }}</For>
         </fieldset>

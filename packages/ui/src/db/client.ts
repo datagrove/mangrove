@@ -22,7 +22,7 @@ interface SyntaxError {
 
 export interface Cell extends CellOptions {
     error_?: SyntaxError[]
-    commit(s: string): Promise<void>
+    setValue(s: string): Promise<void>
     listen(cb: (v: string) => void): void
     value(): string
     setError(s: string): void
@@ -41,7 +41,7 @@ export function cell(props: CellOptions): Cell {
     return {
         ...props,
         validate: props?.validate || z.string(),
-        commit: async (ts: string) => {
+        setValue: async (ts: string) => {
             console.log("commit", ts)
             setV(ts)
         },

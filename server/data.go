@@ -17,7 +17,7 @@ type RegisterInfo struct {
 type Session struct {
 	mu  sync.Mutex
 	Oid int64
-	UserDevice
+	PasskeyCredential
 	Device string // device for this session
 	Secret string
 	data   *webauthn.SessionData
@@ -33,6 +33,7 @@ type Session struct {
 	Totp          string
 	DefaultFactor int
 	FactorValue   string // hold a value while we are testing it.
+	CredentialId  int64
 }
 type StreamHandle struct {
 	*Stream
@@ -58,22 +59,26 @@ type SessionStatus struct {
 // Device      map[string]*Device    `json:"device"`
 type User struct {
 	Alias  []*UserAlias
-	Device []*UserDevice
+	Device []*PasskeyCredential
 }
 type UserAlias struct {
 	Id string `json:"id"`
 }
 
-type UserDevice struct {
-	ID          string                `json:"id"`
-	Name        string                `json:"name"`
-	DisplayName string                `json:"display_name"`
-	Icon        string                `json:"icon,omitempty"`
-	Credentials []webauthn.Credential `json:"credentials,omitempty"`
-	RecoveryKey string                `json:"recovery_key,omitempty"`
-	Home        string
-	User        *User
-	LoginUcan   string `json:"login_ucan,omitempty"`
+type PasskeyCredential struct {
+	ID string `json:"id"`
+	// Is there any point in storing these?
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
+	Icon        string `json:"icon,omitempty"`
+	// is ID here different than ID in Credential?
+	Credential webauthn.Credential `json:"credentials,omitempty"`
 }
 
-var _ webauthn.User = (*UserDevice)(nil)
+var _ webauthn.User = (*PasskeyCredential)(nil)
+
+type UserMore struct {
+	Home      string
+	User      *User
+	LoginUcan string `json:"login_ucan,omitempty"`
+}

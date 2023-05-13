@@ -14,8 +14,8 @@ export type InputProps = {
     placeholder?: string,
     autofocus?: boolean,
     onInput?: (value: string) => void,
-  }
-  
+}
+
 export const Input = (props: InputProps & { error?: () => JSX.Element }) => {
     let inp!: HTMLInputElement
     onMount(() => {
@@ -42,7 +42,7 @@ export const InputCell: Component<{ cell: Cell, autofocus?: boolean }> = (props)
     const n = props.cell.name
     const setCell = (e: string) => {
         props.cell.clearErrors()
-        props.cell.commit(e)
+        props.cell.setValue(e)
     }
     return <div >
         <div class="flex items-center justify-between">
@@ -53,7 +53,7 @@ export const InputCell: Component<{ cell: Cell, autofocus?: boolean }> = (props)
             </Show>
         </div>
         <div >
-            <Input {...props} autofocus={props.autofocus || props.cell.autofocus} onInput={setCell} placeholder={_(n)} id={n} name={n} type={props.cell.type ?? "text"} autocomplete={props.cell.autocomplete} />
+            <Input {...props} value={props.cell.value()} autofocus={props.autofocus || props.cell.autofocus} onInput={setCell} placeholder={_(n)} id={n} name={n} type={props.cell.type ?? "text"} autocomplete={props.cell.autocomplete} />
         </div>
         <div>
             <Show when={props.cell.error()}>

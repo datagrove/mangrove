@@ -18,15 +18,28 @@ import { createWs } from "../core/socket";
 import * as bip39 from 'bip39'
 import * as nacl from 'tweetnacl'
 import { Ws } from "../core/socket";
-import { BlueButton, Center, Checkbox, FieldSet, Input, P, TextDivider, ToggleSection } from "../lib/form";
+import { BlueButton, Center, Checkbox, FieldSet, P, TextDivider, ToggleSection } from "../lib/form";
 import { LoginWith } from "../login/login_with";
 import { Buffer } from 'buffer'
 import { bufferToHex } from "../lib/encode";
 import { error, setError, setLogin } from "../lib/crypto";
 import { A, useNavigate } from "../core/dg";
+import { Input } from "../lib/input";
 // @ts-ignore
 
-const [user,setUser] = createSignal("")
+function Bip39() {
+    return <><div class="flex items-center justify-between">
+        <label for="password" class="block text-sm font-medium leading-6 text-white">BIP39 phrase</label>
+        <div class="text-sm">
+            <button class="font-semibold text-indigo-400 hover:text-indigo-300">Generate</button>
+        </div>
+    </div>
+        <textarea rows='2' id='bip39' class='w-full my-2 p-2 bg-white rounded-md border border-neutral-500 dark:text-black'>{mn()}</textarea>
+    </>
+}
+
+
+const [user, setUser] = createSignal("")
 export const RecoveryPage = () => {
     const ws = createWs();
     const [ph, setPh] = createSignal("")

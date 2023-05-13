@@ -143,14 +143,14 @@ func (s *Server) NewSession(notifier SessionNotifier) (*Session, error) {
 	defer s.muSession.Unlock()
 
 	r := &Session{
-		Oid:        -1,
-		UserDevice: UserDevice{},
-		Device:     "",
-		Secret:     secret,
-		data:       nil,
-		mu:         sync.Mutex{},
-		Handle:     map[int64]StreamHandle{},
-		Notifier:   notifier,
+		Oid:               -1,
+		PasskeyCredential: PasskeyCredential{},
+		Device:            "",
+		Secret:            secret,
+		data:              nil,
+		mu:                sync.Mutex{},
+		Handle:            map[int64]StreamHandle{},
+		Notifier:          notifier,
 	}
 	s.Session[secret] = r
 	return r, nil
