@@ -24,6 +24,7 @@ import { useLn } from '../login/passkey_i18n';
 
 import { Scroller } from '../lib/scroll';
 import { Chat, chats } from '../lib/scroller_test';
+import { EditorApp } from '../editor/main';
 function classNames(...classes: (string | boolean | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }
@@ -157,9 +158,13 @@ export function FakeScroll() {
     })
   })
 
-  return <div class='right-0 left-80 absolute overflow-y-auto overflow-x-hidden h-screen  border-solid border-2 border-red-500 ' ref={el!}>
+  return <><div class='right-0 bottom-64 left-80 absolute overflow-y-auto overflow-x-hidden h-screen  border-solid border-2 border-red-500 ' ref={el!}>
 
   </div>
+    <div class='right-0 bottom-0 left-80 absolute overflow-y-auto overflow-x-hidden h-64  border-solid border-2 border-green-500 ' >
+      <EditorApp />
+    </div>
+  </>
 
 }
 
