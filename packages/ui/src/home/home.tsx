@@ -66,17 +66,11 @@ function Nosite(props: {}) {
 
 // should we get site from a signal? passed as a prop? as a context?
 function Home(props: { site: Site }) {
+  // need to create a Component from the presentation
   return <Page>
     <Title></Title>
-    <Body><DbView /></Body>
+    <Body><PresentationView present={ /></Body>
   </Page>
 }
 
-// how do we transform a database view + procedures into a solid component?
-interface DbPresentation {
-
-}
-function DbView(props: { present: DbPresentation }) {
-  return <div>DbView</div>
-}
 

@@ -8,6 +8,23 @@ const dbCache = new Map<string, Database>()
 const present = new Map<string, PresentationCache<any>>()
 const byHandle = new Map<number, PresentationCache<any>>()
 
+// how do we transform a database view + procedures into a solid component?
+// each cell needs to be reactive. The cells must be mounted on fixed position divs to get 60fps scrolling.
+// everything must be a list, and within list can be more lists (although deep nesting should be avoided). We can format each list by itself with a maximum height of the screen, in this way we can switch between scrolling the overall presentation and scrolling the individual lists.
+
+// a presentation interface needs to retrieve a list of object|list<object>
+// 
+export interface DbPresentation {
+  
+}
+export interface RenderBlock {
+
+}
+function DbView(props: { present: DbPresentation }) {
+  return <div>DbView</div>
+}
+
+
 // a database allows ACID transactions
 export class Database {
     view = new Map<string, Query<any>>()
