@@ -67,10 +67,7 @@ function Nosite(props: {}) {
 // should we get site from a signal? passed as a prop? as a context?
 function Home(props: { site: Site }) {
   // need to create a Component from the presentation
-  return <Page>
-    <Title></Title>
-    <Body><PresentationView present={ /></Body>
-  </Page>
+  return <Page>s</Page>
 }
 
 

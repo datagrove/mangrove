@@ -1,11 +1,6 @@
 import { DxUpdate, Snapshot } from './dx'
 const inf = Number.NEGATIVE_INFINITY
 
-// needs a useQuery to be able to clean up.
-export class ScrollController {
-
-}
-
 type BuilderFn<T> = (x: T | null, old: HTMLElement) => void
 export interface ScrollerProps<T> {
     items?: T[] // alternative to snapshot
@@ -190,6 +185,8 @@ export class Scroller<T>  {
         this.adjustHeight()
         this.repositionAll()
         this.onScroll_()
+        console.log('size', { ...this.anchorItem, top: this.scroller_.scrollTop, st: this.rendered_start, h: this.estHeight_ })
+        console.log('resize', this.anchorScrollTop, this.anchorItem.index, this.anchorItem.offset)
     }
     repositionAll() {
         let pos = this.anchorScrollTop - this.heightAbove

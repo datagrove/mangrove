@@ -21,6 +21,9 @@ import { BlueButton, Center } from '../lib/form'
 import { AnchorProps, A as Ar, useNavigate } from '../core/dg';
 import { LanguageSelect } from '../i18n/i18';
 import { useLn } from '../login/passkey_i18n';
+
+import { Scroller } from '../lib/scroll';
+import { Chat, chats } from '../lib/scroller_test';
 function classNames(...classes: (string | boolean | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }
@@ -139,15 +142,31 @@ export const Account: Component = () => {
 }
 
 export const Body: Component<{ children: JSXElement }> = (props) => {
-  return <div class="m-2">{props.children}
+  return <div class="m-2 h-screen w-full">{props.children}</div>
+}
+export function FakeScroll() {
+  let el: HTMLDivElement
+
+  createEffect(() => {
+    const s = new Scroller<Chat>(el!, {
+      items: chats,
+      // builder takes a T and creates dom from it.
+      builder(chat: Chat | null, old: HTMLElement) {
+        old.innerHTML = chat ? `<p>${chat.message}<p>` : '<p>tombstone</p>'
+      },
+    })
+  })
+
+  return <div class='right-0 left-80 absolute overflow-y-auto overflow-x-hidden h-screen  border-solid border-2 border-red-500 ' ref={el!}>
 
   </div>
+
 }
 
 export const Page: Component<{ children: JSXElement }> = (props) => {
-  return <div class='flex h-screen v-screen '>
-    <div class='w-80 h-full overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><SiteMenuContent></SiteMenuContent></div>
-    <div class='flex-1 p-2 h-full overflow-auto '><div class={small() ? 'h-12' : ''}></div>{props.children}</div>
+  return <div class='flex h-screen w-screen fixed overflow-hidden'>
+    <div class='w-80 h-full  overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><SiteMenuContent /></div>
+    <FakeScroll />
   </div>
 }
 
