@@ -18,11 +18,6 @@ import { orgsite } from "./orgsite";
 import { LanguageSelect } from "../i18n/i18";
 import { useLocation, Location, useParams } from "../core/dg";
 
-export const [searchMode, setSearchMode] = createSignal(false)
-export const [innerContent, setInnerContent] = createSignal(<div />)
-export const [site, setSite2] = createSignal<SiteStore>(prepSite(orgsite));
-
-const [isDark, setIsDark] = createSignal(true)
 export enum ShowPagemap {
   adaptive,  // adaptive -> click = toggle. so once its closed or open it can no longer be adaptive.
   none,
@@ -35,10 +30,17 @@ export enum ShowSitemap {
   full,
   split, // split is same as adaptive?
 }
+
+export const [searchMode, setSearchMode] = createSignal(false)
+export const [innerContent, setInnerContent] = createSignal(<div />)
+// orgsite is a test value
+export const [site, setSite2] = createSignal<SiteStore>(prepSite(orgsite));
 const [sitemap, setSitemap] = createSignal(ShowSitemap.adaptive)
 export const [pagemap, setPagemap] = createSignal(ShowPagemap.adaptive)
-
+const [isDark, setIsDark] = createSignal(true)
 export const windowSize = createWindowSize();
+
+// derived.
 export const mobile = () => {
   const r = windowSize.width < 650
   //console.log("windowWidth", windowSize.width)

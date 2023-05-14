@@ -1,7 +1,6 @@
 import { Component, Show, createSignal } from "solid-js"
-import {  Body, Page } from "../layout/nav"
 import { A } from '../core/dg'
-import { Center, FieldSet } from "../lib/form"
+import { Center } from "../lib/form"
 import { createUser, generatePassPhrase, security, setError, setLogin, setSecurity } from "../lib/crypto"
 import {
     parseCreationOptionsFromJSON,
@@ -9,7 +8,6 @@ import {
     get,
     parseRequestOptionsFromJSON,
 } from "@github/webauthn-json/browser-ponyfill";
-import { SiteStore } from "../layout/site_menu"
 import { createWs } from "../core/socket"
 import { useNavigate } from "../core/dg";
 

@@ -30,7 +30,7 @@ export const Settings: Component = () => {
                 <Show when={welcome()}><p>Welcome to {site().name}.</p></Show>
                 <ListUsers />
                 <ListDevices />
-                
+
 
             </div>
         </div></Page>
@@ -40,33 +40,31 @@ export const Settings: Component = () => {
 
 // show a list of devices and allow them to be revoked.
 export const ListUsers: Component = () => {
-    const [edit,setEdit] = createSignal(false)
+    const [edit, setEdit] = createSignal(false)
     const erase = () => {
     }
     return <FieldSet>
         <TextDivider>User Identity</TextDivider>
         <table><tbody>
-            <For each={[]}>{(us, i) => {
+            <For each={[]}>{() => {
                 return <tr><td><InlineButton>edit</InlineButton></td><td>{"name"}</td>
                     <td class='text-green-300'>{""}</td></tr>
             }}</For>
         </tbody></table>
         <InlineButton>Add Identity</InlineButton>
         <FieldSet>
-        <Show when={edit()}>
-            <p>All fields are optional</p>
-            <Input value={email2()} name="email" placeholder="Email" />
-            <Input value={phone2()} name="phone" placeholder="Phone" />
-        </Show>
-    </FieldSet>
+            <Show when={edit()}>
+                <p>All fields are optional</p>
+                <Input value={email2()} name="email" placeholder="Email" />
+                <Input value={phone2()} name="phone" placeholder="Phone" />
+            </Show>
+        </FieldSet>
 
         <div>We recommmend you<A target='_blank' href='https://www.schneier.com/blog/archives/2005/06/write_down_your.html'> write down your secret phrase</A> on paper with pencil. Then <InlineButton onClick={erase}>erase</InlineButton> them here.</div>
 
     </FieldSet>
 }
 export const ListDevices: Component = () => {
-    const erase = () => {
-    }
     return <FieldSet>
         <TextDivider>Devices</TextDivider>
         <p>Your account is only available from this device and this browser profile.</p>
