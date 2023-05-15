@@ -1,3 +1,5 @@
+import { JSXElement } from "solid-js"
+
 const inf = Number.NEGATIVE_INFINITY
 
 export type BuilderFn = (old: HTMLElement, row: number, column: number) => void
@@ -148,7 +150,7 @@ export class Scroller {
             d.style.height = '1px';
             d.style.width = '1px';
             d.style.transition = 'transform 0.2s';
-            this.scroller_.appendChild(this.scrollRunway_);
+            this.scroller_.appendChild(d);
             return d
         }
         this.scrollRunway_ = fd()
@@ -369,6 +371,107 @@ export class Scroller {
 
     }
 }
+
+const Td = (props: { children?: JSXElement }) => {
+    return <td>{props.children} </td>
+}
+const Th = (props: { children?: JSXElement }) => {
+    return <td>{props.children} </td>
+}
+interface ResizeData {
+    startX: number;
+    startWidth: number;
+}
+
+export function enableColumnResizing(table: HTMLTableElement, watch: (x: string) => void) {
+    const headers = table.getElementsByTagName('th');
+
+    for (let i = 0; i < headers.length; i++) {
+        const header = headers[i];
+        header.classList.add('th-resize-handle');
+
+        header.addEventListener('mousedown', (event: MouseEvent) => {
+            const resizeData: ResizeData = {
+                startX: event.pageX,
+                startWidth: header.offsetWidth,
+            };
+            (header as any).resizeData = resizeData;
+
+            const stopColumnResize = () => {
+                document.removeEventListener('mousemove', handleColumnResize, false);
+                document.removeEventListener('mouseup', stopColumnResize, false);
+            }
+            const handleColumnResize = (event: MouseEvent) => {
+                const columnIndex = Array.from(header.parentNode!.children).indexOf(header);
+
+                const resizeData = (header as any).resizeData as ResizeData;
+
+                const widthDiff = event.pageX - resizeData.startX;
+                const newWidth = Math.max(0, resizeData.startWidth + widthDiff);
+
+                header.style.width = newWidth + 'px';
+                console.log("resize", resizeData)
+
+                const tableRows = table.getElementsByTagName('tr');
+                for (let i = 0; i < tableRows.length; i++) {
+                    const row = tableRows[i];
+                    const cell = row.children[columnIndex] as HTMLElement;
+                    cell.style.width = newWidth + 'px';
+                }
+            }
+            document.addEventListener('mousemove', handleColumnResize, false);
+            document.addEventListener('mouseup', stopColumnResize, false);
+        });
+    }
+
+
+
+
+}
+
+
+
+export const enableColumnDragging = (table: HTMLTableElement, lg: (x: string) => void) => {
+    const headers = table.getElementsByTagName('th');
+
+    for (let i = 0; i < headers.length; i++) {
+        const header = headers[i];
+        header.draggable = true;
+        header.classList.add('th-drag-handle');
+
+        header.addEventListener('dragstart', (event: DragEvent) => {
+            event.dataTransfer!.setData('text/plain', i.toString());
+        });
+
+        header.addEventListener('dragover', (event: DragEvent) => {
+            event.preventDefault();
+        });
+
+        header.addEventListener('drop', (event: DragEvent) => {
+            event.preventDefault();
+            const sourceIndex = parseInt(event.dataTransfer!.getData('text/plain'));
+            const targetIndex = i;
+
+            if (sourceIndex !== targetIndex) {
+                const rows = Array.from(table.getElementsByTagName('tr'));
+
+                rows.forEach((row) => {
+                    const cells = Array.from(row.children);
+                    const sourceCell = cells[sourceIndex];
+                    const targetCell = cells[targetIndex];
+
+                    if (targetIndex > sourceIndex) {
+                        row.insertBefore(sourceCell, targetCell.nextSibling);
+                    } else {
+                        row.insertBefore(sourceCell, targetCell);
+                    }
+                });
+            }
+        });
+    }
+}
+
+
 
 
 // to make this an array of html strings with builder we need to communicate how the indexes change: rows get deleted and rows get inserted.

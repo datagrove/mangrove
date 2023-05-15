@@ -1,6 +1,6 @@
 
 import { faker } from '@faker-js/faker'
-import { BuilderFn, EstimatorFn, Scroller, ScrollerProps } from './scroll'
+import { BuilderFn, enableColumnResizing, EstimatorFn, Scroller, ScrollerProps } from './scroll'
 import { createEffect, onCleanup } from 'solid-js'
 
 import { createSignal, JSXElement, onMount } from 'solid-js'
@@ -11,6 +11,8 @@ import { xMark, check } from 'solid-heroicons/solid'
 import { Editor } from './editor'
 import { html2md, md2html } from './md'
 import { ln, setLn } from './i18n'
+
+
 import './editor.css'
 // one kind of 
 
@@ -18,145 +20,45 @@ import './editor.css'
 const redFrame = "border-solid border-2 border-red-500"
 const greenFrame = "border-solid border-2 border-green-500"
 const clearFrame = "border-solid border-0 border-opacity-0"
-
-// note the potential danger but need of using html messages here! whitelist is going to be painful. Even markdown doesn't save us because of mdx.
-export interface FakeEntry {
-    message: string
-    avatar: string
+function DebugWindow(props: { debugstr: string }) {
+    return <pre class=' fixed top-0 left-0 overflow-auto w-64 h-screen z-50 bg-black'>
+        {props.debugstr}
+    </pre>
 }
 
-const Td = (props: { children?: JSXElement }) => {
-    return <td>{props.children}</td>
-}
-const Th = (props: { children?: JSXElement }) => {
-    return <td>{props.children}</td>
-}
-interface ResizeData {
-    startX: number;
-    startWidth: number;
-  }
-  
-  function enableColumnResizing(table: HTMLTableElement) {
-    const headers = table.getElementsByTagName('th');
-  
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i];
-      header.classList.add('th-resize-handle');
-  
-      header.addEventListener('mousedown', (event: MouseEvent) => {
-        const resizeData: ResizeData = {
-          startX: event.pageX,
-          startWidth: header.offsetWidth,
-        };
-  
-        document.addEventListener('mousemove', handleColumnResize, false);
-        document.addEventListener('mouseup', stopColumnResize, false);
-      });
-    }
-  
-    function handleColumnResize(event: MouseEvent) {
-        
-      const header = event.target! as HTMLElement;
-      const columnIndex = Array.from(header.parentNode!.children).indexOf(header);
-  
-      const resizeData = (header as any).resizeData as ResizeData;
-
-      const widthDiff = event.pageX - resizeData.startX;
-      const newWidth = Math.max(0, resizeData.startWidth + widthDiff);
-  
-      header.style.width = newWidth + 'px';
-      console.log("resize",resizeData)
-
-      const tableRows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
-      for (let i = 0; i < tableRows.length; i++) {
-        const row = tableRows[i];
-        const cell = row.children[columnIndex] as HTMLElement;
-        cell.style.width = newWidth + 'px';
-      }
-    }
-  
-    function stopColumnResize() {
-      document.removeEventListener('mousemove', handleColumnResize, false);
-      document.removeEventListener('mouseup', stopColumnResize, false);
-    }
-  }
-  
-
-  
-const enableColumnDragging = (table: HTMLTableElement) => {
-    const headers = table.getElementsByTagName('th');
-  
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i];
-      header.draggable = true;
-      header.classList.add('th-drag-handle');
-  
-      header.addEventListener('dragstart', (event: DragEvent) => {
-        event.dataTransfer!.setData('text/plain', i.toString());
-      });
-  
-      header.addEventListener('dragover', (event: DragEvent) => {
-        event.preventDefault();
-      });
-  
-      header.addEventListener('drop', (event: DragEvent) => {
-        event.preventDefault();
-        const sourceIndex = parseInt(event.dataTransfer!.getData('text/plain'));
-        const targetIndex = i;
-  
-        if (sourceIndex !== targetIndex) {
-          const rows = Array.from(table.getElementsByTagName('tr'));
-  
-          rows.forEach((row) => {
-            const cells = Array.from(row.children);
-            const sourceCell = cells[sourceIndex];
-            const targetCell = cells[targetIndex];
-  
-            if (targetIndex > sourceIndex) {
-              row.insertBefore(sourceCell, targetCell.nextSibling);
-            } else {
-              row.insertBefore(sourceCell, targetCell);
-            }
-          });
-        }
-      });
-    }
-  }
-  
-
-  
 // make draggable headers
-export function FakeScroll() {
+export function FakeScroll2() {
     let el: HTMLTableElement
-
-    createEffect(()=>{
+    const [debugstr, setDebugstr] = createSignal("woa")
+    createEffect(() => {
         // enableColumnDragging(el)
-        enableColumnResizing(el)
+        enableColumnResizing(el, setDebugstr)
     })
 
-    return     <table ref={el!} id="myTable" class='border-collapse w-full'>
-        <thead>
-    <tr>
-      <th>Column 1</th>
-      <th>Column 2</th>
-      <th>Column 3</th>
-    </tr></thead>
-    <tbody>
-    <tr>
-      <td>Value 1-1</td>
-      <td>Value 1-2</td>
-      <td>Value 1-3</td>
-    </tr>
-    <tr>
-      <td>Value 2-1</td>
-      <td>Value 2-2</td>
-      <td>Value 2-3</td>
-    </tr>
-    </tbody>
-  </table>
+    return <><DebugWindow debugstr={debugstr()} />
+        <table ref={el!} id="myTable" class='border-collapse '>
+            <thead>
+                <tr>
+                    <th class='w-48'>Column 1</th>
+                    <th class='w-48'>Column 2</th>
+                    <th class='w-48'>Column 3</th>
+                </tr></thead>
+            <tbody>
+                <tr>
+                    <td>Value 1-1</td>
+                    <td>Value 1-2</td>
+                    <td>Value 1-3</td>
+                </tr>
+                <tr>
+                    <td>Value 2-1</td>
+                    <td>Value 2-2</td>
+                    <td>Value 2-3</td>
+                </tr>
+            </tbody>
+        </table></>
 }
 
-export function FakeScroll2() {
+export function FakeScroll() {
     let el: HTMLDivElement
     // we can try to recreate the editor as raw typescript to make it easier to wrap in various frameworks. 
     const ed = new Editor
@@ -209,9 +111,7 @@ export function FakeScroll2() {
 
 
     return <>
-        <pre class=' fixed top-0 left-0 overflow-auto w-64 h-screen z-50 bg-black'>
-            {debugstr()}
-        </pre>
+
         <div class={'right-0 top-0 bottom-32 left-80 absolute overflow-y-auto overflow-x-hidden h-screen' + clearFrame} ref={el!}>
 
         </div>
