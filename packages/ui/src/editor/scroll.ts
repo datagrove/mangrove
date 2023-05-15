@@ -1,30 +1,50 @@
 const inf = Number.NEGATIVE_INFINITY
 
-export type BuilderFn = (old: HTMLElement,row: number, column: number) => void
+export type BuilderFn = (old: HTMLElement, row: number, column: number) => void
 export type EstimatorFn = (start: number, end: number) => number
 export interface Column {
     width: number
 }
+
+// we can have panes that are separately scrollable, but locked on one dimension (only outer panes have scroll bars)
+
+
 export interface ScrollPos {
     row: number
     column: number
 }
+
+export interface Pane {
+    // in pixels
+    start: number
+    end: number
+}
+
 export interface ScrollerProps {
     container: HTMLElement
     rows: number
-    estimateHeight: EstimatorFn
+    columns: number
+
+    paneRow: Pane[]
+    paneColumn: Pane[]
+    freezeRow: boolean  // first pane can't be scrolled.
+    freezeColumn: boolean
+
+    height: number | EstimatorFn
     builder: BuilderFn,  // render cell as html
 
-    safeTop?: number
-    columns?: Column[] | Column
+    topPadding?: number
+    columnTemplate: Column | Column[] // repeated as many times as needed
     initial?: ScrollPos
 }
 
 interface GridUpdate {
+    props: ScrollerProps  // new description
     // these must be sorted and not overlap.
     // the index for an insert is new location of the row, others will be shifted down
-    rows: [Op, number,number][]
-    columns: [Op, number,number][]
+    // we could calulate by diff? how do we move/reorder rows or columns?
+    rows: [Op, number, number][]
+    columns: [Op, number, number][]
 }
 
 
@@ -63,22 +83,23 @@ export enum Op {
 }
 
 
-    // GridUpdate should be related to the initial parameters
-    // It is a delta though, which allows us to handle animiation here if we want.
+// GridUpdate should be related to the initial parameters
+// It is a delta though, which allows us to handle animiation here if we want.
 
 
-    // these should only be on our runway. doesn't need to start at 0.
-    // when we get a snapshot update we should diff the T's to see if we can reuse the dom we have created.
-    //rendered_start_ = 0
+// these should only be on our runway. doesn't need to start at 0.
+// when we get a snapshot update we should diff the T's to see if we can reuse the dom we have created.
+//rendered_start_ = 0
 // wraps around a dom element; portrays a Snapshot stream.
 // to be wrapped by react with useEffect.
-export class Scroller  {
+export class Scroller {
     scroller_: HTMLElement
     builder: BuilderFn
     rendered_: Item[] = [];
     length_ = 0
     topPadding = 0
-    anchorItem: Anchor = { index: 0, offset: 0 };
+    anchorItem: Anchor = { index: 0, offset: 0 }
+    width_: number = 0// exact. we may need
 
     anchorScrollTop = 0; // this is in pixels
     heightAbove = 0
@@ -88,7 +109,8 @@ export class Scroller  {
     // adds in the estimations
     estHeight_ = 0
 
-    scrollRunway_:  HTMLElement  // Create an element to force the scroller to allow scrolling to a certainpoint.
+    scrollRunway_: HTMLElement  // Create an element to force the scroller to allow scrolling to a certainpoint.
+    wideWay_: HTMLElement
 
 
     // when we create a div it should be display none and absolute and a child of the scroller
@@ -104,28 +126,33 @@ export class Scroller  {
 
     constructor(public props: ScrollerProps) {
         this.scroller_ = props.container
-        console.log('props',props)
+        console.log('props', props)
         this.length_ = props.rows
-        this.topPadding = props.safeTop ?? 0
+        this.topPadding = props.topPadding ?? 0
         this.builder = (o: HTMLElement, row: number, col: number) => {
             console.log("builder", row, col)
-             if (row < 0 || row >= props.rows) {
+            if (row < 0 || row >= props.rows) {
                 // cache this? get from callback?
                 o = this.div()
-             } else {
+            } else {
                 props.builder(o, row, col)
-             }
+            }
         }
         this.anchorItem.index = props.initial?.row ?? 0
 
         this.scroller_.addEventListener('scroll', () => this.onScroll_());
-        this.scrollRunway_ = document.createElement('div');
-        this.scrollRunway_.textContent = ' ';
-        this.scrollRunway_.style.position = 'absolute';
-        this.scrollRunway_.style.height = '1px';
-        this.scrollRunway_.style.width = '1px';
-        this.scrollRunway_.style.transition = 'transform 0.2s';
-        this.scroller_.appendChild(this.scrollRunway_);
+        const fd = () => {
+            const d = document.createElement('div');
+            d.textContent = ' ';
+            d.style.position = 'absolute';
+            d.style.height = '1px';
+            d.style.width = '1px';
+            d.style.transition = 'transform 0.2s';
+            this.scroller_.appendChild(this.scrollRunway_);
+            return d
+        }
+        this.scrollRunway_ = fd()
+        this.wideWay_ = fd()
 
         this.resizeData()
         this.onResize_()
@@ -141,18 +168,19 @@ export class Scroller  {
     }
     // called when the number or rows changes, but is this necessary?
     resizeData() {
-        let target = Math.min(this.length_, 50)
+        // 50 might not be enough? 4000/24 = 166
+        let target = Math.min(this.length_, 200)
 
         if (target > this.rendered_.length) {
             let b = this.rendered_.length
             for (; b < target; b++) {
                 let o = this.div()
-                this.builder( o,b,0)
+                this.builder(o, b, 0)
                 let i = new Item(o)
                 this.rendered_.push(i)
             }
         } else {
-            // this doesn't seem right, update needs to be more complex
+            // truncates the rendered array
             this.rendered_.length = target
         }
     }
@@ -170,7 +198,6 @@ export class Scroller  {
             this.measure(o)
         }
 
-        let topCache = this.heightAbove
         this.anchorScrollTop = this.heightAbove + this.props.estimateHeight(0, this.rendered_start)
         //this.rendered_start * this.tombstoneHeight_
         this.scroller_.scrollTop = this.anchorScrollTop
@@ -202,7 +229,7 @@ export class Scroller  {
     // we need at least what we have measured, but if we change it we should add the tombstones.
     // we should only change height at the top when we measure the first item.
     adjustHeight() {
-        const th = this.props.estimateHeight(0,1) // not right
+        const th = this.props.estimateHeight(0, 1) // not right
         const rendered_start = this.rendered_start
 
         if (rendered_start == 0) {
@@ -232,9 +259,12 @@ export class Scroller  {
             this.estHeight_ = est
         }
     }
+    set width(w: number) {
+        this.wideWay_.style.transform = `translate(${w}px,0)`;
+    }
 
     calculateAnchoredItem(initialAnchor: Anchor, delta: number): Anchor {
-        const th = this.props.estimateHeight(0,1) // not right
+        const th = this.props.estimateHeight(0, 1) // not right
         if (delta == 0)
             return initialAnchor;
         const rendered_start = this.rendered_start
@@ -246,7 +276,7 @@ export class Scroller  {
                 delta += this.rendered_[i - 1].height;
                 i--;
             }
-            tombstones = Math.max(-i, Math.ceil(Math.min(delta, 0) /th))
+            tombstones = Math.max(-i, Math.ceil(Math.min(delta, 0) / th))
         } else {
             while (delta > 0 && i < this.rendered_.length && this.rendered_[i].height < delta) {
                 delta -= this.rendered_[i].height;
@@ -268,7 +298,7 @@ export class Scroller  {
         for (let i = 0; i < e; i++) {
             r += this.rendered_[i].height
         }
-        this.heightAbove =  r + this.anchorItem.offset
+        this.heightAbove = r + this.anchorItem.offset
     }
 
     onScroll_() {
@@ -283,7 +313,7 @@ export class Scroller  {
             oldstart,
             oldindex,
             delta,
-        },{  ...this.anchorItem, top: this.scroller_.scrollTop, st: this.rendered_start, h: this.estHeight_ })
+        }, { ...this.anchorItem, top: this.scroller_.scrollTop, st: this.rendered_start, h: this.estHeight_ })
 
         this.anchorScrollTop = this.scroller_.scrollTop;
         if (this.scroller_.scrollTop == 0) {
@@ -311,7 +341,7 @@ export class Scroller  {
         for (let k = b; k < e; k++) {
             const o = this.rendered_[k];
             //o.data = this.snap_.get(rendered_start + k)
-            this.builder(o.node,k,0)
+            this.builder(o.node, k, 0)
             this.measure(o)
             // maybe we should have both a tombstone and a div, then we can animate between them? this would keep things from jumping around? size transition as well opacity?
         }
