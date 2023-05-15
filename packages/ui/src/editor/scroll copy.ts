@@ -1,95 +1,94 @@
+import { DxUpdate, Snapshot } from '../lib/dx'
 const inf = Number.NEGATIVE_INFINITY
 
-export type BuilderFn = (old: HTMLElement,row: number, column: number) => void
-export type EstimatorFn = (start: number, end: number) => number
-export interface Column {
-    width: number
-}
-export interface ScrollPos {
-    row: number
-    column: number
-}
-export interface ScrollerProps {
-    container: HTMLElement
-    rows: number
-    estimateHeight: EstimatorFn
-    builder: BuilderFn,  // render cell as html
 
+type BuilderFn<T> = (x: T | null, old: HTMLElement) => void
+export interface ScrollerProps<T> {
+    items?: T[] // alternative to snapshot
+    snapshot?: Snapshot<T>
+    intitial?: number
+    // builder takes a T and creates dom from it.
+    // builder can default to displaying bits of html
+    builder?: BuilderFn<T>,
     safeTop?: number
-    columns?: Column[] | Column
-    initial?: ScrollPos
+    // provide a callback to get notified of updates to scroll or data
+    // data update is going to change scroll anyway, so having both seems meh.
+
 }
 
-interface GridUpdate {
-    // these must be sorted and not overlap.
-    // the index for an insert is new location of the row, others will be shifted down
-    rows: [Op, number,number][]
-    columns: [Op, number,number][]
+// when we move the rendered_start, we need to remember it's scrolltop
+
+let debug = document.getElementById('debug')
+function debugOut(a: object) {
+    if (debug) {
+        debug.innerHTML = JSON.stringify(a)
+    }
 }
-
-
-
-
 
 function rotate<T>(a: T[], n: number) {
     a.unshift.apply(a, a.splice(n, a.length));
     return a;
 }
-
+function defaultBuilder<T>(chat: T | null, old: HTMLElement) {
+    if (typeof (chat) == "string")
+        old.innerHTML = chat ?? '<p>tombstone</p>'
+    else
+        old.innerHTML = JSON.stringify(chat)
+}
 // index is given to builder to build the dom. inf indicates nto as
-class Item {
-    constructor(public node: HTMLElement) { }
+class Item<T> {
+    constructor(public node: HTMLElement, public data: T | null) { }
     // on an update we can scan this to 
     height = 0
     width = 0
     top = 0
-    //get isTombstone() { return !!this.data }
-    // do we need this? and when would not show a cell?
+    get isTombstone() { return !!this.data }
     show(x: boolean) {
         this.node.style.display = x ? 'block' : 'none'
     }
 }
 
 // index is the top visible item, offset is how far scroll off the top it is (0 is flush to top)
-interface Anchor {
-    index: number
-    offset: number
-}
-
-export enum Op {
-    Insert,
-    Delete,
-    Update,
+class Anchor {
+    index = 0
+    offset = 0
 }
 
 
-    // GridUpdate should be related to the initial parameters
-    // It is a delta though, which allows us to handle animiation here if we want.
-
+// wraps around a dom element; portrays a Snapshot stream.
+// to be wrapped by react with useEffect.
+export class Scroller<T>  {
 
     // these should only be on our runway. doesn't need to start at 0.
     // when we get a snapshot update we should diff the T's to see if we can reuse the dom we have created.
     //rendered_start_ = 0
-// wraps around a dom element; portrays a Snapshot stream.
-// to be wrapped by react with useEffect.
-export class Scroller  {
-    scroller_: HTMLElement
-    builder: BuilderFn
-    rendered_: Item[] = [];
-    length_ = 0
-    topPadding = 0
+    builder: BuilderFn<T>
+    rendered_: Item<T>[] = [];
+    tombstone_: HTMLElement
+    snap_: Snapshot<T>
+
     anchorItem: Anchor = { index: 0, offset: 0 };
 
     anchorScrollTop = 0; // this is in pixels
-    heightAbove = 0
-
-    // measured height is some of all the formatted rows
+    tombstoneHeight_ = 0;
+    tombstoneWidth_ = 0;
     measuredHeight_ = 0;
-    // adds in the estimations
     estHeight_ = 0
 
-    scrollRunway_:  HTMLElement  // Create an element to force the scroller to allow scrolling to a certainpoint.
+    //what about instead estimating as a sample instead of by tombstone?
 
+    scrollRunway_  // Create an element to force the scroller to allow scrolling to a certainpoint.
+    _update() {
+        // when the snapshot has changed, our anchor might no longer exist.
+        // we might want to allow the user to continue to view their snapshot indefinitely?
+        // at some point the snapshot is too expensive to maintain (phone in a drawer)
+
+        // 
+        // this.props.onUpdate()
+    }
+
+
+    get scroller_() { return this.container }
 
     // when we create a div it should be display none and absolute and a child of the scroller
     // tombstone.style.position = 'absolute'
@@ -102,23 +101,17 @@ export class Scroller  {
         return r
     }
 
-    constructor(public props: ScrollerProps) {
-        this.scroller_ = props.container
-        console.log('props',props)
-        this.length_ = props.rows
-        this.topPadding = props.safeTop ?? 0
-        this.builder = (o: HTMLElement, row: number, col: number) => {
-            console.log("builder", row, col)
-             if (row < 0 || row >= props.rows) {
-                // cache this? get from callback?
-                o = this.div()
-             } else {
-                props.builder(o, row, col)
-             }
-        }
-        this.anchorItem.index = props.initial?.row ?? 0
+    // don't put container in props, w
+    safeTop = 0
+    constructor(public container: HTMLElement, public props: ScrollerProps<T>) {
+        this.safeTop = props.safeTop ?? 0
+        this.builder = props.builder ?? defaultBuilder
+        this.anchorItem.index = props.intitial ?? 0
+        this.snap_ = props.snapshot ?? Snapshot.fromArray(props.items ?? [])
+        this.snap_.addListener(this._update)
 
         this.scroller_.addEventListener('scroll', () => this.onScroll_());
+        window.addEventListener('resize', () => this.onResize_());
         this.scrollRunway_ = document.createElement('div');
         this.scrollRunway_.textContent = ' ';
         this.scrollRunway_.style.position = 'absolute';
@@ -127,53 +120,69 @@ export class Scroller  {
         this.scrollRunway_.style.transition = 'transform 0.2s';
         this.scroller_.appendChild(this.scrollRunway_);
 
+        this.tombstone_ = this.div()
+        this.builder(null, this.tombstone_)
+
         this.resizeData()
         this.onResize_()
     }
-
+    // this needs to remove all the dom and everything to work with useEffect
     close() {
-        this.scroller_.replaceChildren()
+        this.container.replaceChildren()
+        this.snap_.removeListener(this._update)
     }
 
-    update(update: GridUpdate) {
-        // this can be called on resize
-        // 
-    }
-    // called when the number or rows changes, but is this necessary?
+
     resizeData() {
-        let target = Math.min(this.length_, 50)
+        let target = Math.min(this.snap_.length, 50)
 
         if (target > this.rendered_.length) {
             let b = this.rendered_.length
             for (; b < target; b++) {
                 let o = this.div()
-                this.builder( o,b,0)
-                let i = new Item(o)
+                let d = this.snap_.get(b)
+                this.builder(d, o)
+                let i = new Item<T>(o, d)
                 this.rendered_.push(i)
             }
         } else {
             // this doesn't seem right, update needs to be more complex
             this.rendered_.length = target
         }
+
+        // second loop so all the measures are batched
     }
 
-    // we might start rendering 10 rows before the anchor.
-    // we we are ok with negive index here and handle it elsewhere?
     get rendered_start(): number {
         const b = Math.max(0, this.anchorItem.index - 10)
-        return Math.min(b, this.length_ - this.rendered_.length)
+        return Math.min(b, this.snap_.length - this.rendered_.length)
     }
-    // height above the anchor, we should cache this. changes on a scroll though.
-
+    get heightAbove() {
+        let r = 0
+        let e = this.anchorItem.index - this.rendered_start
+        for (let i = 0; i < e; i++) {
+            r += this.rendered_[i].height
+        }
+        return r + this.anchorItem.offset
+    }
     onResize_() {
+
+        // this measures the size of a tombstone 
+        this.tombstone_.style.display = 'block'
+        this.tombstoneHeight_ = this.tombstone_.offsetHeight
+        this.tombstoneWidth_ = this.tombstone_.offsetWidth
+        this.tombstone_.style.display = 'none'
+
+        // Reset the cached size of items in the scroller as they may no longer be
+        // correct after the item content undergoes layout.
         for (let o of this.rendered_) {
             this.measure(o)
         }
 
+
         let topCache = this.heightAbove
-        this.anchorScrollTop = this.heightAbove + this.props.estimateHeight(0, this.rendered_start)
-        //this.rendered_start * this.tombstoneHeight_
-        this.scroller_.scrollTop = this.anchorScrollTop
+        this.anchorScrollTop = this.heightAbove + this.rendered_start * this.tombstoneHeight_
+        this.container.scrollTop = this.anchorScrollTop
         this.adjustHeight()
         this.repositionAll()
         this.onScroll_()
@@ -189,10 +198,10 @@ export class Scroller  {
         }
     }
 
-    position(o: Item) {
-        o.node.style.transform = `translateY(${o.top + this.topPadding}px)`
+    position(o: Item<T>) {
+        o.node.style.transform = `translateY(${o.top + this.safeTop}px)`
     }
-    measure(item: Item) {
+    measure(item: Item<T>) {
         this.measuredHeight_ -= item.height
         item.height = item.node.offsetHeight
         item.width = item.node.offsetWidth
@@ -202,27 +211,26 @@ export class Scroller  {
     // we need at least what we have measured, but if we change it we should add the tombstones.
     // we should only change height at the top when we measure the first item.
     adjustHeight() {
-        const th = this.props.estimateHeight(0,1) // not right
         const rendered_start = this.rendered_start
-
+        const th = this.tombstoneHeight_
         if (rendered_start == 0) {
-            const tombstones = this.length_ - this.rendered_.length
+            const tombstones = this.snap_.length - this.rendered_.length
             const h = this.measuredHeight_ + tombstones * th
             if (h != this.estHeight_) {
                 this.height = h
-                this.scroller_.scrollTop = this.heightAbove
+                this.container.scrollTop = this.heightAbove
                 this.repositionAll
             }
-        } else if (rendered_start + this.rendered_.length >= this.length_) {
+        } else if (rendered_start + this.rendered_.length >= this.snap_.length) {
             const heightBelow = this.measuredHeight_ - this.heightAbove
             const ta = this.anchorScrollTop + heightBelow
             this.height = ta
         } else {
-            const tombstones = this.length_ - rendered_start - this.rendered_.length
+            const tombstones = this.snap_.length - rendered_start - this.rendered_.length
             const heightBelow = this.measuredHeight_ - this.heightAbove
             const ta = this.anchorScrollTop + heightBelow
             if (ta > this.estHeight_) {
-                this.height = ta + tombstones * th
+                this.height = ta + tombstones * this.tombstoneHeight_
             }
         }
     }
@@ -234,7 +242,6 @@ export class Scroller  {
     }
 
     calculateAnchoredItem(initialAnchor: Anchor, delta: number): Anchor {
-        const th = this.props.estimateHeight(0,1) // not right
         if (delta == 0)
             return initialAnchor;
         const rendered_start = this.rendered_start
@@ -246,45 +253,27 @@ export class Scroller  {
                 delta += this.rendered_[i - 1].height;
                 i--;
             }
-            tombstones = Math.max(-i, Math.ceil(Math.min(delta, 0) /th))
+            tombstones = Math.max(-i, Math.ceil(Math.min(delta, 0) / this.tombstoneHeight_));
         } else {
             while (delta > 0 && i < this.rendered_.length && this.rendered_[i].height < delta) {
                 delta -= this.rendered_[i].height;
                 i++;
             }
             if (i >= this.rendered_.length)
-                tombstones = Math.floor(Math.max(delta, 0) / th);
+                tombstones = Math.floor(Math.max(delta, 0) / this.tombstoneHeight_);
         }
         return {
             index: i + rendered_start + tombstones,
-            offset: delta - tombstones * th,
+            offset: delta - tombstones * this.tombstoneHeight_,
         };
     }
 
-    // note that each cell must be a number of lines? don't we need to be able to position by line? cell is too course. is pixel too fine?
-    computeHeightAbove() {
-        let r = 0
-        let e = this.anchorItem.index - this.rendered_start
-        for (let i = 0; i < e; i++) {
-            r += this.rendered_[i].height
-        }
-        this.heightAbove =  r + this.anchorItem.offset
-    }
-
     onScroll_() {
-        // get the scroll from the window
-        const top = this.scroller_.scrollTop
+        debugOut({ ...this.anchorItem, top: this.scroller_.scrollTop, st: this.rendered_start, h: this.estHeight_ })
+
         let oldstart = this.rendered_start
         let oldindex = this.anchorItem.index
-        let delta = top - this.anchorScrollTop
-
-        console.log({
-            top,
-            oldstart,
-            oldindex,
-            delta,
-        },{  ...this.anchorItem, top: this.scroller_.scrollTop, st: this.rendered_start, h: this.estHeight_ })
-
+        let delta = this.scroller_.scrollTop - this.anchorScrollTop
         this.anchorScrollTop = this.scroller_.scrollTop;
         if (this.scroller_.scrollTop == 0) {
             this.anchorItem = { index: 0, offset: 0 };
@@ -310,8 +299,8 @@ export class Scroller  {
         const rendered_start = this.rendered_start
         for (let k = b; k < e; k++) {
             const o = this.rendered_[k];
-            //o.data = this.snap_.get(rendered_start + k)
-            this.builder(o.node,k,0)
+            o.data = this.snap_.get(rendered_start + k)
+            this.builder(o.data, o.node)
             this.measure(o)
             // maybe we should have both a tombstone and a div, then we can animate between them? this would keep things from jumping around? size transition as well opacity?
         }
@@ -329,30 +318,11 @@ export class Scroller  {
             curPos += o.height
             // maybe we should have both a tombstone and a div, then we can animate between them? this would keep things from jumping around? size transition as well opacity?
         }
-        this.computeHeightAbove() // this would be more efficient to do incrementally.
-
     }
 }
 
 
-// to make this an array of html strings with builder we need to communicate how the indexes change: rows get deleted and rows get inserted.
 
-// we need a way to control multiple tables with the same scroller.
-// we can put this on the user, and have an option to display scroll?
-// should we force the scroll into a separate control altogether?
-
-// we might want to position the scroll based on pixels or logical cells
-// it might get even more complicated with the block editor?
-// do we address by paragraph or by line?
-
-
-// mayb this is wrapped by a more complex component that can handle multiple freeze/split areas.
-// we should allow the client to estimate the size of an offscreen row, not necessarily just multiply by the height of the tombstone.
-
-
-// it should be ok for the synchronous builder to itself push in a tombstone and then asynchronously format it? It will need to call GridUpdate to do so, since the row may change size. typically the cursor should on the visible screen and we endeavor to keep the top position of the focused cell the same. If the focused cell is off screen then we keep the first visible row fixed.
-
-// when we move the rendered_start, we need to remember it's scrolltop
 //renderToStaticMarkup?
 
 /*
@@ -369,7 +339,7 @@ export class Scroller  {
     // if alice "likes" something, we won't scroll every's screen because of anchors.
     // this should be like resize? just set everything to unrendered?
     // 
-    invalidate(begin: number, end: number, data: Item[]) {
+    invalidate(begin: number, end: number, data: Item<T>[]) {
         // if this index is on screen then we need to render. otherwise 
         // there's nothing to do.
         //this.items_[i].data = data
@@ -385,7 +355,7 @@ export class Scroller  {
         let itemsNeeded = lastAttachedItem_ - this.loadedItems_;
         if (!this.requestInProgress_ && itemsNeeded > 0) {
             this.requestInProgress_ = true;
-            const addContent = (items: Item[]) => {
+            const addContent = (items: Item<T>[]) => {
                 for (var i = 0; i < items.length; i++) {
                     if (this.items_.length <= this.loadedItems_) { }//this.addItem_(items[i]);
                     //this.items_[this.loadedItems_++].data = items[i];
@@ -403,9 +373,9 @@ export class Scroller  {
     return d
 }
 
-interface ScrollState {
+interface ScrollState<T> {
     //fixedHeight?: boolean
-    data: Snapshot,
+    data: Snapshot<T>,
     anchor: number,
     offset: number
     selection: Set<number>
@@ -421,7 +391,7 @@ interface UpdateRange {
 /*
     //Attaches content to the scroller and updates the scroll position if necessary.
     render() {
-        const x: RenderInfo = this.source_.data
+        const x: RenderInfo<T> = this.source_.data
         let unused = this.collectTombstones(x.unused)
         const o = this.source_.options
         const anchor = x.anchor - x.begin
