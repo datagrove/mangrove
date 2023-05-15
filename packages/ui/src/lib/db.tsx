@@ -1,5 +1,5 @@
 import { Component, JSXElement, Resource, Setter, Signal, createResource, createSignal, onCleanup } from 'solid-js'
-import { Ws } from '../core/socket'
+import { Ws, createWs } from '../core/socket'
 import { decode, encode } from 'cbor-x';
 
 // when we pop up dialogs they can get a ws for whatever is the current database
@@ -114,7 +114,7 @@ async function  cleanupPresentation(pr: Presentation<any>) {
     pr.prc.pr.delete(pr)
     if (pr.prc.pr.size == 0) {
         present.delete(pr.prc.url)
-        const ws = await getWs(pr.prc.url)
+        const ws = await createWs(pr.prc.url)
         await ws.rpc<any>('release', pr.prc.url)
     }
 }
@@ -187,7 +187,7 @@ export class Tx {
         return this
     }
     commit(){
-        let ws = getWs(this.url)
+        let ws = createWs(this.url)
         ws.rpc('tx', this.functor)
     }
 }

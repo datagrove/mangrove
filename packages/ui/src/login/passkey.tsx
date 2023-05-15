@@ -59,6 +59,7 @@ export async function initPasskey(): Promise<LoginInfo | null> {
     if (!window.PublicKeyCredential
         // @ts-ignore
         || !PublicKeyCredential.isConditionalMediationAvailable
+        // @ts-ignore
         || !await PublicKeyCredential.isConditionalMediationAvailable()
     ) {
         return null

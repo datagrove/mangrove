@@ -1,30 +1,16 @@
 import { Component, For, JSXElement, Switch, Match, Show, createEffect, createSignal } from 'solid-js'
-import { pencil, chevronLeft, chevronDown, bars_3, magnifyingGlass, user } from "solid-heroicons/solid"
+import { pencil, chevronLeft, bars_3, magnifyingGlass, user } from "solid-heroicons/solid"
 import { Icon } from 'solid-heroicons'
-import { setLogin, useLogout } from '../lib/crypto'
+import { useLogout } from '../lib/crypto'
 import {
-  Popover,
-  PopoverButton,
-  PopoverPanel,
-  ContextMenu,
-  ContextMenuBoundary,
-  ContextMenuPanel,
-  Transition,
-  Menu,
-  MenuItem,
-  Dialog,
   ButtonProps,
 } from 'solid-headless';
 import Dismiss from 'solid-dismiss'
-import { DarkButton, SearchList, SiteMenuContent, searchMode, setSearchMode } from './site_menu'
-import { BlueButton, Center } from '../lib/form'
+import { SiteMenuContent, setSearchMode } from './site_menu'
+import { BlueButton } from '../lib/form'
 import { AnchorProps, A as Ar, useNavigate } from '../core/dg';
-import { LanguageSelect } from '../i18n/i18';
-import { useLn } from '../login/passkey_i18n';
 
-import { Scroller } from '../lib/scroll';
-import { Chat, chats } from '../lib/scroller_test';
-import { EditorApp } from '../editor/main';
+import { FakeScroll } from '../editor';
 function classNames(...classes: (string | boolean | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }
@@ -144,28 +130,6 @@ export const Account: Component = () => {
 
 export const Body: Component<{ children: JSXElement }> = (props) => {
   return <div class="m-2 h-screen w-full">{props.children}</div>
-}
-export function FakeScroll() {
-  let el: HTMLDivElement
-
-  createEffect(() => {
-    const s = new Scroller<Chat>(el!, {
-      items: chats,
-      // builder takes a T and creates dom from it.
-      builder(chat: Chat | null, old: HTMLElement) {
-        old.innerHTML = chat ? `<p>${chat.message}<p>` : '<p>tombstone</p>'
-      },
-    })
-  })
-
-  return <><div class='right-0 bottom-64 left-80 absolute overflow-y-auto overflow-x-hidden h-screen  border-solid border-2 border-red-500 ' ref={el!}>
-
-  </div>
-    <div class='right-0 bottom-0 left-80 absolute overflow-y-auto overflow-x-hidden h-64  border-solid border-2 border-green-500 ' >
-      <EditorApp />
-    </div>
-  </>
-
 }
 
 export const Page: Component<{ children: JSXElement }> = (props) => {

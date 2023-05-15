@@ -1,5 +1,6 @@
-import { DxUpdate, Snapshot } from './dx'
+import { DxUpdate, Snapshot } from '../lib/dx'
 const inf = Number.NEGATIVE_INFINITY
+
 
 type BuilderFn<T> = (x: T | null, old: HTMLElement) => void
 export interface ScrollerProps<T> {
