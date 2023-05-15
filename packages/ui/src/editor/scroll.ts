@@ -25,16 +25,16 @@ export interface ScrollerProps {
     rows: number
     columns: number
 
-    paneRow: Pane[]
-    paneColumn: Pane[]
-    freezeRow: boolean  // first pane can't be scrolled.
-    freezeColumn: boolean
+    paneRow?: Pane[]
+    paneColumn?: Pane[]
+    freezeRow?: boolean  // first pane can't be scrolled.
+    freezeColumn?: boolean
 
     height: number | EstimatorFn
     builder: BuilderFn,  // render cell as html
 
     topPadding?: number
-    columnTemplate: Column | Column[] // repeated as many times as needed
+    columnTemplate?: Column | Column[] // repeated as many times as needed
     initial?: ScrollPos
 }
 
@@ -192,13 +192,19 @@ export class Scroller {
         return Math.min(b, this.length_ - this.rendered_.length)
     }
     // height above the anchor, we should cache this. changes on a scroll though.
-
+    estimateHeight(start: number, end: number): number {
+        if (this.props.height instanceof Function) {
+            return this.props.height(start, end)
+        } else {
+            return this.props.height
+        }
+    }
     onResize_() {
         for (let o of this.rendered_) {
             this.measure(o)
         }
 
-        this.anchorScrollTop = this.heightAbove + this.props.estimateHeight(0, this.rendered_start)
+        this.anchorScrollTop = this.heightAbove + this.estimateHeight(0, this.rendered_start)
         //this.rendered_start * this.tombstoneHeight_
         this.scroller_.scrollTop = this.anchorScrollTop
         this.adjustHeight()
@@ -229,7 +235,7 @@ export class Scroller {
     // we need at least what we have measured, but if we change it we should add the tombstones.
     // we should only change height at the top when we measure the first item.
     adjustHeight() {
-        const th = this.props.estimateHeight(0, 1) // not right
+        const th = this.estimateHeight(0, 1) // not right
         const rendered_start = this.rendered_start
 
         if (rendered_start == 0) {
@@ -264,7 +270,7 @@ export class Scroller {
     }
 
     calculateAnchoredItem(initialAnchor: Anchor, delta: number): Anchor {
-        const th = this.props.estimateHeight(0, 1) // not right
+        const th = this.estimateHeight(0, 1) // not right
         if (delta == 0)
             return initialAnchor;
         const rendered_start = this.rendered_start
