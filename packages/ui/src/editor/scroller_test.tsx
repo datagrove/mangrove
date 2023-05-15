@@ -32,30 +32,33 @@ export function FakeScroll() {
     const ed = new Editor
     let edel: HTMLDivElement
     let tombstone: HTMLDivElement
-    const [debugstr, setDebugstr] = createSignal("woa")
+    const [debugstr,setDebugstr] = createSignal("woa")
 
     const items = [...new Array(100)].map((e, i) => {
-        return [...new Array(10)].map((v, j) => i + "," + j + ". " + faker.lorem.word())
+        return {
+            message: i + ". " + faker.lorem.paragraph(),
+            avatar: faker.image.avatar()
+        }
     })
 
     onMount(() => {
-        ed.mount(edel)
+         ed.mount(edel)
         ed.text = "בְּרֵאשִׁ֖ית בָּרָ֣א אֱלֹהִ֑ים אֵ֥ת הַשָּׁמַ֖יִם וְאֵ֥ת הָאָֽרֶץ׃"
 
         let tombstoneHeight_ = tombstone.offsetHeight
         tombstone.style.display = 'none'
 
-        const est: EstimatorFn = (start: number, end: number) => {
-            const r = (end - start) * 24
-            console.log("est", start, end, tombstoneHeight_, r)
+        const est : EstimatorFn = (start: number, end: number) => {
+            const r= (end - start) * tombstoneHeight_
+            console.log("est", start, end,tombstoneHeight_, r)
             return r
         }
 
-        const bld: BuilderFn = (old: HTMLElement, row: number, column: number) => {
+        const bld : BuilderFn =(old: HTMLElement, row: number, column: number)=> {
             let d = items[row]
-            old.innerHTML = `<p class='p-4'>${d[column]}<p>`
+            old.innerHTML =  `<p>${d.message}<p>`
         }
-        const props: ScrollerProps = {
+        const props : ScrollerProps = {
             container: el!,
             rows: items.length,
             columns: {
@@ -64,15 +67,15 @@ export function FakeScroll() {
             builder: bld,
             estimateHeight: est,
         }
-        const s = new Scroller(props)
-        setDebugstr(JSON.stringify(s, null, 2))
-        const r = () => {
+        const s = new Scroller(props )
+        setDebugstr(JSON.stringify(s,null,2))
+        const r= () => {
             // we should be able to adjust grid options here.
             // maybe just use update?
             s.onResize_()
-
+            
         }
-        window.addEventListener('resize', r);
+        window.addEventListener('resize',r);
         onCleanup(() => {
             // any value to explicit destruction here?
             window.removeEventListener('resize', r);
@@ -82,16 +85,16 @@ export function FakeScroll() {
 
     return <>
         <pre class=' fixed top-0 left-0 overflow-auto w-64 h-screen z-50 bg-black'>
-            {debugstr()}
+            { debugstr() }
         </pre>
-        <div class={'right-0 top-0 bottom-32 left-80 absolute overflow-y-auto overflow-x-hidden h-screen' + clearFrame} ref={el!}>
+        <div class={'right-0 top-0 bottom-32 left-80 absolute overflow-y-auto overflow-x-hidden h-screen'+clearFrame} ref={el!}>
 
         </div>
         <div class='right-0 bottom-0 left-80 absolute overflow-y-auto overflow-x-hidden h-32  ' >
             <div class='h-full w-full max-w-none prose dark:prose-invert' ref={edel!} />
         </div>
 
-        <p ref={tombstone!}>&nbsp;</p>
+        <p  ref={tombstone!}>&nbsp;</p>
 
     </>
 
