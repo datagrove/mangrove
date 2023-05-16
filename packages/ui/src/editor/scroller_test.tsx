@@ -1,6 +1,6 @@
 
 import { faker } from '@faker-js/faker'
-import { BuilderFn, enableColumnResizing, EstimatorFn, Scroller, ScrollerProps } from './scroll'
+import { BuilderFn, enableColumnResizing, EstimatorFn, Scroller, ScrollerProps, TableContext, TableRow } from './scroll'
 import { createEffect, onCleanup } from 'solid-js'
 
 import { createSignal, JSXElement, onMount } from 'solid-js'
@@ -69,6 +69,7 @@ export function FakeScroll() {
     const items = [...new Array(100)].map((e, i) => {
         return [...new Array(10)].map((v, j) => i + "," + j + ". " + faker.lorem.word())
     })
+    console.log("items", items)
 
     onMount(() => {
         ed.mount(edel)
@@ -79,18 +80,26 @@ export function FakeScroll() {
 
         const est: EstimatorFn = (start: number, end: number) => {
             const r = (end - start) * 24
-            console.log("est", start, end, tombstoneHeight_, r)
+            //console.log("est", start, end, tombstoneHeight_, r)
             return r
         }
 
-        const bld: BuilderFn = (old: HTMLElement, row: number, column: number) => {
-            let d = items[row]
-            old.innerHTML = `<p class='p-4'>${d[column]}<p>`
+        const bld: BuilderFn = (ctx: TableContext) => {
+            let d = items[ctx.row]
+            let [m,o] = ctx.alloc(d.length)
+            for (let i = 0; i < d.length; i++) {
+                o[i].innerHTML = `<p class='p-4'>${d[i]}<p>`
+                o[i].style.width = '100px'
+                m.set(i, o[i])
+            }
+            //console.log("build", d, o,m)
         }
         const props: ScrollerProps = {
             container: el!,
-            rows: items.length,
-            columns: 10,
+            state: {
+                rows: items.length,
+                columns: [...new Array(10)].map((e, i) => 100)
+            },
             builder: bld,
             height: est,
         }
@@ -112,7 +121,7 @@ export function FakeScroll() {
 
     return <>
 
-        <div class={'right-0 top-0 bottom-32 left-80 absolute overflow-y-auto overflow-x-hidden h-screen' + clearFrame} ref={el!}>
+        <div class={'right-0 top-0 bottom-32 left-80 absolute overflow-auto h-screen' + clearFrame} ref={el!}>
 
         </div>
         <div class='right-0 bottom-0 left-80 absolute overflow-y-auto overflow-x-hidden h-32  ' >

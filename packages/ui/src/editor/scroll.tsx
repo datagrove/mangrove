@@ -2,7 +2,22 @@ import { JSXElement } from "solid-js"
 
 const inf = Number.NEGATIVE_INFINITY
 
-export type BuilderFn = (old: HTMLElement, row: number, column: number) => void
+export type BuilderFn = (ctx: TableContext) => void 
+export class TableContext {
+    constructor(public scroller: Scroller){}
+    old!: TableRow
+    row!: number
+    columnStart!: number
+    columnEnd!: number
+
+    alloc( n: number) : [Map<number,HTMLElement>, HTMLElement[]] {
+        this.old.node.clear()
+        for (let i=this.old.el.length; i<n; i++) {
+            this.old.el.push(this.scroller.div())
+        }
+        return [this.old.node, this.old.el]
+    }
+}
 export type EstimatorFn = (start: number, end: number) => number
 export interface Column {
     width: number
@@ -22,22 +37,32 @@ export interface Pane {
     end: number
 }
 
-export interface ScrollerProps {
-    container: HTMLElement
+// props needs a way to restore a state.
+// we should follow similar patterns to prosemirror.
+// we need some concept of undo/redo. mostly with commands? or should we rollback the state? commands seems more likely to be collaborative. this is like and editor, so
+
+
+export interface ScrollerState {
     rows: number
-    columns: number
+    columns: number[]
+    repeatColumn?: number
+    repeatColumnWidth?: number
 
     paneRow?: Pane[]
     paneColumn?: Pane[]
     freezeRow?: boolean  // first pane can't be scrolled.
     freezeColumn?: boolean
+    // how do we restore this? the application might do this with keys, or offsets, or?
+    initial?: ScrollPos
+}
 
+// these are part of instantiating a scroller, but can't be serialized
+export interface ScrollerProps {
+    state: ScrollerState
+    container: HTMLElement
     height: number | EstimatorFn
     builder: BuilderFn,  // render cell as html
-
     topPadding?: number
-    columnTemplate?: Column | Column[] // repeated as many times as needed
-    initial?: ScrollPos
 }
 
 interface GridUpdate {
@@ -59,17 +84,21 @@ function rotate<T>(a: T[], n: number) {
 }
 
 // index is given to builder to build the dom. inf indicates nto as
-class Item {
-    constructor(public node: HTMLElement) { }
+// arrays are basically maps of int, so we don't need to have complete vectors
+// especially if we have uniform columns like a 2d map
+export class TableRow {
+
+    node = new Map<number, HTMLElement>
     // on an update we can scan this to 
     height = 0
-    width = 0
+    //width: number 
     top = 0
+    el : HTMLElement[] = []
+
+
     //get isTombstone() { return !!this.data }
     // do we need this? and when would not show a cell?
-    show(x: boolean) {
-        this.node.style.display = x ? 'block' : 'none'
-    }
+
 }
 
 // index is the top visible item, offset is how far scroll off the top it is (0 is flush to top)
@@ -88,6 +117,13 @@ export enum Op {
 // GridUpdate should be related to the initial parameters
 // It is a delta though, which allows us to handle animiation here if we want.
 
+// steps can be strung together into transactions.
+// these changes may come from a server or from the user.
+export interface ScrollerTx {
+    functor: string[]
+    parameters: any[]
+}
+type plugin = (tx: ScrollerTx) => void
 
 // these should only be on our runway. doesn't need to start at 0.
 // when we get a snapshot update we should diff the T's to see if we can reuse the dom we have created.
@@ -97,7 +133,7 @@ export enum Op {
 export class Scroller {
     scroller_: HTMLElement
     builder: BuilderFn
-    rendered_: Item[] = [];
+    rendered_: TableRow[] = [];
     length_ = 0
     topPadding = 0
     anchorItem: Anchor = { index: 0, offset: 0 }
@@ -113,7 +149,14 @@ export class Scroller {
 
     scrollRunway_: HTMLElement  // Create an element to force the scroller to allow scrolling to a certainpoint.
     wideWay_: HTMLElement
+    plugin: plugin[] = []
 
+    startColumn: number[] = []
+
+    apply(tx: ScrollerTx) {
+        this.plugin.forEach(p => p(tx))
+
+    }
 
     // when we create a div it should be display none and absolute and a child of the scroller
     // tombstone.style.position = 'absolute'
@@ -127,20 +170,20 @@ export class Scroller {
     }
 
     constructor(public props: ScrollerProps) {
+
         this.scroller_ = props.container
         console.log('props', props)
-        this.length_ = props.rows
+        this.length_ = props.state.rows
         this.topPadding = props.topPadding ?? 0
-        this.builder = (o: HTMLElement, row: number, col: number) => {
-            console.log("builder", row, col)
-            if (row < 0 || row >= props.rows) {
+        this.builder = (ctx: TableContext) => {
+            if (ctx.row < 0 || ctx.row >= props.state.rows) {
                 // cache this? get from callback?
-                o = this.div()
+                ctx.old.node.clear()
             } else {
-                props.builder(o, row, col)
+                props.builder(ctx)
             }
         }
-        this.anchorItem.index = props.initial?.row ?? 0
+        this.anchorItem.index = props.state.initial?.row ?? 0
 
         this.scroller_.addEventListener('scroll', () => this.onScroll_());
         const fd = () => {
@@ -155,9 +198,20 @@ export class Scroller {
         }
         this.scrollRunway_ = fd()
         this.wideWay_ = fd()
+        this.cacheStart()
 
         this.resizeData()
         this.onResize_()
+    }
+
+    cacheStart() {
+        let st = 0
+        this.startColumn.length=0
+        for (let v of this.props.state.columns) {
+            this.startColumn.push(st)
+            st += v
+        }
+        this.wideWay_.style.transform = `translate(${st}px,0)`;
     }
 
     close() {
@@ -173,13 +227,19 @@ export class Scroller {
         // 50 might not be enough? 4000/24 = 166
         let target = Math.min(this.length_, 200)
 
+        let ctx = new TableContext(this)
         if (target > this.rendered_.length) {
             let b = this.rendered_.length
             for (; b < target; b++) {
-                let o = this.div()
-                this.builder(o, b, 0)
-                let i = new Item(o)
-                this.rendered_.push(i)
+                ctx.old = new TableRow()
+                ctx.row = b
+                this.builder(ctx)
+                let i = {
+                    node: new Map<number,HTMLElement>(),
+                    height: 0,
+                    top: 0,
+                }
+                this.rendered_.push(ctx.old)
             }
         } else {
             // truncates the rendered array
@@ -224,14 +284,25 @@ export class Scroller {
         }
     }
 
-    position(o: Item) {
-        o.node.style.transform = `translateY(${o.top + this.topPadding}px)`
+    position(o: TableRow) {
+        for (const [key,value] of o.node){
+            const tr = `translate(${this.startColumn[key]}px,${o.top + this.topPadding}px)`
+            //console.log('pos', tr)
+            value.style.transform = tr
+        }
     }
-    measure(item: Item) {
+    measure(item: TableRow) {
         this.measuredHeight_ -= item.height
-        item.height = item.node.offsetHeight
-        item.width = item.node.offsetWidth
-        this.measuredHeight_ += item.height
+
+        let height = 0
+        item.node.forEach((v) => {
+            height = Math.max(height,v.offsetHeight)
+        })
+
+
+        item.height = height
+        //item.width = item.node.offsetWidth
+        this.measuredHeight_ += height
     }
     // adjust height lazily, try to avoid it.
     // we need at least what we have measured, but if we change it we should add the tombstones.
@@ -267,9 +338,7 @@ export class Scroller {
             this.estHeight_ = est
         }
     }
-    set width(w: number) {
-        this.wideWay_.style.transform = `translate(${w}px,0)`;
-    }
+
 
     calculateAnchoredItem(initialAnchor: Anchor, delta: number): Anchor {
         const th = this.estimateHeight(0, 1) // not right
@@ -346,11 +415,16 @@ export class Scroller {
             rotate(this.rendered_, shift)
         }
         const rendered_start = this.rendered_start
+        const ctx = new TableContext(this)
         for (let k = b; k < e; k++) {
-            const o = this.rendered_[k];
+            ctx.old =  this.rendered_[k];
             //o.data = this.snap_.get(rendered_start + k)
-            this.builder(o.node, k, 0)
-            this.measure(o)
+            for (let c of this.props.state.columns) {
+
+            }
+            ctx.row = k  // should this be rendered_start + k? bug??
+            this.builder(ctx)
+            this.measure(ctx.old)
             // maybe we should have both a tombstone and a div, then we can animate between them? this would keep things from jumping around? size transition as well opacity?
         }
 
