@@ -2,7 +2,8 @@ import "./index.css"
 import { render } from "solid-js/web"
 import { HomePage, LoginPage, RegisterPage, RegisterPage2, SettingsPage, initWs, } from '../../../packages/ui/src'
 import { Route, Router, Routes, useNavigate, useParams } from "../../../packages/ui/src/core/dg"
-import { JSXElement, Show } from "solid-js"
+import { JSXElement, Show, createEffect } from "solid-js"
+import tippy from "tippy.js"
 
 // prefix is useful for proxies, but not here?
 //const prefix = "/datagrove"
@@ -34,3 +35,16 @@ initWs(s)
 render(() => (<Router><App /></Router>), document.getElementById("app")!)
 
 //         <Route path={`${prefix}/:ln/home`} component={HomePage} />
+
+export function TippyButton() {
+    let el:HTMLButtonElement
+    createEffect(() => {
+        tippy(el as any, {
+            content: 'My tooltip'
+        })
+    })
+    
+    return <button ref={el!} >My tippy button</button>
+}
+
+//render(() => (<TippyButton/>), document.getElementById("app")!)

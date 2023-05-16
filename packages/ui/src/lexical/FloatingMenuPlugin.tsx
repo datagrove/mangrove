@@ -1,8 +1,8 @@
-//import { computePosition } from "@floating-ui/dom";
-import { useLexicalComposerContext } from "./lexical-solid/LexicalComposerContext";
+import { computePosition } from "@floating-ui/dom";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $getSelection, $isRangeSelection } from "lexical";
-//import { useCallback, useEffect, useRef, useState } from "react";
-//import { createPortal } from "react-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { FloatingMenu, FloatingMenuCoords } from "./FloatingMenu";
 import { usePointerInteractions } from "../hooks/usePointerInteractions";

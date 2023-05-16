@@ -9,6 +9,7 @@ import { Body, Title } from "../layout/nav";
 import { SiteMenuContent } from "../layout/site_menu";
 import { FakeEditor, FakeScroll } from "../editor";
 import Editor from "../lexical/RichTextEditor";
+import { TippyButton } from "../lexical/menu";
 
 
 // we might want to access a sitemap here?
@@ -99,6 +100,7 @@ function FakeEdit() {
 
 function FakeChat() {
   return <Page>
+    <TippyButton/>
     <div>chat</div>
   </Page>
 }
