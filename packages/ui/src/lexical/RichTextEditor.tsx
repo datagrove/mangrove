@@ -69,9 +69,9 @@ const editorConfig = {
 export default function Editor() {
   return (
     <LexicalComposer initialConfig={editorConfig}>
-      <div class="editor-container w-full">
+      <div class="editor-container w-full h-full">
         <ToolbarPlugin />
-        <div class="editor-inner w-full">
+        <div class="editor-inner w-full h-full">
           <RichTextPlugin
             contentEditable={<ContentEditable class="editor-input" />}
             placeholder={<Placeholder />}
@@ -81,7 +81,7 @@ export default function Editor() {
           <AutoFocusPlugin />
           <OnChangePlugin onChange={onChange} />
           <HistoryPlugin />
-          <TreeViewPlugin />
+
           <AutoFocusPlugin />
           <CodeHighlightPlugin />
         </div>
