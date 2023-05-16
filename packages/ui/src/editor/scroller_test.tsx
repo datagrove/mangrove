@@ -1,6 +1,6 @@
 
 import { faker } from '@faker-js/faker'
-import { BuilderFn, enableColumnResizing, EstimatorFn, Scroller, ScrollerProps, TableContext, TableRow } from './scroll'
+import { BuilderFn, Column, enableColumnResizing, EstimatorFn, Scroller, ScrollerProps, TableContext, TableRow } from './scroll'
 import { createEffect, onCleanup } from 'solid-js'
 
 import { createSignal, JSXElement, onMount } from 'solid-js'
@@ -14,6 +14,7 @@ import { ln, setLn } from './i18n'
 
 
 import './editor.css'
+import { TestDrag } from './selectionbox'
 // one kind of 
 
 // global css class?
@@ -58,6 +59,21 @@ export function FakeScroll2() {
         </table></>
 }
 
+
+export function Chat() {
+
+
+
+}
+
+export function Doc() {
+
+}
+// this probably has little to do a scroller?
+export function White() {
+
+}
+
 export function FakeScroll() {
     let el: HTMLDivElement
     // we can try to recreate the editor as raw typescript to make it easier to wrap in various frameworks. 
@@ -66,9 +82,20 @@ export function FakeScroll() {
     let tombstone: HTMLDivElement
     const [debugstr, setDebugstr] = createSignal("woa")
 
-    const items = [...new Array(100)].map((e, i) => {
-        return [...new Array(10)].map((v, j) => i + "," + j + ". " + faker.lorem.word())
+    const N = 100
+    const R = 100
+    const W = 100
+    const items = [...new Array(R)].map((e, i) => {
+        const m = new Map<number, string>()
+        for (let j = 0; j < N; j++) {
+            m.set(j, i + "," + j + ". " + faker.lorem.word())
+        }
+        return m
     })
+    const c = new Map<number, Column>()
+    for (let i = 0; i < N; i++) {
+        c.set(i, { key: i, width: W, header: "<div class='p-4'>col" + i + "</div>" })
+    }
     console.log("items", items)
 
     onMount(() => {
@@ -86,19 +113,23 @@ export function FakeScroll() {
 
         const bld: BuilderFn = (ctx: TableContext) => {
             let d = items[ctx.row]
-            let [m,o] = ctx.alloc(d.length)
-            for (let i = 0; i < d.length; i++) {
-                o[i].innerHTML = `<p class='p-4'>${d[i]}<p>`
-                o[i].style.width = '100px'
+            let [m, o] = ctx.alloc(d.size)
+            for (let i = 0; i < o.length; i++) {
+                o[i].innerHTML = `<p class='p-4'>${d.get(i)!}<p>`
+                o[i].style.width = W + 'px'
                 m.set(i, o[i])
             }
             //console.log("build", d, o,m)
         }
+
+
+
         const props: ScrollerProps = {
             container: el!,
             state: {
                 rows: items.length,
-                columns: [...new Array(10)].map((e, i) => 100)
+                order: [...new Array(N)].map((e, i) => i),
+                columns: c,
             },
             builder: bld,
             height: est,
@@ -120,7 +151,7 @@ export function FakeScroll() {
 
 
     return <>
-
+        <TestDrag />
         <div class={'right-0 top-0 bottom-32 left-80 absolute overflow-auto h-screen' + clearFrame} ref={el!}>
 
         </div>

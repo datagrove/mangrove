@@ -2,17 +2,22 @@ import { JSXElement } from "solid-js"
 
 const inf = Number.NEGATIVE_INFINITY
 
-export type BuilderFn = (ctx: TableContext) => void 
+export interface Selection {
+    columns: [number, number][]
+    rows: [number, number][]
+    range: [number, number, number, number][]
+}
+
+export type BuilderFn = (ctx: TableContext) => void
 export class TableContext {
-    constructor(public scroller: Scroller){}
+    constructor(public scroller: Scroller) { }
     old!: TableRow
     row!: number
-    columnStart!: number
-    columnEnd!: number
+    get key() { return this.scroller.props.state.order }
 
-    alloc( n: number) : [Map<number,HTMLElement>, HTMLElement[]] {
+    alloc(n: number): [Map<number, HTMLElement>, HTMLElement[]] {
         this.old.node.clear()
-        for (let i=this.old.el.length; i<n; i++) {
+        for (let i = this.old.el.length; i < n; i++) {
             this.old.el.push(this.scroller.div())
         }
         return [this.old.node, this.old.el]
@@ -41,12 +46,18 @@ export interface Pane {
 // we should follow similar patterns to prosemirror.
 // we need some concept of undo/redo. mostly with commands? or should we rollback the state? commands seems more likely to be collaborative. this is like and editor, so
 
+export interface Column {
+    key: any
+    width: number
+    start?: number // calculated
+    header: string
+}
 
 export interface ScrollerState {
     rows: number
-    columns: number[]
-    repeatColumn?: number
-    repeatColumnWidth?: number
+    columns: Map<any, Column>
+    order: any[] // order of columns
+    repeatColumnWidth?: number // for maps, generates negative index
 
     paneRow?: Pane[]
     paneColumn?: Pane[]
@@ -63,6 +74,7 @@ export interface ScrollerProps {
     height: number | EstimatorFn
     builder: BuilderFn,  // render cell as html
     topPadding?: number
+
 }
 
 interface GridUpdate {
@@ -88,12 +100,12 @@ function rotate<T>(a: T[], n: number) {
 // especially if we have uniform columns like a 2d map
 export class TableRow {
 
-    node = new Map<number, HTMLElement>
+    node = new Map<any, HTMLElement>
     // on an update we can scan this to 
     height = 0
     //width: number 
     top = 0
-    el : HTMLElement[] = []
+    el: HTMLElement[] = []
 
 
     //get isTombstone() { return !!this.data }
@@ -132,13 +144,13 @@ type plugin = (tx: ScrollerTx) => void
 // to be wrapped by react with useEffect.
 export class Scroller {
     scroller_: HTMLElement
-    builder: BuilderFn
     rendered_: TableRow[] = [];
     length_ = 0
     topPadding = 0
     anchorItem: Anchor = { index: 0, offset: 0 }
     width_: number = 0// exact. we may need
-
+    freezeHeight = 0
+    freezeWidth = 0
     anchorScrollTop = 0; // this is in pixels
     heightAbove = 0
 
@@ -149,9 +161,11 @@ export class Scroller {
 
     scrollRunway_: HTMLElement  // Create an element to force the scroller to allow scrolling to a certainpoint.
     wideWay_: HTMLElement
-    plugin: plugin[] = []
+    headerCell?: HTMLElement[]
+    //header!: HTMLDivElement
+    headerHeight = 0
 
-    startColumn: number[] = []
+    plugin: plugin[] = []
 
     apply(tx: ScrollerTx) {
         this.plugin.forEach(p => p(tx))
@@ -168,21 +182,32 @@ export class Scroller {
         r.style.display = 'block'
         return r
     }
+    div2(): HTMLElement {
+        const r = document.createElement('div') as HTMLElement
+        this.scroller_.append(r)
+        r.style.display = 'block'
+        r.style.backgroundColor = 'black'
+        r.style.position = 'fixed'
+        r.style.zIndex = '51'
+        return r
+    }
 
+
+    builder(ctx: TableContext) {
+        if (ctx.row < 0 || ctx.row >= this.props.state.rows) {
+            // cache this? get from callback?
+            ctx.old.node.clear()
+        } else {
+            this.props.builder(ctx)
+        }
+    }
     constructor(public props: ScrollerProps) {
 
         this.scroller_ = props.container
         console.log('props', props)
         this.length_ = props.state.rows
         this.topPadding = props.topPadding ?? 0
-        this.builder = (ctx: TableContext) => {
-            if (ctx.row < 0 || ctx.row >= props.state.rows) {
-                // cache this? get from callback?
-                ctx.old.node.clear()
-            } else {
-                props.builder(ctx)
-            }
-        }
+
         this.anchorItem.index = props.state.initial?.row ?? 0
 
         this.scroller_.addEventListener('scroll', () => this.onScroll_());
@@ -205,13 +230,31 @@ export class Scroller {
     }
 
     cacheStart() {
+        this.headerCell = this.headerCell ?? new Array(this.props.state.columns.size)
+
         let st = 0
-        this.startColumn.length=0
-        for (let v of this.props.state.columns) {
-            this.startColumn.push(st)
-            st += v
+
+        // should we measure the header or just truncate?
+        let h = 0
+        for (let i in this.props.state.order) {
+            let v = this.props.state.order[i]
+            let c = this.props.state.columns.get(v)!
+            if (!this.headerCell[i]) {
+                this.headerCell[i] = this.div2()
+            }
+            this.headerCell[i].style.width = c.width + 'px'
+            this.headerCell[i].innerHTML = c.header
+            this.headerCell[i].style.transform = `translate(${st}px,0)`;
+            h = Math.max(h, this.headerCell[i].offsetHeight)
+
+            let o = this.props.state.columns.get(v)
+            if (o) {
+                o.start = st
+                st += o.width
+            }
         }
         this.wideWay_.style.transform = `translate(${st}px,0)`;
+        this.headerHeight = h
     }
 
     close() {
@@ -235,7 +278,7 @@ export class Scroller {
                 ctx.row = b
                 this.builder(ctx)
                 let i = {
-                    node: new Map<number,HTMLElement>(),
+                    node: new Map<number, HTMLElement>(),
                     height: 0,
                     top: 0,
                 }
@@ -285,8 +328,9 @@ export class Scroller {
     }
 
     position(o: TableRow) {
-        for (const [key,value] of o.node){
-            const tr = `translate(${this.startColumn[key]}px,${o.top + this.topPadding}px)`
+        for (const [key, value] of o.node) {
+            const col = this.props.state.columns.get(key)
+            const tr = `translate(${col!.start}px,${o.top + this.headerHeight + this.topPadding}px)`
             //console.log('pos', tr)
             value.style.transform = tr
         }
@@ -296,7 +340,7 @@ export class Scroller {
 
         let height = 0
         item.node.forEach((v) => {
-            height = Math.max(height,v.offsetHeight)
+            height = Math.max(height, v.offsetHeight)
         })
 
 
@@ -417,7 +461,7 @@ export class Scroller {
         const rendered_start = this.rendered_start
         const ctx = new TableContext(this)
         for (let k = b; k < e; k++) {
-            ctx.old =  this.rendered_[k];
+            ctx.old = this.rendered_[k];
             //o.data = this.snap_.get(rendered_start + k)
             for (let c of this.props.state.columns) {
 
