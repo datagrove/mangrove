@@ -231,7 +231,7 @@ export function TreeView(props: {
           </button>
         )}
       {(showLimited() || !isLimited()) && (
-        <pre ref={treeElementRef}>{content}</pre>
+        <pre ref={treeElementRef}>{content()}</pre>
       )}
       {timeTravelEnabled() && (showLimited() || !isLimited()) && (
         <div class={props.timeTravelPanelClass}>

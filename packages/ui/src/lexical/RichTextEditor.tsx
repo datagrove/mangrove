@@ -2,22 +2,23 @@ import { $getRoot, $getSelection, EditorState, LexicalEditor } from "lexical";
 import { LinkNode } from "@lexical/link";
 import { AutoLinkNode } from "@lexical/link";
 import "./RichTextEditor.css";
-import { LinkPlugin } from "lexical-solid/LexicalLinkPlugin";
+import { LinkPlugin } from "./lexical-solid/LexicalLinkPlugin";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { CodeHighlightNode, CodeNode } from "@lexical/code";
-import { OnChangePlugin } from "lexical-solid/LexicalOnChangePlugin";
-import { AutoFocusPlugin } from "lexical-solid/LexicalAutoFocusPlugin";
-import { LexicalComposer } from "lexical-solid/LexicalComposer";
-import { RichTextPlugin } from "lexical-solid/LexicalRichTextPlugin";
-import { ContentEditable } from "lexical-solid/LexicalContentEditable";
-import { HistoryPlugin } from "lexical-solid/LexicalHistoryPlugin";
+import { OnChangePlugin } from "./lexical-solid/LexicalOnChangePlugin";
+import { AutoFocusPlugin } from "./lexical-solid/LexicalAutoFocusPlugin";
+import { LexicalComposer } from "./lexical-solid/LexicalComposer";
+import { RichTextPlugin } from "./lexical-solid/LexicalRichTextPlugin";
+import { ContentEditable } from "./lexical-solid/LexicalContentEditable";
+import { HistoryPlugin } from "./lexical-solid/LexicalHistoryPlugin";
 import TreeViewPlugin from "./TreeViewPlugin";
 import CodeHighlightPlugin from "./CodeHighlightPlugin";
 // import ToolbarPlugin from "~/plugins/ToolbarPlugin";
 import RichTextTheme from "./RichTextTheme";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
-import { LexicalErrorBoundary } from "lexical-solid/LexicalErrorBoundary";
+import { LexicalErrorBoundary } from "./lexical-solid/LexicalErrorBoundary";
+import ToolbarPlugin from "./ToolbarPlugin";
 //import { EmojiNode } from "./nodes/EmojiNode";
 //import EmoticonPlugin from "./plugins/EmoticonPlugin";
 
@@ -68,9 +69,9 @@ const editorConfig = {
 export default function Editor() {
   return (
     <LexicalComposer initialConfig={editorConfig}>
-      <div class="editor-container">
-        {/* <ToolbarPlugin /> */}
-        <div class="editor-inner">
+      <div class="editor-container w-full">
+        <ToolbarPlugin />
+        <div class="editor-inner w-full">
           <RichTextPlugin
             contentEditable={<ContentEditable class="editor-input" />}
             placeholder={<Placeholder />}

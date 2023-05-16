@@ -1,5 +1,5 @@
 //TODO: update and fix this
-import { useLexicalComposerContext } from "lexical-solid/LexicalComposerContext";
+import { useLexicalComposerContext } from "./lexical-solid/LexicalComposerContext";
 import {
   CAN_REDO_COMMAND,
   CAN_UNDO_COMMAND,
