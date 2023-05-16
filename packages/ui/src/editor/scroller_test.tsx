@@ -15,6 +15,7 @@ import { ln, setLn } from './i18n'
 
 import './editor.css'
 import { TestDrag } from './selectionbox'
+import { SiteMenuContent } from '../layout/site_menu'
 // one kind of 
 
 // global css class?
@@ -59,21 +60,20 @@ export function FakeScroll2() {
         </table></>
 }
 
-
-export function Chat() {
-
-
-
+export function FakeEditor() {
+    const ed = new Editor
+    let edel: HTMLDivElement
+    onMount(()=>{
+        ed.mount(edel)
+        ed.text = "בְּרֵאשִׁ֖ית בָּרָ֣א אֱלֹהִ֑ים אֵ֥ת הַשָּׁמַ֖יִם וְאֵ֥ת הָאָֽרֶץ׃"
+    })
+    return <div class='h-full w-full max-w-none prose dark:prose-invert' ref={edel!} />
 }
 
-export function Doc() {
-
-}
-// this probably has little to do a scroller?
-export function White() {
-
-}
-
+// tables need a header
+// all pages need an info box.
+// we need a growing chat box with a bubble menu
+// we probably need terminal to work
 export function FakeScroll() {
     let el: HTMLDivElement
     // we can try to recreate the editor as raw typescript to make it easier to wrap in various frameworks. 
@@ -158,9 +158,7 @@ export function FakeScroll() {
         <div class='right-0 bottom-0 left-80 absolute overflow-y-auto overflow-x-hidden h-32  ' >
             <div class='h-full w-full max-w-none prose dark:prose-invert' ref={edel!} />
         </div>
-
         <p ref={tombstone!}>&nbsp;</p>
-
     </>
 
 }

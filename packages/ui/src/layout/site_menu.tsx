@@ -17,6 +17,7 @@ import { createSignal, ParentComponent, Show } from "solid-js";
 import { orgsite } from "./orgsite";
 import { LanguageSelect } from "../i18n/i18";
 import { useLocation, Location, useParams } from "../core/dg";
+import { useSite } from "../home";
 
 export enum ShowPagemap {
   adaptive,  // adaptive -> click = toggle. so once its closed or open it can no longer be adaptive.
@@ -281,6 +282,7 @@ export interface PageDescription {
 // everything can scroll off; maximum use of space. easy to find top anyway.
 // we probably need a sticky to close? maybe this can be done with the rail though
 export const SiteMenuContent: Component<{}> = (props) => {
+  const st = useSite()
   const [pd, setPd] = createSignal<PageDescription>()
 
   createEffect(() => {

@@ -1,6 +1,7 @@
 import { createSignal } from 'solid-js';
 import { classList } from 'solid-js/web';
-import { } from "solid-heroicons/solid";
+import { Icon } from 'solid-heroicons';
+import {  link } from "solid-heroicons/solid";
 
 const BubbleMenu = () => {
     const [isActive, setIsActive] = createSignal(false);
@@ -37,19 +38,16 @@ const BubbleMenu = () => {
             {isActive() && (
                 <div class="absolute z-10 flex flex-col mt-2 space-y-2 bg-white rounded shadow-md">
                     <button class="flex items-center px-4 py-2">
-                        <BoldIcon class="w-5 h-5 mr-2" />
-                        Bold
+                        <div>B</div>
                     </button>
                     <button class="flex items-center px-4 py-2">
-                        <ItalicIcon class="w-5 h-5 mr-2" />
-                        Italic
+                        <div>I</div>
                     </button>
                     <button class="flex items-center px-4 py-2">
-                        <UnderlineIcon class="w-5 h-5 mr-2" />
-                        Underline
+                        <div>U</div>
                     </button>
                     <button class="flex items-center px-4 py-2">
-                        <LinkIcon class="w-5 h-5 mr-2" />
+                        <Icon path={link} class="w-5 h-5 mr-2" />
                         Link
                     </button>
                 </div>

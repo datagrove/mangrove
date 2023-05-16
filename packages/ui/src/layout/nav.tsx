@@ -17,6 +17,14 @@ function classNames(...classes: (string | boolean | undefined)[]): string {
 // this should probably be a media query
 const [small, setSmall] = createSignal(false)
 
+
+export const Page: Component<{ children: JSXElement }> = (props) => {
+  return <div class='flex h-screen w-screen fixed overflow-hidden'>
+    <div class='w-80 h-full  overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><SiteMenuContent /></div>
+    <FakeScroll />
+  </div>
+}
+
 export type PageParams = Partial<{
   ln: string
   org: string
@@ -132,12 +140,6 @@ export const Body: Component<{ children: JSXElement }> = (props) => {
   return <div class="m-2 h-screen w-full">{props.children}</div>
 }
 
-export const Page: Component<{ children: JSXElement }> = (props) => {
-  return <div class='flex h-screen w-screen fixed overflow-hidden'>
-    <div class='w-80 h-full  overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><SiteMenuContent /></div>
-    <FakeScroll />
-  </div>
-}
 
 interface Tab {
   name: string,
