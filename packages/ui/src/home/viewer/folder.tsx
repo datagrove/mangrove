@@ -6,65 +6,9 @@ import { createEffect, onCleanup, createSignal, onMount } from 'solid-js'
 const redFrame = "border-solid border-2 border-red-500"
 const greenFrame = "border-solid border-2 border-green-500"
 const clearFrame = "border-solid border-0 border-opacity-0"
-function DebugWindow(props: { debugstr: string }) {
-    return <pre class=' fixed top-0 left-0 overflow-auto w-64 h-screen z-50 bg-black'>
-        {props.debugstr}
-    </pre>
-}
-
-// make draggable headers
-function FakeScroll2() {
-    let el: HTMLTableElement
-    const [debugstr, setDebugstr] = createSignal("woa")
-    createEffect(() => {
-        // enableColumnDragging(el)
-        enableColumnResizing(el, setDebugstr)
-    })
-
-    return <><DebugWindow debugstr={debugstr()} />
-        <table ref={el!} id="myTable" class='border-collapse '>
-            <thead>
-                <tr>
-                    <th class='w-48'>Column 1</th>
-                    <th class='w-48'>Column 2</th>
-                    <th class='w-48'>Column 3</th>
-                </tr></thead>
-            <tbody>
-                <tr>
-                    <td>Value 1-1</td>
-                    <td>Value 1-2</td>
-                    <td>Value 1-3</td>
-                </tr>
-                <tr>
-                    <td>Value 2-1</td>
-                    <td>Value 2-2</td>
-                    <td>Value 2-3</td>
-                </tr>
-            </tbody>
-        </table></>
-}
-
-//export function FakeEditor() {
-//     const ed = new RichTextEditor
-//     let edel: HTMLDivElement
-//     onMount(() => {
-//         ed.mount(edel)
-//         ed.text = "בְּרֵאשִׁ֖ית בָּרָ֣א אֱלֹהִ֑ים אֵ֥ת הַשָּׁמַ֖יִם וְאֵ֥ת הָאָֽרֶץ׃"
-//     })
-//     return <div class='h-full w-full max-w-none prose dark:prose-invert' ref={edel!} />
-// }
-
-
-// export function FakeChat() {
-//     return <div class='h-full w-full max-w-none prose dark:prose-invert'>
-//     </div>
-// }
 
 
 
-// tables need a header
-// all pages need an info box.
-// we need a growing chat box with a bubble menu
 // we probably need terminal to work
 type RowMap = Map<number, string>
 export function FolderViewer() {

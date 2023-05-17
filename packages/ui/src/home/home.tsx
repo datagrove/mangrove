@@ -14,6 +14,7 @@ import { TextViewer } from './viewer/text'
 import { ChatViewer, CodeViewer, SheetViewer, WhiteboardViewer } from "./viewer";
 import { SettingsViewer } from "./viewer/settings";
 import { FolderViewer } from "./viewer/folder";
+import { Splitter } from "../layout/splitter";
 
 const PageContext = createContext<SitePage>();
 export function usePage() { return useContext(PageContext); }
@@ -109,7 +110,7 @@ const builtinTools: { [key: string]: Tool } = {
 export const [tools, setTools] = createSignal(builtinTools)
 export const [viewers, setViewers] = createSignal(builtinViewers)
 
-// some apps, like login, don't need a database and shouldn't show a sitemap
+
 export function Main() {
   const ws = createWs()
   const ln = useLn()
@@ -232,16 +233,28 @@ export function Main() {
   }
   // we also need to understand the document type here.
   // 
+  const [left, setLeft] = createSignal(300)
   return <PageContext.Provider value={sitePage()}>
     <Show when={sitePage()} fallback={<div>loading</div>}>
       <div class='flex h-screen w-screen fixed overflow-hidden'>
-        <Toolicons />
-        <div class=' w-64 h-full  overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'>
-          <div></div>
-          {sitePage()!.toolpane.component()}
-        </div>
-        {sitePage()!.viewer.default()}
-        <InfoBox />
+        <Splitter left={left} setLeft={setLeft}>
+          <div class='relative flex over-x-hidden' style={{
+            left: "0px",
+            right: left()+"px",
+            top: "0px",
+            bottom: "0px"
+          }}>
+            <Toolicons />
+            <div class=' w-full h-full  overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'>
+              <div></div>
+              {sitePage()!.toolpane.component()}
+            </div>
+          </div>
+          <div>
+            {sitePage()!.viewer.default()}
+            <InfoBox />
+          </div>
+        </Splitter>
       </div>
     </Show>
   </PageContext.Provider>
