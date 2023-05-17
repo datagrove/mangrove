@@ -23,9 +23,7 @@ import { TextMenu } from "./menu";
 //import { EmojiNode } from "./nodes/EmojiNode";
 //import EmoticonPlugin from "./plugins/EmoticonPlugin";
 
-function Placeholder() {
-  return <div class="editor-placeholder">Enter some plain text...</div>;
-}
+
 
 // When the editor changes, you can get notified via the
 // LexicalOnChangePlugin!
@@ -67,7 +65,7 @@ const editorConfig = {
   ] as any,
 };
 
-export default function Editor() {
+export default function RichTextEditor() {
   return (
     <LexicalComposer initialConfig={editorConfig}>
       <div class="editor-container w-full h-full">
@@ -76,7 +74,7 @@ export default function Editor() {
         <div class="editor-inner w-full h-full">
           <RichTextPlugin
             contentEditable={<ContentEditable class="editor-input" />}
-            placeholder={<Placeholder />}
+            placeholder={<div class='absolute hidden top-4 left-4 text-neutral-500'>Enter some plain text...</div>}
             errorBoundary={LexicalErrorBoundary}
           />
           <LinkPlugin />

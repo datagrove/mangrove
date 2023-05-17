@@ -70,11 +70,22 @@ export function FakeEditor() {
     return <div class='h-full w-full max-w-none prose dark:prose-invert' ref={edel!} />
 }
 
+// one cell width
+// potentially multiple columns if the screen is wide enough
+// if clicking a thread in column x, default to opening in column x+1?
+// probably use vscode way of explicit splitting
+export function FakeChat() {
+    return <div class='h-full w-full max-w-none prose dark:prose-invert'>
+        </div>
+}
+
+
+
 // tables need a header
 // all pages need an info box.
 // we need a growing chat box with a bubble menu
 // we probably need terminal to work
-export function FakeScroll() {
+export function FakeSheet() {
     let el: HTMLDivElement
     // we can try to recreate the editor as raw typescript to make it easier to wrap in various frameworks. 
     const ed = new Editor
@@ -96,7 +107,7 @@ export function FakeScroll() {
     for (let i = 0; i < N; i++) {
         c.set(i, { key: i, width: W, header: "<div class='p-4'>col" + i + "</div>" })
     }
-    console.log("items", items)
+    //console.log("items", items)
 
     onMount(() => {
         ed.mount(edel)

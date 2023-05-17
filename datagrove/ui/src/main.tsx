@@ -1,6 +1,6 @@
 import "./index.css"
 import { render } from "solid-js/web"
-import { HomePage, LoginPage, RegisterPage, RegisterPage2, SettingsPage, initWs, } from '../../../packages/ui/src'
+import { Main, LoginPage, RegisterPage, RegisterPage2, SettingsPage, initWs, } from '../../../packages/ui/src'
 import { Route, Router, Routes, useNavigate, useParams } from "../../../packages/ui/src/core/dg"
 import { JSXElement, Show, createEffect } from "solid-js"
 import tippy from "tippy.js"
@@ -25,7 +25,7 @@ function App() {
         <Route path={`/:ln/register`} component={RegisterPage} />
         <Route path={`/:ln/register2`} component={RegisterPage2} />
 
-        <Route path="/:ln/:app/*" component={HomePage} />
+        <Route path="/:ln/:app/*" component={Main} />
     </Routes>
 }
 

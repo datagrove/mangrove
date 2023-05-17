@@ -10,7 +10,7 @@ import { SiteMenuContent, setSearchMode } from './site_menu'
 import { BlueButton } from '../lib/form'
 import { AnchorProps, A as Ar, useNavigate } from '../core/dg';
 
-import { FakeScroll } from '../editor';
+
 function classNames(...classes: (string | boolean | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }
@@ -18,12 +18,7 @@ function classNames(...classes: (string | boolean | undefined)[]): string {
 const [small, setSmall] = createSignal(false)
 
 
-export const Page: Component<{ children: JSXElement }> = (props) => {
-  return <div class='flex h-screen w-screen fixed overflow-hidden'>
-    <div class='w-80 h-full  overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><SiteMenuContent /></div>
-    <FakeScroll />
-  </div>
-}
+
 
 export type PageParams = Partial<{
   ln: string

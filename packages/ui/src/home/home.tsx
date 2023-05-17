@@ -1,52 +1,59 @@
 
 
-import { JSXElement, Show, createContext, createEffect, createSignal, useContext } from "solid-js";
+import { For, JSXElement, Match, Show, Switch, createContext, createEffect, createSignal, useContext } from "solid-js";
 import { createWs } from "../core/socket";
 import { useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
-import { Body, Title } from "../layout/nav";
 import { SiteMenuContent } from "../layout/site_menu";
-import { FakeEditor, FakeScroll } from "../editor";
-import Editor from "../lexical/RichTextEditor";
-
-
-
-// we might want to access a sitemap here?
-// most (all?) of our apps will have a database
-// but they can access other databases and servers as well.
-
-// we could be looking at our own home or someone else's home
-// it will be somewhat different.
-
-// if its our home, then we will be at
-// {ouruser}/en/home
-// if it's someone else's home then we will be at
-// other/en/home
-// here an issue is if the user is anonymous, then we need to use their secret string. we could say that anything shorter than X is a friendly name.
-
-// in general this will be a did, but it could be a friendly name.
-
-// this is the SPA
+import { FakeChat } from "../editor";
+import RichTextEditor from "../lexical/RichTextEditor";
+import { Icon, } from "solid-heroicons";
+import { clock, pencil, squares_2x2 as menu, squaresPlus as add, chatBubbleBottomCenter as friend, cog_6Tooth as gear } from "solid-heroicons/solid";
+import { user } from "./user";
+import { Maybe } from "../core";
+import { Toolbar } from "solid-headless";
+import { TextViewer } from './viewer/text'
+import { ChatViewer, CodeViewer, SheetViewer, WhiteboardViewer } from "./viewer";
+import { SettingsViewer } from "./viewer/settings";
 
 const PageContext = createContext<SitePage>();
-export function useSite() { return useContext(PageContext); }
+export function usePage() { return useContext(PageContext); }
 
 export interface Site {
   did: string
   name: string
   caps: Caps
-
-
+}
+export interface Document {
+  site: Site
+  path: string
+  type: string
 }
 
+export async function getDocument(did: string, site: string, path: string): Maybe<Document> {
+  return [{
+    site: {
+      did: did,
+      name: "datagrove",
+      caps: {
+        read: true,
+        write: true,
+        admin: true,
+      }
+    },
+    path: path,
+    type: path
+  }, undefined]
+}
+
+// user settings should be a store? does the context deliver a store then?
+// is a database something related but different than a store?
 export interface SitePage {
-  site: Site
-  branch: string  // or tag
-  dbid: string
-  appname: string
-  path: string   // interpreted by app, but general a path
-  app: () => JSXElement
+  doc: Document,
+  toolname: string
+  viewer: Viewer
+  toolpane: Tool
 }
 
 export interface Caps {
@@ -55,129 +62,189 @@ export interface Caps {
   admin: boolean
 }
 
-type Maybe<T> = Promise<[T?, Error?]>
-
-export type AppMap = {
-  [key: string]: () => JSXElement
+export interface Tool {
+  icon: () => JSXElement
+  component: () => JSXElement
 }
 
-
-
-export async function getSite(did: string): Maybe<Site> {
-  return [{
-    did: did,
-    name: "datagrove",
-    caps: {
-      read: true,
-      write: true,
-      admin: true,
-    }
-
-  }, undefined]
-}
-
-
-function Page(props: { children: JSXElement }) {
-  const st = useSite()
-  return <div class='flex h-screen w-screen fixed overflow-hidden'>
-    <div class=' w-96 h-full  overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'>
-      <SiteMenuContent /></div>
-    {props.children}
-    <InfoBox />
-  </div>
-}
-function FakeAdmin() {
-  return <Page>
-    <div>admin</div>
-  </Page>
-}
-function FakeEdit() {
-  return <Page>
-    <Editor />
-  </Page>
-}
-
-
-function FakeChat() {
-  return <Page>
-
-    <div>chat</div>
-  </Page>
-}
-function FakeSettings() {
-  return <Page>
-    <div>settings</div>
-  </Page>
-}
-function FakeWhiteboard() {
-  return <Page>
-    <div>settings</div>
-  </Page>
-}
-function FakeSheet() {
-  return <Page>
-    <FakeScroll />
-  </Page>
-}
-// some apps, like login, don't need a database and shouldn't show a sitemap
-export function HomePage() {
-
-  const apps: AppMap = {
-    "home": FakeScroll,
-    "edit": FakeEdit,
-    "chat": FakeChat,
-    "settings": FakeSettings,
-    "admin": FakeAdmin,
-    "whiteboard": FakeWhiteboard,
-    "sheet": FakeSheet,
+type Viewer = {
+  default: () => JSXElement
+  perspective?: {
+    [key: string]: () => JSXElement
   }
+}
+type ViewerMap = {
+  [key: string]: Viewer
+}
+// viewers are picked by the document referenced in the path, but may also put information in the hash
+// document types; map to common mime types?
+
+const builtinViewers: ViewerMap = {
+  "home": { default: () => <TextViewer /> }, // should force a readonly perspective
+  "edit": { default: () => <TextViewer /> },
+  "chat": { default: () => <ChatViewer /> },
+  "settings": { default: () => <SettingsViewer /> },
+  "whiteboard": { default: () => <WhiteboardViewer /> },
+  "sheet": { default: () => <SheetViewer/> },
+  "code": { default: () => <CodeViewer /> }, // can also be perspective of text?
+}
+const builtinTools: { [key: string]: Tool } = {
+  "menu": {
+    icon: () => <FloatIcon path={menu} />,
+    component: () => <SiteMenuContent />
+  },
+  "dm": {
+    icon: () => <FloatIcon path={friend} />,
+    component: () => <div>dm</div>
+  },
+  "settings": {
+    icon: () => <FloatIcon path={gear} />,
+    component: () => <div>settings</div>
+  },
+  "add": {
+    icon: () => <FloatIcon path={add} />,
+    component: () => <div>settings</div>
+  },
+}
+
+// change when we install new tools? or when we change the active tool?
+export const [tools, setTools] = createSignal(builtinTools)
+export const [viewers, setViewers] = createSignal(builtinViewers)
+
+// some apps, like login, don't need a database and shouldn't show a sitemap
+export function Main() {
   const ws = createWs()
   const ln = useLn()
   const nav = useNavigate()
   const loc = useLocation()
 
-  // should probably be a context? doesn't everything need the site?
-
-  // should this be a store instead? 
   const [sitePage, setSitePage] = createSignal<SitePage>()
   const [err, setErr] = createSignal<Error>()
 
-  // each organization needs branch. 
-  // maybe app should come first. ln/app/org/branch/dbid/path
-  // if they ask for an org that is not accessible, then we should show special page?
-  // maybe it should be a signup page?
-  createEffect(async () => {
-    const p = loc.pathname.split("/")
-    const ln = p[1]
-    const appname = p[2]
-    const app = apps[appname]
-    const owner = p[3] // owner / ln / branch / db  / viewpath    
 
+  createEffect(async () => {
+    const oid = "did:web:datagrove.io:home"
+    // await getUser()?
+    // we can start incognito, but the site may not allow, so wait
+    const user = {
+      name: oid,
+      tools: ["alert"]
+
+    }
+    const p = loc.pathname.split("/")
+    // owner / ln / branch / db  / viewpath  
+    const ln = p[1]
+
+    // if we don't recognize tool, pick menu tool
+    // should we redirect  then?
+    const toolname = p[2] ?? "menu"
+
+    const owner = p[3] ?? "oid"
+    const database = p[4] ?? "home"
+
+    const h = loc.hash.split("/")
+    const viewer = h[0] ?? ""
+    const path = p.slice(5).join("/")
     // this could fail because owner doesn't exist, or because the owner doesn't want visitors. the owner could have special login requirements.
     // I need some kind of suspense processing here.
-    const [s, e] = await getSite(owner)
-
-
-    // do we probe the server for this? eventually the server will move to the shared worker. Our websocket will also move to the shared worker, with a proxy in worker threads. we need a cookie/storage strategy to limit logins.
-    if (e) {
+    const [doc, e] = await getDocument(owner, database, path)
+    if (!doc) {
       setErr(e)
       setSitePage(undefined)
     } else {
-      const pg: SitePage = {
-        site: s!,
-        branch: p[3],
-        dbid: p[4],
-        appname: appname,
-        path: p.slice(6).join("/"),
-        app: app
+      // derive the viewer from the document type
+      let viewer = builtinViewers[doc.type]
+      if (!viewer) {
+        // the viewer has to be modified based on the document type
+        // we want to be able to specify the viewer so that the link can be shared
+        // but maybe it should be in the hash?
+        // we should hand the hash directly to the document type and let it decide what it means
+        viewer = builtinViewers["home"]
       }
+      let tool = builtinTools[toolname]
+      if (!tool) {
+        tool = builtinTools["menu"]
+      }
+      const pg: SitePage = {
+        doc: doc,
+        toolname: toolname,
+        viewer: viewer,
+        toolpane: tool
+      }
+      console.log("PAGE", pg)
       setSitePage(pg)
     }
   })
 
+  // this needs to use the user value that counts this tool
+  const getCounter = (name: string) => {
+    return 0
+  }
+  // how do we display counters?
+  const setActiveTool = (name: string) => {
+    const pth = "/" + ln() + "/" + name + "/" + loc.pathname.split("/").slice(3).join("/")
+    console.log("path", name, pth)
+    nav(pth)
+  }
+
+  const ml = (e: string) => e==sitePage()?.toolname?"border-white":"border-transparent"
+  const Toolicons = () => {
+    return <div class='w-14 flex-col flex mt-4 items-center space-y-6'>
+      <span class="relative inline-block">
+  <img class="h-8 w-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt=""/>
+  <span class="absolute right-0 top-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
+</span>
+      <For each={user.settings.tools}>{(e, i) => {
+        const tl = tools()[e]
+        return <Switch>
+            <Match when={e == "pindm"}>
+              <For each={user.settings.pindm}>
+                {(e, i) => {
+                  // show avatar if available
+                  return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
+                }
+                }
+              </For>
+            </Match>
+            <Match when={e == "pindb"}>
+              <For each={user.settings.pindb}>{(e, i) => {
+                // use database icon if available     
+                return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
+              }
+              }
+              </For>
+            </Match>
+            <Match when={e == "recentdb"}>
+              <For each={user.settings.recentdb}>{(e, i) => {
+                // use database icon if available
+                return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
+              }}
+              </For>
+            </Match>
+            <Match when={true}>
+              <Show when={tl} fallback={<div>{e}</div>}>
+              <div class={`border-l-2 ${ml(e)} h-8 w-12  text-center`}><button  class='block ml-2' onClick={()=>setActiveTool(e)}>{ tl.icon()}</button>
+              </div>
+              </Show>
+            </Match>
+          </Switch>
+      }
+      }</For>
+    </div>
+  }
+  // we also need to understand the document type here.
+  // 
   return <PageContext.Provider value={sitePage()}>
     <Show when={sitePage()} fallback={<div>loading</div>}>
-      {sitePage()!.app()}
+      <div class='flex h-screen w-screen fixed overflow-hidden'>
+        <Toolicons />
+        <div class=' w-64 h-full  overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'>
+          <div></div>
+          {sitePage()!.toolpane.component()}
+        </div>
+        {sitePage()!.viewer.default()}
+        <InfoBox />
+      </div>
     </Show>
   </PageContext.Provider>
 }
@@ -195,6 +262,21 @@ function Nosite(props: {}) {
 
 // every page will position the drawer menu; if it has no place in the menu
 // then position to the one in recent. otherwise, position to the one in the menu so that they have the normal context
+
+
+
+
+
+type IconPath = typeof clock
+export function RoundIcon(props: { path: IconPath, onClick?: () => void }) {
+  return <button onClick={props.onClick}>
+    <div ><Icon class='w-6 h-6' path={props.path}></Icon></div></button>
+}
+export function FloatIcon(props: { path: IconPath, onClick?: () => void }) {
+  return <button onClick={props.onClick}>
+    <div ><Icon class='w-8 h-8' path={props.path}></Icon></div></button>
+}
+
 
 
 

@@ -35,7 +35,38 @@ shadow site can simply be snapshots made with tags allowed.
 /org 
 /org/partition
 
+// we might want to access a sitemap here?
+// most (all?) of our apps will have a database
+// but they can access other databases and servers as well.
 
+// we could be looking at our own home or someone else's home
+// it will be somewhat different.
+
+// if its our home, then we will be at
+// {ouruser}/en/home
+// if it's someone else's home then we will be at
+// other/en/home
+// here an issue is if the user is anonymous, then we need to use their secret string. we could say that anything shorter than X is a friendly name.
+
+// in general this will be a did, but it could be a friendly name.
+
+// this is the SPA
+
+
+
+// we need a database here to determine if we have access to the site
+// defaults to home
+
+
+
+
+
+// one app is login? just configure these in the router though?
+// tool = app, we need icon for an app, and then activate that on the tool set.
+// the active database can show selected as well, but we can select unpinned databases. maybe add them to the tool set as well (like the dock). one odd thing is top or bottom since they are always shifting. maybe pinned at the top and dynamic at the bottom
+
+// a tool may have to deal with different document types
+// the viewer depends on the document type, not the tool
 
 
 
