@@ -1,16 +1,8 @@
 
 import { faker } from '@faker-js/faker'
 import { BuilderFn, Column, enableColumnResizing, EstimatorFn, Scroller, ScrollerProps, TableContext } from '../../editor/scroll'
-import { createEffect, onCleanup } from 'solid-js'
+import { createEffect, onCleanup, createSignal, onMount } from 'solid-js'
 
-import { createSignal, onMount } from 'solid-js'
-
-
-import { TestDrag } from '../../editor/selectionbox'
-import RichTextEditor from '../../lexical/RichTextEditor'
-// one kind of 
-
-// global css class?
 const redFrame = "border-solid border-2 border-red-500"
 const greenFrame = "border-solid border-2 border-green-500"
 const clearFrame = "border-solid border-0 border-opacity-0"
@@ -74,6 +66,7 @@ function FakeScroll2() {
 // all pages need an info box.
 // we need a growing chat box with a bubble menu
 // we probably need terminal to work
+type RowMap = Map<number, string>
 export function FolderViewer() {
     let el: HTMLDivElement
     // we can try to recreate the editor as raw typescript to make it easier to wrap in various frameworks. 
@@ -82,32 +75,47 @@ export function FolderViewer() {
     let tombstone: HTMLDivElement
     const [debugstr, setDebugstr] = createSignal("woa")
 
-    const N = 100
     const R = 100
-    const W = 100
-    const items = [...new Array(R)].map((e, i) => {
+    const W = 4 // type name modified size
+    const items: RowMap[] = []
+    const addRow = (...x: string[]) => {
         const m = new Map<number, string>()
-        for (let j = 0; j < N; j++) {
-            m.set(j, i + "," + j + ". " + faker.lorem.word())
+        for (let i = 0; i < x.length; i++) {
+            m.set(i, x[i])
         }
-        return m
-    })
-    const c = new Map<number, Column>()
-    for (let i = 0; i < N; i++) {
-        c.set(i, { key: i, width: W, header: "<div class='p-4'>col" + i + "</div>" })
+        items.push(m)
     }
-    //console.log("items", items)
+
+    const c = new Map<number, Column>()
+    let cn = 0
+    const init = (header: [string, number][]) => {
+        cn = header.length
+        for (let i = 0; i < header.length; i++) {
+            c.set(i, {
+                key: i,
+                width: header[i][1],
+                header: `<div class='p-4'>${header[i][0]}</div>`
+            })
+
+        }
+    }
+    const col = (name: string, width: number) => [name, width] as [string, number]
+    init([
+        col("Type", 64),
+        col("Name", 480),
+        col("Modified", 128),
+        col("Size", 64),
+    ])
+    for (let i = 0; i < R; i++) {
+        addRow("code", faker.string.uuid(), faker.date.recent().toISOString(), "10000")
+    }
 
     onMount(() => {
-        // ed.mount(edel)
-        // ed.text = "בְּרֵאשִׁ֖ית בָּרָ֣א אֱלֹהִ֑ים אֵ֥ת הַשָּׁמַ֖יִם וְאֵ֥ת הָאָֽרֶץ׃"
-
         let tombstoneHeight_ = tombstone.offsetHeight
         tombstone.style.display = 'none'
 
         const est: EstimatorFn = (start: number, end: number) => {
             const r = (end - start) * 24
-            //console.log("est", start, end, tombstoneHeight_, r)
             return r
         }
 
@@ -115,20 +123,17 @@ export function FolderViewer() {
             let d = items[ctx.row]
             let [m, o] = ctx.alloc(d.size)
             for (let i = 0; i < o.length; i++) {
-                o[i].innerHTML = `<p class='p-4'>${d.get(i)!}<p>`
-                o[i].style.width = W + 'px'
+                o[i].innerHTML = `<div class=' w-full truncate'>${d.get(i)!}<div>`
+                o[i].style.width = c.get(i)?.width + 'px'
                 m.set(i, o[i])
             }
-            //console.log("build", d, o,m)
         }
-
-
 
         const props: ScrollerProps = {
             container: el!,
             state: {
                 rows: items.length,
-                order: [...new Array(N)].map((e, i) => i),
+                order: [...new Array(cn)].map((e, i) => i),
                 columns: c,
             },
             builder: bld,
@@ -151,14 +156,7 @@ export function FolderViewer() {
 
 
     return <>
-        <TestDrag />
-        <div class={'right-0 top-0 bottom-32 left-80 absolute overflow-auto h-screen' + clearFrame} ref={el!}>
-
-        </div>
-        <div class='right-0 bottom-0 left-80 absolute overflow-y-auto overflow-x-hidden h-32  ' >
-            <div class='h-full w-full max-w-none prose dark:prose-invert'  >
-                <RichTextEditor />
-            </div>
+        <div class={'right-0 top-0 bottom-0 left-80 absolute overflow-auto h-screen' + clearFrame} ref={el!}>
         </div>
         <p ref={tombstone!}>&nbsp;</p>
     </>
