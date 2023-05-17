@@ -21,7 +21,7 @@ function DebugWindow(props: { debugstr: string }) {
 }
 
 // make draggable headers
-export function FakeScroll2() {
+function FakeScroll2() {
     let el: HTMLTableElement
     const [debugstr, setDebugstr] = createSignal("woa")
     createEffect(() => {
@@ -74,7 +74,7 @@ export function FakeScroll2() {
 // all pages need an info box.
 // we need a growing chat box with a bubble menu
 // we probably need terminal to work
-export function SheetViewer() {
+export function FolderViewer() {
     let el: HTMLDivElement
     // we can try to recreate the editor as raw typescript to make it easier to wrap in various frameworks. 
     // const ed = new Editor
@@ -164,8 +164,3 @@ export function SheetViewer() {
     </>
 
 }
-
-
-
-
-

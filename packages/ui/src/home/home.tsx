@@ -6,16 +6,14 @@ import { useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
 import { SiteMenuContent } from "../layout/site_menu";
-import { FakeChat } from "../editor";
-import RichTextEditor from "../lexical/RichTextEditor";
 import { Icon, } from "solid-heroicons";
 import { clock, pencil, squares_2x2 as menu, squaresPlus as add, chatBubbleBottomCenter as friend, cog_6Tooth as gear } from "solid-heroicons/solid";
 import { user } from "./user";
 import { Maybe } from "../core";
-import { Toolbar } from "solid-headless";
 import { TextViewer } from './viewer/text'
 import { ChatViewer, CodeViewer, SheetViewer, WhiteboardViewer } from "./viewer";
 import { SettingsViewer } from "./viewer/settings";
+import { FolderViewer } from "./viewer/folder";
 
 const PageContext = createContext<SitePage>();
 export function usePage() { return useContext(PageContext); }
@@ -80,12 +78,12 @@ type ViewerMap = {
 // document types; map to common mime types?
 
 const builtinViewers: ViewerMap = {
-  "home": { default: () => <TextViewer /> }, // should force a readonly perspective
-  "edit": { default: () => <TextViewer /> },
+  "folder": { default: () => <FolderViewer /> },
+  "text": { default: () => <TextViewer /> },
   "chat": { default: () => <ChatViewer /> },
   "settings": { default: () => <SettingsViewer /> },
   "whiteboard": { default: () => <WhiteboardViewer /> },
-  "sheet": { default: () => <SheetViewer/> },
+  "sheet": { default: () => <SheetViewer /> },
   "code": { default: () => <CodeViewer /> }, // can also be perspective of text?
 }
 const builtinTools: { [key: string]: Tool } = {
@@ -187,47 +185,47 @@ export function Main() {
     nav(pth)
   }
 
-  const ml = (e: string) => e==sitePage()?.toolname?"border-white":"border-transparent"
+  const ml = (e: string) => e == sitePage()?.toolname ? "border-white" : "border-transparent"
   const Toolicons = () => {
     return <div class='w-14 flex-col flex mt-4 items-center space-y-6'>
       <span class="relative inline-block">
-  <img class="h-8 w-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt=""/>
-  <span class="absolute right-0 top-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
-</span>
+        <img class="h-8 w-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="" />
+        <span class="absolute right-0 top-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
+      </span>
       <For each={user.settings.tools}>{(e, i) => {
         const tl = tools()[e]
         return <Switch>
-            <Match when={e == "pindm"}>
-              <For each={user.settings.pindm}>
-                {(e, i) => {
-                  // show avatar if available
-                  return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
-                }
-                }
-              </For>
-            </Match>
-            <Match when={e == "pindb"}>
-              <For each={user.settings.pindb}>{(e, i) => {
-                // use database icon if available     
+          <Match when={e == "pindm"}>
+            <For each={user.settings.pindm}>
+              {(e, i) => {
+                // show avatar if available
                 return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
               }
               }
-              </For>
-            </Match>
-            <Match when={e == "recentdb"}>
-              <For each={user.settings.recentdb}>{(e, i) => {
-                // use database icon if available
-                return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
-              }}
-              </For>
-            </Match>
-            <Match when={true}>
-              <Show when={tl} fallback={<div>{e}</div>}>
-              <div class={`border-l-2 ${ml(e)} h-8 w-12  text-center`}><button  class='block ml-2' onClick={()=>setActiveTool(e)}>{ tl.icon()}</button>
+            </For>
+          </Match>
+          <Match when={e == "pindb"}>
+            <For each={user.settings.pindb}>{(e, i) => {
+              // use database icon if available     
+              return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
+            }
+            }
+            </For>
+          </Match>
+          <Match when={e == "recentdb"}>
+            <For each={user.settings.recentdb}>{(e, i) => {
+              // use database icon if available
+              return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
+            }}
+            </For>
+          </Match>
+          <Match when={true}>
+            <Show when={tl} fallback={<div>{e}</div>}>
+              <div class={`border-l-2 ${ml(e)} h-8 w-12  text-center`}><button class='block ml-2' onClick={() => setActiveTool(e)}>{tl.icon()}</button>
               </div>
-              </Show>
-            </Match>
-          </Switch>
+            </Show>
+          </Match>
+        </Switch>
       }
       }</For>
     </div>
