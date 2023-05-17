@@ -19,6 +19,7 @@ import RichTextTheme from "./RichTextTheme";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 import { LexicalErrorBoundary } from "./lexical-solid/LexicalErrorBoundary";
 import ToolbarPlugin from "./ToolbarPlugin";
+import { TextMenu } from "./menu";
 //import { EmojiNode } from "./nodes/EmojiNode";
 //import EmoticonPlugin from "./plugins/EmoticonPlugin";
 
@@ -38,7 +39,7 @@ function onChange(
     const root = $getRoot();
     const selection = $getSelection();
 
-    console.log(root, selection);
+    //console.log(root, selection);
   });
 }
 
@@ -70,7 +71,8 @@ export default function Editor() {
   return (
     <LexicalComposer initialConfig={editorConfig}>
       <div class="editor-container w-full h-full">
-        <ToolbarPlugin />
+        <TextMenu />
+
         <div class="editor-inner w-full h-full">
           <RichTextPlugin
             contentEditable={<ContentEditable class="editor-input" />}
@@ -89,3 +91,4 @@ export default function Editor() {
     </LexicalComposer>
   );
 }
+//   <ToolbarPlugin />

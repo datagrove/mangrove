@@ -44,22 +44,6 @@ h1 {
   text-align: right;
 }
 
-.editor-container {
-
-
-  color: #000;
-  position: relative;
-  line-height: 20px;
-  font-weight: 400;
-  text-align: left;
-
-}
-
-.editor-inner {
-  background: #fff;
-  position: relative;
-}
-
 .editor-input {
   min-height: 150px;
   resize: none;

@@ -42,6 +42,7 @@
     "vitest": "^0.26.2"
   },
   "dependencies": {
+    "@floating-ui/dom": "^1.2.8",
     "@lexical/clipboard": "~0.10.0",
     "@lexical/code": "~0.10.0",
     "@lexical/dragon": "~0.10.0",

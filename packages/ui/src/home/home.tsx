@@ -9,7 +9,7 @@ import { Body, Title } from "../layout/nav";
 import { SiteMenuContent } from "../layout/site_menu";
 import { FakeEditor, FakeScroll } from "../editor";
 import Editor from "../lexical/RichTextEditor";
-import { TippyButton } from "../lexical/menu";
+
 
 
 // we might want to access a sitemap here?
@@ -93,14 +93,14 @@ function FakeAdmin() {
 }
 function FakeEdit() {
   return <Page>
-   <Editor/>
+    <Editor />
   </Page>
 }
 
 
 function FakeChat() {
   return <Page>
-    <TippyButton/>
+
     <div>chat</div>
   </Page>
 }
@@ -116,8 +116,8 @@ function FakeWhiteboard() {
 }
 function FakeSheet() {
   return <Page>
-    <FakeScroll/>
-    </Page>
+    <FakeScroll />
+  </Page>
 }
 // some apps, like login, don't need a database and shouldn't show a sitemap
 export function HomePage() {
