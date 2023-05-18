@@ -1,0 +1,40 @@
+createEffect(async () => {
+    const oid = "did:web:datagrove.io:home"
+    // await getUser()?
+    // we can start incognito, but the site may not allow, so wait
+    const user = {
+        name: oid,
+        tools: ["alert"]
+
+    }
+
+    // this could fail because owner doesn't exist, or because the owner doesn't want visitors. the owner could have special login requirements.
+    // I need some kind of suspense processing here.
+    const [doc, e] = await getDocument(owner, database, path)
+    if (!doc) {
+        setErr(e)
+        setSitePage(undefined)
+    } else {
+        // derive the viewer from the document type
+        let viewer = builtinViewers[doc.type]
+        if (!viewer) {
+            // the viewer has to be modified based on the document type
+            // we want to be able to specify the viewer so that the link can be shared
+            // but maybe it should be in the hash?
+            // we should hand the hash directly to the document type and let it decide what it means
+            viewer = builtinViewers["home"]
+        }
+        let tool = builtinTools[toolname]
+        if (!tool) {
+            tool = builtinTools["menu"]
+        }
+        const pg: SitePage = {
+            doc: doc,
+            toolname: toolname,
+            viewer: viewer,
+            toolpane: tool
+        }
+        console.log("PAGE", pg)
+        setSitePage(pg)
+    }
+})

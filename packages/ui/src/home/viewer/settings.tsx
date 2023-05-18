@@ -10,13 +10,7 @@ export function SettingsViewer() {
     return <div>Settings</div>
 }
 
-export const SitePicker = () => {
-    return <div>
-            <div class='text-xl p-1'>CS Lewis Notes</div>
-            <div class='text-sm ml-2 mb-4'><Ab href='#'>by Datagrove</Ab></div>
-        </div>
 
-}
 export const SitePicker2 = () => {
     const [collapsed, setCollapsed] = createSignal(true);
 

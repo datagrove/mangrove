@@ -1,6 +1,6 @@
 
 
-import { For, JSXElement, Match, Show, Switch, createContext, createEffect, createSignal, useContext } from "solid-js";
+import { For, JSXElement, Match, Show, Suspense, Switch, createContext, createEffect, createResource, createSignal, useContext } from "solid-js";
 import { createWs } from "../core/socket";
 import { useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
@@ -8,28 +8,25 @@ import { useLn } from "../login/passkey_i18n";
 import { SiteMenuContent } from "./site_menu";
 import { Icon, } from "solid-heroicons";
 import { clock, pencil, bookOpen as menu, squaresPlus as add, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass } from "solid-heroicons/solid";
-import { user } from "./user";
 import { Maybe } from "../core";
-import { TextViewer } from './viewer/text'
+import { TextEditor, TextViewer } from './viewer/text'
 import { ChatViewer, CodeViewer, SheetViewer, WhiteboardViewer } from "./viewer";
 import { SettingsViewer } from "./viewer/settings";
 import { FolderViewer } from "./viewer/folder";
 import { Splitter } from "../layout/splitter";
 import { DarkButton } from "../lib";
-import { Viewer, Tool, SitePage, PageContext } from "./store";
-import { getDocument } from "./storedb";
+import { Viewer, Tool, SitePage, SiteRef, SiteDocumentRef, getDocument, UserState, UserSettings, UserContext, getUser, useUser, DocumentContext, SitePageContext } from "./store";
 import { createWindowSize } from "@solid-primitives/resize-observer";
 import { SearchPanel } from "./search";
 import { Settings } from "./settings";
 import { Message } from "./message";
 
 
+// tools don't all need a site, but most do
+// ln/search is valid
+// 
 
-
-// user settings should be a store? does the context deliver a store then?
-// is a database something related but different than a store?
-
-
+// viewers are selected by the document type, can be overridden by the hash
 type ViewerMap = {
   [key: string]: Viewer
 }
@@ -39,6 +36,7 @@ type ViewerMap = {
 const builtinViewers: ViewerMap = {
   "folder": { default: () => <FolderViewer /> },
   "text": { default: () => <TextViewer /> },
+  "text-edit": { default: () => <TextEditor /> },
   "chat": { default: () => <ChatViewer /> },
   "settings": { default: () => <SettingsViewer /> },
   "whiteboard": { default: () => <WhiteboardViewer /> },
@@ -66,13 +64,8 @@ const builtinTools: { [key: string]: Tool } = {
   },
   "settings": {
     icon: () => <FloatIcon path={gear} />,
-    component: () => <Settings/>,
+    component: () => <Settings />,
     path: 'a/b/form',
-  },
-  "add": {
-    icon: () => <FloatIcon path={add} />,
-    component: () => <div>settings</div>,
-    path: 'a/b/form'
   },
   "search": {
     icon: () => <FloatIcon path={magnifyingGlass} />,
@@ -97,71 +90,84 @@ export function PinnedTool() {
   </span>
 }
 
+export function UserProvider(props: { children: JSXElement }) {
+  const anon: UserSettings = {
+    tools: [
+      "menu",
+      "search",
+      "dm",
+
+      "pindm",
+      "pindb",
+      "settings", // setting is similar to home database
+    ],
+    pindm: [],
+    pindb: [],
+    recentdb: []
+  }
+  const userState: UserState = {
+    settings: anon,
+    counters: {}
+  }
+
+  const [user] = createResource(getUser)
+  return <Suspense fallback={<div>Logging in</div>}>
+    <UserContext.Provider value={user()}>
+      <Main />
+    </UserContext.Provider>
+  </Suspense>
+}
+
 export function Main() {
   const ws = createWs()
   const ln = useLn()
   const nav = useNavigate()
   const loc = useLocation()
+  const user = useUser()
+  if (!user) {
+    nav("/login")
+    return
+  }
 
-  const [sitePage, setSitePage] = createSignal<SitePage>()
-  const [err, setErr] = createSignal<Error>()
-
-
-  createEffect(async () => {
-    const oid = "did:web:datagrove.io:home"
-    // await getUser()?
-    // we can start incognito, but the site may not allow, so wait
-    const user = {
-      name: oid,
-      tools: ["alert"]
-
-    }
+  const purl = () => {
     const p = loc.pathname.split("/")
-    // owner / ln / branch / db  / viewpath  
-    const ln = p[1]
-
-    // if we don't recognize tool, pick menu tool
-    // should we redirect  then?
-    const toolname = p[2] ?? "menu"
-
-    const owner = p[3] ?? "oid"
-    const database = p[4] ?? "home"
-
     const h = loc.hash.split("/")
-    const viewer = h[0] ?? ""
-    const path = p.slice(5).join("/")
-    // this could fail because owner doesn't exist, or because the owner doesn't want visitors. the owner could have special login requirements.
-    // I need some kind of suspense processing here.
-    const [doc, e] = await getDocument(owner, database, path)
-    if (!doc) {
-      setErr(e)
-      setSitePage(undefined)
-    } else {
-      // derive the viewer from the document type
-      let viewer = builtinViewers[doc.type]
-      if (!viewer) {
-        // the viewer has to be modified based on the document type
-        // we want to be able to specify the viewer so that the link can be shared
-        // but maybe it should be in the hash?
-        // we should hand the hash directly to the document type and let it decide what it means
-        viewer = builtinViewers["home"]
-      }
-      let tool = builtinTools[toolname]
-      if (!tool) {
-        tool = builtinTools["menu"]
-      }
-      const pg: SitePage = {
-        doc: doc,
-        toolname: toolname,
-        viewer: viewer,
-        toolpane: tool
-      }
-      console.log("PAGE", pg)
-      setSitePage(pg)
+    // owner / ln / branch / db  / viewpath  
+    return {
+      ln: p[1],
+      toolname: p[2] ?? "menu",
+      owner: [3] ?? "",
+      site: p[4] ?? "home",
+      viewer: h[0] ?? "",
+      path: p.slice(5).join("/")
     }
-  })
+  }
+  // the sitePage is derived from the location. maybe memo it? 
+  const siteRef = (): SiteRef => {
+    return {
+      name: purl().site,
+    }
+  }
+  const page = (): SiteDocumentRef => {
+    return {
+      site: siteRef(),
+      path: purl().path,
+    }
+  }
+  const sitePage = (): SitePage => {
+    return {
+      doc: page(),
+      viewer: purl().viewer,
+      toolname: purl().toolname,
+    }
+  }
+  //const [sitePage, setSitePage] = createSignal<SitePage>()
+  const [err, setErr] = createSignal<Error>()
+  const [doc] = createResource(page(), getDocument)
 
-  // this needs to use the user value that counts this tool
+
+  // is this a resource or many? we need to get the counts for all the user shortcuts
+  // getting the user store is also a reference.
   const getCounter = (name: string) => {
     return 0
   }
@@ -222,30 +228,51 @@ export function Main() {
   }
   // we also need to understand the document type here.
   // 
+  const toolpane = () => sitePage()?.toolname ? tools()[sitePage()?.toolname].component() : <div>no tool</div>
+
+  // this isn't right?
+
+
+  const viewer = (doctype?: string): () => JSXElement => {
+    const openWith = sitePage().viewer;
+    doctype ??= ""
+    let vn = openWith ? doctype + "-" + openWith : doctype
+    const vt = viewers()[vn]
+    if (!vt) return () => <div>no viewer {vn}</div>
+    return vt.default
+  }
+
   const [left, setLeft] = createSignal(400)
-  return <PageContext.Provider value={sitePage()}>
-    <Show when={sitePage()} fallback={<div>waiting</div>}>
-      <div class='flex h-screen w-screen fixed overflow-hidden'>
-        <Splitter left={left} setLeft={setLeft}>
-          <div class='flex flex-1'>
-            <Toolicons />
-            <div class=' flex-1 overflow-auto dark:bg-gradient-to-r dark:from-black dark:to-neutral-900'>
-              {sitePage()!.toolpane.component()}
-            </div>
+  return <Show when={sitePage()} >
+    <div class='flex h-screen w-screen fixed overflow-hidden'>
+      <Splitter left={left} setLeft={setLeft}>
+        <div class='flex flex-1'>
+          <Toolicons />
+          <div class=' flex-1 overflow-auto dark:bg-gradient-to-r dark:from-black dark:to-neutral-900'>
+            <Suspense fallback={<div>waiting</div>}>
+              <SitePageContext.Provider value={sitePage()}>
+                {toolpane()}
+              </SitePageContext.Provider>
+            </Suspense>
           </div>
-          <div class='absolute' style={{
-            left: (left() + 20) + "px",
-            right: "0px",
-            top: "0px",
-            bottom: "0px"
-          }}>
-            {sitePage()!.viewer.default()}
-            <InfoBox />
-          </div>
-        </Splitter>
-      </div>
-    </Show>
-  </PageContext.Provider>
+        </div>
+        <div class='absolute' style={{
+          left: (left() + 20) + "px",
+          right: "0px",
+          top: "0px",
+          bottom: "0px"
+        }}>
+          <Suspense fallback={<div>Loading document</div>}>
+            <DocumentContext.Provider value={doc()!}>
+              {viewer(doc()?.type)()}
+            </DocumentContext.Provider>
+          </Suspense>
+          <InfoBox />
+        </div>
+      </Splitter>
+    </div>
+  </Show>
+
 }
 
 // potentially a table of contents for current page
@@ -261,10 +288,6 @@ function Nosite(props: {}) {
 
 // every page will position the drawer menu; if it has no place in the menu
 // then position to the one in recent. otherwise, position to the one in the menu so that they have the normal context
-
-
-
-
 
 type IconPath = typeof clock
 export function RoundIcon(props: { path: IconPath, onClick?: () => void }) {

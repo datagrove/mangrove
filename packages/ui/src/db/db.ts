@@ -1,11 +1,14 @@
 
+// user settings should be a store? does the context deliver a store then?
+// is a database something related but different than a store?
+
 
 // there is only one database, so that's global constant
 // it acts like a store (is it a store?), views are reactive
 // views should be an array of cells, so that edits are 2 way
 
 import { Accessor, createSignal } from "solid-js"
-import { CellOptions } from "../../db/client"
+import { CellOptions } from "./client"
 
 // makeCell(cellTemplate)
 // we could have a query return cellTempate[]? more like it takes that as argument
@@ -42,7 +45,7 @@ export interface QueryResult {
 // rows: (start: number, end: number) => { return [] },
 
 export function closeQuery(query: QueryResult) {
-    
+
 }
 
 export function createQuery(desc: Query, ...params: any[]): QueryResult {
@@ -52,6 +55,6 @@ export function createQuery(desc: Query, ...params: any[]): QueryResult {
         loaded: true,
         query: desc,
         estimatedSize: size
-    } 
+    }
 
 }

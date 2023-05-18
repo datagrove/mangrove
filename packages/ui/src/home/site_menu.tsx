@@ -1,55 +1,99 @@
 
 
 import { Collapsible, NavItem } from "./site_menu_section";
-import { createSignal, Show, For, Component, createEffect, Signal } from "solid-js";
+import { createSignal, Show, For, Component, createEffect, Signal, createResource } from "solid-js";
 import { orgsite } from "./site_menu_test";
 import { useLocation, Location, useParams } from "../core/dg";
-import { MenuDefinition, MenuEntry, SiteStore, usePage } from "./store";
-import { SitePicker } from "./viewer/settings";
+import { MenuEntry, SiteDocumentRef, SiteRef, Sitemap, getSitemap, usePage } from "./store";
+import { Ab } from "../layout/nav";
 
 
 
+const editSection = [
+  {
 
+    name: "Collaborate",
+    children: [
+      {
+        name: "Publish",
+        link: "/settings",
+      },
+      {
+        name: "Discuss",
+        link: "/settings",
+      },
+      {
+        name: "Share",
+        link: "/settings",
+      },
+      {
+        name: "Start a proposal",
+        link: "/settings",
+      },
+    ]
+  },
+  {
+    name: "Compose",
+    children: [
+      {
+        name: "Add or delete packages",
+        link: "/settings",
+      },
+      {
+        name: "Export",
+        link: "/settings",
+      },
+      {
+        name: "Upload",
+        link: "/settings",
+      },
+    ]
+  }
+
+
+]
+const opt = [
+  "Learn",
+  "Create",
+]
+
+export const SitePicker = () => {
+  return <div>
+    <div class='text-xl p-1'>CS Lewis Notes</div>
+    <div class='text-sm ml-2 mb-4'><Ab href='#'>by Datagrove</Ab></div>
+  </div>
+
+}
 // we need to build based on the route
 // everything can scroll off; maximum use of space. easy to find top anyway.
 // we probably need a sticky to close? maybe this can be done with the rail though
 export const SiteMenuContent: Component<{}> = (props) => {
   const st = usePage()
+  const [sitemap] = createResource(st.doc.site, getSitemap)
+  const [edit, setEdit] = createSignal(false)
 
-  const [edit,setEdit] = createSignal(false)
-
-  // this should be done with createResource and Suspense
-  // const [pd, setPd] = createSignal<MenuDefinition>()
-  // createEffect(() => {
-  //   const loc = useLocation<Location>()
-
-  //   //setPd(r)
-  // })
-
-  const topSection = orgsite.sitemap
-  const opt =  [
-    "Learn",
-    "Create",
-  ]
   return <div class='transform h-full flex-1 '>
     <div class='pb-16 pt-2 px-2'>
       <div class='flex items-center'>
-        <div class='flex-1 '><SegmentSwitch segments={opt} signal={[edit,setEdit]} /></div>
+        <div class='flex-1 '><SegmentSwitch segments={opt} signal={[edit, setEdit]} /></div>
       </div>
       <Show when={edit()} fallback={
-         <div class='mt-4'>
-            <SitePicker/>
-            <SectionNav tabs={topSection} />
+        <div class='mt-4'>
+          <SitePicker />
+          <SectionNav tabs={sitemap()!.menu} />
         </div>
       }>
-        <div>Tools</div>
-        </Show>
+        <div class='mt-4'>
+          <SitePicker />
+          <SectionNav tabs={editSection} />
+        </div>
+      </Show>
     </div></div>
 }
 
 // {/* <SitePreference page={pd()!} />
 // <SiteSearchButton /> */}
-export function SectionNav(props: {  tabs: MenuEntry[]}) {
+export function SectionNav(props: { tabs: MenuEntry[] }) {
   // this needs be recursive, starting from the 
   // page is null?
   // const tabs = (): MenuEntry[] => {
@@ -64,7 +108,7 @@ export function SectionNav(props: {  tabs: MenuEntry[]}) {
               <h2 class="pl-2 text-solid-dark dark:text-white font-bold text-xl">
                 {page.name}
               </h2>
-              <SectionsNavIterate  pages={page.children ?? []} />
+              <SectionsNavIterate pages={page.children ?? []} />
             </li>
           </>
         )}
@@ -82,7 +126,6 @@ export function SectionsNavIterate(props: {
 }) {
   const location = useLocation();
 
-
   // pure accordian style collapses everything not a parent of the url
   // it might be friendlier to allow things to be left open
   const isCollapsed = (pages: MenuEntry) => {
@@ -98,7 +141,7 @@ export function SectionsNavIterate(props: {
         <>
           <Show when={isLeafPage(subsection)}>
             <NavItem
-              href={  subsection.path ?? ""}
+              href={subsection.path ?? ""}
               title={subsection.name}
             >
               {subsection.name}
@@ -112,7 +155,7 @@ export function SectionsNavIterate(props: {
               >
                 <SectionsNavIterate
                   pages={subsection.children ?? []}
-                  //page={props.page}
+                //page={props.page}
                 />
               </Collapsible>
             </ul>
@@ -128,7 +171,7 @@ export function SectionsNavIterate(props: {
 // this isn't reflected into the url, links will always go to view first.
 
 
-export const SegmentSwitch = (props: {signal: Signal<boolean>, segments: string[]}) => {
+export const SegmentSwitch = (props: { signal: Signal<boolean>, segments: string[] }) => {
 
   // this should always give us a lang?
   const i = () => props.signal[0]() ? 1 : 0
