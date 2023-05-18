@@ -1,6 +1,9 @@
-import { SiteDefinition, SiteStore } from "./site_menu";
+
 
 // this is the structure of an org site as seen by the owner
+
+import { SiteDefinition } from "./store";
+
 // most of this needs to get built from a database. it should work offline and get synced
 export const orgsite : SiteDefinition = {
     "title": "Anonymous",

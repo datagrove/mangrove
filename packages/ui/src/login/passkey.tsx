@@ -8,7 +8,7 @@ import {
     get,
     parseRequestOptionsFromJSON,
 } from "@github/webauthn-json/browser-ponyfill";
-import { DarkButton, SiteStore } from "../layout/site_menu"
+import { DarkButton, SiteStore } from "../home/site_menu"
 import { createWs } from "../core/socket"
 import { useLn } from "./passkey_i18n"
 import { LanguageSelect } from "../i18n/i18"

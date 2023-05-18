@@ -1,6 +1,6 @@
 import { Component, JSXElement } from "solid-js"
 import { LanguageSelect } from "../i18n/i18"
-import { DarkButton } from "../layout/site_menu"
+import { DarkButton } from "../lib"
 import { Center } from "../lib/form"
 import { useLn } from "./passkey_i18n"
 import { Ab } from "../layout/nav"

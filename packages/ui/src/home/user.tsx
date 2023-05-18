@@ -29,9 +29,10 @@ export interface UserSettings {
 
 export const anon: UserSettings = {
   tools: [
+    "menu",
     "search",
     "dm",
-    "menu",
+
     "pindm",
     "pindb",
     "settings", // setting is similar to home database

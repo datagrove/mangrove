@@ -1,23 +1,24 @@
 
 import { magnifyingGlass, xCircle, arrowDown, arrowUp, arrowLeft, star } from "solid-heroicons/outline"
-import { Component, JSX, Match, Switch } from "solid-js"
+import { Component, JSX, Match, Signal, Switch } from "solid-js"
 import { CloseButton, Kbd } from "../core/buttons"
-import { Collapsible, NavItem } from "./section";
+import { Collapsible, NavItem } from "./site_menu_section";
 import { For } from "solid-js";
 import { createWindowSize } from "@solid-primitives/resize-observer";
 import { createEffect } from "solid-js";
 
 
-import { Mdx } from "./mdx";
-import { PageParams } from "./nav";
+import { Mdx } from "../layout/mdx";
+import { PageParams } from "../layout/nav";
 import { Icon } from "solid-heroicons"
 import { chevronRight, sun, moon, cog_6Tooth as gear, language } from "solid-heroicons/solid"
 import { createSignal, ParentComponent, Show } from "solid-js";
 
-import { orgsite } from "./orgsite";
+import { orgsite } from "./site_menu_test";
 import { LanguageSelect } from "../i18n/i18";
 import { useLocation, Location, useParams } from "../core/dg";
-import { usePage } from "../home";
+import { usePage } from ".";
+import { SiteDefinition, SiteStore } from "./store";
 
 export enum ShowPagemap {
   adaptive,  // adaptive -> click = toggle. so once its closed or open it can no longer be adaptive.
@@ -40,7 +41,9 @@ const [sitemap, setSitemap] = createSignal(ShowSitemap.adaptive)
 export const [pagemap, setPagemap] = createSignal(ShowPagemap.adaptive)
 const [isDark, setIsDark] = createSignal(true)
 export const windowSize = createWindowSize();
-
+export function setSite(s: SiteDefinition) {
+  setSite2(prepSite(s))
+}
 // derived.
 export const mobile = () => {
   const r = windowSize.width < 650
@@ -48,26 +51,7 @@ export const mobile = () => {
   return r
 }
 
-export const DarkButton = () => {
-  return (<button
-    type="button"
-    aria-label={`Use ${isDark() ? "light" : "dark"} mode`}
-    onClick={() => {
-      const html = document.querySelector("html")!
-      setIsDark(!isDark())
-      isDark()
-        ? html.classList.add("dark")
-        : html.classList.remove("dark");
-    }}>
 
-    <Show
-      when={isDark()}
-      fallback={<Icon path={moon} class="w-6 h-6"></Icon>}
-    >
-      <Icon path={sun} class="w-6 h-6"></Icon>
-    </Show>
-  </button>)
-}
 
 // language selector
 export const SitePreference = (props: { page: PageDescription }) => {
@@ -97,7 +81,7 @@ export const SitePreference = (props: { page: PageDescription }) => {
 
           <div class='flex items-center'><div class='flex-1'><LanguageSelect>
             <Icon class='h-5 w-5' path={language} />
-          </LanguageSelect></div><div class='flex-none'><DarkButton /></div></div>
+          </LanguageSelect></div><div class='flex-none'></div></div>
           <div class='flex'><div class='flex-1'></div></div>
         </div>
       </Show>
@@ -123,22 +107,8 @@ export const SitePreference = (props: { page: PageDescription }) => {
 // all the bits of info we can get from the route
 // we can keep cache of languages.
 
-export interface SiteDefinition {
-  title: string // = () => (<div class='flex justify-center items-center'><code>Datagrove</code></div>)
-  root: SitePage //= { name: "/", path: "/", children: [] }  
-  href: string // = "https://www.datagrove.com"
-  sitemap: SitePage[] //= []
-  defaultLanguage: string
-  language: {
-    [key: string]: string
-  } //= {}
-}
+
 // computed things
-export interface SiteStore extends SiteDefinition {
-  path: Map<string, SitePage> // = new Map()
-  home?: SitePage
-  search: SearchResult[] // = []
-}
 
 export type SitePage = {
   name: string
@@ -151,50 +121,6 @@ export class BrowseState {
   recent: string[] = []
 }
 
-
-export interface SearchResult {
-  title: string
-  href: string
-  favorite?: boolean
-}
-
-export const [favorites, setFavorites] = createSignal<SearchResult[]>([
-  // { title: "fav1", href: "xx" }
-])
-export const [recent, setRecent] = createSignal<SearchResult[]>([
-  // { title: "recent1", href: "xx" }
-])
-
-// move from recent to favorite
-export function addFavorite(x: number) {
-  setFavorites([removeRecent(x), ...favorites()])
-}
-// remove from favorite
-export function removeFavorite(x: number) {
-  const y = favorites()
-  y.splice(x, 1)
-  setFavorites(y)
-}
-export function removeRecent(x: number) {
-  const y = recent()
-  const o = y.splice(x, 1)[0]
-  setRecent(y)
-  return o
-}
-export function addRecent(x: SearchResult) {
-  setRecent([x, ...recent()])
-}
-export function fetchResults(site: SiteStore, sp: string): SearchResult[] {
-  if (sp.length == 0) {
-    return []
-  }
-  sp = sp.toLowerCase()
-  const a = site.search.filter((e) => e.title.indexOf(sp) != -1)
-  return a
-}
-export function setSite(s: SiteDefinition) {
-  setSite2(prepSite(s))
-}
 
 export function prepSite(sx: SiteDefinition): SiteStore {
   const s: SiteStore = {
@@ -302,34 +228,32 @@ export const SiteMenuContent: Component<{}> = (props) => {
       site: s,
       param: params,
       lang: "",
-      page: p!,
+      //page: p!,
       topSection: ts,
       loc: loc,
+      page: {
+        name: "",
+        path: undefined,
+        children: undefined,
+        parent: undefined
+      }
     }
     console.log('page', loc, params, r)
     setPd(r)
   })
 
 
-  return <div class='transform h-full flex-1 dark:bg-gradient-to-r dark:from-black dark:to-neutral-900'><Switch>
-    <Match when={!pd()}>
-      Error
-    </Match>
-    <Match when={searchMode()}>
-      <SearchList />
-    </Match>
-    <Match when={!searchMode()}>
+  return <div class='transform h-full flex-1 dark:bg-gradient-to-r dark:from-black dark:to-neutral-900'>
       <div class='pb-16 pt-2 px-2'>
-        {pd()!.site.title}
+
         <div class='flex items-center'>
-          <div class='flex-1 '><SiteTabs page={pd()!} /></div>
+          <div class='flex-1 '><LearnCreate/></div>
         </div>
 
         <div class='mt-4'>
           <SectionNav page={pd()!} />
         </div>
-      </div></Match>
-  </Switch></div>
+      </div></div>
 }
 
 // {/* <SitePreference page={pd()!} />
@@ -407,8 +331,35 @@ export function SectionsNavIterate(props: {
   );
 }
 
+// when we click a top tab, it should adjust the page being viewed; each tab maintains a router state. For example you should be able to go to a reference section without losing your place in the tutorial.
+// if there is no prior state, we need to default to first page
+// this isn't reflected into the url, links will always go to view first.
+
+export const [isCreate, setIsCreate] = createSignal(false)
+export const LearnCreate = ( ) => {
+  const sections = [
+    "Learn",
+    "Create",
+  ]
+  // this should always give us a lang?
+  const i = () => isCreate()? 1 : 0
+  // maybe we should limit this to four some how? maybe we should adaptively change the representation (chips?) if we have too many.
+  return (<div class="w-full mt-2 flex border border-solid-lightborder dark:border-solid-darkitem rounded-md"
+  >    <For each={sections}>{(e, index) => (
+    <a
+      classList={{
+        "bg-solid-light dark:bg-solid-dark font-semibold": index() == i(),
+      }}
+      class="flex-1 inline-flex w-full p-2 items-center justify-center whitespace-nowrap first:rounded-l-md border-r border-solid-lightborder dark:border-solid-darkitem hover:text-blue-500 hover:underline last:(rounded-r-md border-0)"
+      onClick={()=>setIsCreate(index()==1)}
+    >
+      {e}
+    </a>)
+  }</For></div>)
+}
 
 
+/*
 // when we click a top tab, it should adjust the page being viewed; each tab maintains a router state. For example you should be able to go to a reference section without losing your place in the tutorial.
 // if there is no prior state, we need to default to first page
 export const SiteTabs = (props: { page: PageDescription }) => {
@@ -430,127 +381,5 @@ export const SiteTabs = (props: { page: PageDescription }) => {
   }</For></div>)
 }
 
-
-
-
-// search as nav. maintains site state for favorites and recents.
-export function SiteSearchButton() {
-  return (
-    <button class=' flex mt-2 mb-2 p-2 w-full border-solid-lightitem dark:border-solid-darkitem border rounded-md dark:bg-solid-dark'
-      onclick={() => {
-        console.log("search")
-        setSearchMode(true)
-      }}
-    >
-      <Magnifier />
-      <input readonly
-        class=" flex-1 focus:outline-none dark:bg-solid-dark"
-        placeholder="Search" type="search" />
-      <Kbd>⌘</Kbd>
-      <Kbd>K</Kbd>
-    </button>
-  )
-}
-
-export const Magnifier = () => <Icon class="mr-2  h-5 w-5 flex-none text-neutral-500" path={magnifyingGlass} />
-
-
-const [result, setResult] = createSignal<SearchResult[]>([])
-
-export const SearchBox = () => {
-  const s = site()
-  const fn = (e: InputEvent) => {
-    const p = (e.currentTarget as HTMLInputElement).value
-    console.log("search", p)
-    setResult(fetchResults(s!, p))
-  }
-  return (<div class='w-full p-2'><div class=' flex p-2 w-full border-solid-lightitem dark:border-solid-darkitem border rounded-md dark:bg-solid-dark'
-    onclick={() => {
-      console.log("search")
-      setSearchMode(true)
-    }}
-  >
-    <Magnifier />
-    <input autofocus
-      class=" flex-1 focus:outline-none dark:bg-solid-dark"
-      placeholder="Search" type="search" onInput={fn} /></div></div>)
-}
-
-// when we click a search it goes to recent. In recent we can star it to go to favorites. In favorites we can X it to delete it.
-
-export const FavoriteLink: Component<{
-  result: SearchResult
-  index: number
-}> = (props) => {
-  const deleteme = () => { removeFavorite(props.index) }
-  return <div class='w-full hover:bg-blue-500 rounded-r-lg p-2 flex'>
-    <a class='flex-1' href={props.result.href}>{props.result.title}</a>
-    <button title={props.result.title} type='button' onclick={deleteme} class='text-neutral-500 hover:text-black dark:hover:text-white'><Icon class='h-6 w-6' path={xCircle}></Icon></button>
-  </div>
-}
-
-export const RecentLink: Component<{
-  result: SearchResult
-  index: number
-}> = (props) => {
-  const starme = () => { addFavorite(props.index) }
-  const deleteme = () => { removeRecent(props.index) }
-  return <div class='w-full hover:bg-blue-500 rounded-r-lg p-2 flex'>
-    <a class='flex-1' href={props.result.href}>{props.result.title}</a>
-    <button title={props.result.title} type='button' onclick={starme} class='mx-2 text-neutral-500 hover:text-black dark:hover:text-white'><Icon class='h-6 w-6' path={star}></Icon></button>
-    <button title={props.result.title} type='button' onclick={deleteme} class='text-neutral-500 hover:text-black dark:hover:text-white'><Icon class='h-6 w-6' path={xCircle}></Icon></button>
-  </div>
-}
-
-export const SearchLink: Component<{
-  result: SearchResult
-}> = (props) => {
-  const clickme = () => {
-    addRecent(props.result)
-    location.href = props.result.href
-    setSearchMode(false)
-  }
-  return (<div class='pr-2'>
-    <div class='w-full hover:bg-blue-500 rounded-r-lg p-2 flex'>
-      <a onclick={clickme} class='flex-1 mx-2'> {props.result.title}</a>
-    </div>
-  </div>)
-}
-
-
-
-export const SearchList = () => {
-
-  return (<div class='h-full w-full flex flex-col'>
-    <SearchBox />
-    <div class='flex-1 overflow-auto'>
-
-      <Switch>
-        <Match when={result().length}>
-          <For each={result()}>{(e, index) =>
-            <SearchLink result={e} />
-          }</For>
-        </Match>
-        <Match when={true}>
-          <Show when={recent().length}>
-            <div class="w-full uppercase m-2 text-solid-dark dark:text-solid-light text-left relative flex items-center justify-between py-2">Recent</div>
-            <For each={recent()}>{(e, index) =>
-              <RecentLink result={e} index={index()} />
-            }</For>
-          </Show>
-          <Show when={favorites().length}>
-            <div class="w-full m-2 uppercase text-solid-dark dark:text-solid-light text-left relative flex items-center justify-between py-2 flex-1">Favorites</div><For each={favorites()}>{(e, index) =>
-              <FavoriteLink result={e} index={index()} />
-            }</For>
-
-          </Show>
-        </Match>
-      </Switch>
-
-    </div>
-    <div class='text-sm text-neutral-500 flex items-center'>
-      <Kbd><Icon path={arrowLeft} /></Kbd> to select
-      <Kbd><Icon path={arrowUp} /></Kbd><Kbd><Icon path={arrowDown} /></Kbd> to navigate <Kbd>Esc</Kbd> to close</div>
-  </div>)
-}
+*/
 

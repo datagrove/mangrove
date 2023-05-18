@@ -5,9 +5,9 @@ import { createWs } from "../core/socket";
 import { useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
-import { SiteMenuContent } from "../layout/site_menu";
+import { SiteMenuContent } from "./site_menu";
 import { Icon, } from "solid-heroicons";
-import { clock, pencil, folder as menu, squaresPlus as add, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass } from "solid-heroicons/solid";
+import { clock, pencil, bookOpen as menu, squaresPlus as add, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass } from "solid-heroicons/solid";
 import { user } from "./user";
 import { Maybe } from "../core";
 import { TextViewer } from './viewer/text'
@@ -15,20 +15,11 @@ import { ChatViewer, CodeViewer, SheetViewer, WhiteboardViewer } from "./viewer"
 import { SettingsViewer } from "./viewer/settings";
 import { FolderViewer } from "./viewer/folder";
 import { Splitter } from "../layout/splitter";
+import { DarkButton } from "../lib";
 
 const PageContext = createContext<SitePage>();
 export function usePage() { return useContext(PageContext); }
 
-export interface Site {
-  did: string
-  name: string
-  caps: Caps
-}
-export interface Document {
-  site: Site
-  path: string
-  type: string
-}
 
 export async function getDocument(did: string, site: string, path: string): Maybe<Document> {
   return [{
@@ -48,31 +39,8 @@ export async function getDocument(did: string, site: string, path: string): Mayb
 
 // user settings should be a store? does the context deliver a store then?
 // is a database something related but different than a store?
-export interface SitePage {
-  doc: Document,
-  toolname: string
-  viewer: Viewer
-  toolpane: Tool
-}
 
-export interface Caps {
-  read: boolean
-  write: boolean
-  admin: boolean
-}
 
-export interface Tool {
-  icon: () => JSXElement
-  component: () => JSXElement
-  path: string  // pick a viewer the first time the tool is used, after that restore state for that tool (url)
-}
-
-type Viewer = {
-  default: () => JSXElement
-  perspective?: {
-    [key: string]: () => JSXElement
-  }
-}
 type ViewerMap = {
   [key: string]: Viewer
 }
@@ -120,7 +88,7 @@ const builtinTools: { [key: string]: Tool } = {
   "search": {
     icon: () => <FloatIcon path={magnifyingGlass} />,
     component: () => <div>search</div>,
-    path: 'a/b/form'
+    path: 'a/b/folder'
   }
 }
 
@@ -262,6 +230,7 @@ export function Main() {
         </Switch>
       }
       }</For>
+      <DarkButton/>
     </div>
   }
   // we also need to understand the document type here.

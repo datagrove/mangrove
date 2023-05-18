@@ -15,7 +15,7 @@ import { ln, setLn } from './i18n'
 
 import './editor.css'
 import { TestDrag } from './selectionbox'
-import { SiteMenuContent } from '../layout/site_menu'
+import { SiteMenuContent } from '../home/site_menu'
 // one kind of 
 
 // global css class?

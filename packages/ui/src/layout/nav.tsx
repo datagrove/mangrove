@@ -6,7 +6,7 @@ import {
   ButtonProps,
 } from 'solid-headless';
 import Dismiss from 'solid-dismiss'
-import { SiteMenuContent, setSearchMode } from './site_menu'
+import { SiteMenuContent, setSearchMode } from '../home/site_menu'
 import { BlueButton } from '../lib/form'
 import { AnchorProps, A as Ar, useNavigate } from '../core/dg';
 
