@@ -18,6 +18,8 @@ import { Splitter } from "../layout/splitter";
 import { DarkButton } from "../lib";
 import { Viewer, Tool, SitePage, PageContext } from "./store";
 import { getDocument } from "./storedb";
+import { createWindowSize } from "@solid-primitives/resize-observer";
+import { SearchPanel } from "./search";
 
 
 
@@ -72,7 +74,7 @@ const builtinTools: { [key: string]: Tool } = {
   },
   "search": {
     icon: () => <FloatIcon path={magnifyingGlass} />,
-    component: () => <div>search</div>,
+    component: () => <div><SearchPanel /></div>,
     path: 'a/b/folder'
   }
 }
@@ -227,7 +229,7 @@ export function Main() {
         <Splitter left={left} setLeft={setLeft}>
           <div class='flex flex-1'>
             <Toolicons />
-            <div class=' flex-1 overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'>
+            <div class=' flex-1 overflow-auto dark:bg-gradient-to-r dark:from-black dark:to-neutral-900'>
               {sitePage()!.toolpane.component()}
             </div>
           </div>
@@ -274,8 +276,58 @@ export function FloatIcon(props: { path: IconPath, onClick?: () => void }) {
     <div ><Icon class='w-8 h-8' path={props.path}></Icon></div></button>
 }
 
+///////////////////////////////////////
+// adaptive things - separate file?
+export enum ShowPagemap {
+  adaptive,  // adaptive -> click = toggle. so once its closed or open it can no longer be adaptive.
+  none,
+  display,
+}
+// display needs to be full screen if the screen is small enough.
+export enum ShowSitemap {
+  adaptive,
+  none,  // greater than 800 this is split
+  full,
+  split, // split is same as adaptive?
+}
 
 
+const [sitemap, setSitemap] = createSignal(ShowSitemap.adaptive)
+export const [pagemap, setPagemap] = createSignal(ShowPagemap.adaptive)
+// does it matter where the splitter is? we also need to derive that.
+export const showSitemap = (): ShowSitemap => {
+  const windowSize = createWindowSize();
+  if (mobile()) {
+    return sitemap() == ShowSitemap.none ? ShowSitemap.none : ShowSitemap.full
+  }
+  if (sitemap() == ShowSitemap.adaptive) {
+    return windowSize.width > 850 ? ShowSitemap.split : ShowSitemap.none
+  }
+  // we need to check if there's room for the  sitemap
+  // also need to allow the sitemap to shrink if window isn't wide enough.
+  return sitemap()
+}
+export const showToc = (): boolean => {
+  if (pagemap() == ShowPagemap.adaptive) {
+    return mobile() ? false : true
+  }
+  return pagemap() == ShowPagemap.display
+}
+export const toggleSitemap = () => {
+  console.log("no sitemap")
+  setSitemap(showSitemap() == ShowSitemap.none ? ShowSitemap.split : ShowSitemap.none)
+}
+export const togglePagemap = () => {
+  console.log("no pagemap")
+  // once flipped, it can't be adaptive again. Is there a a better approach?
+  setPagemap(showToc() ? ShowPagemap.none : ShowPagemap.display)
+}
+export const mobile = () => {
+  const windowSize = createWindowSize();
+  const r = windowSize.width < 650
+  //console.log("windowWidth", windowSize.width)
+  return r
+}
 
 
 /*

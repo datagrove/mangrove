@@ -6,7 +6,7 @@ import {
   ButtonProps,
 } from 'solid-headless';
 import Dismiss from 'solid-dismiss'
-import { SiteMenuContent, setSearchMode } from '../home/site_menu'
+import { SiteMenuContent, } from '../home/site_menu'
 import { BlueButton } from '../lib/form'
 import { AnchorProps, A as Ar, useNavigate } from '../core/dg';
 
@@ -20,14 +20,7 @@ const [small, setSmall] = createSignal(false)
 
 
 
-export type PageParams = Partial<{
-  ln: string
-  org: string
-  db: string
-  table: string
-  path: string
-  tag: string
-}>
+
 
 function Separator() {
   return (
@@ -59,7 +52,7 @@ export const Title: Component<{
 
   const startSearch = () => {
     setOpenDrawer(true)
-    setSearchMode(true)
+    //setSearchMode(true)
   }
 
   const [x, setX] = createSignal(0);
@@ -83,7 +76,7 @@ export const Drawer: Component<{ button: HTMLButtonElement }> = (props) => {
   const nav = useNavigate()
   createEffect(() => {
     if (!openDrawer()) {
-      setSearchMode(false)
+      //setSearchMode(false)
     }
   })
   const editSite = () => {
