@@ -20,6 +20,8 @@ import { Viewer, Tool, SitePage, PageContext } from "./store";
 import { getDocument } from "./storedb";
 import { createWindowSize } from "@solid-primitives/resize-observer";
 import { SearchPanel } from "./search";
+import { Settings } from "./settings";
+import { Message } from "./message";
 
 
 
@@ -59,12 +61,12 @@ const builtinTools: { [key: string]: Tool } = {
   },
   "dm": {
     icon: () => <FloatIcon path={friend} />,
-    component: () => <DmTool />,
+    component: () => <Message />,
     path: 'a/b/chat'
   },
   "settings": {
     icon: () => <FloatIcon path={gear} />,
-    component: () => <div>settings</div>,
+    component: () => <Settings/>,
     path: 'a/b/form',
   },
   "add": {
@@ -85,9 +87,7 @@ export const [viewers, setViewers] = createSignal(builtinViewers)
 
 // should restore the state the last time we were using DM?
 // this changes the viewer and the pane. 
-export function DmTool() {
-  return <div>dm</div>
-}
+
 
 // pinned tools can change the viewer, e.g.
 export function PinnedTool() {

@@ -2,7 +2,6 @@ import { Component, For, Match, Show, Switch, createSignal } from "solid-js"
 import { Kbd } from "../core/buttons"
 import { Icon } from "solid-heroicons"
 import { magnifyingGlass, xCircle, star, arrowLeft, arrowUp, arrowDown } from "solid-heroicons/solid"
-import { site } from "./site_menu"
 import { SiteStore, MenuDefinition } from "./store"
 
 const [search, setSearch] = createSignal([] as SearchResult[]) // = []
@@ -52,11 +51,10 @@ function fetchResults(site: SiteStore, sp: string): SearchResult[] {
 }
 
 const SearchBox = () => {
-  const s = site()
   const fn = (e: InputEvent) => {
     const p = (e.currentTarget as HTMLInputElement).value
     console.log("search", p)
-    setResult(fetchResults(s!, p))
+    //setResult(fetchResults(s!, p))
   }
   return (<div class='w-full p-2'><div class=' flex items-center p-2 w-full border-solid-lightitem dark:border-solid-darkitem border rounded-md dark:bg-solid-dark'
     onclick={() => {

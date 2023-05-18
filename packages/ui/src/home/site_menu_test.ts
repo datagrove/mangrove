@@ -44,30 +44,7 @@ export const orgsite: MenuDefinition = {
             }
           ]
         },
-        {
-          "name": "Settings",
-          "path": "/en/jim.hurd",
-          "children": [
-            {
-              "name": "Security",
-              "path": "/en/jim.hurd",
-              "children": [
-                {
-                  "name": "Login",
-                  "path": "/en/jim.hurd"
-                },
-                {
-                  "name": "Recover",
-                  "path": "/en/jim.hurd"
-                },
-                {
-                  "name": "Register",
-                  "path": "/en/jim.hurd"
-                }
-              ]
-            }
-          ]
-        }
+
       ]
     },
     {

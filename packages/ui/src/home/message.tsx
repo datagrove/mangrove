@@ -1,14 +1,15 @@
 import { SectionNav } from "./site_menu"
 
 
+
 const show = [
     {
-        "name": "Settings",
+        "name": "Messages",
         "path": "/en/jim.hurd",
         "children": [
 
             {
-                "name": "Appearance",
+                "name": "Personal",
                 "path": "/en/jim.hurd",
                 "children": [
                     {
@@ -19,7 +20,7 @@ const show = [
             },
 
             {
-                "name": "Security",
+                "name": "Group",
                 "path": "/en/jim.hurd",
                 "children": [
                     {
@@ -40,7 +41,7 @@ const show = [
     }
 ]
 
-export function Settings() {
+export function Message() {
     return <div class='w-full pb-16 pt-2 px-2'>
         <SectionNav tabs={show} />
     </div>
