@@ -233,24 +233,23 @@ export function Main() {
   }
   // we also need to understand the document type here.
   // 
-  const [left, setLeft] = createSignal(300)
+  const [left, setLeft] = createSignal(400)
   return <PageContext.Provider value={sitePage()}>
     <Show when={sitePage()} fallback={<div>loading</div>}>
       <div class='flex h-screen w-screen fixed overflow-hidden'>
         <Splitter left={left} setLeft={setLeft}>
-          <div class='relative flex over-x-hidden' style={{
-            left: "0px",
-            right: left()+"px",
-            top: "0px",
-            bottom: "0px"
-          }}>
+          <div class='flex flex-1'>
             <Toolicons />
-            <div class=' w-full h-full  overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'>
-              <div></div>
+            <div class=' flex-1 overflow-auto dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'>
               {sitePage()!.toolpane.component()}
             </div>
           </div>
-          <div>
+          <div class='absolute' style={{
+            left: (left() + 20) + "px",
+            right: "0px",
+            top: "0px",
+            bottom: "0px"
+          }}>
             {sitePage()!.viewer.default()}
             <InfoBox />
           </div>

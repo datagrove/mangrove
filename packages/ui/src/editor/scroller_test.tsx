@@ -63,7 +63,7 @@ export function FakeScroll2() {
 export function FakeEditor() {
     const ed = new Editor
     let edel: HTMLDivElement
-    onMount(()=>{
+    onMount(() => {
         ed.mount(edel)
         ed.text = "בְּרֵאשִׁ֖ית בָּרָ֣א אֱלֹהִ֑ים אֵ֥ת הַשָּׁמַ֖יִם וְאֵ֥ת הָאָֽרֶץ׃"
     })
@@ -76,7 +76,7 @@ export function FakeEditor() {
 // probably use vscode way of explicit splitting
 export function FakeChat() {
     return <div class='h-full w-full max-w-none prose dark:prose-invert'>
-        </div>
+    </div>
 }
 
 
@@ -143,7 +143,7 @@ export function FakeSheet() {
                 columns: c,
             },
             builder: bld,
-            height: est,
+            rows: est,
         }
         const s = new Scroller(props)
         setDebugstr(JSON.stringify(s, null, 2))

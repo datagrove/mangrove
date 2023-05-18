@@ -126,8 +126,10 @@ export function SheetViewer() {
 
         const props: ScrollerProps = {
             container: el!,
-            state: {
-                rows: items.length,
+            row: {
+                count: items.length
+            },
+            column: {
                 order: [...new Array(N)].map((e, i) => i),
                 columns: c,
             },

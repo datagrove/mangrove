@@ -1,4 +1,5 @@
 import { JSXElement } from "solid-js"
+import { render } from "solid-js/web"
 
 const inf = Number.NEGATIVE_INFINITY
 
@@ -13,14 +14,23 @@ export class TableContext {
     constructor(public scroller: Scroller) { }
     old!: TableRow
     row!: number
-    get key() { return this.scroller.props.state.order }
+    //get key() { return this.scroller.props.state.columns?.order }
 
-    alloc(n: number): [Map<number, HTMLElement>, HTMLElement[]] {
-        this.old.node.clear()
-        for (let i = this.old.el.length; i < n; i++) {
-            this.old.el.push(this.scroller.div())
-        }
-        return [this.old.node, this.old.el]
+    // alloc(n: number): [Map<number, HTMLElement>, HTMLElement[]] {
+    //     this.old.node.clear()
+    //     for (let i = this.old.el.length; i < n; i++) {
+    //         this.old.el.push(this.scroller.div())
+    //     }
+    //     return [this.old.node, this.old.el]
+    // }
+    // for 1 column only
+    renderCell(i: number, x: JSXElement) {
+        render(() => x, this.old!.node.children[i])
+    }
+    render(x: JSXElement) {
+        // problematic? trouble with suspense etc.
+        this.old!.node.innerHTML = "woa"
+        //render(() => x, this.old.node.get(0)!)
     }
 }
 export type EstimatorFn = (start: number, end: number) => number
@@ -53,28 +63,30 @@ export interface Column {
     header: string
 }
 
-export interface ScrollerState {
-    rows: number
+export interface ColumnState {
     columns: Map<any, Column>
     order: any[] // order of columns
     repeatColumnWidth?: number // for maps, generates negative index
-
     paneRow?: Pane[]
     paneColumn?: Pane[]
     freezeRow?: boolean  // first pane can't be scrolled.
     freezeColumn?: boolean
-    // how do we restore this? the application might do this with keys, or offsets, or?
+}
+export interface RowState {
+    count?: number
     initial?: ScrollPos
 }
 
 // these are part of instantiating a scroller, but can't be serialized
 export interface ScrollerProps {
-    state: ScrollerState
     container: HTMLElement
-    height: number | EstimatorFn
-    builder: BuilderFn,  // render cell as html
-    topPadding?: number
+    builder: BuilderFn,
 
+    row?: RowState
+    column?: ColumnState
+    height?: number | EstimatorFn
+    // render cell as html
+    topPadding?: number
 }
 
 interface GridUpdate {
@@ -100,16 +112,16 @@ function rotate<T>(a: T[], n: number) {
 // especially if we have uniform columns like a 2d map
 export class TableRow {
 
-    node = new Map<any, HTMLElement>
+    //node = new Map<any, HTMLElement>
+    //el: HTMLElement[] = []
+    constructor(public node: HTMLElement) {
+        // this.el = [item]
+        // this.node.set(0, item)
+    }
     // on an update we can scan this to 
     height = 0
     //width: number 
     top = 0
-    el: HTMLElement[] = []
-
-
-    //get isTombstone() { return !!this.data }
-    // do we need this? and when would not show a cell?
 
 }
 
@@ -160,10 +172,12 @@ export class Scroller {
     estHeight_ = 0
 
     scrollRunway_: HTMLElement  // Create an element to force the scroller to allow scrolling to a certainpoint.
-    wideWay_: HTMLElement
+    //wideWay_: HTMLElement
     headerCell?: HTMLElement[]
     //header!: HTMLDivElement
     headerHeight = 0
+
+    rows = 0
 
     plugin: plugin[] = []
 
@@ -194,68 +208,66 @@ export class Scroller {
 
 
     builder(ctx: TableContext) {
-        if (ctx.row < 0 || ctx.row >= this.props.state.rows) {
+        if (ctx.row < 0 || ctx.row >= this.rows && this.props.column) {
             // cache this? get from callback?
-            ctx.old.node.clear()
+            ctx.old.node.style.display = 'none'
         } else {
             this.props.builder(ctx)
         }
     }
-    constructor(public props: ScrollerProps) {
 
+    // 
+    constructor(public props: ScrollerProps) {
         this.scroller_ = props.container
         console.log('props', props)
-        this.length_ = props.state.rows
+        this.length_ = props.row?.count ?? 0
         this.topPadding = props.topPadding ?? 0
 
-        this.anchorItem.index = props.state.initial?.row ?? 0
+        this.anchorItem.index = props.row?.initial?.row ?? 0
 
         this.scroller_.addEventListener('scroll', () => this.onScroll_());
-        const fd = () => {
-            const d = document.createElement('div');
-            d.textContent = ' ';
-            d.style.position = 'absolute';
-            d.style.height = '1px';
-            d.style.width = '1px';
-            d.style.transition = 'transform 0.2s';
-            this.scroller_.appendChild(d);
-            return d
+
+        const d = document.createElement('div');
+        d.textContent = ' ';
+        d.style.position = 'absolute';
+        d.style.height = '1px';
+        d.style.width = '1px';
+        d.style.transition = 'transform 0.2s';
+        this.scroller_.appendChild(d);
+
+        this.scrollRunway_ = d
+        if (this.props.column) {
+            this.headerCell = this.headerCell ?? new Array(this.props.column.columns.size)
+            let st = 0
+
+            // should we measure the header or just truncate?
+            let h = 0
+            for (let i in this.props.column.order) {
+                let v = this.props.column.order[i]
+                let c = this.props.column.columns.get(v)!
+                if (!this.headerCell[i]) {
+                    this.headerCell[i] = this.div2()
+                }
+                this.headerCell[i].style.width = c.width + 'px'
+                this.headerCell[i].innerHTML = c.header
+                this.headerCell[i].style.transform = `translate(${st}px,0)`;
+                h = Math.max(h, this.headerCell[i].offsetHeight)
+
+                let o = this.props.column.columns.get(v)
+                if (o) {
+                    o.start = st
+                    st += o.width
+                }
+            }
+            // this.wideWay_.style.transform = `translate(${st}px,0)`;
+            this.headerHeight = h
         }
-        this.scrollRunway_ = fd()
-        this.wideWay_ = fd()
-        this.cacheStart()
 
         this.resizeData()
         this.onResize_()
     }
 
-    cacheStart() {
-        this.headerCell = this.headerCell ?? new Array(this.props.state.columns.size)
 
-        let st = 0
-
-        // should we measure the header or just truncate?
-        let h = 0
-        for (let i in this.props.state.order) {
-            let v = this.props.state.order[i]
-            let c = this.props.state.columns.get(v)!
-            if (!this.headerCell[i]) {
-                this.headerCell[i] = this.div2()
-            }
-            this.headerCell[i].style.width = c.width + 'px'
-            this.headerCell[i].innerHTML = c.header
-            this.headerCell[i].style.transform = `translate(${st}px,0)`;
-            h = Math.max(h, this.headerCell[i].offsetHeight)
-
-            let o = this.props.state.columns.get(v)
-            if (o) {
-                o.start = st
-                st += o.width
-            }
-        }
-        this.wideWay_.style.transform = `translate(${st}px,0)`;
-        this.headerHeight = h
-    }
 
     close() {
         this.scroller_.replaceChildren()
@@ -274,7 +286,7 @@ export class Scroller {
         if (target > this.rendered_.length) {
             let b = this.rendered_.length
             for (; b < target; b++) {
-                ctx.old = new TableRow()
+                ctx.old = new TableRow(this.div())
                 ctx.row = b
                 this.builder(ctx)
                 let i = {
@@ -301,7 +313,7 @@ export class Scroller {
         if (this.props.height instanceof Function) {
             return this.props.height(start, end)
         } else {
-            return this.props.height
+            return this.props.height ?? 96
         }
     }
     onResize_() {
@@ -328,24 +340,25 @@ export class Scroller {
     }
 
     position(o: TableRow) {
-        for (const [key, value] of o.node) {
-            const col = this.props.state.columns.get(key)
-            const tr = `translate(${col!.start}px,${o.top + this.headerHeight + this.topPadding}px)`
-            //console.log('pos', tr)
-            value.style.transform = tr
-        }
+        const y = o.top + this.headerHeight + this.topPadding
+        o.node.style.transform = `translate(0,${y}px)`
+
+        // if (this.props.column) {
+        //     for (const [key, value] of o.node) {
+
+        //         const col = this.props.column?.columns.get(key)
+        //         const tr = `translate(${col!.start}px,${o.top + this.headerHeight + this.topPadding}px)`
+        //         //console.log('pos', tr)
+        //         value.style.transform = tr
+        //     }
+        // } else {
+        //     o.node.style.transform = `translate(0,${o.top + this.headerHeight + this.topPadding}px)`
+        // }
     }
     measure(item: TableRow) {
         this.measuredHeight_ -= item.height
-
-        let height = 0
-        item.node.forEach((v) => {
-            height = Math.max(height, v.offsetHeight)
-        })
-
-
+        const height = item.node.offsetHeight
         item.height = height
-        //item.width = item.node.offsetWidth
         this.measuredHeight_ += height
     }
     // adjust height lazily, try to avoid it.
@@ -380,6 +393,7 @@ export class Scroller {
         if (est != this.estHeight_) {
             this.scrollRunway_.style.transform = `translate(0,${est}px)`;
             this.estHeight_ = est
+            console.log("set height", est)
         }
     }
 
@@ -463,9 +477,7 @@ export class Scroller {
         for (let k = b; k < e; k++) {
             ctx.old = this.rendered_[k];
             //o.data = this.snap_.get(rendered_start + k)
-            for (let c of this.props.state.columns) {
 
-            }
             ctx.row = k  // should this be rendered_start + k? bug??
             this.builder(ctx)
             this.measure(ctx.old)

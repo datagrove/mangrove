@@ -1,21 +1,56 @@
-
 import { faker } from '@faker-js/faker'
 import { BuilderFn, Column, enableColumnResizing, EstimatorFn, Scroller, ScrollerProps, TableContext } from '../../editor/scroll'
-import { createEffect, onCleanup, createSignal, onMount } from 'solid-js'
+import { createEffect, onCleanup, createSignal, onMount, JSXElement } from 'solid-js'
+import { usePage } from '../home'
+import { CellOptions } from '../../db/client'
+import { createQuery, QueryResult } from './db'
 
 const redFrame = "border-solid border-2 border-red-500"
 const greenFrame = "border-solid border-2 border-green-500"
 const clearFrame = "border-solid border-0 border-opacity-0"
 
-
-
 // we probably need terminal to work
 type RowMap = Map<number, string>
+
+// generated? or cache on first use? dx is better with cache/hot load.
+// aot faster though. no los dos? decorators?
+// maybe generator prepopulates the cache
+function queryFolder(path: string): QueryResult {
+    const qd = {
+        sql: "select type,lens(name),modified,size  from folder where path = ?",
+        // this would be generated.
+        // cells: [ // can't these all be default from the sql?
+        //     { type: "string", name: "type"},
+        //     { type: "name", name: "name"},
+        //     { type: "date", name: "modified"},
+        //     { type: "number", name: "size"},
+        // ]
+    }
+    return createQuery(qd, path)
+}
+
+// a query view should have optional header and info boxes?
+// header in this case could show breadcrumbs?
 export function FolderViewer() {
+    const st = usePage()
+    if (!st) throw new Error("no page")
+
+    const q = queryFolder(st.doc.path)
+    return <TableView show={q} fallback={<div>Loading</div>} />
+}
+interface TableViewProps {
+    show: QueryResult
+    fallback: JSXElement
+}
+export function TableView(props: TableViewProps) {
     let el: HTMLDivElement
     // we can try to recreate the editor as raw typescript to make it easier to wrap in various frameworks. 
     // const ed = new Editor
     // let edel: HTMLDivElement
+    createEffect(() => {
+        if (!props.show.loaded) return;
+    })
+
     let tombstone: HTMLDivElement
     const [debugstr, setDebugstr] = createSignal("woa")
 
@@ -63,6 +98,12 @@ export function FolderViewer() {
             return r
         }
 
+        // builder is setting html into a div; works with cells equally well?
+        // we are just rendering into a div
+        // performance wise is this overkill? we should start with a simple string in many cases 
+        // rerender when cell is focused.
+        // potentially remeasure row if focused cell becomes larger.
+        // potentially build one editor and position it over the row like an inline dialog box?
         const bld: BuilderFn = (ctx: TableContext) => {
             let d = items[ctx.row]
             let [m, o] = ctx.alloc(d.size)
@@ -75,13 +116,16 @@ export function FolderViewer() {
 
         const props: ScrollerProps = {
             container: el!,
-            state: {
-                rows: items.length,
+            row: {
+                count: items.length,
+            },
+            column: {
                 order: [...new Array(cn)].map((e, i) => i),
                 columns: c,
             },
             builder: bld,
             height: est,
+            // mouseover, mousedown, etc.
         }
         const s = new Scroller(props)
         setDebugstr(JSON.stringify(s, null, 2))
@@ -100,8 +144,12 @@ export function FolderViewer() {
 
 
     return <>
-        <div class={'right-0 top-0 bottom-0 left-80 absolute overflow-auto h-screen' + clearFrame} ref={el!}>
-        </div>
+        <div style={{
+            left: "0px",
+            right: "0px",
+            top: "0px",
+            bottom: "0px",
+        }} class={'absolute overflow-auto h-screen' + clearFrame} ref={el!} />
         <p ref={tombstone!}>&nbsp;</p>
     </>
 

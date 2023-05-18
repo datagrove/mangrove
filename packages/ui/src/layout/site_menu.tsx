@@ -311,7 +311,7 @@ export const SiteMenuContent: Component<{}> = (props) => {
   })
 
 
-  return <div class='transform w-full h-full dark:bg-gradient-to-r dark:from-neutral-900 dark:to-neutral-800'><Switch>
+  return <div class='transform flex-1 dark:bg-gradient-to-r dark:from-black dark:to-neutral-900'><Switch>
     <Match when={!pd()}>
       Error
     </Match>
@@ -324,14 +324,16 @@ export const SiteMenuContent: Component<{}> = (props) => {
         <div class='flex items-center'>
           <div class='flex-1 '><SiteTabs page={pd()!} /></div>
         </div>
-        <SitePreference page={pd()!} />
-        <SiteSearchButton />
+
         <div class='mt-4'>
           <SectionNav page={pd()!} />
         </div>
       </div></Match>
   </Switch></div>
 }
+
+// {/* <SitePreference page={pd()!} />
+// <SiteSearchButton /> */}
 export function SectionNav(props: { page: PageDescription }) {
   // this needs be recursive, starting from the 
   const tabs = (): SitePage[] => {
