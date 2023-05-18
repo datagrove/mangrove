@@ -21,36 +21,35 @@ import { createStore } from "solid-js/store"
 
 // nested reactivity?
 export interface UserSettings {
-    tools: string[]
-    pindm: string[]
-    pindb: string[]
-    recentdb: string[]
-  }
-  
-  export const anon: UserSettings = {
-    tools: [
-      "dm",
-      "menu",
-      "pindm",
-      "pindb",
-      "add", // add database
-      "settings", // setting is similar to home database
-    ],
-    pindm: [],
-    pindb: [],
-    recentdb: []
-  }
+  tools: string[]
+  pindm: string[]
+  pindb: string[]
+  recentdb: string[]
+}
 
-  export interface UserState {
-    settings: UserSettings,
-    counters: {
-        [key: string]: number
-    }
+export const anon: UserSettings = {
+  tools: [
+    "search",
+    "dm",
+    "menu",
+    "pindm",
+    "pindb",
+    "settings", // setting is similar to home database
+  ],
+  pindm: [],
+  pindb: [],
+  recentdb: []
+}
+
+export interface UserState {
+  settings: UserSettings,
+  counters: {
+    [key: string]: number
   }
-  const userState : UserState = {
-    settings: anon,
-    counters: {}
-  }
-  // user becomes a proxy, every field of user is reactive
+}
+const userState: UserState = {
+  settings: anon,
+  counters: {}
+}
+// user becomes a proxy, every field of user is reactive
 export const [user, setUser] = createStore<UserState>(userState)
-  

@@ -7,7 +7,7 @@ import { useLn } from "../login/passkey_i18n";
 
 import { SiteMenuContent } from "../layout/site_menu";
 import { Icon, } from "solid-heroicons";
-import { clock, pencil, squares_2x2 as menu, squaresPlus as add, chatBubbleBottomCenter as friend, cog_6Tooth as gear } from "solid-heroicons/solid";
+import { clock, pencil, folder as menu, squaresPlus as add, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass } from "solid-heroicons/solid";
 import { user } from "./user";
 import { Maybe } from "../core";
 import { TextViewer } from './viewer/text'
@@ -64,6 +64,7 @@ export interface Caps {
 export interface Tool {
   icon: () => JSXElement
   component: () => JSXElement
+  path: string  // pick a viewer the first time the tool is used, after that restore state for that tool (url)
 }
 
 type Viewer = {
@@ -85,27 +86,42 @@ const builtinViewers: ViewerMap = {
   "settings": { default: () => <SettingsViewer /> },
   "whiteboard": { default: () => <WhiteboardViewer /> },
   "sheet": { default: () => <SheetViewer /> },
-  "code": { default: () => <CodeViewer /> }, // can also be perspective of text?
+  "code": { default: () => <CodeViewer /> },
+  "form": { default: () => <div>Form</div> } // can also be perspective of text?
 }
 
+// each tool is associated with a database, and a home "page" in the database which is used the first time the tool is used.
+// this is 
+// each tool maintains its last state, it switches the menu and the viewer
+// each has its own history? that's pretty hard on the web, and probably confusing.
+// try going the most recent url associated with the tool.
 
 const builtinTools: { [key: string]: Tool } = {
   "menu": {
     icon: () => <FloatIcon path={menu} />,
-    component: () => <SiteMenuContent />
+    component: () => <SiteMenuContent />,
+    path: 'a/b/text'
   },
   "dm": {
     icon: () => <FloatIcon path={friend} />,
-    component: () => <DmTool/>
+    component: () => <DmTool />,
+    path: 'a/b/chat'
   },
   "settings": {
     icon: () => <FloatIcon path={gear} />,
-    component: () => <div>settings</div>
+    component: () => <div>settings</div>,
+    path: 'a/b/form',
   },
   "add": {
     icon: () => <FloatIcon path={add} />,
-    component: () => <div>settings</div>
+    component: () => <div>settings</div>,
+    path: 'a/b/form'
   },
+  "search": {
+    icon: () => <FloatIcon path={magnifyingGlass} />,
+    component: () => <div>search</div>,
+    path: 'a/b/form'
+  }
 }
 
 // change when we install new tools? or when we change the active tool?
@@ -121,12 +137,10 @@ export function DmTool() {
 // pinned tools can change the viewer, e.g.
 export function PinnedTool() {
   return <span class="relative inline-block">
-  <img class="h-8 w-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="" />
-  <span class="absolute right-0 top-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
+    <img class="h-8 w-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="" />
+    <span class="absolute right-0 top-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
   </span>
 }
-
-
 
 export function Main() {
   const ws = createWs()
@@ -201,7 +215,9 @@ export function Main() {
   // how do we display counters? how do we update them?
   // when does clicking a tool change the viewer? always?
   const setActiveTool = (name: string) => {
-    const pth = "/" + ln() + "/" + name + "/" + loc.pathname.split("/").slice(3).join("/")
+    const p = loc.pathname.split("/")[1]
+    const tl = tools()[name]
+    const pth = "/" + p + "/" + name + "/" + tl.path //+ loc.pathname.split("/").slice(3).join("/")
     console.log("path", name, pth)
     nav(pth)
   }
