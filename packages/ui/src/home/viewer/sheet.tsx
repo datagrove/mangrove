@@ -81,27 +81,15 @@ export function SheetViewer() {
     // let edel: HTMLDivElement
     let tombstone: HTMLDivElement
     const [debugstr, setDebugstr] = createSignal("woa")
-
     const N = 100
-    const R = 100
-    const W = 100
-    const items = [...new Array(R)].map((e, i) => {
-        const m = new Map<number, string>()
-        for (let j = 0; j < N; j++) {
-            m.set(j, i + "," + j + ". " + faker.lorem.word())
-        }
-        return m
-    })
-    const c = new Map<number, Column>()
+
+    const c : Column[] = []
     for (let i = 0; i < N; i++) {
-        c.set(i, { key: i, width: W, header: "<div class='p-4'>col" + i + "</div>" })
+        c.push({ tag: i, width: 96, html: "<div class='p-4'>col" + i + "</div>" })
     }
-    //console.log("items", items)
+
 
     onMount(() => {
-        // ed.mount(edel)
-        // ed.text = "בְּרֵאשִׁ֖ית בָּרָ֣א אֱלֹהִ֑ים אֵ֥ת הַשָּׁמַ֖יִם וְאֵ֥ת הָאָֽרֶץ׃"
-
         let tombstoneHeight_ = tombstone.offsetHeight
         tombstone.style.display = 'none'
 
@@ -112,26 +100,17 @@ export function SheetViewer() {
         }
 
         const bld: BuilderFn = (ctx: TableContext) => {
-            let d = items[ctx.row]
-            let [m, o] = ctx.alloc(d.size)
-            for (let i = 0; i < o.length; i++) {
-                o[i].innerHTML = `<p class='p-4'>${d.get(i)!}<p>`
-                o[i].style.width = W + 'px'
-                m.set(i, o[i])
-            }
-            //console.log("build", d, o,m)
+            const f = <p class='p-4'>{ctx.row},{ctx.column.tag}</p>
+            ctx.render(f)
         }
-
-
 
         const props: ScrollerProps = {
             container: el!,
             row: {
-                count: items.length
+                count: N
             },
             column: {
-                order: [...new Array(N)].map((e, i) => i),
-                columns: c,
+                header: c,
             },
             builder: bld,
             height: est,
@@ -154,11 +133,11 @@ export function SheetViewer() {
 
     return <>
         <TestDrag />
-        <div class={'right-0 top-0 bottom-32 left-80 absolute overflow-auto h-screen' + clearFrame} ref={el!}>
+        <div class={'right-0  top-0 bottom-32 left-0 absolute overflow-auto h-screen' + clearFrame} ref={el!}>
 
         </div>
-        <div class='right-0 bottom-0 left-80 absolute overflow-y-auto overflow-x-hidden h-32  ' >
-            <div class='h-full w-full max-w-none prose dark:prose-invert'  >
+        <div class='right-0 left-0 bottom-0 absolute overflow-y-auto overflow-x-hidden h-32  ' >
+            <div class='h-full bg-neutral-800 w-full max-w-none prose dark:prose-invert'  >
                 <RichTextEditor />
             </div>
         </div>

@@ -311,7 +311,7 @@ export const SiteMenuContent: Component<{}> = (props) => {
   })
 
 
-  return <div class='transform flex-1 dark:bg-gradient-to-r dark:from-black dark:to-neutral-900'><Switch>
+  return <div class='transform h-full flex-1 dark:bg-gradient-to-r dark:from-black dark:to-neutral-900'><Switch>
     <Match when={!pd()}>
       Error
     </Match>

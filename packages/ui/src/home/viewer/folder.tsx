@@ -33,9 +33,9 @@ function queryFolder(path: string): QueryResult {
 // header in this case could show breadcrumbs?
 export function FolderViewer() {
     const st = usePage()
-    if (!st) throw new Error("no page")
+    //if (!st) throw new Error("no page")
 
-    const q = queryFolder(st.doc.path)
+    const q = queryFolder("")
     return <TableView show={q} fallback={<div>Loading</div>} />
 }
 interface TableViewProps {
@@ -65,15 +65,15 @@ export function TableView(props: TableViewProps) {
         items.push(m)
     }
 
-    const c = new Map<number, Column>()
+    const c : Column[] = []
     let cn = 0
     const init = (header: [string, number][]) => {
         cn = header.length
         for (let i = 0; i < header.length; i++) {
-            c.set(i, {
-                key: i,
+            c.push( {
+                tag: i,
                 width: header[i][1],
-                header: `<div class='p-4'>${header[i][0]}</div>`
+                html: `<div class='p-4'>${header[i][0]}</div>`
             })
 
         }
@@ -106,12 +106,15 @@ export function TableView(props: TableViewProps) {
         // potentially build one editor and position it over the row like an inline dialog box?
         const bld: BuilderFn = (ctx: TableContext) => {
             let d = items[ctx.row]
-            let [m, o] = ctx.alloc(d.size)
-            for (let i = 0; i < o.length; i++) {
-                o[i].innerHTML = `<div class=' w-full truncate'>${d.get(i)!}<div>`
-                o[i].style.width = c.get(i)?.width + 'px'
-                m.set(i, o[i])
-            }
+            let ct = d.get(ctx.column.tag)
+
+            ctx.render(<div>{ct}</div>)
+            // let [m, o] = ctx.alloc(d.size)
+            // for (let i = 0; i < o.length; i++) {
+            //     o[i].innerHTML = `<div class=' w-full truncate'>${d.get(i)!}<div>`
+            //     o[i].style.width = c.get(i)?.width + 'px'
+            //     m.set(i, o[i])
+            // }
         }
 
         const props: ScrollerProps = {
@@ -120,8 +123,7 @@ export function TableView(props: TableViewProps) {
                 count: items.length,
             },
             column: {
-                order: [...new Array(cn)].map((e, i) => i),
-                columns: c,
+                header: c,
             },
             builder: bld,
             height: est,

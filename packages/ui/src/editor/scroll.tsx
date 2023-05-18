@@ -1,6 +1,11 @@
 import { JSXElement } from "solid-js"
 import { render } from "solid-js/web"
 
+// this creates each row as a div.
+// the tradeoff here compared to cell as a div is that we make it harder to position columns
+// the hypotheses is that it should make it faster to measure the height of a row.
+
+
 const inf = Number.NEGATIVE_INFINITY
 
 export interface Selection {
@@ -13,7 +18,9 @@ export type BuilderFn = (ctx: TableContext) => void
 export class TableContext {
     constructor(public scroller: Scroller) { }
     old!: TableRow
-    row!: number
+    row = 0
+    column!: Column
+    offset = 0
     //get key() { return this.scroller.props.state.columns?.order }
 
     // alloc(n: number): [Map<number, HTMLElement>, HTMLElement[]] {
@@ -24,19 +31,14 @@ export class TableContext {
     //     return [this.old.node, this.old.el]
     // }
     // for 1 column only
-    renderCell(i: number, x: JSXElement) {
-        render(() => x, this.old!.node.children[i])
-    }
+
     render(x: JSXElement) {
         // problematic? trouble with suspense etc.
-        this.old!.node.innerHTML = "woa"
-        //render(() => x, this.old.node.get(0)!)
+        render(() => x, this.old.node.children[this.offset])
     }
 }
 export type EstimatorFn = (start: number, end: number) => number
-export interface Column {
-    width: number
-}
+
 
 // we can have panes that are separately scrollable, but locked on one dimension (only outer panes have scroll bars)
 
@@ -57,15 +59,15 @@ export interface Pane {
 // we need some concept of undo/redo. mostly with commands? or should we rollback the state? commands seems more likely to be collaborative. this is like and editor, so
 
 export interface Column {
-    key: any
+    tag: any
     width: number
-    start?: number // calculated
-    header: string
+    html: string
+    // private?
+    start_?: number // calculated
 }
 
 export interface ColumnState {
-    columns: Map<any, Column>
-    order: any[] // order of columns
+    header: Column[] // order of columns
     repeatColumnWidth?: number // for maps, generates negative index
     paneRow?: Pane[]
     paneColumn?: Pane[]
@@ -173,11 +175,10 @@ export class Scroller {
 
     scrollRunway_: HTMLElement  // Create an element to force the scroller to allow scrolling to a certainpoint.
     //wideWay_: HTMLElement
-    headerCell?: HTMLElement[]
+    //headerCell?: HTMLElement[]
     //header!: HTMLDivElement
+    headerRow!: HTMLElement
     headerHeight = 0
-
-    rows = 0
 
     plugin: plugin[] = []
 
@@ -189,13 +190,13 @@ export class Scroller {
     // when we create a div it should be display none and absolute and a child of the scroller
     // tombstone.style.position = 'absolute'
     // this.scroller_.appendChild(tombstone)
-    div(): HTMLElement {
-        const r = document.createElement('div') as HTMLElement
-        this.scroller_.append(r)
-        r.style.position = 'absolute'
-        r.style.display = 'block'
-        return r
-    }
+    // div(): HTMLElement {
+    //     const r = document.createElement('div') as HTMLElement
+    //     this.scroller_.append(r)
+    //     r.style.position = 'absolute'
+    //     r.style.display = 'block'
+    //     return r
+    // }
     div2(): HTMLElement {
         const r = document.createElement('div') as HTMLElement
         this.scroller_.append(r)
@@ -205,18 +206,54 @@ export class Scroller {
         r.style.zIndex = '51'
         return r
     }
+    rowDiv(): HTMLDivElement {
+        const r = document.createElement('div') 
+        this.scroller_.append(r)
+        r.style.display = 'flex'
+        r.style.position = 'absolute'
 
+        if (this.props.column) {
+            const v = this.props.column.header
+            for (let i=0; i<v.length; i++) {
+                const c = document.createElement('div') as HTMLElement
+                c.style.display = 'block'
+                //c.style.position = 'absolute'
+                c.style.width = v[i].width + 'px'
+                r.appendChild(c)
+            }
+        } else {
+            const c = document.createElement('div') as HTMLElement
+            c.style.width = "100%"
+            r.appendChild(c)
+        }
 
-    builder(ctx: TableContext) {
-        if (ctx.row < 0 || ctx.row >= this.rows && this.props.column) {
+        return r
+    }
+
+    get rows() { return this.props.row?.count || 0 }
+    builder(ctx: TableContext, row: number) {
+        ctx.row = row
+        console.log("build", ctx, row)
+        if (row < 0 || row >= this.rows ) {
             // cache this? get from callback?
             ctx.old.node.style.display = 'none'
+            console.log("hide", row, this.rows, ctx)
         } else {
-            this.props.builder(ctx)
+            ctx.old.node.style.display = 'flex'
+            if (this.props.column) {
+                const v = this.props.column.header
+                for (let i=0; i<v.length; i++) {
+                    ctx.column = v[i]
+                    ctx.offset = i
+                    this.props.builder(ctx)
+                }
+            } else {
+                this.props.builder(ctx)
+            }
         }
     }
 
-    // 
+    // put the header in 
     constructor(public props: ScrollerProps) {
         this.scroller_ = props.container
         console.log('props', props)
@@ -237,14 +274,37 @@ export class Scroller {
 
         this.scrollRunway_ = d
         if (this.props.column) {
-            this.headerCell = this.headerCell ?? new Array(this.props.column.columns.size)
-            let st = 0
+            const r = this.rowDiv()
+            r.style.position  = 'fixed'
+            r.style.top = '0px'
+            r.style.backgroundColor = 'black'
+            r.style.zIndex = '800'
+            this.headerRow = r
+
 
             // should we measure the header or just truncate?
+            // eventually we will want to have all these as floating divs
+            // absolute? easier to animate?
             let h = 0
-            for (let i in this.props.column.order) {
-                let v = this.props.column.order[i]
-                let c = this.props.column.columns.get(v)!
+            for (let i in this.props.column.header) {
+                let v = this.props.column.header[i]
+                const nd = this.headerRow.children[i]  as HTMLDivElement
+                nd.style.width = v.width + 'px'
+                nd.style.position = 'static' // static for measurement.
+                nd.innerHTML = v.html
+            }
+            this.headerHeight = this.headerRow.offsetHeight
+        } else {
+          
+
+        }
+
+        this.resizeData()
+        this.onResize_()
+    }
+
+    /*
+                    (this.headerRow.children[i] as HTMLDivElement).style.width = c.width + 'px'
                 if (!this.headerCell[i]) {
                     this.headerCell[i] = this.div2()
                 }
@@ -252,21 +312,7 @@ export class Scroller {
                 this.headerCell[i].innerHTML = c.header
                 this.headerCell[i].style.transform = `translate(${st}px,0)`;
                 h = Math.max(h, this.headerCell[i].offsetHeight)
-
-                let o = this.props.column.columns.get(v)
-                if (o) {
-                    o.start = st
-                    st += o.width
-                }
-            }
-            // this.wideWay_.style.transform = `translate(${st}px,0)`;
-            this.headerHeight = h
-        }
-
-        this.resizeData()
-        this.onResize_()
-    }
-
+                */
 
 
     close() {
@@ -286,9 +332,8 @@ export class Scroller {
         if (target > this.rendered_.length) {
             let b = this.rendered_.length
             for (; b < target; b++) {
-                ctx.old = new TableRow(this.div())
-                ctx.row = b
-                this.builder(ctx)
+                ctx.old = new TableRow(this.rowDiv())
+                this.builder(ctx,b)
                 let i = {
                     node: new Map<number, HTMLElement>(),
                     height: 0,
@@ -313,7 +358,7 @@ export class Scroller {
         if (this.props.height instanceof Function) {
             return this.props.height(start, end)
         } else {
-            return this.props.height ?? 96
+            return this.props.height ?? 12 * (end - start)
         }
     }
     onResize_() {
@@ -330,13 +375,14 @@ export class Scroller {
         console.log('size', { ...this.anchorItem, top: this.scroller_.scrollTop, st: this.rendered_start, h: this.estHeight_ })
         console.log('resize', this.anchorScrollTop, this.anchorItem.index, this.anchorItem.offset)
     }
-    repositionAll() {
+    repositionAll() {    
         let pos = this.anchorScrollTop - this.heightAbove
         for (let o of this.rendered_) {
             o.top = pos
             this.position(o)
             pos += o.height
         }
+        console.log('reposition', this)
     }
 
     position(o: TableRow) {
@@ -443,12 +489,12 @@ export class Scroller {
         let oldindex = this.anchorItem.index
         let delta = top - this.anchorScrollTop
 
-        console.log({
-            top,
-            oldstart,
-            oldindex,
-            delta,
-        }, { ...this.anchorItem, top: this.scroller_.scrollTop, st: this.rendered_start, h: this.estHeight_ })
+        // console.log({
+        //     top,
+        //     oldstart,
+        //     oldindex,
+        //     delta,
+        // }, { ...this.anchorItem, top: this.scroller_.scrollTop, st: this.rendered_start, h: this.estHeight_ })
 
         this.anchorScrollTop = this.scroller_.scrollTop;
         if (this.scroller_.scrollTop == 0) {
@@ -477,9 +523,7 @@ export class Scroller {
         for (let k = b; k < e; k++) {
             ctx.old = this.rendered_[k];
             //o.data = this.snap_.get(rendered_start + k)
-
-            ctx.row = k  // should this be rendered_start + k? bug??
-            this.builder(ctx)
+            this.builder(ctx,k)
             this.measure(ctx.old)
             // maybe we should have both a tombstone and a div, then we can animate between them? this would keep things from jumping around? size transition as well opacity?
         }

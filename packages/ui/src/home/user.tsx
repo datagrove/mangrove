@@ -29,7 +29,6 @@ export interface UserSettings {
   
   export const anon: UserSettings = {
     tools: [
-    
       "dm",
       "menu",
       "pindm",

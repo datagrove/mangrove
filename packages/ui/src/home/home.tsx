@@ -87,6 +87,8 @@ const builtinViewers: ViewerMap = {
   "sheet": { default: () => <SheetViewer /> },
   "code": { default: () => <CodeViewer /> }, // can also be perspective of text?
 }
+
+
 const builtinTools: { [key: string]: Tool } = {
   "menu": {
     icon: () => <FloatIcon path={menu} />,
@@ -94,7 +96,7 @@ const builtinTools: { [key: string]: Tool } = {
   },
   "dm": {
     icon: () => <FloatIcon path={friend} />,
-    component: () => <div>dm</div>
+    component: () => <DmTool/>
   },
   "settings": {
     icon: () => <FloatIcon path={gear} />,
@@ -109,6 +111,21 @@ const builtinTools: { [key: string]: Tool } = {
 // change when we install new tools? or when we change the active tool?
 export const [tools, setTools] = createSignal(builtinTools)
 export const [viewers, setViewers] = createSignal(builtinViewers)
+
+// should restore the state the last time we were using DM?
+// this changes the viewer and the pane. 
+export function DmTool() {
+  return <div>dm</div>
+}
+
+// pinned tools can change the viewer, e.g.
+export function PinnedTool() {
+  return <span class="relative inline-block">
+  <img class="h-8 w-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="" />
+  <span class="absolute right-0 top-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
+  </span>
+}
+
 
 
 export function Main() {
@@ -179,7 +196,10 @@ export function Main() {
   const getCounter = (name: string) => {
     return 0
   }
-  // how do we display counters?
+
+
+  // how do we display counters? how do we update them?
+  // when does clicking a tool change the viewer? always?
   const setActiveTool = (name: string) => {
     const pth = "/" + ln() + "/" + name + "/" + loc.pathname.split("/").slice(3).join("/")
     console.log("path", name, pth)
@@ -189,10 +209,7 @@ export function Main() {
   const ml = (e: string) => e == sitePage()?.toolname ? "border-white" : "border-transparent"
   const Toolicons = () => {
     return <div class='w-14 flex-col flex mt-4 items-center space-y-6'>
-      <span class="relative inline-block">
-        <img class="h-8 w-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="" />
-        <span class="absolute right-0 top-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
-      </span>
+
       <For each={user.settings.tools}>{(e, i) => {
         const tl = tools()[e]
         return <Switch>
@@ -235,7 +252,7 @@ export function Main() {
   // 
   const [left, setLeft] = createSignal(400)
   return <PageContext.Provider value={sitePage()}>
-    <Show when={sitePage()} fallback={<div>loading</div>}>
+    <Show when={sitePage()} fallback={<div>waiting</div>}>
       <div class='flex h-screen w-screen fixed overflow-hidden'>
         <Splitter left={left} setLeft={setLeft}>
           <div class='flex flex-1'>

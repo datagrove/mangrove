@@ -105,7 +105,7 @@ export function FakeSheet() {
     })
     const c = new Map<number, Column>()
     for (let i = 0; i < N; i++) {
-        c.set(i, { key: i, width: W, header: "<div class='p-4'>col" + i + "</div>" })
+        c.set(i, { tag: i, width: W, html: "<div class='p-4'>col" + i + "</div>" })
     }
     //console.log("items", items)
 

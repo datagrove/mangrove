@@ -4,7 +4,7 @@
 // it acts like a store (is it a store?), views are reactive
 // views should be an array of cells, so that edits are 2 way
 
-import { Accessor } from "solid-js"
+import { Accessor, createSignal } from "solid-js"
 import { CellOptions } from "../../db/client"
 
 // makeCell(cellTemplate)
@@ -25,11 +25,9 @@ export interface QueryResult {
     error: string
     loaded: boolean
     query: Query
+    estimatedSize: Accessor<number>
 
-    close: () => void
-    filter(pattern: string): void
-    rows(start: number, end: number): any[][]
-    estimatedSize(): Accessor<number>
+
 }
 
 // seems like overkill, using scroller anyway, scroller can manage
@@ -38,14 +36,22 @@ export interface QueryResult {
 //     return <div>QueryFor</div>
 // }
 
+// derive queries
+// close: () => { },
+// filter: (pattern: string) => { },
+// rows: (start: number, end: number) => { return [] },
+
+export function closeQuery(query: QueryResult) {
+    
+}
 
 export function createQuery(desc: Query, ...params: any[]): QueryResult {
-    throw "not implemented"
-    // return {
-    //     loaded: false,
-    //     error: "",
-    //     query: desc,
-    //     close: () => { }
+    const [size, setSize] = createSignal(0)
+    return {
+        error: "",
+        loaded: true,
+        query: desc,
+        estimatedSize: size
+    } 
 
-    // }
 }

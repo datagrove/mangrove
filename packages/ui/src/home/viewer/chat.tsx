@@ -15,9 +15,9 @@ export interface Message {
 }
 export function ChatViewer() {
     const chats: Message[] = []
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 100; i++) {
         chats.push({
-            text: "hello",
+            text: faker.lorem.paragraph(),
             avatarUrl: "https://avatars.githubusercontent.com/u/1000000?s=60&v=4",
             user: faker.name.fullName(),
             date: faker.date.recent().toLocaleDateString(),
@@ -39,7 +39,7 @@ export function ChatViewer() {
         }
         let ed = new Scroller(opts)
     })
-    return <div class='absolute top-0 left-0 right-0 bottom-0' ref={el!} />
+    return <div class='absolute top-0 left-0 right-0 bottom-0 overflow-auto' ref={el!} />
 }
 
 
