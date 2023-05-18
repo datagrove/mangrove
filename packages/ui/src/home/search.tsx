@@ -3,51 +3,51 @@ import { Kbd } from "../core/buttons"
 import { Icon } from "solid-heroicons"
 import { magnifyingGlass, xCircle, star, arrowLeft, arrowUp, arrowDown } from "solid-heroicons/solid"
 import { setSite2, site, setSearchMode } from "./site_menu"
-import { SiteStore, SiteDefinition } from "./store"
+import { SiteStore, MenuDefinition } from "./store"
 
-const [search,setSearch] = createSignal([] as SearchResult[]) // = []
+const [search, setSearch] = createSignal([] as SearchResult[]) // = []
 export interface SearchResult {
-    title: string
-    href: string
-    favorite?: boolean
-  }
-  
-  export const [favorites, setFavorites] = createSignal<SearchResult[]>([
-    // { title: "fav1", href: "xx" }
-  ])
-  export const [recent, setRecent] = createSignal<SearchResult[]>([
-    // { title: "recent1", href: "xx" }
-  ])
-  
-  // move from recent to favorite
-  export function addFavorite(x: number) {
-    setFavorites([removeRecent(x), ...favorites()])
-  }
-  // remove from favorite
-  export function removeFavorite(x: number) {
-    const y = favorites()
-    y.splice(x, 1)
-    setFavorites(y)
-  }
-  export function removeRecent(x: number) {
-    const y = recent()
-    const o = y.splice(x, 1)[0]
-    setRecent(y)
-    return o
-  }
-  export function addRecent(x: SearchResult) {
-    setRecent([x, ...recent()])
-  }
-  export function fetchResults(site: SiteStore, sp: string): SearchResult[] {
-    if (sp.length == 0) {
-      return []
-    }
-    sp = sp.toLowerCase()
-    const a = search().filter((e) => e.title.indexOf(sp) != -1)
-    return a
-  }
+  title: string
+  href: string
+  favorite?: boolean
+}
 
-  
+export const [favorites, setFavorites] = createSignal<SearchResult[]>([
+  // { title: "fav1", href: "xx" }
+])
+export const [recent, setRecent] = createSignal<SearchResult[]>([
+  // { title: "recent1", href: "xx" }
+])
+
+// move from recent to favorite
+export function addFavorite(x: number) {
+  setFavorites([removeRecent(x), ...favorites()])
+}
+// remove from favorite
+export function removeFavorite(x: number) {
+  const y = favorites()
+  y.splice(x, 1)
+  setFavorites(y)
+}
+export function removeRecent(x: number) {
+  const y = recent()
+  const o = y.splice(x, 1)[0]
+  setRecent(y)
+  return o
+}
+export function addRecent(x: SearchResult) {
+  setRecent([x, ...recent()])
+}
+export function fetchResults(site: SiteStore, sp: string): SearchResult[] {
+  if (sp.length == 0) {
+    return []
+  }
+  sp = sp.toLowerCase()
+  const a = search().filter((e) => e.title.indexOf(sp) != -1)
+  return a
+}
+
+
 
 export const Magnifier = () => <Icon class="mr-2  h-5 w-5 flex-none text-neutral-500" path={magnifyingGlass} />
 
@@ -154,24 +154,24 @@ export const SearchList = () => {
 
 
 
-  /*
-  not worth the space? 
-  // search as nav. maintains site state for favorites and recents.
+/*
+not worth the space? 
+// search as nav. maintains site state for favorites and recents.
 export function SiteSearchButton() {
-  return (
-    <button class=' flex mt-2 mb-2 p-2 w-full border-solid-lightitem dark:border-solid-darkitem border rounded-md dark:bg-solid-dark'
-      onclick={() => {
-        console.log("search")
-        setSearchMode(true)
-      }}
-    >
-      <Magnifier />
-      <input readonly
-        class=" flex-1 focus:outline-none dark:bg-solid-dark"
-        placeholder="Search" type="search" />
-      <Kbd>⌘</Kbd>
-      <Kbd>K</Kbd>
-    </button>
-  )
+return (
+  <button class=' flex mt-2 mb-2 p-2 w-full border-solid-lightitem dark:border-solid-darkitem border rounded-md dark:bg-solid-dark'
+    onclick={() => {
+      console.log("search")
+      setSearchMode(true)
+    }}
+  >
+    <Magnifier />
+    <input readonly
+      class=" flex-1 focus:outline-none dark:bg-solid-dark"
+      placeholder="Search" type="search" />
+    <Kbd>⌘</Kbd>
+    <Kbd>K</Kbd>
+  </button>
+)
 }
 */

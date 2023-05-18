@@ -1,19 +1,15 @@
-import { Component, JSXElement, Match, Show, Switch, createSignal } from "solid-js"
+import { Component, Match, Show, Switch, createSignal } from "solid-js"
 import { Ab } from "../layout/nav"
-import { BlueButton, Center } from "../lib/form"
-import { generatePassPhrase, security, setError, setLogin, setSecurity } from "../lib/crypto"
+import { BlueButton } from "../lib/form"
+import { generatePassPhrase, security } from "../lib/crypto"
 import {
-    parseCreationOptionsFromJSON,
-    create,
     get,
     parseRequestOptionsFromJSON,
 } from "@github/webauthn-json/browser-ponyfill";
-import { DarkButton, SiteStore } from "../home/site_menu"
+
 import { createWs } from "../core/socket"
 import { useLn } from "./passkey_i18n"
-import { LanguageSelect } from "../i18n/i18"
 import { useNavigate } from "../core/dg";
-import { abort } from "process";
 import { LoginInfo } from "./passkey_add";
 import { SimplePage } from "./simplepage";
 
@@ -94,7 +90,7 @@ export async function initPasskey(): Promise<LoginInfo | null> {
                 console.log("aborted")
                 return null
             }
-        
+
 
             // token is not the socket challenge, it can be shared across tabs.
             // we need to get back the site store here, does it also keep a token?

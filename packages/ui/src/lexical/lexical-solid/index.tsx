@@ -20,7 +20,7 @@ export * from "./LexicalCharacterLimitPlugin";
 export * from "./LexicalCheckListPlugin";
 export * from "./LexicalClearEditorPlugin";
 export * from "./LexicalCollaborationContext";
-export * from "./LexicalCollaborationPlugin";
+//export * from "./LexicalCollaborationPlugin";
 export * from "./LexicalHorizontalRuleNode";
 export * from "./LexicalHorizontalRulePlugin";
 export * from "./LexicalListPlugin";

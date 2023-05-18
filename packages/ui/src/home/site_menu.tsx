@@ -17,8 +17,7 @@ import { createSignal, ParentComponent, Show } from "solid-js";
 import { orgsite } from "./site_menu_test";
 import { LanguageSelect } from "../i18n/i18";
 import { useLocation, Location, useParams } from "../core/dg";
-import { usePage } from ".";
-import { SiteDefinition, SiteStore } from "./store";
+import { MenuDefinition, MenuEntry, SiteStore, usePage } from "./store";
 
 export enum ShowPagemap {
   adaptive,  // adaptive -> click = toggle. so once its closed or open it can no longer be adaptive.
@@ -41,7 +40,7 @@ const [sitemap, setSitemap] = createSignal(ShowSitemap.adaptive)
 export const [pagemap, setPagemap] = createSignal(ShowPagemap.adaptive)
 const [isDark, setIsDark] = createSignal(true)
 export const windowSize = createWindowSize();
-export function setSite(s: SiteDefinition) {
+export function setSite(s: MenuDefinition) {
   setSite2(prepSite(s))
 }
 // derived.
@@ -110,27 +109,21 @@ export const SitePreference = (props: { page: PageDescription }) => {
 
 // computed things
 
-export type SitePage = {
-  name: string
-  path?: string
-  children?: SitePage[]
-  parent?: SitePage
-};
+
 export class BrowseState {
   // for each tab we need a most recent url visited
   recent: string[] = []
 }
 
 
-export function prepSite(sx: SiteDefinition): SiteStore {
+export function prepSite(sx: MenuDefinition): SiteStore {
   const s: SiteStore = {
     ...sx
     , path: new Map()
-    , search: []
   }
   console.log("set site", s)
 
-  const firstLeaf = (p: SitePage): SitePage => {
+  const firstLeaf = (p: MenuEntry): MenuEntry => {
     if (p?.children) {
       return firstLeaf(p.children[0])
     }
@@ -138,13 +131,13 @@ export function prepSite(sx: SiteDefinition): SiteStore {
   }
   // compile all the paths (not counting language) to a section or leaf.
   // note that we 
-  const indexPaths = (o: SitePage, tab: number) => {
+  const indexPaths = (o: MenuEntry, tab: number) => {
     if (o.path) {
       let lc = `/${tab}` + o.path
-      s.search.push({
-        title: o.name.toLocaleLowerCase(),
-        href: lc
-      })
+      // s.search.push({
+      //   title: o.name.toLocaleLowerCase(),
+      //   href: lc
+      // })
       s.path.set(lc, o)
     }
     for (let ch of o.children ?? []) {
@@ -199,10 +192,10 @@ export interface PageDescription {
   site: SiteStore
   param: PageParams
   lang: string
-  page: SitePage
+  page: MenuEntry
   topSection: number
   loc: Location<any>
-  //topTab: SitePage // () { return site.root.children![this.topSection] }
+  //topTab: MenuEntry // () { return site.root.children![this.topSection] }
 }
 // we need to build based on the route
 // everything can scroll off; maximum use of space. easy to find top anyway.
@@ -244,23 +237,23 @@ export const SiteMenuContent: Component<{}> = (props) => {
 
 
   return <div class='transform h-full flex-1 dark:bg-gradient-to-r dark:from-black dark:to-neutral-900'>
-      <div class='pb-16 pt-2 px-2'>
+    <div class='pb-16 pt-2 px-2'>
 
-        <div class='flex items-center'>
-          <div class='flex-1 '><LearnCreate/></div>
-        </div>
+      <div class='flex items-center'>
+        <div class='flex-1 '><LearnCreate /></div>
+      </div>
 
-        <div class='mt-4'>
-          <SectionNav page={pd()!} />
-        </div>
-      </div></div>
+      <div class='mt-4'>
+        <SectionNav page={pd()!} />
+      </div>
+    </div></div>
 }
 
 // {/* <SitePreference page={pd()!} />
 // <SiteSearchButton /> */}
 export function SectionNav(props: { page: PageDescription }) {
   // this needs be recursive, starting from the 
-  const tabs = (): SitePage[] => {
+  const tabs = (): MenuEntry[] => {
     return (props.page.site.root.children![props.page.topSection].children) ?? []
   }
   return (
@@ -280,12 +273,12 @@ export function SectionNav(props: { page: PageDescription }) {
     </ul>
   );
 }
-function isLeafPage(page: SitePage): boolean {
+function isLeafPage(page: MenuEntry): boolean {
   return page.children == null
 }
 // recursively build the sidbar menu
 export function SectionsNavIterate(props: {
-  pages: Array<SitePage>
+  pages: Array<MenuEntry>
   page: PageDescription // is this the top page?
 }) {
   const location = useLocation();
@@ -293,7 +286,7 @@ export function SectionsNavIterate(props: {
 
   // pure accordian style collapses everything not a parent of the url
   // it might be friendlier to allow things to be left open
-  const isCollapsed = (pages: SitePage) => {
+  const isCollapsed = (pages: MenuEntry) => {
     // return !pages.some((page) => {
     //   return isLeafPage(page) && location.pathname == page?.link;
     // });
@@ -302,7 +295,7 @@ export function SectionsNavIterate(props: {
 
   return (
     <For each={props.pages}>
-      {(subsection: SitePage) => (
+      {(subsection: MenuEntry) => (
         <>
           <Show when={isLeafPage(subsection)}>
             <NavItem
@@ -336,13 +329,13 @@ export function SectionsNavIterate(props: {
 // this isn't reflected into the url, links will always go to view first.
 
 export const [isCreate, setIsCreate] = createSignal(false)
-export const LearnCreate = ( ) => {
+export const LearnCreate = () => {
   const sections = [
     "Learn",
     "Create",
   ]
   // this should always give us a lang?
-  const i = () => isCreate()? 1 : 0
+  const i = () => isCreate() ? 1 : 0
   // maybe we should limit this to four some how? maybe we should adaptively change the representation (chips?) if we have too many.
   return (<div class="w-full mt-2 flex border border-solid-lightborder dark:border-solid-darkitem rounded-md"
   >    <For each={sections}>{(e, index) => (
@@ -351,7 +344,7 @@ export const LearnCreate = ( ) => {
         "bg-solid-light dark:bg-solid-dark font-semibold": index() == i(),
       }}
       class="flex-1 inline-flex w-full p-2 items-center justify-center whitespace-nowrap first:rounded-l-md border-r border-solid-lightborder dark:border-solid-darkitem hover:text-blue-500 hover:underline last:(rounded-r-md border-0)"
-      onClick={()=>setIsCreate(index()==1)}
+      onClick={() => setIsCreate(index() == 1)}
     >
       {e}
     </a>)

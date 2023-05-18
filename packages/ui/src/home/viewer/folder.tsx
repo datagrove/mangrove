@@ -1,9 +1,9 @@
 import { faker } from '@faker-js/faker'
 import { BuilderFn, Column, enableColumnResizing, EstimatorFn, Scroller, ScrollerProps, TableContext } from '../../editor/scroll'
 import { createEffect, onCleanup, createSignal, onMount, JSXElement } from 'solid-js'
-import { usePage } from '../home'
 import { CellOptions } from '../../db/client'
 import { createQuery, QueryResult } from './db'
+import { usePage } from '../store'
 
 const redFrame = "border-solid border-2 border-red-500"
 const greenFrame = "border-solid border-2 border-green-500"
@@ -65,12 +65,12 @@ export function TableView(props: TableViewProps) {
         items.push(m)
     }
 
-    const c : Column[] = []
+    const c: Column[] = []
     let cn = 0
     const init = (header: [string, number][]) => {
         cn = header.length
         for (let i = 0; i < header.length; i++) {
-            c.push( {
+            c.push({
                 tag: i,
                 width: header[i][1],
                 html: `<div class='p-4'>${header[i][0]}</div>`

@@ -18,7 +18,6 @@ import CodeHighlightPlugin from "./CodeHighlightPlugin";
 import RichTextTheme from "./RichTextTheme";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 import { LexicalErrorBoundary } from "./lexical-solid/LexicalErrorBoundary";
-import ToolbarPlugin from "./ToolbarPlugin";
 import { TextMenu } from "./menu";
 //import { EmojiNode } from "./nodes/EmojiNode";
 //import EmoticonPlugin from "./plugins/EmoticonPlugin";

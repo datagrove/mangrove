@@ -16,26 +16,11 @@ import { SettingsViewer } from "./viewer/settings";
 import { FolderViewer } from "./viewer/folder";
 import { Splitter } from "../layout/splitter";
 import { DarkButton } from "../lib";
+import { Viewer, Tool, SitePage, PageContext } from "./store";
+import { getDocument } from "./storedb";
 
-const PageContext = createContext<SitePage>();
-export function usePage() { return useContext(PageContext); }
 
 
-export async function getDocument(did: string, site: string, path: string): Maybe<Document> {
-  return [{
-    site: {
-      did: did,
-      name: "datagrove",
-      caps: {
-        read: true,
-        write: true,
-        admin: true,
-      }
-    },
-    path: path,
-    type: path
-  }, undefined]
-}
 
 // user settings should be a store? does the context deliver a store then?
 // is a database something related but different than a store?
@@ -230,7 +215,7 @@ export function Main() {
         </Switch>
       }
       }</For>
-      <DarkButton/>
+      <DarkButton />
     </div>
   }
   // we also need to understand the document type here.
