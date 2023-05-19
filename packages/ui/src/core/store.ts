@@ -3,6 +3,16 @@ import { orgsite } from "./site_menu_test";
 import { createStore } from "solid-js/store";
 
 export const [online, setOnline] = createSignal(false)
+
+interface Login {
+  did: string
+}
+export const [login, setLogin_] = createSignal(localStorage.getItem("login") as Login|null)
+export function setLogin(l: Login) {
+  localStorage.setItem("login", JSON.stringify(l))
+  setLogin_(l)
+}
+
 export const DocumentContext = createContext<SiteDocument>();
 export const SitePageContext = createContext<SitePage>();
 export const UserContext = createContext<UserSettings>();
@@ -202,7 +212,6 @@ export async function getUser(id: string): Promise<UserSettings> {
       "map",
       "db",
       "pindb",
-
     ],
     alert: standardAlerts,
     pindm: [],

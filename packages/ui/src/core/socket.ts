@@ -231,6 +231,7 @@ export async function initWs(url: string) {
         ws_ = new Ws(url)
         await ws_.connect()
         setOnline(true)
+        console.log("connected")
     } catch (e) {
         console.log("initWs", e)
         setOnline(false)

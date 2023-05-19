@@ -34,7 +34,7 @@ export const InlineButton: Component<ButtonProps> = (props) => {
   return <button {...props} class={`text-indigo-600 hover:text-blue-500 hover:underline ${props.class}`}>{props.children}</button>
 }
 export const Ab: Component<AnchorProps> = (props) => {
-  return <Ar {...props} class={`dark:text-blue-400 text-blue-700 hover:text-blue-500 hover:underline ${props.class}`} href={props.href}>{props.children}</Ar>
+  return <Ar {...props} class={`${props.class} dark:text-blue-400 text-blue-700 hover:text-blue-500 hover:underline ${props.class}`} href={props.href}>{props.children}</Ar>
 }
 export const Bb: Component<ButtonProps> = (props) => {
   return <button {...props} class={`dark:text-blue-400 text-blue-700 hover:text-blue-500 hover:underline ${props.class}`} onClick={props.onClick}>{props.children}</button>

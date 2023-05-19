@@ -19,7 +19,7 @@ export function ChatViewer() {
         chats.push({
             text: faker.lorem.paragraph(),
             avatarUrl: "https://avatars.githubusercontent.com/u/1000000?s=60&v=4",
-            user: faker.name.fullName(),
+            user: faker.person.fullName(),
             date: faker.date.recent().toLocaleDateString(),
         },
         )

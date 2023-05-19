@@ -42,6 +42,7 @@ const RTL = {
     dir: "rtl" as JSX.HTMLAttributes<HTMLHtmlElement>['dir'],
 }
 const en = {
+    ln: "en",
     ...LTR,
     signin: "Sign in",
     register: "Create account",
@@ -76,7 +77,7 @@ const en = {
     changeLoginSettings: "Change login settings",
     welcomeback: "Welcome back!",
     help: "Get Help",
-    ifnew: "Start 14 Day free trial!",
+    ifnew: "Not a member? it's free and private.  😎",
     "passkey": "Passkey",
     "passkeyp": "Passkey and Password",
     "totp": "Time Code",
@@ -93,6 +94,7 @@ const en = {
 type Ln = typeof en
 const es: Ln = {
     ...en,
+    ln: "es",
     signin: "accceso",
 
     username: "nombre de usuario",
@@ -105,6 +107,7 @@ const es: Ln = {
 const iw: Ln = {
     ...en,
     ...RTL,
+    ln: "iw",
     signin: "התחברות",
     username: "שם משתמש",
     password: "סיסמה",
@@ -130,11 +133,10 @@ const allLn: { [key: string]: Ln } = {
 }
 
 export const useLn = (): () => Ln => {
-    //const p = useParams<{ ln: string }>();
     const loc = useLocation()
-
+    console.log('loc', loc)
     return () => {
-        const ln = loc.pathname.split('/')[2]
+        const ln = loc.pathname.split('/')[1]
         return allLn[ln] ?? allLn['en']
     }
 }

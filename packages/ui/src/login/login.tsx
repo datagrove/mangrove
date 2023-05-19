@@ -114,8 +114,8 @@ export const LoginPage: Component<LoginProps> = (props) => {
     }
     return <SimplePage>
         <H2 class='mb-2'>{ln().signin}</H2>
-        <P class='mb-4'>{ln().welcomeback}
-       </P>
+        <P class='hidden mb-4'>{ln().welcomeback}</P>
+        <Ab class='block mt-2 mb-3' href='../register'>{ln().ifnew}</Ab>
         <Login {...props} finishLogin={finishLogin} />
     </SimplePage>
 }
@@ -266,7 +266,7 @@ export const Login: Component<LoginProps2> = (props) => {
                     <TextDivider>{ln().continueWith}</TextDivider>
                     <LoginWith />
                 </form>
-                <div class="flex mt-4"><Spc />
+                <div class="hidden mt-4"><Spc />
                 <Ab href='../register'>{ln().ifnew}</Ab>
                         <Spc /></div>
                 </Match>

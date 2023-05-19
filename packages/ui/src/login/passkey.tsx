@@ -15,7 +15,7 @@ import { SimplePage } from "./simplepage";
 
 const [crox, setCrox] = createSignal<any>(null)
 // this blocks a promise waiting for the user to offer a passkey
-export let abortController: AbortController
+export let abortController: AbortController = new AbortController
 
 //if password is empty, then this is for a new
 // const register = async (user: string, password: string) => {
