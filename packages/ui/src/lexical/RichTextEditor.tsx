@@ -24,7 +24,7 @@ import { sparkles, ellipsisHorizontal as menu, check, arrowUturnLeft as undo, ar
 //import { EmojiNode } from "./nodes/EmojiNode";
 //import EmoticonPlugin from "./plugins/EmoticonPlugin";
 
-import { createResource } from "solid-js";
+import { createEffect, createResource } from "solid-js";
 
 
 import { pencil } from "solid-heroicons/solid";
@@ -120,6 +120,13 @@ export interface RteProps {
 
 }
 export default function RichTextEditor(props: RteProps) {
+  const nav = useNavigate()
+  const doc = useDocument()
+  const [h] = createResource(doc, readAll)
+
+  const onedit = () => {
+    nav('')
+  }
 
   return (
     <LexicalComposer initialConfig={editorConfig}>
@@ -139,7 +146,8 @@ export default function RichTextEditor(props: RteProps) {
         <div class="editor-inner w-full h-full">
 
           <RichTextPlugin
-            contentEditable={<ContentEditable class="editor-input" />}
+
+            contentEditable={<ContentEditable class="editor-input" ></ContentEditable>}
             placeholder={<div class='absolute hidden top-4 left-4 text-neutral-500'>Enter some plain text...</div>}
             errorBoundary={LexicalErrorBoundary}
           />
@@ -157,3 +165,36 @@ export default function RichTextEditor(props: RteProps) {
   );
 }
 //   <ToolbarPlugin />
+
+
+import { useLexicalComposerContext } from './lexical-solid/LexicalComposerContext';
+import { debounce } from "../core/rpc";
+
+
+type LocalStoragePluginProps = {
+  namespace: string;
+};
+
+export function LocalStoragePlugin({ namespace }: LocalStoragePluginProps) {
+  const [editor] = useLexicalComposerContext();
+
+  const saveContent =
+    (content: string) => {
+      localStorage.setItem(namespace, content);
+    }
+  const debouncedSaveContent = debounce(saveContent, 500);
+
+  createEffect(() => {
+    return editor.registerUpdateListener(
+      ({ editorState, dirtyElements, dirtyLeaves }) => {
+        // Don't update if nothing changed
+        if (dirtyElements.size === 0 && dirtyLeaves.size === 0) return;
+
+        const serializedState = JSON.stringify(editorState);
+        debouncedSaveContent(serializedState);
+      }
+    );
+  }, [debouncedSaveContent, editor]);
+
+  return null;
+}
