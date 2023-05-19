@@ -1,7 +1,8 @@
-import { JSXElement, createContext, useContext } from "solid-js"
+import { JSXElement, createContext, createSignal, useContext } from "solid-js"
 import { orgsite } from "./site_menu_test";
 import { createStore } from "solid-js/store";
 
+export const [online, setOnline] = createSignal(true)
 export const DocumentContext = createContext<SiteDocument>();
 export const SitePageContext = createContext<SitePage>();
 export const UserContext = createContext<UserSettings>();
@@ -43,7 +44,8 @@ export interface Tool {
   global?: boolean  // a global tool does not have a path
   icon: () => JSXElement
   component: () => JSXElement
-  path: string  // pick a viewer the first time the tool is used, after that restore state for that tool (url)
+  path: string
+  viewer?: () => JSXElement// pick a viewer the first time the tool is used, after that restore state for that tool (url)
 }
 
 export type Viewer = {
