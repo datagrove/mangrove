@@ -40,6 +40,7 @@ export interface Caps {
 }
 
 export interface Tool {
+  global?: boolean  // a global tool does not have a path
   icon: () => JSXElement
   component: () => JSXElement
   path: string  // pick a viewer the first time the tool is used, after that restore state for that tool (url)
@@ -193,10 +194,13 @@ export async function getUser(id: string): Promise<UserSettings> {
       "dm",
       "menu",
       "ai",
+      "account", // setting is similar to home database
       "search",
       "history",
+      "map",
+      "db",
       "pindb",
-      "settings", // setting is similar to home database
+
     ],
     alert: standardAlerts,
     pindm: [],

@@ -1,8 +1,8 @@
 
 
-import { For, JSXElement, Match, Show, Suspense, Switch, createResource, createSignal } from "solid-js";
+import { For, JSXElement, Match, Show, Suspense, Switch, createMemo, createResource, createSignal } from "solid-js";
 import { createWs } from "../core/socket";
-import { useLocation, useNavigate } from "@solidjs/router";
+import { A, useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
 import { SiteMenuContent } from "./site_menu";
@@ -19,6 +19,7 @@ import { Settings } from "./settings";
 import { Message } from "./message";
 import { DocumentContext, Graphic, SiteDocumentRef, SitePage, SitePageContext, SiteRef, Tool, Viewer, getDocument, useUser } from "../core";
 import { TextEditor, TextViewer } from "../lexical/RichTextEditor";
+import { memo } from "solid-js/web";
 
 // every command calls setOut(false)? should this be in the hash?
 // that way every navigation potentially closes it.
@@ -42,7 +43,7 @@ type ViewerMap = {
 const builtinViewers: ViewerMap = {
   "folder": { default: () => <FolderViewer /> },
   "text": { default: () => <TextViewer /> },
-  "text-#edit": { default: () => <TextEditor /> },
+  "text-edit": { default: () => <TextEditor /> },
   "chat": { default: () => <ChatViewer /> },
   "settings": { default: () => <SettingsViewer /> },
   "whiteboard": { default: () => <WhiteboardViewer /> },
@@ -59,7 +60,8 @@ const builtinViewers: ViewerMap = {
 
 // history is not the same as find because find is sticky and remembers the current search, previous searches etc.
 // thin out the icons, these should be sharable anyway
-const notTools = {
+
+const builtinTools: { [key: string]: Tool } = {
   "db": {
     icon: () => <FloatIcon path={dbicon} />,
     component: () => <SiteMenuContent />,
@@ -70,9 +72,6 @@ const notTools = {
     component: () => <SiteMenuContent />,
     path: 'a/b/text'
   },
-}
-
-const builtinTools: { [key: string]: Tool } = {
   "ai": {
     icon: () => <FloatIcon path={sparkles} />,
     component: () => <Message />,
@@ -84,7 +83,12 @@ const builtinTools: { [key: string]: Tool } = {
     component: () => <Message />,
     path: 'a/b/chat'
   },
-
+  "alert": {
+    icon: () => <FloatIcon path={friend} />,
+    component: () => <Message />,
+    path: 'a/b/chat',
+    global: true
+  },
   "history": {
     icon: () => <FloatIcon path={history} />,
     component: () => <History />,
@@ -97,7 +101,7 @@ const builtinTools: { [key: string]: Tool } = {
     path: 'a/b/text'
   },
 
-  "settings": {
+  "account": {
     icon: () => <FloatIcon path={avatar} />,
     component: () => <Settings />,
     path: 'a/b/form',
@@ -156,21 +160,40 @@ export function LoggedIn() {
     return
   }
 
-
-  const purl = () => {
+  const purl = createMemo(() => {
+    const [err, setErr] = createSignal<Error>()
     const p = loc.pathname.split("/")
     const h = loc.hash.split("/")
+    h[0] = h[0].slice(1)
     // owner / ln / branch / db  / viewpath  
-    return {
+    let toolp = p[2].split("-")
+    let tool = toolp[0]
+    let toolindex = toolp[1]??0
+    let ft = tools()[tool]
+    let glb = ft?.global??false
+    if (!ft) {
+      tool = "menu"
+      ft = tools()[tool]
+      console.log("bad tool", p[2])
+    } 
+    
+    const r= {
       ln: p[1],
-      toolname: p[2] ?? "menu",
+      toolname: p[2] , // this includes the index.
       owner: [3] ?? "",
       site: p[4] ?? "home",
       viewer: h[0] ?? "",
       flyout: h[1] ?? "",
-      path: p.slice(5).join("/")
+      path: p.slice(5).join("/"),
+      global: glb,
+      toolpath: p.slice(3).join("/"),
+      allpath: loc.pathname,  // use to add hash modifiers
+      toolindex: toolindex,
+      tool: ft
     }
-  }
+    console.log("purl",r)
+    return r
+  })
   // the sitePage is derived from the location. maybe memo it? 
   const siteRef = (): SiteRef => {
     return {
@@ -195,8 +218,6 @@ export function LoggedIn() {
     }
   }
 
-  //const [sitePage, setSitePage] = createSignal<SitePage>()
-  const [err, setErr] = createSignal<Error>()
   const [doc] = createResource(page(), getDocument)
 
 
@@ -207,30 +228,35 @@ export function LoggedIn() {
   }
 
   const nav = (path: string) => {
-    const u = new URL(loc.pathname)
-    if (u.hash) {
-      u.hash += "/y"
-    } else {
-      u.hash = "#//y"
-    }
-    onav(path)
+    const p = loc.hash.split("/")
+    const h = (p[0].length?"":"#") + "/y"
+    onav(path+h)
   }
   // how do we display counters? how do we update them?
   // when does clicking a tool change the viewer? always?
-  const setActiveTool = (name: string) => {
-    const p = loc.pathname.split("/")[1]
-    const tl = tools()[name]
-    const pth = "/" + p + "/" + name + "/" + tl.path //+ loc.pathname.split("/").slice(3).join("/")
-    console.log("path", name, pth)
-    nav(pth)
-  }
-
-
 
   const [left_, setLeft] = createSignal(350)
 
+  const count = (i: number) => { return i==1?2:0}
 
-  const ml = (e: string) => e == sitePage()?.toolname ? "border-white" : "border-transparent"
+  const setActiveTool = (toolname: string) => {
+    const p = loc.pathname.split("/")
+    const pth = "/"+ p[1] + "/" + toolname + "/" +  p.slice(3).join("/") + "#/y"
+    console.log("setActiveTool", toolname, p,  pth)
+    return pth 
+  }
+  const Seldiv = (props: {
+    children: JSXElement, 
+    href: string}) => {
+      const toolname = ()=>props.href.split("/")[2]
+    const sel = ()=>toolname() == sitePage()?.toolname
+    return <A href={props.href} class={`border-l-2 ${sel() ? "border-white" : "border-transparent"} h-8 w-12  text-center`}>
+      {props.children}
+    </A>
+  }
+
+  const bl = (fl: boolean) => fl ? "border-white" : "border-transparent"
+  const ml = (e: string) => bl(e == sitePage()?.toolname)
   const Toolicons = () => {
     return <div class='w-14 flex-col flex mt-4 items-center space-y-6'>
 
@@ -241,9 +267,9 @@ export function LoggedIn() {
             <For each={user.alert}>
               {(e, i) => {
                 // show avatar if available
-                return <GraphicIcon count={i()} graphic={e.icon} color={e.color} onClick={() => nav("/" + e)} />
-              }
-              }
+                let href = setActiveTool("alert-" + i())
+                return <Seldiv href={href} ><GraphicIcon class={bl(true)} count={count(i())} graphic={e.icon} color={e.color} onClick={() => nav(href)} /></Seldiv>
+              }}
             </For>
           </Match>
           <Match when={e == "pindb"}>
@@ -263,8 +289,7 @@ export function LoggedIn() {
           </Match>
           <Match when={true}>
             <Show when={tl} fallback={<div>{e}</div>}>
-              <div class={`border-l-2 ${ml(e)} h-8 w-12  text-center`}><button class='block ml-2' onClick={() => setActiveTool(e)}>{tl.icon()}</button>
-              </div>
+              <Seldiv href={ setActiveTool(e) }>{tl.icon()}</Seldiv>
             </Show>
           </Match>
         </Switch>
@@ -277,6 +302,7 @@ export function LoggedIn() {
   const windowSize = createWindowSize();
 
 
+
   const left = () => {
     if (windowSize.width < 640) {
       return sitePage().flyout ? windowSize.width  : 56
@@ -285,7 +311,7 @@ export function LoggedIn() {
 
   // we also need to understand the document type here.
   // 
-  const toolpane = () => sitePage()?.toolname ? tools()[sitePage()?.toolname].component() : <div>no tool</div>
+
 
 
   const viewer = (doctype?: string): () => JSXElement => {
@@ -314,8 +340,8 @@ export function LoggedIn() {
       window.addEventListener("mousemove", move)
       window.addEventListener("mouseup", up)
     }
-    return <div class={`fixed  bottom-4 w-4 cursor-col-resize`} style={{
-      left: left() +8 + "px",
+    return <div class={`fixed p-2  bg-neutral-900 rounded-tr-full rounded-br-full bottom-4 w-10 cursor-col-resize`} style={{
+      left: left()  + "px",
       "z-index": '900'
     }} onMouseDown={mousedown}>
       <Icon path={eastWest} class='h-6 w-6 text-neutral-500'/></div>
@@ -337,10 +363,8 @@ export function LoggedIn() {
                 bottom: "0px",
               }}
             >
-            <Suspense fallback={<div>waiting</div>}>
-            
-              {toolpane()}
-
+            <Suspense fallback={<div>waiting</div>}>            
+              {purl().tool.component()}
             </Suspense>
             
 
@@ -392,11 +416,11 @@ export function Svg (props: {src: string}) {
 
 export function GraphicIcon(props: IconProps) {
   return <button onClick={props.onClick}>
-    <div class='relative'>
+    <div class={'relative ' + props.class??""}>
       <div class='w-6 h-6 '>
         <Svg src={props.graphic.src}></Svg>
         </div>
-        <span class="absolute right-0 top-0 block h-2.5 w-2.5 rounded-full bg-green-400 ring-2 ring-white"></span>
+        <Show when={props.count??0>0}><span class="absolute right-0 top-0 block h-2.5 w-2.5 rounded-full bg-green-400 ring-2 ring-white"></span></Show>
     </div></button>
 }
 export function FloatIcon(props: { path: IconPath, onClick?: () => void }) {
