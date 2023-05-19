@@ -1,11 +1,10 @@
 
 
 import { Collapsible, NavItem } from "./site_menu_section";
-import { createSignal, Show, For, Component, createEffect, Signal, createResource } from "solid-js";
-import { orgsite } from "./site_menu_test";
+import { createSignal, Show, For, Component, createEffect, Signal, createResource, Suspense } from "solid-js";
 import { useLocation, Location, useParams } from "../core/dg";
-import { MenuEntry, SiteDocumentRef, SiteRef, Sitemap, getSitemap, usePage } from "./store";
 import { Ab } from "../layout/nav";
+import { MenuEntry, getSitemap, usePage } from "../core";
 
 
 
@@ -72,23 +71,24 @@ export const SiteMenuContent: Component<{}> = (props) => {
   const [sitemap] = createResource(st.doc.site, getSitemap)
   const [edit, setEdit] = createSignal(false)
 
-  return <div class='transform h-full flex-1 '>
-    <div class='pb-16 pt-2 px-2'>
-      <div class='flex items-center'>
-        <div class='flex-1 '><SegmentSwitch segments={opt} signal={[edit, setEdit]} /></div>
-      </div>
-      <Show when={edit()} fallback={
-        <div class='mt-4'>
-          <SitePicker />
-          <SectionNav tabs={sitemap()!.menu} />
+  return <Suspense fallback={<div>Loading</div>}> <Show when={sitemap()}>
+    <div class='transform h-full flex-1 '>
+      <div class='pb-16 pt-2 px-2'>
+        <div class='flex items-center'>
+          <div class='flex-1 '><SegmentSwitch segments={opt} signal={[edit, setEdit]} /></div>
         </div>
-      }>
-        <div class='mt-4'>
-          <SitePicker />
-          <SectionNav tabs={editSection} />
-        </div>
-      </Show>
-    </div></div>
+        <Show when={edit()} fallback={
+          <div class='mt-4'>
+            <SitePicker />
+            <SectionNav tabs={sitemap()!.menu} />
+          </div>
+        }>
+          <div class='mt-4'>
+            <SitePicker />
+            <SectionNav tabs={editSection} />
+          </div>
+        </Show>
+      </div></div></Show></Suspense>
 }
 
 // {/* <SitePreference page={pd()!} />

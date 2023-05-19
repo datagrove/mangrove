@@ -20,3 +20,37 @@ import { createStore } from "solid-js/store"
 // we can probably restore these fastest from a shared worker
 
 // nested reactivity?
+export interface UserSettings {
+  tools: string[]
+  pindm: string[]
+  pindb: string[]
+  recentdb: string[]
+}
+
+export const anon: UserSettings = {
+  tools: [
+    "menu",
+    "search",
+    "dm",
+
+    "pindm",
+    "pindb",
+    "settings", // setting is similar to home database
+  ],
+  pindm: [],
+  pindb: [],
+  recentdb: []
+}
+
+export interface UserState {
+  settings: UserSettings,
+  counters: {
+    [key: string]: number
+  }
+}
+const userState: UserState = {
+  settings: anon,
+  counters: {}
+}
+// user becomes a proxy, every field of user is reactive
+export const [user, setUser] = createStore<UserState>(userState)

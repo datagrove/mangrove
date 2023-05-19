@@ -1,25 +1,24 @@
 
 
-import { For, JSXElement, Match, Show, Suspense, Switch, createContext, createEffect, createResource, createSignal, useContext } from "solid-js";
+import { For, JSXElement, Match, Show, Suspense, Switch, createResource, createSignal } from "solid-js";
 import { createWs } from "../core/socket";
 import { useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
 import { SiteMenuContent } from "./site_menu";
 import { Icon, } from "solid-heroicons";
-import { clock, pencil, bookOpen as menu, squaresPlus as add, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass } from "solid-heroicons/solid";
-import { Maybe } from "../core";
-import { TextEditor, TextViewer } from './viewer/text'
+import { clock, pencil, bookOpen as menu, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass } from "solid-heroicons/solid";
 import { ChatViewer, CodeViewer, SheetViewer, WhiteboardViewer } from "./viewer";
 import { SettingsViewer } from "./viewer/settings";
 import { FolderViewer } from "./viewer/folder";
 import { Splitter } from "../layout/splitter";
 import { DarkButton } from "../lib";
-import { Viewer, Tool, SitePage, SiteRef, SiteDocumentRef, getDocument, UserState, UserSettings, UserContext, getUser, useUser, DocumentContext, SitePageContext } from "./store";
 import { createWindowSize } from "@solid-primitives/resize-observer";
 import { SearchPanel } from "./search";
 import { Settings } from "./settings";
 import { Message } from "./message";
+import { DocumentContext, SiteDocumentRef, SitePage, SitePageContext, SiteRef, Tool, Viewer, getDocument, useUser } from "../core";
+import { TextEditor, TextViewer } from "../lexical/RichTextEditor";
 
 
 // tools don't all need a site, but most do
@@ -36,7 +35,7 @@ type ViewerMap = {
 const builtinViewers: ViewerMap = {
   "folder": { default: () => <FolderViewer /> },
   "text": { default: () => <TextViewer /> },
-  "text-edit": { default: () => <TextEditor /> },
+  "text-#edit": { default: () => <TextEditor /> },
   "chat": { default: () => <ChatViewer /> },
   "settings": { default: () => <SettingsViewer /> },
   "whiteboard": { default: () => <WhiteboardViewer /> },
@@ -90,44 +89,31 @@ export function PinnedTool() {
   </span>
 }
 
-export function UserProvider(props: { children: JSXElement }) {
-  const anon: UserSettings = {
-    tools: [
-      "menu",
-      "search",
-      "dm",
 
-      "pindm",
-      "pindb",
-      "settings", // setting is similar to home database
-    ],
-    pindm: [],
-    pindb: [],
-    recentdb: []
-  }
-  const userState: UserState = {
-    settings: anon,
-    counters: {}
-  }
+// const userState: UserState = {
+//   settings: anon,
+//   counters: {}
+// }
 
-  const [user] = createResource(getUser)
-  return <Suspense fallback={<div>Logging in</div>}>
-    <UserContext.Provider value={user()}>
-      <Main />
-    </UserContext.Provider>
-  </Suspense>
+export function XX() {
+  const u = useUser()
+  return <div>{JSON.stringify(u)}</div>
 }
+export function LoggedIn() {
+  const user = useUser()
+  console.log("user", user)
 
-export function Main() {
   const ws = createWs()
   const ln = useLn()
   const nav = useNavigate()
   const loc = useLocation()
-  const user = useUser()
+
+
   if (!user) {
-    nav("/login")
+    console.log("no user")
     return
   }
+
 
   const purl = () => {
     const p = loc.pathname.split("/")
@@ -161,6 +147,7 @@ export function Main() {
       toolname: purl().toolname,
     }
   }
+
   //const [sitePage, setSitePage] = createSignal<SitePage>()
   const [err, setErr] = createSignal<Error>()
   const [doc] = createResource(page(), getDocument)
@@ -187,11 +174,11 @@ export function Main() {
   const Toolicons = () => {
     return <div class='w-14 flex-col flex mt-4 items-center space-y-6'>
 
-      <For each={user.settings.tools}>{(e, i) => {
+      <For each={user.tools}>{(e, i) => {
         const tl = tools()[e]
         return <Switch>
           <Match when={e == "pindm"}>
-            <For each={user.settings.pindm}>
+            <For each={user.pindm}>
               {(e, i) => {
                 // show avatar if available
                 return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
@@ -200,7 +187,7 @@ export function Main() {
             </For>
           </Match>
           <Match when={e == "pindb"}>
-            <For each={user.settings.pindb}>{(e, i) => {
+            <For each={user.pindb}>{(e, i) => {
               // use database icon if available     
               return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
             }
@@ -208,7 +195,7 @@ export function Main() {
             </For>
           </Match>
           <Match when={e == "recentdb"}>
-            <For each={user.settings.recentdb}>{(e, i) => {
+            <For each={user.recentdb}>{(e, i) => {
               // use database icon if available
               return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
             }}
@@ -241,18 +228,18 @@ export function Main() {
     if (!vt) return () => <div>no viewer {vn}</div>
     return vt.default
   }
-
+  //return <div>{JSON.stringify(user)}</div>
   const [left, setLeft] = createSignal(400)
-  return <Show when={sitePage()} >
+  return <SitePageContext.Provider value={sitePage()}><Show when={sitePage()} >
     <div class='flex h-screen w-screen fixed overflow-hidden'>
       <Splitter left={left} setLeft={setLeft}>
         <div class='flex flex-1'>
           <Toolicons />
           <div class=' flex-1 overflow-auto dark:bg-gradient-to-r dark:from-black dark:to-neutral-900'>
             <Suspense fallback={<div>waiting</div>}>
-              <SitePageContext.Provider value={sitePage()}>
-                {toolpane()}
-              </SitePageContext.Provider>
+
+              {toolpane()}
+
             </Suspense>
           </div>
         </div>
@@ -263,15 +250,15 @@ export function Main() {
           bottom: "0px"
         }}>
           <Suspense fallback={<div>Loading document</div>}>
-            <DocumentContext.Provider value={doc()!}>
-              {viewer(doc()?.type)()}
-            </DocumentContext.Provider>
+            <Show when={doc()}><DocumentContext.Provider value={doc()}>
+              {viewer(doc()!.type)()}
+            </DocumentContext.Provider></Show>
           </Suspense>
           <InfoBox />
         </div>
       </Splitter>
     </div>
-  </Show>
+  </Show></SitePageContext.Provider>
 
 }
 

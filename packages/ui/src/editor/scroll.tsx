@@ -207,14 +207,14 @@ export class Scroller {
         return r
     }
     rowDiv(): HTMLDivElement {
-        const r = document.createElement('div') 
+        const r = document.createElement('div')
         this.scroller_.append(r)
         r.style.display = 'flex'
         r.style.position = 'absolute'
 
         if (this.props.column) {
             const v = this.props.column.header
-            for (let i=0; i<v.length; i++) {
+            for (let i = 0; i < v.length; i++) {
                 const c = document.createElement('div') as HTMLElement
                 c.style.display = 'block'
                 //c.style.position = 'absolute'
@@ -233,8 +233,8 @@ export class Scroller {
     get rows() { return this.props.row?.count || 0 }
     builder(ctx: TableContext, row: number) {
         ctx.row = row
-        console.log("build", ctx, row)
-        if (row < 0 || row >= this.rows ) {
+        //console.log("build", ctx, row)
+        if (row < 0 || row >= this.rows) {
             // cache this? get from callback?
             ctx.old.node.style.display = 'none'
             console.log("hide", row, this.rows, ctx)
@@ -242,7 +242,7 @@ export class Scroller {
             ctx.old.node.style.display = 'flex'
             if (this.props.column) {
                 const v = this.props.column.header
-                for (let i=0; i<v.length; i++) {
+                for (let i = 0; i < v.length; i++) {
                     ctx.column = v[i]
                     ctx.offset = i
                     this.props.builder(ctx)
@@ -275,7 +275,7 @@ export class Scroller {
         this.scrollRunway_ = d
         if (this.props.column) {
             const r = this.rowDiv()
-            r.style.position  = 'fixed'
+            r.style.position = 'fixed'
             r.style.top = '0px'
             r.style.backgroundColor = 'black'
             r.style.zIndex = '800'
@@ -288,14 +288,14 @@ export class Scroller {
             let h = 0
             for (let i in this.props.column.header) {
                 let v = this.props.column.header[i]
-                const nd = this.headerRow.children[i]  as HTMLDivElement
+                const nd = this.headerRow.children[i] as HTMLDivElement
                 nd.style.width = v.width + 'px'
                 nd.style.position = 'static' // static for measurement.
                 nd.innerHTML = v.html
             }
             this.headerHeight = this.headerRow.offsetHeight
         } else {
-          
+
 
         }
 
@@ -333,7 +333,7 @@ export class Scroller {
             let b = this.rendered_.length
             for (; b < target; b++) {
                 ctx.old = new TableRow(this.rowDiv())
-                this.builder(ctx,b)
+                this.builder(ctx, b)
                 let i = {
                     node: new Map<number, HTMLElement>(),
                     height: 0,
@@ -375,7 +375,7 @@ export class Scroller {
         console.log('size', { ...this.anchorItem, top: this.scroller_.scrollTop, st: this.rendered_start, h: this.estHeight_ })
         console.log('resize', this.anchorScrollTop, this.anchorItem.index, this.anchorItem.offset)
     }
-    repositionAll() {    
+    repositionAll() {
         let pos = this.anchorScrollTop - this.heightAbove
         for (let o of this.rendered_) {
             o.top = pos
@@ -523,7 +523,7 @@ export class Scroller {
         for (let k = b; k < e; k++) {
             ctx.old = this.rendered_[k];
             //o.data = this.snap_.get(rendered_start + k)
-            this.builder(ctx,k)
+            this.builder(ctx, k)
             this.measure(ctx.old)
             // maybe we should have both a tombstone and a div, then we can animate between them? this would keep things from jumping around? size transition as well opacity?
         }

@@ -2,10 +2,9 @@
 
 // this is the structure of an org site as seen by the owner
 
-import { MenuDefinition } from "./store";
 
 // most of this needs to get built from a database. it should work offline and get synced
-export const orgsite: MenuDefinition = {
+export const orgsite = {
   "title": "Anonymous",
   "href": "",
   "root": {

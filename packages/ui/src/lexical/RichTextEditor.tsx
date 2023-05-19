@@ -20,11 +20,47 @@ import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 import { LexicalErrorBoundary } from "./lexical-solid/LexicalErrorBoundary";
 import { TextMenu } from "./menu";
 import { Icon } from "solid-heroicons";
-import { sparkles, ellipsisHorizontal as menu, check, arrowUturnLeft as undo, arrowUturnRight as redo, plus,  } from "solid-heroicons/solid";
+import { sparkles, ellipsisHorizontal as menu, check, arrowUturnLeft as undo, arrowUturnRight as redo, plus, } from "solid-heroicons/solid";
 //import { EmojiNode } from "./nodes/EmojiNode";
 //import EmoticonPlugin from "./plugins/EmoticonPlugin";
 
+import { createResource } from "solid-js";
 
+
+import { pencil } from "solid-heroicons/solid";
+import { useNavigate } from "@solidjs/router";
+import { SiteDocument, useDocument } from "../core";
+
+
+// we can use hash to see if we should show readonly or editable
+// and potentially use multiple available editors "open with"
+export function TextEditor() {
+
+  return <RichTextEditor />
+}
+
+// resolved into dataurls? I'd rather not
+async function readAll(doc: SiteDocument): Promise<string> {
+  await new Promise(r => setTimeout(r, 2000));
+  return "hello, world"
+}
+
+// note that as html / markdown we'll have to resolve links relative to the doc
+export function TextViewer() {
+  const nav = useNavigate()
+  const doc = useDocument()
+  const [h] = createResource(doc, readAll)
+
+  const onedit = () => {
+    nav('#edit')
+  }
+  // we may still have to wait here; we might get the type of the document but now need to read the rest of the document
+  // or some large piece of it.
+  return <div><div innerHTML={h()} />
+    <button onClick={onedit} class='z-60 fixed p-2 bottom-2 right-2 rounded-full text-blue-700 hover:text-blue-500'><Icon class='h-6 w-6' path={pencil} /></button>
+
+  </div>
+}
 
 // When the editor changes, you can get notified via the
 // LexicalOnChangePlugin!
@@ -66,36 +102,38 @@ const editorConfig = {
   ] as any,
 };
 
-function Toolbar() {
-  return <div class='w-full h-8 dark: bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
-    <Icon class='h-6 w-6' path={check}/>
-    <div class='flex-1 '></div>
-    <div class='space-x-4 flex mr-2'>
-    <Icon class='h-6 w-6' path={undo}/>
-    <Icon class='h-6 w-6' path={redo}/>
-    <Icon class='h-6 w-6' path={plus}/>
-    <Icon class='h-6 w-6' path={sparkles}/>
-    <Icon class='h-6 w-6' path={menu}/></div>
-    </div>
-}
-function Bottom() {
-  return <div class='w-full h-8 dark: bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
-    <Icon class='h-6 w-6' path={check}/>
-    <div class='flex-1 '></div>
-    <div class='space-x-4 flex mr-2'>
-    <Icon class='h-6 w-6' path={undo}/>
-    <Icon class='h-6 w-6' path={redo}/>
-    <Icon class='h-6 w-6' path={plus}/>
-    <Icon class='h-6 w-6' path={sparkles}/>
-    <Icon class='h-6 w-6' path={menu}/></div>
-    </div>
-}
 
-export default function RichTextEditor() {
+function Bottom() {
+  return <div class='w-full h-8 dark:bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
+    <Icon class='h-6 w-6' path={check} />
+    <div class='flex-1 '></div>
+    <div class='space-x-4 flex mr-2'>
+      <Icon class='h-6 w-6' path={undo} />
+      <Icon class='h-6 w-6' path={redo} />
+      <Icon class='h-6 w-6' path={plus} />
+      <Icon class='h-6 w-6' path={sparkles} />
+      <Icon class='h-6 w-6' path={menu} /></div>
+  </div>
+}
+export interface RteProps {
+
+
+}
+export default function RichTextEditor(props: RteProps) {
+
   return (
     <LexicalComposer initialConfig={editorConfig}>
       <div class="editor-container w-full h-full">
-        <Toolbar/>
+        <div class='w-full h-8 dark:bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
+          <Icon class='h-6 w-6' path={check} />
+          <div class='flex-1 '></div>
+          <div class='space-x-4 flex mr-2'>
+            <Icon class='h-6 w-6' path={undo} />
+            <Icon class='h-6 w-6' path={redo} />
+            <Icon class='h-6 w-6' path={plus} />
+            <Icon class='h-6 w-6' path={sparkles} />
+            <Icon class='h-6 w-6' path={menu} /></div>
+        </div>
         <TextMenu />
 
         <div class="editor-inner w-full h-full">
@@ -113,7 +151,7 @@ export default function RichTextEditor() {
           <AutoFocusPlugin />
           <CodeHighlightPlugin />
         </div>
-        <Bottom/>
+        <Bottom />
       </div>
     </LexicalComposer>
   );

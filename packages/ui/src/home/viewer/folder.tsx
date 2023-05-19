@@ -2,8 +2,9 @@ import { faker } from '@faker-js/faker'
 import { BuilderFn, Column, enableColumnResizing, EstimatorFn, Scroller, ScrollerProps, TableContext } from '../../editor/scroll'
 import { createEffect, onCleanup, createSignal, onMount, JSXElement } from 'solid-js'
 import { CellOptions } from '../../db/client'
-import { createQuery, QueryResult } from './db'
-import { usePage } from '../store'
+import { createQuery, QueryResult } from '../../db'
+import { usePage } from '../../core/store'
+
 
 const redFrame = "border-solid border-2 border-red-500"
 const greenFrame = "border-solid border-2 border-green-500"

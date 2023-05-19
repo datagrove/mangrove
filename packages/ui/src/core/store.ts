@@ -4,7 +4,7 @@ import { createStore } from "solid-js/store";
 
 export const DocumentContext = createContext<SiteDocument>();
 export const SitePageContext = createContext<SitePage>();
-export const UserContext = createContext<UserState>();
+export const UserContext = createContext<UserSettings>();
 export function useUser() { return useContext(UserContext) }
 
 export function useDocument(): SiteDocument {
@@ -103,33 +103,44 @@ export interface UserSettings {
   pindm: string[]
   pindb: string[]
   recentdb: string[]
-}
-
-
-
-export interface UserState {
-  settings: UserSettings,
   counters: {
     [key: string]: number
   }
 }
 
+
+
+// export interface UserState {
+//   settings: UserSettings,
+//   counters: {
+//     [key: string]: number
+//   }
+// }
+
 // we need to get the user state before everything else, since it impacts the success of getting site and document
 // user becomes a proxy, every field of user is reactive
 
-export async function getUser(): Promise<UserState> {
+export async function getUser(id: string): Promise<UserSettings> {
+  console.log("getUser");
   return {
-    settings: {
-      tools: [],
-      pindm: [],
-      pindb: [],
-      recentdb: []
-    },
+    tools: [
+      "menu",
+      "search",
+      "dm",
+
+      "pindm",
+      "pindb",
+      "settings", // setting is similar to home database
+    ],
+    pindm: [],
+    pindb: [],
+    recentdb: [],
     counters: {
-      "datagrove": 0
+      "datagrove": 3
     }
   }
 }
+
 
 export async function getSitemap(p: SiteRef): Promise<Sitemap> {
   return {

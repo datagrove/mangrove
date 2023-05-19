@@ -1,4 +1,5 @@
 import { encode, decode } from 'cbor-x'
+import { createSignal } from 'solid-js'
 export interface Rpc<T> {
     method: string
     args: T
@@ -33,7 +34,7 @@ export interface PortLike {
     postMessage: (data: any) => void
 }
 
-export class RpcService extends Map<string, MockHandler>{}
+export class RpcService extends Map<string, MockHandler>{ }
 
 
 
@@ -56,7 +57,7 @@ export class Ws {
     ws?: WebSocket
     listen = new Map<number, (r: UpdateRow<any>[]) => void>()
     constructor(public url: string) {
-        
+
     }
     async did(): Promise<string> {
         return new Promise((resolve, reject) => {
@@ -81,7 +82,7 @@ export class Ws {
             console.log("websocket error", e)
             this.ws = undefined
         }
-        this.ws.onclose = (e) => {      
+        this.ws.onclose = (e) => {
             console.log("websocket close", e)
             this.ws = undefined
         }
@@ -223,22 +224,21 @@ export class Ws {
         }
     }
 
-    static async connect(u: string): Promise<Ws> {
-        const ws = new WebSocket(u)
 
-        return new Promise((resolve, reject) => {
-            ws.onopen = () => {
-                resolve(new Ws(u))
-            }
-        })
-    }
 }
-
+export const [online, setOnline] = createSignal(false)
 let ws_: Ws //= new Ws('ws://localhost:8088/wss')
-export function initWs(url: string) {
+export async function initWs(url: string) {
+    return
     console.log("initWs", url)
-    ws_ = new Ws(url )
-    ws_.connect()
+    try {
+        ws_ = new Ws(url)
+        await ws_.connect()
+        setOnline(true)
+    } catch (e) {
+        console.log("initWs", e)
+        setOnline(false)
+    }
 }
 export function createWs(url?: string): Ws {
     return ws_
@@ -249,6 +249,16 @@ export function addMock(method: string, fn: (arg: any) => any) {
 
 
 /*
+    static connect(u: string): Promise<Ws> {
+        const ws = new WebSocket(u)
+
+        return new Promise((resolve, reject) => {
+            ws.onopen = () => {
+                resolve(new Ws(u))
+            }
+        })
+    }
+
 export interface OrError<T> {
     error?: string
     value?: T
