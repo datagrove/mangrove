@@ -2,7 +2,7 @@ import { JSXElement, createContext, createSignal, useContext } from "solid-js"
 import { orgsite } from "./site_menu_test";
 import { createStore } from "solid-js/store";
 
-export const [online, setOnline] = createSignal(true)
+export const [online, setOnline] = createSignal(false)
 export const DocumentContext = createContext<SiteDocument>();
 export const SitePageContext = createContext<SitePage>();
 export const UserContext = createContext<UserSettings>();

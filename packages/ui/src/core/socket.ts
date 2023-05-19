@@ -1,5 +1,6 @@
 import { encode, decode } from 'cbor-x'
 import { createSignal } from 'solid-js'
+import { setOnline } from './store'
 export interface Rpc<T> {
     method: string
     args: T
@@ -70,11 +71,9 @@ export class Ws {
         })
     }
 
-    connect(): Promise<any> {
+    async connect(): Promise<any> {
         this.ws = new WebSocket(this.url)
-        if (!this.ws) {
-            throw new Error("no websocket")
-        }
+
         this.ws.onclose = (e) => {
             this.ws = undefined
         }
@@ -226,11 +225,8 @@ export class Ws {
 
 
 }
-export const [online, setOnline] = createSignal(false)
 let ws_: Ws //= new Ws('ws://localhost:8088/wss')
 export async function initWs(url: string) {
-    return
-    console.log("initWs", url)
     try {
         ws_ = new Ws(url)
         await ws_.connect()

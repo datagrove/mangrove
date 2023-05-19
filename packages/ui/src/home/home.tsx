@@ -155,8 +155,6 @@ export function LoggedIn() {
   const ln = useLn()
   const onav = useNavigate()
   const loc = useLocation()
-
-
   if (!user) {
     console.log("no user")
     return
