@@ -7,7 +7,7 @@ import { useLn } from "../login/passkey_i18n";
 
 import { SiteMenuContent } from "./site_menu";
 import { Icon, } from "solid-heroicons";
-import { clock, pencil, bookOpen as menu, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass } from "solid-heroicons/solid";
+import {  user as avatar, sparkles, circleStack as dbicon, clock as history, pencil, bookOpen as menu, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass, arrowsRightLeft as eastWest, map } from "solid-heroicons/solid";
 import { ChatViewer, CodeViewer, SheetViewer, WhiteboardViewer } from "./viewer";
 import { SettingsViewer } from "./viewer/settings";
 import { FolderViewer } from "./viewer/folder";
@@ -17,13 +17,20 @@ import { createWindowSize } from "@solid-primitives/resize-observer";
 import { SearchPanel } from "./search";
 import { Settings } from "./settings";
 import { Message } from "./message";
-import { DocumentContext, SiteDocumentRef, SitePage, SitePageContext, SiteRef, Tool, Viewer, getDocument, useUser } from "../core";
+import { DocumentContext, Graphic, SiteDocumentRef, SitePage, SitePageContext, SiteRef, Tool, Viewer, getDocument, useUser } from "../core";
 import { TextEditor, TextViewer } from "../lexical/RichTextEditor";
 
+// every command calls setOut(false)? should this be in the hash?
+// that way every navigation potentially closes it.
+// the out status doesn't matter if screen is wide enough.
+export const [isOut, setOut] = createSignal(false)
+
+// the left icons set the rest of the screen
+// map, 
 
 // tools don't all need a site, but most do
 // ln/search is valid
-// 
+// Messages can have user assigned icons and labels for as many categories as they want
 
 // viewers are selected by the document type, can be overridden by the hash
 type ViewerMap = {
@@ -50,27 +57,62 @@ const builtinViewers: ViewerMap = {
 // each has its own history? that's pretty hard on the web, and probably confusing.
 // try going the most recent url associated with the tool.
 
-const builtinTools: { [key: string]: Tool } = {
-  "menu": {
-    icon: () => <FloatIcon path={menu} />,
+// history is not the same as find because find is sticky and remembers the current search, previous searches etc.
+// thin out the icons, these should be sharable anyway
+const notTools = {
+  "db": {
+    icon: () => <FloatIcon path={dbicon} />,
     component: () => <SiteMenuContent />,
     path: 'a/b/text'
   },
+  "map": {
+    icon: () => <FloatIcon path={map} />,
+    component: () => <SiteMenuContent />,
+    path: 'a/b/text'
+  },
+}
+
+const builtinTools: { [key: string]: Tool } = {
+  "ai": {
+    icon: () => <FloatIcon path={sparkles} />,
+    component: () => <Message />,
+    path: 'a/b/text'
+  },
+  // Message component is also used for the alerts - how?
   "dm": {
     icon: () => <FloatIcon path={friend} />,
     component: () => <Message />,
     path: 'a/b/chat'
   },
+
+  "history": {
+    icon: () => <FloatIcon path={history} />,
+    component: () => <History />,
+    path: 'a/b/text'
+  },
+
+  "menu": {
+    icon: () => <FloatIcon path={menu} />,
+    component: () => <SiteMenuContent />,
+    path: 'a/b/text'
+  },
+
   "settings": {
-    icon: () => <FloatIcon path={gear} />,
+    icon: () => <FloatIcon path={avatar} />,
     component: () => <Settings />,
     path: 'a/b/form',
   },
+
   "search": {
     icon: () => <FloatIcon path={magnifyingGlass} />,
     component: () => <div><SearchPanel /></div>,
     path: 'a/b/folder'
   }
+}
+
+// there's a lot to do here
+function History() {
+  return <div>History</div>
 }
 
 // change when we install new tools? or when we change the active tool?
@@ -105,7 +147,7 @@ export function LoggedIn() {
 
   const ws = createWs()
   const ln = useLn()
-  const nav = useNavigate()
+  const onav = useNavigate()
   const loc = useLocation()
 
 
@@ -125,6 +167,7 @@ export function LoggedIn() {
       owner: [3] ?? "",
       site: p[4] ?? "home",
       viewer: h[0] ?? "",
+      flyout: h[1] ?? "",
       path: p.slice(5).join("/")
     }
   }
@@ -134,17 +177,21 @@ export function LoggedIn() {
       name: purl().site,
     }
   }
+
   const page = (): SiteDocumentRef => {
     return {
       site: siteRef(),
       path: purl().path,
+
     }
   }
+    // page is things we can get sync, no fetch
   const sitePage = (): SitePage => {
     return {
       doc: page(),
       viewer: purl().viewer,
       toolname: purl().toolname,
+      flyout: purl().flyout,
     }
   }
 
@@ -159,7 +206,15 @@ export function LoggedIn() {
     return 0
   }
 
-
+  const nav = (path: string) => {
+    const u = new URL(loc.pathname)
+    if (u.hash) {
+      u.hash += "/y"
+    } else {
+      u.hash = "#//y"
+    }
+    onav(path)
+  }
   // how do we display counters? how do we update them?
   // when does clicking a tool change the viewer? always?
   const setActiveTool = (name: string) => {
@@ -170,6 +225,11 @@ export function LoggedIn() {
     nav(pth)
   }
 
+
+
+  const [left_, setLeft] = createSignal(350)
+
+
   const ml = (e: string) => e == sitePage()?.toolname ? "border-white" : "border-transparent"
   const Toolicons = () => {
     return <div class='w-14 flex-col flex mt-4 items-center space-y-6'>
@@ -177,11 +237,11 @@ export function LoggedIn() {
       <For each={user.tools}>{(e, i) => {
         const tl = tools()[e]
         return <Switch>
-          <Match when={e == "pindm"}>
-            <For each={user.pindm}>
+          <Match when={e == "alert"}>
+            <For each={user.alert}>
               {(e, i) => {
                 // show avatar if available
-                return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
+                return <GraphicIcon count={i()} graphic={e.icon} color={e.color} onClick={() => nav("/" + e)} />
               }
               }
             </For>
@@ -213,11 +273,19 @@ export function LoggedIn() {
       <DarkButton />
     </div>
   }
+
+  const windowSize = createWindowSize();
+
+
+  const left = () => {
+    if (windowSize.width < 640) {
+      return sitePage().flyout ? windowSize.width  : 56
+    } else return left_()
+  }
+
   // we also need to understand the document type here.
   // 
   const toolpane = () => sitePage()?.toolname ? tools()[sitePage()?.toolname].component() : <div>no tool</div>
-
-  // this isn't right?
 
 
   const viewer = (doctype?: string): () => JSXElement => {
@@ -228,23 +296,62 @@ export function LoggedIn() {
     if (!vt) return () => <div>no viewer {vn}</div>
     return vt.default
   }
-  //return <div>{JSON.stringify(user)}</div>
-  const [left, setLeft] = createSignal(400)
-  return <SitePageContext.Provider value={sitePage()}><Show when={sitePage()} >
-    <div class='flex h-screen w-screen fixed overflow-hidden'>
-      <Splitter left={left} setLeft={setLeft}>
-        <div class='flex flex-1'>
-          <Toolicons />
-          <div class=' flex-1 overflow-auto dark:bg-gradient-to-r dark:from-black dark:to-neutral-900'>
-            <Suspense fallback={<div>waiting</div>}>
+  // default should depend on screen width and potentially last setting.
 
+  //return <div>{JSON.stringify(user)}</div>
+
+  const HSplitterButton = () => {
+    const mousedown = (e: MouseEvent) => {
+      e.preventDefault()
+      const start = e.clientX - left()
+      const move = (e: MouseEvent) => {
+        setLeft(e.clientX - start)
+      }
+      const up = (e: MouseEvent) => {
+        window.removeEventListener("mousemove", move)
+        window.removeEventListener("mouseup", up)
+      }
+      window.addEventListener("mousemove", move)
+      window.addEventListener("mouseup", up)
+    }
+    return <div class={`fixed  bottom-4 w-4 cursor-col-resize`} style={{
+      left: left() +8 + "px",
+      "z-index": '900'
+    }} onMouseDown={mousedown}>
+      <Icon path={eastWest} class='h-6 w-6 text-neutral-500'/></div>
+  }
+  return <SitePageContext.Provider value={sitePage()}><Show when={sitePage()} >
+    <HSplitterButton/>
+    <div class='flex h-screen w-screen fixed overflow-hidden'>
+        <Toolicons />
+        <div 
+          class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden top-0 bottom-0'       
+          style={{
+              left: "56px",
+              width: left()-56 + "px"
+            }} 
+          >
+            <div 
+            class='absolute overflow-auto top-0 left-0 right-0  ' 
+            style={{
+                bottom: "0px",
+              }}
+            >
+            <Suspense fallback={<div>waiting</div>}>
+            
               {toolpane()}
 
             </Suspense>
-          </div>
+            
+
+            </div>
+            <div class=' hidden absolute bottom-0 left-0 right-0 h-16 bg-neutral-900'>
+              <input placeholder='Send a message'/>
+            </div>
         </div>
-        <div class='absolute' style={{
-          left: (left() + 20) + "px",
+    
+        <div class='fixed' style={{
+          left: (left()) + "px",
           right: "0px",
           top: "0px",
           bottom: "0px"
@@ -256,12 +363,11 @@ export function LoggedIn() {
           </Suspense>
           <InfoBox />
         </div>
-      </Splitter>
     </div>
   </Show></SitePageContext.Provider>
 
 }
-
+// <Splitter left={left} setLeft={setLeft}>
 // potentially a table of contents for current page
 
 // controlled by the mounting app?
@@ -276,16 +382,32 @@ function Nosite(props: {}) {
 // every page will position the drawer menu; if it has no place in the menu
 // then position to the one in recent. otherwise, position to the one in the menu so that they have the normal context
 
-type IconPath = typeof clock
-export function RoundIcon(props: { path: IconPath, onClick?: () => void }) {
+type IconPath = typeof history
+type IconProps = { graphic: Graphic, class?: string, color?: string, count?: number, onClick?: () => void }
+
+export function Svg (props: {src: string}) {
+  return <div class='w-6 h-6' innerHTML={props.src}></div>
+}
+
+
+export function GraphicIcon(props: IconProps) {
   return <button onClick={props.onClick}>
-    <div ><Icon class='w-6 h-6' path={props.path}></Icon></div></button>
+    <div class='relative'>
+      <div class='w-6 h-6 '>
+        <Svg src={props.graphic.src}></Svg>
+        </div>
+        <span class="absolute right-0 top-0 block h-2.5 w-2.5 rounded-full bg-green-400 ring-2 ring-white"></span>
+    </div></button>
 }
 export function FloatIcon(props: { path: IconPath, onClick?: () => void }) {
   return <button onClick={props.onClick}>
     <div ><Icon class='w-8 h-8' path={props.path}></Icon></div></button>
 }
-
+export function RoundIcon(props: { path: IconPath, onClick?: () => void }) {
+  return <button onClick={props.onClick}>
+    <div ><Icon class='w-6 h-6' path={props.path}></Icon></div></button>
+}
+/*
 ///////////////////////////////////////
 // adaptive things - separate file?
 export enum ShowPagemap {
@@ -301,22 +423,21 @@ export enum ShowSitemap {
   split, // split is same as adaptive?
 }
 
+    const windowSize = createWindowSize();
+    if (mobile()) {
+      return sitemap() == ShowSitemap.none ? ShowSitemap.none : ShowSitemap.full
+    }
+    if (sitemap() == ShowSitemap.adaptive) {
+      return windowSize.width > 850 ? ShowSitemap.split : ShowSitemap.none
+    }
+    // we need to check if there's room for the  sitemap
+    // also need to allow the sitemap to shrink if window isn't wide enough.
+    return sitemap()
 
 const [sitemap, setSitemap] = createSignal(ShowSitemap.adaptive)
 export const [pagemap, setPagemap] = createSignal(ShowPagemap.adaptive)
 // does it matter where the splitter is? we also need to derive that.
-export const showSitemap = (): ShowSitemap => {
-  const windowSize = createWindowSize();
-  if (mobile()) {
-    return sitemap() == ShowSitemap.none ? ShowSitemap.none : ShowSitemap.full
-  }
-  if (sitemap() == ShowSitemap.adaptive) {
-    return windowSize.width > 850 ? ShowSitemap.split : ShowSitemap.none
-  }
-  // we need to check if there's room for the  sitemap
-  // also need to allow the sitemap to shrink if window isn't wide enough.
-  return sitemap()
-}
+
 export const showToc = (): boolean => {
   if (pagemap() == ShowPagemap.adaptive) {
     return mobile() ? false : true
@@ -340,7 +461,8 @@ export const mobile = () => {
 }
 
 
-/*
+
+
 const catchall = () => {
     const nav = useNavigate()
     const p = useParams()

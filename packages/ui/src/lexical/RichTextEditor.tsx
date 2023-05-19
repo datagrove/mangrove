@@ -29,38 +29,11 @@ import { createEffect, createResource } from "solid-js";
 
 import { pencil } from "solid-heroicons/solid";
 import { useNavigate } from "@solidjs/router";
-import { SiteDocument, useDocument } from "../core";
+import { SiteDocument, readAll, useDocument } from "../core";
 
 
-// we can use hash to see if we should show readonly or editable
-// and potentially use multiple available editors "open with"
-export function TextEditor() {
 
-  return <RichTextEditor />
-}
 
-// resolved into dataurls? I'd rather not
-async function readAll(doc: SiteDocument): Promise<string> {
-  await new Promise(r => setTimeout(r, 2000));
-  return "hello, world"
-}
-
-// note that as html / markdown we'll have to resolve links relative to the doc
-export function TextViewer() {
-  const nav = useNavigate()
-  const doc = useDocument()
-  const [h] = createResource(doc, readAll)
-
-  const onedit = () => {
-    nav('#edit')
-  }
-  // we may still have to wait here; we might get the type of the document but now need to read the rest of the document
-  // or some large piece of it.
-  return <div><div innerHTML={h()} />
-    <button onClick={onedit} class='z-60 fixed p-2 bottom-2 right-2 rounded-full text-blue-700 hover:text-blue-500'><Icon class='h-6 w-6' path={pencil} /></button>
-
-  </div>
-}
 
 // When the editor changes, you can get notified via the
 // LexicalOnChangePlugin!
@@ -119,7 +92,7 @@ export interface RteProps {
 
 
 }
-export default function RichTextEditor(props: RteProps) {
+export function RichTextEditor(props: RteProps) {
   const nav = useNavigate()
   const doc = useDocument()
   const [h] = createResource(doc, readAll)
@@ -197,4 +170,28 @@ export function LocalStoragePlugin({ namespace }: LocalStoragePluginProps) {
   }, [debouncedSaveContent, editor]);
 
   return null;
+}
+
+// we can use hash to see if we should show readonly or editable
+// and potentially use multiple available editors "open with"
+export function TextEditor() {
+
+  return <RichTextEditor/>
+}
+
+// note that as html / markdown we'll have to resolve links relative to the doc
+export function TextViewer() {
+  const nav = useNavigate()
+  const doc = useDocument()
+  const [h] = createResource(doc, readAll)
+
+  const onedit = () => {
+    nav('#edit')
+  }
+  // we may still have to wait here; we might get the type of the document but now need to read the rest of the document
+  // or some large piece of it.
+  return <div><div innerHTML={h()} />
+    <button onClick={onedit} class='z-60 fixed p-2 bottom-2 right-2 rounded-full text-blue-700 hover:text-blue-500'><Icon class='h-6 w-6' path={pencil} /></button>
+
+  </div>
 }

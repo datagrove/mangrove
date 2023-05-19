@@ -2,7 +2,6 @@ import { Component, For, Match, Show, Switch, createSignal } from "solid-js"
 import { Kbd } from "../core/buttons"
 import { Icon } from "solid-heroicons"
 import { magnifyingGlass, xCircle, star, arrowLeft, arrowUp, arrowDown } from "solid-heroicons/solid"
-import { SiteStore, MenuDefinition } from "./store"
 
 const [search, setSearch] = createSignal([] as SearchResult[]) // = []
 const [result, setResult] = createSignal<SearchResult[]>([])
@@ -41,14 +40,14 @@ function removeRecent(x: number) {
 function addRecent(x: SearchResult) {
   setRecent([x, ...recent()])
 }
-function fetchResults(site: SiteStore, sp: string): SearchResult[] {
-  if (sp.length == 0) {
-    return []
-  }
-  sp = sp.toLowerCase()
-  const a = search().filter((e) => e.title.indexOf(sp) != -1)
-  return a
-}
+// function fetchResults(site: SiteStore, sp: string): SearchResult[] {
+//   if (sp.length == 0) {
+//     return []
+//   }
+//   sp = sp.toLowerCase()
+//   const a = search().filter((e) => e.title.indexOf(sp) != -1)
+//   return a
+// }
 
 const SearchBox = () => {
   const fn = (e: InputEvent) => {

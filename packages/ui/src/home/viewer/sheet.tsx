@@ -7,7 +7,8 @@ import { createSignal, onMount } from 'solid-js'
 
 
 import { TestDrag } from '../../editor/selectionbox'
-import RichTextEditor from '../../lexical/RichTextEditor'
+import { RichTextEditor } from '../../lexical'
+
 // one kind of 
 
 // global css class?

@@ -132,7 +132,7 @@ export const Splitter = ({ children,left,setLeft }: {
         ref={grid}
         class=" w-full h-full min-h-0 font-sans"
         style={{
-            "grid-template-columns": `${left()}px 0px 1fr`,           
+            "grid-template-columns": `${left()}px 12px 1fr`,           
             "display": "grid",
         }}
     >
