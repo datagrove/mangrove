@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"os"
 
 	"github.com/datagrove/mangrove/server"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -14,13 +15,14 @@ var (
 )
 
 func main() {
+	os.Args = []string{"dg", "start"}
 	ip := "localhost:3000"
 	wconfig := &webauthn.Config{
 		RPDisplayName: "Go Webauthn", // Display Name for your site
 		RPID:          "localhost",   // Generally the FQDN for your site
 		RPOrigins: []string{
-			"https://localhost:5078",
 			"http://localhost:3000",
+			"https://localhost:5078",
 			"https://localhost:5783"}, // The origin URLs allowed for WebAuthn requests
 	}
 

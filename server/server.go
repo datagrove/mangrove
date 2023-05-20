@@ -214,7 +214,9 @@ func (s *Server) Start2() {
 		})
 
 		go s.Run()
-		log.Printf("listening on %s", s.Addrs[0])
-		log.Fatal(http.ListenAndServe(s.Addrs[0], s.Mux))
+		if false {
+			log.Printf("listening on %s", s.Addrs[0])
+			log.Fatal(http.ListenAndServe(s.Addrs[0], s.Mux))
+		}
 	}
 }

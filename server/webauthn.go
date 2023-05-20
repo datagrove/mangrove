@@ -279,8 +279,8 @@ func WebauthnSocket(mg *Server) error {
 			return nil, err
 		}
 		r.Session.PasskeyCredential.Credential = *credential
-		mg.RegisterPasskey(r.Session)
-		return true, nil
+		err = mg.RegisterPasskey(r.Session)
+		return err == nil, err
 	})
 
 	// email and password

@@ -3,13 +3,14 @@ import { Ab, H2 } from "..";
 import { Component, JSX, Match, Show, Switch, createEffect, createSignal, onCleanup } from "solid-js";
 import { Factor, useLn } from "./passkey_i18n";
 import { BlueButton, P, TextDivider } from "../lib/form";
-import { Username,  AddPasskey, GetSecret, ChallengeNotify, LoginInfo, PasskeyChoice } from "./passkey_add";
+import { Username, AddPasskey, GetSecret, ChallengeNotify, LoginInfo, PasskeyChoice } from "./passkey_add";
 import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { createWs } from "../core/socket";
 import { A, useNavigate } from "../core/dg";
 import { LoginWith } from "./login_with";
 import { Password } from "./password";
 import { SimplePage } from "./simplepage";
+import { setCoreLogin } from "../core";
 
 // I need a way to simplify the page when returning.
 
@@ -94,6 +95,9 @@ export const LoginPage: Component<LoginProps> = (props) => {
     const nav = useNavigate()
     const [suspense, Suspense] = createSignal(false)
     const finishLogin = (i: LoginInfo) => {
+        setCoreLogin({ did: "" })
+        nav('../menu')
+        return
         console.log("finish login", i)
         i.cookies.forEach((c) => {
             document.cookie = c + ";path=/"
@@ -101,11 +105,11 @@ export const LoginPage: Component<LoginProps> = (props) => {
         //location.href = i.home
         // we can't nav here because it may go to a different page
 
-        
+
         // conditionally we may want to do nav here instead of location.href
         // how do we know? maybe h is empty?
         //location.href = h
-        if (i.home=="../home")
+        if (i.home == "../home")
             nav("../home")
         else {
             const h = i.home ? i.home : props.afterLogin ?? "/"
@@ -267,9 +271,9 @@ export const Login: Component<LoginProps2> = (props) => {
                     <LoginWith />
                 </form>
                 <div class="hidden mt-4"><Spc />
-                <Ab href='../register'>{ln().ifnew}</Ab>
-                        <Spc /></div>
-                </Match>
+                    <Ab href='../register'>{ln().ifnew}</Ab>
+                    <Spc /></div>
+            </Match>
         </Switch>
 
     </div>

@@ -25,6 +25,7 @@ import {
     parseRequestOptionsFromJSON,
 } from "@github/webauthn-json/browser-ponyfill";
 import { login } from "../lib/crypto"
+import { setCoreLogin } from "../core"
 
 export type DivProps = JSX.HTMLAttributes<HTMLDivElement>
 export function Error(props: DivProps) {
@@ -58,7 +59,8 @@ const Register = () => {
         if (err) {
             setError(err)
         } else {
-            nav('../home')
+            setCoreLogin({ did: "" })
+            nav('../menu')
         }
     }
 

@@ -4,10 +4,35 @@ import { createSignal, Show } from "solid-js";
 import { LanguageSelect } from "../../i18n/i18";
 import { A } from "../../core/dg";
 import { Ab } from "../..";
+import { Cell } from "@lexical/table";
+import { Form } from "../../form";
+import { usePage } from "../../core";
 
+// static generated
+const creatingSettings = () => createLens("settings", {
+    fname: {}
+})
+function SettingsPage1() {
+    const r = creatingSettings()
+    return createForm(db, [
+        fcell(r.fname, { name: "", type: "text" }),
+        fcandy("submit")
+    ])
+}
+
+
+// the type of the document might as well be in the reference (forced file extensions)
+// faking it buys attacker nothing, since document won't be found. t
 export function SettingsViewer() {
+    const page = usePage()
+    const path = page.doc.path
+    // for internal forms like this we can use the path as arbitrary key
+    // some people will want the ability to use when impersonating a database
+    // we need to build a form that points to the users stored settings.
+    // potentially do nothing though? Form itself may have placeholder for "current user"
+    return <Switch>
 
-    return <div>Settings</div>
+    </Switch>
 }
 
 

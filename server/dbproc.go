@@ -254,6 +254,8 @@ func (s *Server) RegisterEmailPassword(sess *Session, email, password string) er
 	// insert an org record. fail if email exists since that would get confusing.
 	return nil
 }
+
+// registers with a passkey only
 func (s *Server) RegisterPasskey(sess *Session) error {
 	n, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
 		Name:          sess.Name,

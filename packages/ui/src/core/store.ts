@@ -7,8 +7,8 @@ export const [online, setOnline] = createSignal(false)
 interface Login {
   did: string
 }
-export const [login, setLogin_] = createSignal(localStorage.getItem("login") as Login|null)
-export function setLogin(l: Login) {
+export const [login, setLogin_] = createSignal(localStorage.getItem("login") as Login | null)
+export function setCoreLogin(l: Login) {
   localStorage.setItem("login", JSON.stringify(l))
   setLogin_(l)
 }
@@ -75,6 +75,7 @@ export interface SitePage {
   toolname: string
   viewer: string
   flyout: string
+  hash: string  // left over after extracting  flyout and  viewer
 }
 
 export interface SiteDocumentRef {

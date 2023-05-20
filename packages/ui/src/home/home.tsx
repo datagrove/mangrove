@@ -107,6 +107,7 @@ const builtinTools: { [key: string]: Tool } = {
     icon: () => <FloatIcon path={avatar} />,
     component: () => <Settings />,
     path: 'a/b/form',
+    viewer: () => <SettingsViewer />
   },
 
   "search": {
