@@ -2,11 +2,6 @@ import { Icon } from "solid-heroicons";
 import { chevronRight, language, cog_6Tooth as gear } from "solid-heroicons/solid";
 import { createSignal, Show } from "solid-js";
 import { LanguageSelect } from "../../i18n/i18";
-import { A } from "../../core/dg";
-import { Ab } from "../..";
-import { Cell } from "@lexical/table";
-import { Form, createLens } from "../../form";
-import { usePage } from "../../core";
 
 
 

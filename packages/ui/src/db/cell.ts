@@ -19,7 +19,6 @@ export interface CellOptionMap {
     [key: string]: CellOptions
 }
 
-
 export type CellMap<T> = {
     [Key in keyof T as Key]: Cell<T>;
 }
@@ -41,7 +40,7 @@ interface ReaderWriter {
 // when this updates, it needs to signal all its cells
 // or it could be more clever and diff against the previous values.
 export class DbReaderWriter implements ReaderWriter {
-    constructor(public table: string, public primarykey: any) {
+    constructor(public table: string, public primarykey: string[]) {
 
     }
     update(key: string, value: string) {
@@ -64,7 +63,7 @@ export function createCells<T extends CellOptionMap>(rmw: ReaderWriter,  col: T)
 interface TableDesc {
     name: string
     columns: CellOptionMap
-    primarykey: string
+    primarykey: string[]
 }
 export function createUpdater(table: TableDesc) {
     return createCells(new DbReaderWriter(table.name, table.primarykey), table.columns)

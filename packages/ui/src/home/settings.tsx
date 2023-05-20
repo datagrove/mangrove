@@ -1,8 +1,9 @@
 import { Match, Switch } from "solid-js"
 import { usePage } from "../core"
 import { SectionNav } from "./site_menu"
-import { Form, createForm, createCells, fcandy, fcell } from "../form"
+import { Form, createForm, fcandy, fcell } from "../form"
 import { db } from "../db"
+import { createCells } from "../db/cell"
 
 
 // should paths be relative here?
@@ -11,14 +12,14 @@ const show = [
         "name": "Settings",
         "path": "/en/jim.hurd",
         "children": [
-             {
-                   "name": "Appearance",
-                   "path": "appearance",
-             },
-             {  
+            {
+                "name": "Appearance",
+                "path": "appearance",
+            },
+            {
                 "name": "Security",
                 "path": "security",
-             }           
+            }
         ]
     }
 ]
@@ -39,10 +40,10 @@ export function SettingsViewer() {
     return <Switch>
         <Match when={path === "appearance"}>
             <div>Appearance</div>
-            </Match>
+        </Match>
         <Match when={path === "security"}>
-            <SecuritySettings/>
-            </Match>
+            <SecuritySettings />
+        </Match>
     </Switch>
 }
 
@@ -54,13 +55,14 @@ function SecuritySettings() {
     const r = createCells("settings", {
         fname: {}
     })
-    const f =  createForm( [
-        fcell(r.fname, { 
-            name: "", 
-            type: "text" }),
+    const f = createForm([
+        fcell(r.fname, {
+            name: "",
+            type: "text"
+        }),
         fcandy("submit")
     ])
-    
+
     return <div>
         <Form form={f} />
     </div>

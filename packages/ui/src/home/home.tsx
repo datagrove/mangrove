@@ -9,7 +9,7 @@ import { SiteMenuContent } from "./site_menu";
 import { Icon, } from "solid-heroicons";
 import { signalSlash, user as avatar, sparkles, circleStack as dbicon, clock as history, pencil, bookOpen as menu, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass, arrowsRightLeft as eastWest, map } from "solid-heroicons/solid";
 import { ChatViewer, CodeViewer, SheetViewer, WhiteboardViewer } from "./viewer";
-import { SettingsViewer } from "./viewer/settings";
+import { SettingsViewer } from "./settings";
 import { FolderViewer } from "./viewer/folder";
 import { Splitter } from "../layout/splitter";
 import { DarkButton } from "../lib";
@@ -179,6 +179,7 @@ export function LoggedIn() {
     }
 
     const r = {
+      hash: h.slice(3).join("/"),
       ln: p[1],
       toolname: p[2], // this includes the index.
       owner: [3] ?? "",
@@ -213,6 +214,7 @@ export function LoggedIn() {
   // page is things we can get sync, no fetch
   const sitePage = (): SitePage => {
     return {
+      hash: purl().hash,
       doc: page(),
       viewer: purl().viewer,
       toolname: purl().toolname,
