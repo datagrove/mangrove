@@ -5,7 +5,7 @@
 
 import { Component, JSX, Match, Switch, createSignal } from "solid-js"
 import { createWs } from "../core/socket"
-import { CellOptions, cell } from "../db/client"
+import { CellOptions, cell } from "../db/cell"
 import { BlueButton, P, TextDivider } from "../lib/form"
 import { AddPasskey, InputLabel, PasskeyChoice, email, password, phone, user } from "./passkey_add"
 import { useLn } from "./passkey_i18n"

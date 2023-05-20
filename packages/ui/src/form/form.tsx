@@ -1,74 +1,32 @@
 import { For, Match, Show, Switch, createResource, createSignal } from "solid-js"
-import { Cell, CellOptions } from "../db/client"
+import { Cell, CellOptions } from "../db/cell"
 import { useNavigate } from "@solidjs/router"
 import { SiteDocumentRef, usePage } from "../core"
 import { InputCell } from "../lib/input"
-import { Input } from "postcss"
+
 
 // cell = new Cell(celloptions, table, primarykey, database)
 // cell = new Cell(celloptions, getter, setter)
-export interface Form {
-    layout: CellOptions[]
-}
-class Lens<T = any> {
-    constructor() {
 
-    }
-
-    addListener(fn: (v: T) => void) {
-
-    }
-    set(v: T) {
-
-    }
-}
-
-export interface Document {
-    created: Date
-    updated: Date
-    finished: Date
-    deprecated: Date
-}
-// the filled form has a status that can show if it has to be made immutable. (might be irrelevant)
-export interface FilledForm extends Document {
-    form: Form  // immutable
-    values: {
-        [key: string]: any
-    }
-}
 
 // a loaded form acts like an updateable view.
 // we can 
-export interface ColumnMap {
-    [key: string]: ColumnDb
-}
-// potentially just string? 
-export interface ColumnDb {
-    type?: string
-}
+
+// maybe this takes a map of cell options and returns a map of cells
+// there is a single RMW function for entire list?
 
 
-type LensMap<T> = {
-    [Key in keyof T as Key]: Lens;
-}
 
-export function createLens(table: string, col: ColumnMap): LensMap<ColumnMap> {
-    const r: any = {}
-    Object.keys(col).forEach(k => {
-        r[k] = new Lens()
-    })
-    return r
-}
 
-interface FormCell {
+interface FormCell<T> {
     type: "cell"
-    lens: Lens
-    cell: Cell
+    cell: Cell<T>
 }
 interface FormCandy {
     type: "candy"
 }
-type FormField = FormCell | FormCandy
+type FormField = FormCell<any> | FormCandy
+
 
 class LoadedForm {
     pageCount = 1
@@ -78,15 +36,8 @@ class LoadedForm {
     constructor(field: FormField[] = []) {
 
     }
-
-    // static async load(ref: SiteDocumentRef, hash: string) {
-    //     const form = new LoadedForm(hash)
-    //     return form
-    // }
 }
-
-
-function createForm(field: FormField[]): LoadedForm {
+export function createForm(field: FormField[]): LoadedForm {
     const r = new LoadedForm()
     r.all = field
     return r
@@ -95,11 +46,10 @@ function createForm(field: FormField[]): LoadedForm {
 
 
 
-export function fcell(lens: Lens, options: CellOptions): FormCell {
+export function fcell<T>(cell: Cell<T>, options: CellOptions): FormCell<T> {
     return {
         type: "cell",
-        lens,
-        cell: {} as Cell
+        cell:  cell
     }
 }
 export function fcandy(type: "submit" | "cancel"): FormCandy {
@@ -110,34 +60,11 @@ export function fcandy(type: "submit" | "cancel"): FormCandy {
 
 // dynamic user edited
 
-// a form is a group of lenses, created from a form template.
-export function DynamicForm(props: FormProps) {
-    const [error, setError] = createSignal("")
-    const nav = useNavigate()
-    const page = usePage()
-    // active cell
-    const pageh = () => parseInt(page.hash)
 
-    const getForm = async (doc: SiteDocumentRef) => {
-        throw new Error("not implemented")
-    }
-    const [form] = createResource(page.doc, getForm)
 
-    return <Switch>
-        <Match when={form.loading}>
-            <p>Loading</p>
-        </Match>
-        <Match when={form.error}>
-            <p>Error</p>
-        </Match>
-        <Match when={form()}>
-            <Form page={pageh()} form={form()!} />
-        </Match>
-    </Switch>
-}
 
 export interface FormProps {
-    page: number
+    page?: number
     form: LoadedForm
 }
 export function Form(props: FormProps) {
@@ -148,7 +75,7 @@ export function Form(props: FormProps) {
         <For each={form.current}>{(e, i) => {
             return <Switch>
                 <Match when={e.type === "cell"}>
-                    <InputCell cell={(e as FormCell).cell} />
+                    <InputCell cell={(e as FormCell<any>).cell} />
                 </Match>
                 <Match when={e.type === "candy"}>
                     <div></div>

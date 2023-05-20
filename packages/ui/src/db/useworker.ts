@@ -11,7 +11,7 @@ import { Watch, toBytes } from "./data"
 import { set, z } from "zod"
 import { l } from "../i18n/en"
 import { JSXElement, createSignal } from "solid-js"
-import { Cell } from "./client"
+import { Cell } from "./cell"
 import { UpdateRow, RpcService, NotifyHandler } from "../core/socket"
 
 export class SendToWorker {

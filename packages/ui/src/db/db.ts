@@ -8,7 +8,17 @@
 // views should be an array of cells, so that edits are 2 way
 
 import { Accessor, createSignal } from "solid-js"
-import { CellOptions } from "./client"
+import { CellOptions } from "./cell"
+
+export interface Database {
+
+}
+// there is only ever one database, and its always available
+// we may need a worker database? in general though the database server will 
+// live in a shared worker.
+export const db: Database = {
+
+}
 
 // makeCell(cellTemplate)
 // we could have a query return cellTempate[]? more like it takes that as argument

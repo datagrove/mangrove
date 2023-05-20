@@ -1,5 +1,5 @@
 import { encode, decode } from "cbor-x"
-import { DbTable } from "./client"
+import { DbTable } from "./cell"
 import { toBytes } from "./data"
 
 // we can generate a function for each table to get cells?

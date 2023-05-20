@@ -5,7 +5,7 @@ import { BlueButton } from "../lib/form"
 import { DirectiveText, email, password, phone, user } from "./passkey_add"
 import { useLn } from "./passkey_i18n"
 
-import { cell } from "../db/client"
+import { cell } from "../db/cell"
 import { InputCell } from "../lib/input"
 import { SimplePage } from "./simplepage"
 

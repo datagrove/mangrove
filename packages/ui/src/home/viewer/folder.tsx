@@ -1,7 +1,7 @@
 import { faker } from '@faker-js/faker'
 import { BuilderFn, Column, enableColumnResizing, EstimatorFn, Scroller, ScrollerProps, TableContext } from '../../editor/scroll'
 import { createEffect, onCleanup, createSignal, onMount, JSXElement } from 'solid-js'
-import { CellOptions } from '../../db/client'
+import { CellOptions } from '../../db/cell'
 import { createQuery, QueryResult } from '../../db'
 import { usePage } from '../../core/store'
 

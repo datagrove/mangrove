@@ -1,5 +1,5 @@
 import { Component, JSX, onMount, Show } from "solid-js"
-import { Cell } from "../db/client"
+import { Cell } from "../db/cell"
 import { InputLabel } from "../login/passkey_add"
 import { useLn, _ } from "../login/passkey_i18n"
 
