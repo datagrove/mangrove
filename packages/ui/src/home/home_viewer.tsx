@@ -21,7 +21,7 @@ export function Home() {
         <Show when={seg[0]()}>
 
             <section>
-                <div class='max-w-md'><BlueButton>Create new</BlueButton></div>
+             
                 <TemplateList />
             </section></Show>
     </div>
@@ -53,7 +53,8 @@ export function TemplateList() {
 
 // mostly a grid viewer in recent order?
 export function HomeViewer() {
-    return <div class='ml-2'>
-        <H2>Recent</H2>
+    return <div class='m-2 w-full'>
+           <div class='max-w-md flex items-start'>
+           <div><BlueButton class='block' >Create new</BlueButton></div></div>
     </div>
 }
