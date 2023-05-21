@@ -1,4 +1,4 @@
-import { Component, JSX, onMount, Show } from "solid-js"
+import { Component, createSignal, JSX, onMount, Show } from "solid-js"
 import { Cell } from "../db/cell"
 import { InputLabel } from "../login/passkey_add"
 import { useLn, _ } from "../login/passkey_i18n"
@@ -39,7 +39,8 @@ export const Input = (props: InputProps & { error?: () => JSX.Element }) => {
 
 export const InputCell: Component<{ cell: Cell, autofocus?: boolean }> = (props) => {
     const ln = useLn()
-    const n = props.cell.name
+    const n = props.cell.opt.name!
+    const [error,setError] = createSignal<SyntaxError[]>()
     const setCell = (e: string) => {
         props.cell.clearErrors()
         props.cell.setValue(e)
@@ -47,17 +48,17 @@ export const InputCell: Component<{ cell: Cell, autofocus?: boolean }> = (props)
     return <div >
         <div class="flex items-center justify-between">
             <InputLabel for={n} >{_(n)}</InputLabel>
-            <Show when={props.cell.topAction}>
+            <Show when={props.cell.opt.topAction}>
                 <div />
-                <div>{props.cell.topAction!()}</div>
+                <div>{props.cell.opt.topAction!()}</div>
             </Show>
         </div>
         <div >
-            <Input {...props} value={props.cell.value()} autofocus={props.autofocus || props.cell.autofocus} onInput={setCell} placeholder={_(n)} id={n} name={n} type={props.cell.type ?? "text"} autocomplete={props.cell.autocomplete} />
+            <Input {...props} value={props.cell.value()} autofocus={props.autofocus || props.cell.opt.autofocus} onInput={setCell} placeholder={_(n)} id={n} name={n} type={props.cell.opt.type ?? "text"} autocomplete={props.cell.opt.autocomplete} />
         </div>
         <div>
-            <Show when={props.cell.error()}>
-                <div class="text-sm text-red-600 mt-2">{props.cell.error()![0].message}</div>
+            <Show when={error()}>
+                <div class="text-sm text-red-600 mt-2">{error()![0].message}</div>
             </Show>
         </div>
 

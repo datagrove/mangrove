@@ -229,10 +229,10 @@ export async function getSitemap(p: SiteRef): Promise<Sitemap> {
   return {
     menu: orgsite.sitemap,
     owner: {
-      displayName: "Datagrove",
+      displayName: "anonymous",
       did: "did:3:datagrove",
     },
-    DisplayName: "CS Lewis Notes",
+    DisplayName: "Home of Anonymous",
     caps: {
       read: true,
       write: true,

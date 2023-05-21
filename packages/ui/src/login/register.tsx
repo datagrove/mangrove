@@ -5,7 +5,6 @@
 
 import { Component, JSX, Match, Switch, createSignal } from "solid-js"
 import { createWs } from "../core/socket"
-import { CellOptions, cell } from "../db/cell"
 import { BlueButton, P, TextDivider } from "../lib/form"
 import { AddPasskey, InputLabel, PasskeyChoice, email, password, phone, user } from "./passkey_add"
 import { useLn } from "./passkey_i18n"
@@ -26,6 +25,7 @@ import {
 } from "@github/webauthn-json/browser-ponyfill";
 import { login } from "../lib/crypto"
 import { setCoreLogin } from "../core"
+import { createCells } from "../db"
 
 export type DivProps = JSX.HTMLAttributes<HTMLDivElement>
 export function Error(props: DivProps) {
@@ -42,9 +42,15 @@ const Register = () => {
     const ws = createWs()
     const ln = useLn()
     // registration is a transaction, but then we later want to be able to edit 
-    const data = {
-        user: cell({ ...user, autofocus: false }),
-    }
+    const data = createCells({
+        name: "user",
+        cells: {
+            user: { ...user, autofocus: false },
+            email: { ...email, autofocus: true },
+            password: { ...password, autofocus: false },
+        },
+        primary: ["user"]
+    })
 
     data.user.setValue("Anonymous")
     const [error, setError] = createSignal("")
@@ -90,10 +96,15 @@ export const RegisterPage2 = () => {
     const ws = createWs()
     const ln = useLn()
     // registration is a transaction, but then we later want to be able to edit 
-    const data = {
-        password: cell(password),
-        email: cell(email),
-    }
+    const data = createCells({
+        name: "user",
+        cells: {
+            user: { ...user, autofocus: false },
+            email: { ...email, autofocus: true },
+            password: { ...password, autofocus: false },
+        },
+        primary: ["user"]
+    })
 
     const [addkey, setAddKey] = createSignal(false)
     //const [okname, setOkname] = createSignal(false)

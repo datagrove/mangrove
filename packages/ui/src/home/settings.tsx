@@ -1,9 +1,11 @@
 import { Match, Switch } from "solid-js"
-import { usePage } from "../core"
+import { setLogin_, usePage } from "../core"
 import { SectionNav } from "./site_menu"
 import { Form, createForm, fcandy, fcell } from "../form"
 import { db } from "../db"
 import { createCells } from "../db/cell"
+import { Bb, H2 } from "../layout/nav"
+import { useNavigate } from "@solidjs/router"
 
 
 // should paths be relative here?
@@ -24,8 +26,23 @@ const show = [
     }
 ]
 
+// this needs to jump back to the user site from whatever site they are on.
+// how do we make sure the site they are on can't fake this? the site they are on can't access the login cookie anyway.
+// maybe everything but the rail is in an iframe.
+// then the url at the top is in control of the rail.
 export function Settings() {
+    const nav = useNavigate()
+
+    const signout = ()=>{
+        setLogin_(null)
+        localStorage.removeItem("login")
+        nav("/")
+    }
     return <div class='w-full pb-16 pt-2 px-2'>
+        <div class='ml-2'>
+        <H2>Anonymous</H2>
+        <Bb class='mb-2' onClick={signout}>Sign Out (all tabs)</Bb>
+        </div>
         <SectionNav tabs={show} />
     </div>
 }
@@ -37,7 +54,8 @@ export function SettingsViewer() {
     // some people will want the ability to use when impersonating a database
     // we need to build a form that points to the users stored settings.
     // potentially do nothing though? Form itself may have placeholder for "current user"
-    return <Switch>
+    return <div>
+        <Switch>
         <Match when={path === "appearance"}>
             <div>Appearance</div>
         </Match>
@@ -45,6 +63,7 @@ export function SettingsViewer() {
             <SecuritySettings />
         </Match>
     </Switch>
+    </div>
 }
 
 // static generated
@@ -52,8 +71,18 @@ export function SettingsViewer() {
 // are settings always loaded in general so we can use them to present the ui?
 // does that mean we already have lens when we log in?
 function SecuritySettings() {
-    const r = createCells("settings", {
-        fname: {}
+    const r = createCells({
+        name: "settings",
+        primary: ["name"],
+        cells: {
+            name: {
+                name: "name",
+                type: "text",
+                default: "Anonymous",
+                autofocus: true,
+                autocomplete: "username",
+            },
+        }
     })
     const f = createForm([
         fcell(r.fname, {

@@ -5,9 +5,10 @@ import { BlueButton } from "../lib/form"
 import { DirectiveText, email, password, phone, user } from "./passkey_add"
 import { useLn } from "./passkey_i18n"
 
-import { cell } from "../db/cell"
+
 import { InputCell } from "../lib/input"
 import { SimplePage } from "./simplepage"
+import { createCells } from "../db"
 
 enum RecoverScreen {
     Recover,
@@ -23,12 +24,16 @@ export const Recover: Component = (props) => {
     const [screen,setScreen] = createSignal(RecoverScreen.Recover)
     const [error, setError_] = createSignal("")
 
-    const data = {
-        user: cell(user),
-        password: cell(password),
-        email: cell(email),
-        phone: cell(phone),
-    }
+    const data = createCells({
+        name: "recover",
+        primary: [],
+        cells: {
+            user: user,
+            password: password,
+            email: email,
+            phone: phone,
+        }})
+    
 
     const submit = (e: Event) => {
         e.preventDefault()

@@ -20,7 +20,7 @@ import { InputCell } from "../lib/input"
 
 interface FormCell<T> {
     type: "cell"
-    cell: Cell<T>
+    cell: Cell
 }
 interface FormCandy {
     type: "candy"
@@ -46,7 +46,7 @@ export function createForm(field: FormField[]): LoadedForm {
 
 
 
-export function fcell<T>(cell: Cell<T>, options: CellOptions): FormCell<T> {
+export function fcell<T>(cell: Cell, options: CellOptions): FormCell<T> {
     return {
         type: "cell",
         cell:  cell

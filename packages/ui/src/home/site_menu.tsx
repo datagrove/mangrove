@@ -56,10 +56,12 @@ const opt = [
   "Create",
 ]
 
+// when ever we pick menu, we should always land on a page
+// this means that at least one page can't be deleted.
 export const SitePicker = () => {
   return <div>
-    <div class='text-xl p-1'>CS Lewis Notes</div>
-    <div class='text-sm ml-2 mb-4'><Ab href='#'>by Datagrove</Ab></div>
+    <div class='text-xl p-1'>Anonymous</div>
+    <div class='text-sm ml-2 mb-4'><Ab href='#'>by Anonymous</Ab></div>
   </div>
 
 }

@@ -61,6 +61,11 @@ const builtinViewers: ViewerMap = {
 // history is not the same as find because find is sticky and remembers the current search, previous searches etc.
 // thin out the icons, these should be sharable anyway
 
+// how can we make vite move about "domains", when they are all on localhost, without confusing it? do we still need the database part of the path if we are using the subdomain for the same purpose? Maybe there's a difference? The problem is that when we are editing a database, we are also previewing it. Could the preview come from an iframe always? Would this be security enough? can we sanitize the data securely enough to edit it? what is the downside to continually switching domains? Can we imitate the domain in development using local storage? 
+
+// to simulate: put the database in localstorage, then navigate to link.
+// the router will reload starting from the database.
+
 const builtinTools: { [key: string]: Tool } = {
   "db": {
     icon: () => <FloatIcon path={dbicon} />,
