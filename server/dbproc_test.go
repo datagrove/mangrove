@@ -6,10 +6,68 @@ import (
 	"testing"
 
 	"github.com/datagrove/mangrove/mangrove_sql/mangrove_sql"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kardianos/service"
 )
+
+func Test_dyn2(t *testing.T) {
+	conn, err := pgxpool.New(context.Background(), "postgres://mangrove:mangrove@localhost:5432/mangrove")
+	if err != nil {
+		log.Fatal(err)
+	}
+	key := 2
+	dl :=
+		map[string]any{
+			"x": key,
+		}
+	b, e := cbor.Marshal(dl)
+	if e != nil {
+		log.Fatal(e)
+	}
+	e = Delete1(conn, "foo", dl)
+
+	ts := map[string]any{
+		"x": key,
+		"y": "yo",
+	}
+	b, e = cbor.Marshal(ts)
+	if e != nil {
+		log.Fatal(e)
+	}
+
+	e = Insert1(conn, "foo", ts)
+	if e != nil {
+		log.Fatal(e)
+	}
+	ts2 := map[string]any{
+		"x": key,
+		"y": "wassup2",
+	}
+	b, e = cbor.Marshal(ts2)
+	if e != nil {
+		log.Fatal(e)
+	}
+	Update1(conn, "foo", []string{"x"}, ts2)
+	_ = b
+
+}
+func Test_dyn(t *testing.T) {
+	conn, err := pgxpool.New(context.Background(), "postgres://mangrove:mangrove@localhost:5432/mangrove")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r, e := Read1(conn, "mg.org", map[string]any{
+		"oid": 1,
+	})
+	if e != nil {
+		log.Fatal(e)
+	}
+	log.Printf("r: %v", r)
+}
 
 /*
 GRANT ALL PRIVILEGES ON ALL Sequences IN SCHEMA mg TO mangrove;
