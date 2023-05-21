@@ -2,6 +2,7 @@ import { Component, For, Match, Show, Switch, createSignal } from "solid-js"
 import { Kbd } from "../core/buttons"
 import { Icon } from "solid-heroicons"
 import { magnifyingGlass, xCircle, star, arrowLeft, arrowUp, arrowDown } from "solid-heroicons/solid"
+import { InputProps } from "../lib/input"
 
 const [search, setSearch] = createSignal([] as SearchResult[]) // = []
 const [result, setResult] = createSignal<SearchResult[]>([])
@@ -49,13 +50,13 @@ function addRecent(x: SearchResult) {
 //   return a
 // }
 
-const SearchBox = () => {
+export const SearchBox = (props: InputProps) => {
   const fn = (e: InputEvent) => {
     const p = (e.currentTarget as HTMLInputElement).value
     console.log("search", p)
     //setResult(fetchResults(s!, p))
   }
-  return (<div class='w-full p-2'><div class=' flex items-center p-2 w-full border-solid-lightitem dark:border-solid-darkitem border rounded-md dark:bg-solid-dark'
+  return (<div class='w-full '><div class=' flex items-center p-2 w-full border-solid-lightitem dark:border-solid-darkitem border rounded-md dark:bg-solid-dark'
     onclick={() => {
       console.log("search")
     }}
@@ -63,7 +64,7 @@ const SearchBox = () => {
     <Icon class="mr-2  h-6 w-6 flex-none text-neutral-500" path={magnifyingGlass} />
     <input autofocus
       class=" flex-1 border-0 focus:ring-0 focus:outline-none dark:bg-solid-dark"
-      placeholder="Search" type="search" onInput={fn} /></div></div>)
+      placeholder={props.placeholder ?? "Search"} type="search" onInput={fn} /></div></div>)
 }
 
 

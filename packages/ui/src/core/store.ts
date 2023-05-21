@@ -55,7 +55,7 @@ export interface Tool {
   icon: () => JSXElement
   component: () => JSXElement
   path: string
-  viewer?: () => JSXElement// pick a viewer the first time the tool is used, after that restore state for that tool (url)
+  viewer: () => JSXElement// pick a viewer the first time the tool is used, after that restore state for that tool (url)
 }
 
 export type Viewer = {
@@ -75,7 +75,8 @@ export interface SitePage {
   toolname: string
   viewer: string
   flyout: string
-  hash: string  // left over after extracting  flyout and  viewer
+  hash: string
+  user: UserSettings // left over after extracting  flyout and  viewer
 }
 
 export interface SiteDocumentRef {
@@ -177,6 +178,7 @@ const standardAlerts: Alert[] = [
   },
 ]
 export interface UserSettings {
+  name: string
   tools: string[]
   pindm: string[]
   pindb: string[]
@@ -203,17 +205,19 @@ export async function getUser(id: string): Promise<UserSettings> {
   console.log("getUser");
   return {
     tools: [
+      "home",
+      "search",
       "alert",
       "dm",
-      "menu",
+
+      "site",
       "ai",
       "account", // setting is similar to home database
-      "search",
-      "history",
       "map",
       "db",
       "pindb",
     ],
+    name: "Anonymous",
     alert: standardAlerts,
     pindm: [],
     pindb: [],

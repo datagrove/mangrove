@@ -7,7 +7,7 @@ import { useLn } from "../login/passkey_i18n";
 
 import { SiteMenuContent } from "./site_menu";
 import { Icon, } from "solid-heroicons";
-import { signalSlash, user as avatar, sparkles, circleStack as dbicon, clock as history, pencil, bookOpen as menu, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass, arrowsRightLeft as eastWest, map } from "solid-heroicons/solid";
+import { signalSlash, user as avatar, sparkles, circleStack as dbicon, home, clock as history, pencil, bookOpen as menu, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass, arrowsRightLeft as eastWest, map } from "solid-heroicons/solid";
 import { ChatViewer, CodeViewer, SheetViewer, WhiteboardViewer } from "./viewer";
 import { SettingsViewer } from "./settings";
 import { FolderViewer } from "./viewer/folder";
@@ -20,6 +20,13 @@ import { Message } from "./message";
 import { DocumentContext, Graphic, SiteDocumentRef, SitePage, SitePageContext, SiteRef, Tool, Viewer, getDocument, online, useUser } from "../core";
 import { TextEditor, TextViewer } from "../lexical/RichTextEditor";
 import { memo } from "solid-js/web";
+import { SiteViewer } from "./site";
+import { HomeViewer, Home } from "./home_viewer";
+import { MapTool, MapViewer } from "./map";
+import { DbTool, DbViewer } from "./db";
+import { AiTool, AiViewer } from "./ai";
+
+// mapview should start with flyout shut, even on large screens.
 
 // every command calls setOut(false)? should this be in the hash?
 // that way every navigation potentially closes it.
@@ -33,24 +40,10 @@ export const [isOut, setOut] = createSignal(false)
 // ln/search is valid
 // Messages can have user assigned icons and labels for as many categories as they want
 
-// viewers are selected by the document type, can be overridden by the hash
-type ViewerMap = {
-  [key: string]: Viewer
-}
+
 // viewers are picked by the document referenced in the path, but may also put information in the hash
 // document types; map to common mime types?
 
-const builtinViewers: ViewerMap = {
-  "folder": { default: () => <FolderViewer /> },
-  "text": { default: () => <TextViewer /> },
-  "text-edit": { default: () => <TextEditor /> },
-  "chat": { default: () => <ChatViewer /> },
-  "settings": { default: () => <SettingsViewer /> },
-  "whiteboard": { default: () => <WhiteboardViewer /> },
-  "sheet": { default: () => <SheetViewer /> },
-  "code": { default: () => <CodeViewer /> },
-  "form": { default: () => <div>Form</div> } // can also be perspective of text?
-}
 
 // each tool is associated with a database, and a home "page" in the database which is used the first time the tool is used.
 // this is 
@@ -66,21 +59,28 @@ const builtinViewers: ViewerMap = {
 // to simulate: put the database in localstorage, then navigate to link.
 // the router will reload starting from the database.
 
+
+export function SearchViewer() {
+  return <div>SearchViewer</div>
+}
 const builtinTools: { [key: string]: Tool } = {
   "db": {
     icon: () => <FloatIcon path={dbicon} />,
-    component: () => <SiteMenuContent />,
-    path: 'a/b/text'
+    component: () => <DbTool />,
+    path: 'a/b/text',
+    viewer: () => <DbViewer />
   },
   "map": {
     icon: () => <FloatIcon path={map} />,
-    component: () => <SiteMenuContent />,
-    path: 'a/b/text'
+    component: () => <MapTool />,
+    path: 'a/b/text',
+    viewer: () => <MapViewer />
   },
   "ai": {
     icon: () => <FloatIcon path={sparkles} />,
-    component: () => <Message />,
-    path: 'a/b/text'
+    component: () => <AiTool />,
+    path: 'a/b/text',
+    viewer: () => <AiViewer />
   },
   // Message component is also used for the alerts - how?
   "dm": {
@@ -96,16 +96,18 @@ const builtinTools: { [key: string]: Tool } = {
     global: true,
     viewer: () => <ChatViewer />
   },
-  "history": {
-    icon: () => <FloatIcon path={history} />,
-    component: () => <History />,
-    path: 'a/b/text'
+  "home": {
+    icon: () => <FloatIcon path={home} />,
+    component: () => <Home />,
+    path: 'a/b/text',
+    viewer: () => <HomeViewer />
   },
 
-  "menu": {
+  "site": {
     icon: () => <FloatIcon path={menu} />,
     component: () => <SiteMenuContent />,
-    path: 'a/b/text'
+    path: 'a/b/text',
+    viewer: () => <SiteViewer />
   },
 
   "account": {
@@ -118,18 +120,15 @@ const builtinTools: { [key: string]: Tool } = {
   "search": {
     icon: () => <FloatIcon path={magnifyingGlass} />,
     component: () => <div><SearchPanel /></div>,
-    path: 'a/b/folder'
+    path: 'a/b/folder',
+    viewer: () => <SearchViewer />
   }
 }
 
-// there's a lot to do here
-function History() {
-  return <div>History</div>
-}
 
 // change when we install new tools? or when we change the active tool?
 export const [tools, setTools] = createSignal(builtinTools)
-export const [viewers, setViewers] = createSignal(builtinViewers)
+
 
 // should restore the state the last time we were using DM?
 // this changes the viewer and the pane. 
@@ -179,7 +178,7 @@ export function LoggedIn() {
     let glb = ft?.global ?? false
     if (!ft) {
       console.log("bad tool", tool, ft, toolp, p[2], tools())
-      tool = "menu"
+      tool = "home"
       ft = tools()[tool]
     }
 
@@ -209,25 +208,24 @@ export function LoggedIn() {
     }
   }
 
-  const page = (): SiteDocumentRef => {
-    return {
-      site: siteRef(),
-      path: purl().path,
 
-    }
-  }
   // page is things we can get sync, no fetch
   const sitePage = (): SitePage => {
     return {
+      user: user,
       hash: purl().hash,
-      doc: page(),
+      doc: {
+        site: siteRef(),
+        path: purl().path,
+
+      },
       viewer: purl().viewer,
       toolname: purl().toolname,
       flyout: purl().flyout,
     }
   }
 
-  const [doc] = createResource(page(), getDocument)
+
 
 
   // is this a resource or many? we need to get the counts for all the user shortcuts
@@ -311,31 +309,11 @@ export function LoggedIn() {
   }
 
   const windowSize = createWindowSize();
-
-
-
   const left = () => {
     if (windowSize.width < 640) {
-      return sitePage().flyout ? windowSize.width : 56
+      return sitePage().flyout ? windowSize.width : 0
     } else return left_()
   }
-
-  // we also need to understand the document type here.
-  // 
-
-
-
-  const viewer = (doctype?: string): () => JSXElement => {
-    const openWith = sitePage().viewer;
-    doctype ??= ""
-    let vn = openWith ? doctype + "-" + openWith : doctype
-    const vt = viewers()[vn]
-    if (!vt) return () => <div>no viewer {vn}</div>
-    return vt.default
-  }
-  // default should depend on screen width and potentially last setting.
-
-  //return <div>{JSON.stringify(user)}</div>
 
   const HSplitterButton = () => {
     const mousedown = (e: MouseEvent) => {
@@ -360,46 +338,39 @@ export function LoggedIn() {
   return <SitePageContext.Provider value={sitePage()}><Show when={sitePage()} >
     <HSplitterButton />
     <div class='flex h-screen w-screen fixed overflow-hidden'>
-      <Toolicons />
-      <div
-        class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden top-0 bottom-0'
-        style={{
-          left: "56px",
-          width: left() - 56 + "px"
-        }}
-      >
+      <Show when={windowSize.width > 640 || sitePage().flyout}>
+        <Toolicons />
         <div
-          class='absolute overflow-auto top-0 left-0 right-0  '
+          class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden top-0 bottom-0'
           style={{
-            bottom: "0px",
+            left: "56px",
+            width: left() - 56 + "px"
           }}
         >
-          <Suspense fallback={<div>waiting</div>}>
-            {purl().tool.component()}
-          </Suspense>
+          <div
+            class='absolute overflow-auto top-0 left-0 right-0  '
+            style={{
+              bottom: "0px",
+            }}
+          >
+            <Suspense fallback={<div>waiting</div>}>
+              {purl().tool.component()}
+            </Suspense>
 
 
+          </div>
+          <div class=' hidden absolute bottom-0 left-0 right-0 h-16 bg-neutral-900'>
+            <input placeholder='Send a message' />
+          </div>
         </div>
-        <div class=' hidden absolute bottom-0 left-0 right-0 h-16 bg-neutral-900'>
-          <input placeholder='Send a message' />
-        </div>
-      </div>
-
+      </Show>
       <div class='fixed' style={{
         left: (left()) + "px",
         right: "0px",
         top: "0px",
         bottom: "0px"
       }}>
-        <Show when={toolViewer()} fallback={
-          <Suspense fallback={<div>Loading document</div>}>
-            <Show when={doc()}><DocumentContext.Provider value={doc()}>
-              {viewer(doc()!.type)()}
-            </DocumentContext.Provider></Show>
-          </Suspense>
-        }>
-          {toolViewer()!()}
-        </Show>
+        {toolViewer()()}
         <InfoBox />
       </div>
     </div>

@@ -66,7 +66,7 @@ const Register = () => {
             setError(err)
         } else {
             setCoreLogin({ did: "" })
-            nav('../menu')
+            nav('../home')
         }
     }
 

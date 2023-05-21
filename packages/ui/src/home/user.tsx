@@ -29,7 +29,7 @@ export interface UserSettings {
 
 export const anon: UserSettings = {
   tools: [
-    "menu",
+    "site",
     "search",
     "dm",
 

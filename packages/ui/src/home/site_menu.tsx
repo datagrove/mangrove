@@ -5,6 +5,7 @@ import { createSignal, Show, For, Component, createEffect, Signal, createResourc
 import { useLocation, Location, useParams } from "../core/dg";
 import { Ab } from "../layout/nav";
 import { MenuEntry, getSitemap, usePage } from "../core";
+import { SegmentSwitch } from "../form";
 
 
 
@@ -173,24 +174,6 @@ export function SectionsNavIterate(props: {
 // this isn't reflected into the url, links will always go to view first.
 
 
-export const SegmentSwitch = (props: { signal: Signal<boolean>, segments: string[] }) => {
-
-  // this should always give us a lang?
-  const i = () => props.signal[0]() ? 1 : 0
-  // maybe we should limit this to four some how? maybe we should adaptively change the representation (chips?) if we have too many.
-  return (<div class="w-full mt-2 flex border border-solid-lightborder dark:border-solid-darkitem rounded-md"
-  >    <For each={props.segments}>{(e, index) => (
-    <a
-      classList={{
-        "bg-solid-light dark:bg-solid-dark font-semibold": index() == i(),
-      }}
-      class="flex-1 inline-flex w-full p-2 items-center justify-center whitespace-nowrap first:rounded-l-md border-r border-solid-lightborder dark:border-solid-darkitem hover:text-blue-500 hover:underline last:(rounded-r-md border-0)"
-      onClick={() => props.signal[1](index() == 1)}
-    >
-      {e}
-    </a>)
-  }</For></div>)
-}
 
 
 

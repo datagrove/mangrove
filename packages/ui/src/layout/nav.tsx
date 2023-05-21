@@ -19,9 +19,6 @@ const [small, setSmall] = createSignal(false)
 
 
 
-
-
-
 function Separator() {
   return (
     <div class="flex items-center" aria-hidden="true">
@@ -166,8 +163,9 @@ export function H2(props: { children: JSXElement, class?: string }) {
   const c = `pt-4 text-2xl font-bold dark:text-white ${props.class}`
   return <h4 class={c}>{props.children}</h4>
 }
+
 export function H3(props: { children: JSXElement }) {
-  return <h4 class="pt-4 text-2xl font-bold dark:text-white">{props.children}</h4>
+  return <h4 class="pt-4 pb-2 text-xl font-bold dark:text-white">{props.children}</h4>
 }
 export function TagList(props: { each: string[] }) {
   if (!props.each.length) return <div />

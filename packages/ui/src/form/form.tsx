@@ -1,4 +1,4 @@
-import { For, Match, Show, Switch, createResource, createSignal } from "solid-js"
+import { For, Match, Show, Signal, Switch, createResource, createSignal } from "solid-js"
 import { Cell, CellOptions } from "../db/cell"
 import { useNavigate } from "@solidjs/router"
 import { SiteDocumentRef, usePage } from "../core"
@@ -15,6 +15,24 @@ import { InputCell } from "../lib/input"
 // maybe this takes a map of cell options and returns a map of cells
 // there is a single RMW function for entire list?
 
+export const SegmentSwitch = (props: { signal: Signal<boolean>, segments: string[] }) => {
+
+    // this should always give us a lang?
+    const i = () => props.signal[0]() ? 1 : 0
+    // maybe we should limit this to four some how? maybe we should adaptively change the representation (chips?) if we have too many.
+    return (<div class="w-full mt-2 flex border border-solid-lightborder dark:border-solid-darkitem rounded-md"
+    >    <For each={props.segments}>{(e, index) => (
+        <a
+            classList={{
+                "bg-solid-light dark:bg-solid-dark font-semibold": index() == i(),
+            }}
+            class="flex-1 inline-flex w-full p-2 items-center justify-center whitespace-nowrap first:rounded-l-md border-r border-solid-lightborder dark:border-solid-darkitem hover:text-blue-500 hover:underline last:(rounded-r-md border-0)"
+            onClick={() => props.signal[1](index() == 1)}
+        >
+            {e}
+        </a>)
+    }</For></div>)
+}
 
 
 
@@ -49,7 +67,7 @@ export function createForm(field: FormField[]): LoadedForm {
 export function fcell<T>(cell: Cell, options: CellOptions): FormCell<T> {
     return {
         type: "cell",
-        cell:  cell
+        cell: cell
     }
 }
 export function fcandy(type: "submit" | "cancel"): FormCandy {
