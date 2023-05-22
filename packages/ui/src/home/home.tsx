@@ -5,7 +5,6 @@ import { createWs } from "../core/socket";
 import { A, useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
-import { SiteMenuContent } from "./site_menu";
 import { Icon, } from "solid-heroicons";
 import { faceSmile, folder, signalSlash, user as avatar, sparkles, circleStack as dbicon, clock as history, pencil, bookOpen as menu, chatBubbleBottomCenter as friend, magnifyingGlass, arrowsRightLeft as eastWest, map } from "solid-heroicons/solid";
 import { ChatViewer } from "./viewer";
@@ -16,7 +15,7 @@ import { SearchPanel } from "./search";
 import { Settings } from "./settings";
 import { Message } from "./message";
 import { Graphic, SitePage, SitePageContext, SiteRef, Tool, online, useUser } from "../core";
-import { SiteViewer } from "./site";
+import { SiteMenuContent, SiteViewer } from "./site";
 import { HomeViewer, Home } from "./home_viewer";
 import { MapTool, MapViewer } from "./map";
 import { DbTool, DbViewer } from "./db";

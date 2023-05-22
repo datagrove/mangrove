@@ -63,8 +63,8 @@ export const LightButton: Component<ButtonProps> = (props) => {
 }
 
 
-export const TextDivider: Component<{ children: string }> = (props) => {
-    return <div class="relative mt-4 w-full">
+export const TextDivider: Component<{ class?: string, children: string }> = (props) => {
+    return <div class={`${props.class} relative mt-4 w-full`}>
         <div class="absolute inset-0 flex items-center w-full">
             <div class="w-full border-t border-gray-300"></div>
         </div>

@@ -6,7 +6,6 @@ import {
   ButtonProps,
 } from 'solid-headless';
 import Dismiss from 'solid-dismiss'
-import { SiteMenuContent, } from '../home/site_menu'
 import { BlueButton } from '../lib/form'
 import { AnchorProps, A as Ar, useNavigate } from '../core/dg';
 
@@ -86,7 +85,7 @@ export const Drawer: Component<{ button: HTMLButtonElement }> = (props) => {
       setOpen={setOpenDrawer}
     >
       <div class=''>
-        <SiteMenuContent></SiteMenuContent>
+       
         <button onClick={editSite} class='z-60 fixed p-2 bottom-2 right-2 rounded-full text-blue-700 hover:text-blue-500'><Icon class='h-6 w-6' path={pencil} /></button>
       </div></Dismiss></>
 }

@@ -1,9 +1,6 @@
-import { faker } from '@faker-js/faker'
-import { BuilderFn, Column, enableColumnResizing, EstimatorFn, Scroller, ScrollerProps, TableContext } from './scroll'
-import { createEffect, onCleanup, createSignal, onMount, JSXElement } from 'solid-js'
-import { CellOptions } from '../db/cell'
-import { createQuery, QueryResult } from '../db'
-import { usePage } from '../core/store'
+import { BuilderFn, Column, EstimatorFn, Scroller, ScrollerProps } from './scroll'
+import { onCleanup, createSignal, onMount, JSXElement } from 'solid-js'
+import { QueryResult } from '../db'
 
 
 const redFrame = "border-solid border-2 border-red-500"

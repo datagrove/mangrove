@@ -56,7 +56,7 @@ export const SearchBox = (props: InputProps) => {
     console.log("search", p)
     //setResult(fetchResults(s!, p))
   }
-  return (<div class='w-full '><div class=' flex items-center p-2 w-full border-solid-lightitem dark:border-solid-darkitem border rounded-md dark:bg-solid-dark'
+  return (<div class={'w-full '+props.class}><div class=' flex items-center p-2 w-full border-solid-lightitem dark:border-solid-darkitem border rounded-md dark:bg-solid-dark'
     onclick={() => {
       console.log("search")
     }}

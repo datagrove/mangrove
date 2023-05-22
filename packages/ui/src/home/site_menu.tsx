@@ -2,120 +2,18 @@
 
 import { Collapsible, NavItem } from "./site_menu_section";
 import { createSignal, Show, For, Component, createEffect, Signal, createResource, Suspense, Match, Switch } from "solid-js";
-import { useLocation, Location, useParams } from "../core/dg";
-import { Ab } from "../layout/nav";
+import { useLocation, Location, useParams, useNavigate } from "../core/dg";
+import { Ab, Bb } from "../layout/nav";
 import { MenuEntry, getSitemap, usePage } from "../core";
 import { SegmentSwitch } from "../form";
+import { SearchBox } from "./search";
+import { chevronLeft} from 'solid-heroicons/solid'
+import { Icon } from "solid-heroicons";
 
-
-
-const editSection = [
-  {
-
-    name: "Collaborate",
-    children: [
-      {
-        name: "Publish",
-        link: "/settings",
-      },
-      {
-        name: "Discuss",
-        link: "/settings",
-      },
-      {
-        name: "Share",
-        link: "/settings",
-      },
-      {
-        name: "Start a proposal",
-        link: "/settings",
-      },
-    ]
-  },
-  {
-    name: "Compose",
-    children: [
-      {
-        name: "Add or delete packages",
-        link: "/settings",
-      },
-      {
-        name: "Export",
-        link: "/settings",
-      },
-      {
-        name: "Upload",
-        link: "/settings",
-      },
-    ]
-  }
-
-
-]
 const opt = [
   "Learn",
   "Create",
 ]
-
-// when ever we pick menu, we should always land on a page
-// this means that at least one page can't be deleted.
-export const SitePicker = () => {
-  return <div>
-    <div class='text-xl p-1'>Anonymous</div>
-    <div class='text-sm ml-2 mb-4'><Ab href='#'>by Anonymous</Ab></div>
-  </div>
-
-}
-// we need to build based on the route
-// everything can scroll off; maximum use of space. easy to find top anyway.
-// we probably need a sticky to close? maybe this can be done with the rail though
-export const SiteMenuContent: Component<{}> = (props) => {
-
-  // we need the url to tell us site/page/block mode.
-  // it's easy to create an error where the viewer path is not the same?
-
-
-  const st = usePage()
-  const [sitemap] = createResource(st.doc.site, getSitemap)
-  const [edit, setEdit] = createSignal(false)
-
-  const level = () => st.hash?parseInt(st.hash) : 0
-
-
-  const siteView = () => <div>
-    "Site view"
-  </div>
-  const blockView = () => <div>
-    "Block view"
-  </div>
-  const pageView = ()=> <Suspense fallback={<div>Loading</div>}> <Show when={sitemap()}>
-    <div class='transform h-full flex-1 '>
-      <div class='pb-16 pt-2 px-2'>
-        <div class='flex items-center'>
-          <div class='flex-1 '><SegmentSwitch segments={opt} signal={[edit, setEdit]} /></div>
-        </div>
-        <Show when={edit()} fallback={
-          <div class='mt-4'>
-            <SitePicker />
-            <SectionNav tabs={sitemap()!.menu} />
-          </div>
-        }>
-          <div class='mt-4'>
-            <SitePicker />
-            <SectionNav tabs={editSection} />
-          </div>
-        </Show>
-      </div></div></Show></Suspense>
-      
-   return <Switch>wtf
-    <Match when={level() == 0}>{siteView()}</Match>
-    <Match when={level() == 1}>{pageView()}</Match>
-    <Match when={level() == 1}>{blockView()}</Match>
-    <Match when={true}>
-      level={level()}, hash="{st.hash}"
-    </Match>
-   </Switch>
-}
 
 // {/* <SitePreference page={pd()!} />
 // <SiteSearchButton /> */}

@@ -4,7 +4,7 @@
 
 @layer base {
     h1 {
-      @apply text-2xl;
+      @apply text-2xl dark:text-white
     }
     h2 {
       @apply text-xl;
