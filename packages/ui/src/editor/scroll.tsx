@@ -603,8 +603,6 @@ export function enableColumnResizing(table: HTMLTableElement, watch: (x: string)
 
 }
 
-
-
 export const enableColumnDragging = (table: HTMLTableElement, lg: (x: string) => void) => {
     const headers = table.getElementsByTagName('th');
 

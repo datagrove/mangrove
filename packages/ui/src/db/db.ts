@@ -39,8 +39,6 @@ export interface QueryResult {
     loaded: boolean
     query: Query
     estimatedSize: Accessor<number>
-
-
 }
 
 // seems like overkill, using scroller anyway, scroller can manage

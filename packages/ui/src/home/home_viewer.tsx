@@ -18,6 +18,8 @@ async function getPrevious() {
     return ""
 }
 
+//  <SearchBox placeholder={seg[0]() ? 'Search templates' : 'Search recent'} />
+
 // show a list of templates, we can slide forward and back from here or in the viewer.
 export function Home() {
     const sp = usePage()
@@ -26,8 +28,8 @@ export function Home() {
     // you might be interested
     // New 
     return <div class='mx-2 space-y-4'>
-        <SegmentSwitch segments={["Recent", "Create"]} signal={seg} />
-        <SearchBox placeholder={seg[0]() ? 'Search templates' : 'Search recent'} />
+        <SegmentSwitch segments={["Find", "Create"]} signal={seg} />
+       
         <Show when={seg[0]()}>
 
             <section>

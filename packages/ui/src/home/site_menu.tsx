@@ -1,7 +1,7 @@
 
 
 import { Collapsible, NavItem } from "./site_menu_section";
-import { createSignal, Show, For, Component, createEffect, Signal, createResource, Suspense } from "solid-js";
+import { createSignal, Show, For, Component, createEffect, Signal, createResource, Suspense, Match, Switch } from "solid-js";
 import { useLocation, Location, useParams } from "../core/dg";
 import { Ab } from "../layout/nav";
 import { MenuEntry, getSitemap, usePage } from "../core";
@@ -70,11 +70,25 @@ export const SitePicker = () => {
 // everything can scroll off; maximum use of space. easy to find top anyway.
 // we probably need a sticky to close? maybe this can be done with the rail though
 export const SiteMenuContent: Component<{}> = (props) => {
+
+  // we need the url to tell us site/page/block mode.
+  // it's easy to create an error where the viewer path is not the same?
+
+
   const st = usePage()
   const [sitemap] = createResource(st.doc.site, getSitemap)
   const [edit, setEdit] = createSignal(false)
 
-  return <Suspense fallback={<div>Loading</div>}> <Show when={sitemap()}>
+  const level = () => st.hash?parseInt(st.hash) : 0
+
+
+  const siteView = () => <div>
+    "Site view"
+  </div>
+  const blockView = () => <div>
+    "Block view"
+  </div>
+  const pageView = ()=> <Suspense fallback={<div>Loading</div>}> <Show when={sitemap()}>
     <div class='transform h-full flex-1 '>
       <div class='pb-16 pt-2 px-2'>
         <div class='flex items-center'>
@@ -92,6 +106,15 @@ export const SiteMenuContent: Component<{}> = (props) => {
           </div>
         </Show>
       </div></div></Show></Suspense>
+      
+   return <Switch>wtf
+    <Match when={level() == 0}>{siteView()}</Match>
+    <Match when={level() == 1}>{pageView()}</Match>
+    <Match when={level() == 1}>{blockView()}</Match>
+    <Match when={true}>
+      level={level()}, hash="{st.hash}"
+    </Match>
+   </Switch>
 }
 
 // {/* <SitePreference page={pd()!} />

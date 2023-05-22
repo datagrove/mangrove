@@ -205,12 +205,14 @@ export async function getUser(id: string): Promise<UserSettings> {
   console.log("getUser");
   return {
     tools: [
-      "home",
+      //"home",
+      "edit",
+      "site",
       "search",
       "alert",
       "dm",
 
-      //"site",
+
       "ai",
       "account", // setting is similar to home database
       "map",

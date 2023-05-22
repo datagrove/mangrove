@@ -7,10 +7,9 @@ import { useLn } from "../login/passkey_i18n";
 
 import { SiteMenuContent } from "./site_menu";
 import { Icon, } from "solid-heroicons";
-import { folder, signalSlash, user as avatar, sparkles, circleStack as dbicon, home, clock as history, pencil, bookOpen as menu, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass, arrowsRightLeft as eastWest, map } from "solid-heroicons/solid";
+import { faceSmile, folder, signalSlash, user as avatar, sparkles, circleStack as dbicon, home, clock as history, pencil, bookOpen as menu, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass, arrowsRightLeft as eastWest, map } from "solid-heroicons/solid";
 import { ChatViewer, CodeViewer, SheetViewer, WhiteboardViewer } from "./viewer";
 import { SettingsViewer } from "./settings";
-import { FolderViewer } from "./viewer/folder";
 import { Splitter } from "../layout/splitter";
 import { DarkButton } from "../lib";
 import { createWindowSize } from "@solid-primitives/resize-observer";
@@ -25,7 +24,8 @@ import { HomeViewer, Home } from "./home_viewer";
 import { MapTool, MapViewer } from "./map";
 import { DbTool, DbViewer } from "./db";
 import { AiTool, AiViewer } from "./ai";
-import { FolderTool } from "./folder";
+import { FolderTool, FolderViewer } from "./folder";
+import { EditTool, EditViewer } from "./edit";
 
 // mapview should start with flyout shut, even on large screens.
 
@@ -65,6 +65,18 @@ export function SearchViewer() {
   return <div>SearchViewer</div>
 }
 const builtinTools: { [key: string]: Tool } = {
+  "site": {
+    icon: () => <FloatIcon path={menu} />,
+    component: () => <SiteMenuContent />,
+    path: 'a/b/text',
+    viewer: () => <SiteViewer />
+  },
+  "edit": {
+    icon: () => <FloatIcon path={pencil} />,
+    component: () => <EditTool />,
+    path: 'a/b/text',
+    viewer: () => <EditViewer />
+  },
   "db": {
     icon: () => <FloatIcon path={dbicon} />,
     component: () => <DbTool />,
@@ -98,7 +110,7 @@ const builtinTools: { [key: string]: Tool } = {
     viewer: () => <ChatViewer />
   },
   "home": {
-    icon: () => <FloatIcon path={pencil} />,
+    icon: () => <FloatIcon path={faceSmile} />,
     component: () => <Home />,
     path: 'a/b/text',
     viewer: () => <HomeViewer />
@@ -109,12 +121,7 @@ const builtinTools: { [key: string]: Tool } = {
     path: 'a/b/text',
     viewer: () => <FolderViewer />
   },
-  "site": {
-    icon: () => <FloatIcon path={menu} />,
-    component: () => <SiteMenuContent />,
-    path: 'a/b/text',
-    viewer: () => <SiteViewer />
-  },
+
 
   "account": {
     icon: () => <FloatIcon path={avatar} />,

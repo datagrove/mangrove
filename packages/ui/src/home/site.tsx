@@ -2,7 +2,7 @@ import { useLocation } from "@solidjs/router"
 import { JSXElement, Show, Suspense, createResource, createSignal } from "solid-js"
 import { TextViewer, TextEditor } from "../lexical"
 import { SettingsViewer } from "./settings"
-import { FolderViewer, ChatViewer, WhiteboardViewer, SheetViewer, CodeViewer } from "./viewer"
+import {  ChatViewer, WhiteboardViewer, SheetViewer, CodeViewer } from "./viewer"
 import { DocumentContext, Viewer, getDocument, usePage } from "../core"
 
 // viewers are selected by the document type, can be overridden by the hash
@@ -10,7 +10,7 @@ export type ViewerMap = {
     [key: string]: Viewer
 }
 const builtinViewers: ViewerMap = {
-    "folder": { default: () => <FolderViewer /> },
+   // "folder": { default: () => <FolderViewer /> },
     "text": { default: () => <TextViewer /> },
     "text-edit": { default: () => <TextEditor /> },
     "chat": { default: () => <ChatViewer /> },
@@ -22,9 +22,10 @@ const builtinViewers: ViewerMap = {
 }
 export const [viewers, setViewers] = createSignal(builtinViewers)
 
-// this should use an iframe
-// it has to look at the hash to see edit or view
+
+// start at site, drill into pages, drill into blocks
 export function SiteViewer() {
+
     const sp = usePage()
     const page = useLocation()
     const path = page.pathname.split("/").pop()
