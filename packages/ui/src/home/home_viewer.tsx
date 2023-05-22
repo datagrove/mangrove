@@ -1,5 +1,5 @@
-import { Show, createSignal } from "solid-js"
-import { usePage } from "../core"
+import { JSXElement, Show, Suspense, createResource, createSignal } from "solid-js"
+import { getDocument, usePage } from "../core"
 import { SegmentSwitch } from "../form"
 import { H2 } from "../layout/nav"
 import { BlueButton, Segment } from "../lib/form"
@@ -8,7 +8,17 @@ import { SectionNav } from "./site_menu"
 
 //  <H2>{sp.user.name}</H2>
 
-// there's a lot to do here
+// most urls will have a "next" and a "previous" that we can access from a signal
+// possibly move into page context
+
+async function getNext() {
+    return ""
+}
+async function getPrevious() {
+    return ""
+}
+
+// show a list of templates, we can slide forward and back from here or in the viewer.
 export function Home() {
     const sp = usePage()
     const seg = createSignal(false)
@@ -21,7 +31,7 @@ export function Home() {
         <Show when={seg[0]()}>
 
             <section>
-             
+
                 <TemplateList />
             </section></Show>
     </div>
@@ -51,10 +61,29 @@ export function TemplateList() {
     </div>
 }
 
+export function FbButton(props: { children: JSXElement, onClick: () => void }) {
+    return <div class='w-24'><BlueButton onClick={props.onClick}>{props.children}</BlueButton></div>
+}
 // mostly a grid viewer in recent order?
 export function HomeViewer() {
-    return <div class='m-2 w-full'>
-           <div class='max-w-md flex items-start'>
-           <div><BlueButton class='block' >Create new</BlueButton></div></div>
+    const sp = usePage()
+    const pg = createResource(sp.doc, getDocument)
+
+    const copy = () => { }
+    const prev = async () => {
+
+    }
+    const next = () => { }
+    return <div class='w-full'>
+        <div class='flex justify-between h-12 items-center dark:bg-neutral-900'>
+            <div ><FbButton onClick={prev}>Previous</FbButton></div>
+            <div><FbButton onClick={copy} >Create</FbButton></div>
+            <div ><FbButton onClick={next}>Next</FbButton></div>
+        </div>
+        <div class='w-full m-2'>
+            <Suspense fallback={<div>Loading</div>}>
+
+            </Suspense>
+        </div>
     </div>
 }

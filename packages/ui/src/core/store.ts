@@ -210,10 +210,11 @@ export async function getUser(id: string): Promise<UserSettings> {
       "alert",
       "dm",
 
-      "site",
+      //"site",
       "ai",
       "account", // setting is similar to home database
       "map",
+      //"folder",
       "db",
       "pindb",
     ],
