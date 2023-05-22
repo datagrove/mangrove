@@ -1,24 +1,21 @@
 
 
-import { For, JSXElement, Match, Show, Suspense, Switch, createMemo, createResource, createSignal } from "solid-js";
+import { For, JSXElement, Match, Show, Suspense, Switch, createMemo, createSignal } from "solid-js";
 import { createWs } from "../core/socket";
 import { A, useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
 import { SiteMenuContent } from "./site_menu";
 import { Icon, } from "solid-heroicons";
-import { faceSmile, folder, signalSlash, user as avatar, sparkles, circleStack as dbicon, home, clock as history, pencil, bookOpen as menu, chatBubbleBottomCenter as friend, cog_6Tooth as gear, magnifyingGlass, arrowsRightLeft as eastWest, map } from "solid-heroicons/solid";
-import { ChatViewer, CodeViewer, SheetViewer, WhiteboardViewer } from "./viewer";
+import { faceSmile, folder, signalSlash, user as avatar, sparkles, circleStack as dbicon, clock as history, pencil, bookOpen as menu, chatBubbleBottomCenter as friend, magnifyingGlass, arrowsRightLeft as eastWest, map } from "solid-heroicons/solid";
+import { ChatViewer } from "./viewer";
 import { SettingsViewer } from "./settings";
-import { Splitter } from "../layout/splitter";
 import { DarkButton } from "../lib";
 import { createWindowSize } from "@solid-primitives/resize-observer";
 import { SearchPanel } from "./search";
 import { Settings } from "./settings";
 import { Message } from "./message";
-import { DocumentContext, Graphic, SiteDocumentRef, SitePage, SitePageContext, SiteRef, Tool, Viewer, getDocument, online, useUser } from "../core";
-import { TextEditor, TextViewer } from "../lexical/RichTextEditor";
-import { memo } from "solid-js/web";
+import { Graphic, SitePage, SitePageContext, SiteRef, Tool, online, useUser } from "../core";
 import { SiteViewer } from "./site";
 import { HomeViewer, Home } from "./home_viewer";
 import { MapTool, MapViewer } from "./map";

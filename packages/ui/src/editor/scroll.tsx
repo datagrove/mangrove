@@ -59,9 +59,9 @@ export interface Pane {
 // we need some concept of undo/redo. mostly with commands? or should we rollback the state? commands seems more likely to be collaborative. this is like and editor, so
 
 export interface Column {
-    tag: any
-    width: number
-    html: string
+    tag: any  // tag is used to identify the attribute in a stable way as columns are reordered
+    width: number // cached? we need to recalculate if pane changes size.
+    html: string   // cached from a builder?
     // private?
     start_?: number // calculated
 }

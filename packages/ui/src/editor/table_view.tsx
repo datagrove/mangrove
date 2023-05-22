@@ -20,7 +20,7 @@ const clearFrame = "border-solid border-0 border-opacity-0"
 
 
 export function QueryView(props: { query: QueryResult, builder: BuilderFn }) {
-    return <TableView  fallback={<div>loading</div>} builder={props.builder} width={100} height={100} />
+    return <TableView fallback={<div>loading</div>} builder={props.builder} width={100} height={100} />
 }
 
 interface TableViewProps {
@@ -43,16 +43,20 @@ export function TableView(props: TableViewProps) {
     // let edel: HTMLDivElement
 
     const c: Column[] = []
-    let cn = 0
-    const init = (header: [string, number][]) => {
-        cn = header.length
-        for (let i = 0; i < header.length; i++) {
-            c.push({
-                tag: i,
-                width: header[i][1],
-                html: `<div class='p-4'>${header[i][0]}</div>`
-            })
+    let hdr = props.header
+    if (!hdr) {
 
+        let cn = 0
+        const init = (header: [string, number][]) => {
+            cn = header.length
+            for (let i = 0; i < header.length; i++) {
+                c.push({
+                    tag: i,
+                    width: header[i][1],
+                    html: `<div class='p-4'>${header[i][0]}</div>`
+                })
+
+            }
         }
     }
 
@@ -72,10 +76,10 @@ export function TableView(props: TableViewProps) {
         // potentially remeasure row if focused cell becomes larger.
         // potentially build one editor and position it over the row like an inline dialog box?
 
-        const props: ScrollerProps = {
+        const sp: ScrollerProps = {
             container: el!,
             row: {
-                count: items.length,
+                count: props.height,
             },
             column: {
                 header: c,
@@ -84,7 +88,7 @@ export function TableView(props: TableViewProps) {
             height: est,
             // mouseover, mousedown, etc.
         }
-        const s = new Scroller(props)
+        const s = new Scroller(sp)
         setDebugstr(JSON.stringify(s, null, 2))
         const r = () => {
             // we should be able to adjust grid options here.
