@@ -1,8 +1,9 @@
 create schema if not exists mg;
 create schema if not exists mu;
 
-
-
+drop table if exists mg.org;
+drop table if exists mg.task;
+drop table if exists mg.tasklog;
 -- note that did, username, email and mobile are unique but can be null
 -- this is needed so we can index them.
 -- drop table mg.org;
@@ -28,15 +29,17 @@ create table mg.task (
     task bytea, -- cbor encoded task information, e.g. totp secret, ssh public key, etc.
     last_run timestamp,
     next_run timestamp,
+    chron text, -- cron string
     primary key (oid, name),
     foreign key (oid) references mg.org(oid)
-)
+);
+
 create table mg.tasklog (
     oid bigint not null,
     timestamp timestamp not null,
     name text not null, -- unique name for account by user.
     result bytea
-)
+);
 
 create table mg.friendly (
     name text primary key,
@@ -52,8 +55,8 @@ create table mg.site(
     root text not null, -- public key (DID) of owner. owner must be root signature 
     -- keep the length and tail here, the rest of the log is in r2
     length bigint not null, -- length of site log
-    lastwriter bigint not null, -- device id of last writer
-)
+    lastwriter bigint not null -- device id of last writer
+);
 -- everything goes into the site log, including the toc.
 --     device bigint not null, -- device id is in the encrypted part.
 -- conceptually this is in s3,
@@ -79,7 +82,7 @@ create table mg.credential (
     value bytea,
     foreign key (oid) references mg.org(oid)
  );
- create index mg.credential_oid on mg.credential_oid(oid);
+ create index credential_oid on mg.credential(oid);
 
 
  

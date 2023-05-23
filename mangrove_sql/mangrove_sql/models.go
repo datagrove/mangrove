@@ -8,74 +8,99 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type MgCredential struct {
+	Cid          []byte      `json:"cid"`
+	PasswordHash []byte      `json:"password_hash"`
+	Oid          int64       `json:"oid"`
+	Name         pgtype.Text `json:"name"`
+	Value        []byte      `json:"value"`
+}
+
 type MgDbentry struct {
-	Fid   int64
-	Start int64
-	Data  []byte
+	Fid   int64  `json:"fid"`
+	Start int64  `json:"start"`
+	Data  []byte `json:"data"`
 }
 
 type MgDblock struct {
-	Oid    pgtype.Int8
-	Db     int64
-	Name   []byte
-	Serial pgtype.Int8
+	Oid    pgtype.Int8 `json:"oid"`
+	Db     int64       `json:"db"`
+	Name   []byte      `json:"name"`
+	Serial pgtype.Int8 `json:"serial"`
 }
 
 type MgDbstream struct {
-	Db       int64
-	Fid      int64
-	Ownerdid pgtype.Text
+	Db       int64       `json:"db"`
+	Fid      int64       `json:"fid"`
+	Ownerdid pgtype.Text `json:"ownerdid"`
 }
 
 type MgDevice struct {
-	Device   int64
-	Webauthn string
+	Device   int64  `json:"device"`
+	Webauthn string `json:"webauthn"`
 }
 
 type MgDeviceOrg struct {
-	Oid    int64
-	Device int64
-	Ucan   string
+	Oid    int64  `json:"oid"`
+	Device int64  `json:"device"`
+	Ucan   string `json:"ucan"`
+}
+
+type MgFriendly struct {
+	Name string `json:"name"`
+	Oid  int64  `json:"oid"`
 }
 
 type MgNamePrefix struct {
-	Name  string
-	Count int64
+	Name  string `json:"name"`
+	Count int64  `json:"count"`
 }
 
 type MgOrg struct {
-	Oid           int64
-	Did           []byte
-	Username      pgtype.Text
-	Name          string
-	IsUser        bool
-	Password      []byte
-	HashAlg       string
-	Email         pgtype.Text
-	Mobile        pgtype.Text
-	Pin           string
-	Webauthn      string
-	Totp          string
-	Flags         int64
-	TotpPng       []byte
-	DefaultFactor int32
+	Oid      int64  `json:"oid"`
+	Did      string `json:"did"`
+	Name     string `json:"name"`
+	Recovery []byte `json:"recovery"`
 }
 
 type MgOrgDb struct {
-	Oid int64
-	Db  int64
+	Oid int64 `json:"oid"`
+	Db  int64 `json:"db"`
 }
 
 type MgOrgMember struct {
-	Oid    int64
-	Member string
-	Ucan   pgtype.Text
+	Oid    int64       `json:"oid"`
+	Member string      `json:"member"`
+	Ucan   pgtype.Text `json:"ucan"`
 }
 
-type MgPasskey struct {
-	Cid   []byte
-	Oid   int64
-	Name  pgtype.Text
-	Type  pgtype.Text
-	Value []byte
+type MgR2 struct {
+	Key   []byte `json:"key"`
+	Value []byte `json:"value"`
+}
+
+type MgSite struct {
+	Sid        int64  `json:"sid"`
+	Root       string `json:"root"`
+	Length     int64  `json:"length"`
+	Lastwriter int64  `json:"lastwriter"`
+}
+
+type MgTask struct {
+	Oid      int64            `json:"oid"`
+	Name     string           `json:"name"`
+	Secret   []byte           `json:"secret"`
+	Auth     []byte           `json:"auth"`
+	TaskType string           `json:"task_type"`
+	Task     []byte           `json:"task"`
+	LastRun  pgtype.Timestamp `json:"last_run"`
+	NextRun  pgtype.Timestamp `json:"next_run"`
+	Chron    pgtype.Text      `json:"chron"`
+}
+
+type MgTasklog struct {
+	Oid       int64            `json:"oid"`
+	Timestamp pgtype.Timestamp `json:"timestamp"`
+	Name      string           `json:"name"`
+	Result    []byte           `json:"result"`
 }

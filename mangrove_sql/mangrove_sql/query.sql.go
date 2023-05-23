@@ -16,8 +16,8 @@ insert into mg.device_org (device,oid) values ($1, $2)
 `
 
 type ApproveDeviceParams struct {
-	Device int64
-	Oid    int64
+	Device int64 `json:"device"`
+	Oid    int64 `json:"oid"`
 }
 
 func (q *Queries) ApproveDevice(ctx context.Context, arg ApproveDeviceParams) error {
@@ -34,6 +34,15 @@ func (q *Queries) AvailableName(ctx context.Context, name string) (int64, error)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const deleteCredential = `-- name: DeleteCredential :exec
+delete from mg.credential where cid = $1
+`
+
+func (q *Queries) DeleteCredential(ctx context.Context, cid []byte) error {
+	_, err := q.db.Exec(ctx, deleteCredential, cid)
+	return err
 }
 
 const deleteDevice = `-- name: DeleteDevice :exec
@@ -61,8 +70,8 @@ insert into mg.device (device, webauthn) values ($1, $2)
 `
 
 type InsertDeviceParams struct {
-	Device   int64
-	Webauthn string
+	Device   int64  `json:"device"`
+	Webauthn string `json:"webauthn"`
 }
 
 func (q *Queries) InsertDevice(ctx context.Context, arg InsertDeviceParams) error {
@@ -75,8 +84,8 @@ insert into mg.dblock (db, name, serial) values ($1, $2, 1)
 `
 
 type InsertLockParams struct {
-	Db   int64
-	Name []byte
+	Db   int64  `json:"db"`
+	Name []byte `json:"name"`
 }
 
 // if value is 1, then we need to insert
@@ -86,42 +95,22 @@ func (q *Queries) InsertLock(ctx context.Context, arg InsertLockParams) error {
 }
 
 const insertOrg = `-- name: InsertOrg :one
-insert into mg.org (
-    name, is_user, password, hash_alg,email,mobile,pin,
-    webauthn,totp,flags,totp_png,default_factor)
-values ($1, $2, $3,$4,$5,$6,$7,$8,$9,$10,$11,$12) 
-RETURNING oid
+insert into mg.org (oid,did,name,recovery) values ($1, $2, $3, $4) returning oid
 `
 
 type InsertOrgParams struct {
-	Name          string
-	IsUser        bool
-	Password      []byte
-	HashAlg       string
-	Email         pgtype.Text
-	Mobile        pgtype.Text
-	Pin           string
-	Webauthn      string
-	Totp          string
-	Flags         int64
-	TotpPng       []byte
-	DefaultFactor int32
+	Oid      int64  `json:"oid"`
+	Did      string `json:"did"`
+	Name     string `json:"name"`
+	Recovery []byte `json:"recovery"`
 }
 
 func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) (int64, error) {
 	row := q.db.QueryRow(ctx, insertOrg,
+		arg.Oid,
+		arg.Did,
 		arg.Name,
-		arg.IsUser,
-		arg.Password,
-		arg.HashAlg,
-		arg.Email,
-		arg.Mobile,
-		arg.Pin,
-		arg.Webauthn,
-		arg.Totp,
-		arg.Flags,
-		arg.TotpPng,
-		arg.DefaultFactor,
+		arg.Recovery,
 	)
 	var oid int64
 	err := row.Scan(&oid)
@@ -129,15 +118,15 @@ func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) (int64, er
 }
 
 const insertPasskey = `-- name: InsertPasskey :exec
-insert into mg.passkey (cid, oid, name, type, value) values ($1, $2, $3, $4, $5)
+insert into mg.credential (cid, oid, name, password_hash, value) values ($1, $2, $3, $4, $5)
 `
 
 type InsertPasskeyParams struct {
-	Cid   []byte
-	Oid   int64
-	Name  pgtype.Text
-	Type  pgtype.Text
-	Value []byte
+	Cid          []byte      `json:"cid"`
+	Oid          int64       `json:"oid"`
+	Name         pgtype.Text `json:"name"`
+	PasswordHash []byte      `json:"password_hash"`
+	Value        []byte      `json:"value"`
 }
 
 func (q *Queries) InsertPasskey(ctx context.Context, arg InsertPasskeyParams) error {
@@ -145,7 +134,7 @@ func (q *Queries) InsertPasskey(ctx context.Context, arg InsertPasskeyParams) er
 		arg.Cid,
 		arg.Oid,
 		arg.Name,
-		arg.Type,
+		arg.PasswordHash,
 		arg.Value,
 	)
 	return err
@@ -171,68 +160,14 @@ func (q *Queries) NamePrefix(ctx context.Context, name string) (MgNamePrefix, er
 	return i, err
 }
 
-const orgByEmail = `-- name: OrgByEmail :one
-select oid, did, username, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where email = $1
-`
-
-func (q *Queries) OrgByEmail(ctx context.Context, email pgtype.Text) (MgOrg, error) {
-	row := q.db.QueryRow(ctx, orgByEmail, email)
-	var i MgOrg
-	err := row.Scan(
-		&i.Oid,
-		&i.Did,
-		&i.Username,
-		&i.Name,
-		&i.IsUser,
-		&i.Password,
-		&i.HashAlg,
-		&i.Email,
-		&i.Mobile,
-		&i.Pin,
-		&i.Webauthn,
-		&i.Totp,
-		&i.Flags,
-		&i.TotpPng,
-		&i.DefaultFactor,
-	)
-	return i, err
-}
-
-const orgByPhone = `-- name: OrgByPhone :one
-select oid, did, username, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where mobile = $1
-`
-
-func (q *Queries) OrgByPhone(ctx context.Context, mobile pgtype.Text) (MgOrg, error) {
-	row := q.db.QueryRow(ctx, orgByPhone, mobile)
-	var i MgOrg
-	err := row.Scan(
-		&i.Oid,
-		&i.Did,
-		&i.Username,
-		&i.Name,
-		&i.IsUser,
-		&i.Password,
-		&i.HashAlg,
-		&i.Email,
-		&i.Mobile,
-		&i.Pin,
-		&i.Webauthn,
-		&i.Totp,
-		&i.Flags,
-		&i.TotpPng,
-		&i.DefaultFactor,
-	)
-	return i, err
-}
-
 const read = `-- name: Read :many
 select fid, start, data from mg.dbentry where fid = $1 and start between $2 and $3 order by start
 `
 
 type ReadParams struct {
-	Fid     int64
-	Start   int64
-	Start_2 int64
+	Fid     int64 `json:"fid"`
+	Start   int64 `json:"start"`
+	Start_2 int64 `json:"start_2"`
 }
 
 func (q *Queries) Read(ctx context.Context, arg ReadParams) ([]MgDbentry, error) {
@@ -260,8 +195,8 @@ delete from mg.device_org where device = $1 and oid = $2
 `
 
 type RevokeDeviceParams struct {
-	Device int64
-	Oid    int64
+	Device int64 `json:"device"`
+	Oid    int64 `json:"oid"`
 }
 
 func (q *Queries) RevokeDevice(ctx context.Context, arg RevokeDeviceParams) error {
@@ -270,7 +205,7 @@ func (q *Queries) RevokeDevice(ctx context.Context, arg RevokeDeviceParams) erro
 }
 
 const selectOrg = `-- name: SelectOrg :one
-select oid, did, username, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where oid = $1
+select oid, did, name, recovery from mg.org where oid = $1
 `
 
 func (q *Queries) SelectOrg(ctx context.Context, oid int64) (MgOrg, error) {
@@ -279,25 +214,14 @@ func (q *Queries) SelectOrg(ctx context.Context, oid int64) (MgOrg, error) {
 	err := row.Scan(
 		&i.Oid,
 		&i.Did,
-		&i.Username,
 		&i.Name,
-		&i.IsUser,
-		&i.Password,
-		&i.HashAlg,
-		&i.Email,
-		&i.Mobile,
-		&i.Pin,
-		&i.Webauthn,
-		&i.Totp,
-		&i.Flags,
-		&i.TotpPng,
-		&i.DefaultFactor,
+		&i.Recovery,
 	)
 	return i, err
 }
 
 const selectOrgByName = `-- name: SelectOrgByName :one
-select oid, did, username, name, is_user, password, hash_alg, email, mobile, pin, webauthn, totp, flags, totp_png, default_factor from mg.org where name = $1
+select oid, did, name, recovery from mg.org where name = $1
 `
 
 func (q *Queries) SelectOrgByName(ctx context.Context, name string) (MgOrg, error) {
@@ -306,35 +230,24 @@ func (q *Queries) SelectOrgByName(ctx context.Context, name string) (MgOrg, erro
 	err := row.Scan(
 		&i.Oid,
 		&i.Did,
-		&i.Username,
 		&i.Name,
-		&i.IsUser,
-		&i.Password,
-		&i.HashAlg,
-		&i.Email,
-		&i.Mobile,
-		&i.Pin,
-		&i.Webauthn,
-		&i.Totp,
-		&i.Flags,
-		&i.TotpPng,
-		&i.DefaultFactor,
+		&i.Recovery,
 	)
 	return i, err
 }
 
 const selectPasskey = `-- name: SelectPasskey :one
-select cid, oid, name, type, value from mg.passkey where cid = $1
+select cid, password_hash, oid, name, value from mg.credential where cid = $1
 `
 
-func (q *Queries) SelectPasskey(ctx context.Context, cid []byte) (MgPasskey, error) {
+func (q *Queries) SelectPasskey(ctx context.Context, cid []byte) (MgCredential, error) {
 	row := q.db.QueryRow(ctx, selectPasskey, cid)
-	var i MgPasskey
+	var i MgCredential
 	err := row.Scan(
 		&i.Cid,
+		&i.PasswordHash,
 		&i.Oid,
 		&i.Name,
-		&i.Type,
 		&i.Value,
 	)
 	return i, err
@@ -345,9 +258,9 @@ delete from mg.dbentry where fid = $1 and start between $2 and $3
 `
 
 type TrimParams struct {
-	Fid     int64
-	Start   int64
-	Start_2 int64
+	Fid     int64 `json:"fid"`
+	Start   int64 `json:"start"`
+	Start_2 int64 `json:"start_2"`
 }
 
 func (q *Queries) Trim(ctx context.Context, arg TrimParams) error {
@@ -360,9 +273,9 @@ update mg.dblock set serial = $3 where db = $1 and name = $2
 `
 
 type UpdateLockParams struct {
-	Db     int64
-	Name   []byte
-	Serial pgtype.Int8
+	Db     int64       `json:"db"`
+	Name   []byte      `json:"name"`
+	Serial pgtype.Int8 `json:"serial"`
 }
 
 func (q *Queries) UpdateLock(ctx context.Context, arg UpdateLockParams) error {
@@ -371,69 +284,23 @@ func (q *Queries) UpdateLock(ctx context.Context, arg UpdateLockParams) error {
 }
 
 const updateOrg = `-- name: UpdateOrg :exec
-update mg.org set name = $2, is_user = $3, password = $4, hash_alg = $5, email = $6, mobile = $7, pin = $8, webauthn = $9, totp = $10, flags = $11,totp_png=$12,default_factor=$13 where oid=$1
+update mg.org set did = $2, name = $3, recovery = $4 where oid = $1
 `
 
 type UpdateOrgParams struct {
-	Oid           int64
-	Name          string
-	IsUser        bool
-	Password      []byte
-	HashAlg       string
-	Email         pgtype.Text
-	Mobile        pgtype.Text
-	Pin           string
-	Webauthn      string
-	Totp          string
-	Flags         int64
-	TotpPng       []byte
-	DefaultFactor int32
+	Oid      int64  `json:"oid"`
+	Did      string `json:"did"`
+	Name     string `json:"name"`
+	Recovery []byte `json:"recovery"`
 }
 
 func (q *Queries) UpdateOrg(ctx context.Context, arg UpdateOrgParams) error {
 	_, err := q.db.Exec(ctx, updateOrg,
 		arg.Oid,
+		arg.Did,
 		arg.Name,
-		arg.IsUser,
-		arg.Password,
-		arg.HashAlg,
-		arg.Email,
-		arg.Mobile,
-		arg.Pin,
-		arg.Webauthn,
-		arg.Totp,
-		arg.Flags,
-		arg.TotpPng,
-		arg.DefaultFactor,
+		arg.Recovery,
 	)
-	return err
-}
-
-const updateOrgName = `-- name: UpdateOrgName :exec
-update mg.org set name = $2 where oid=$1
-`
-
-type UpdateOrgNameParams struct {
-	Oid  int64
-	Name string
-}
-
-func (q *Queries) UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) error {
-	_, err := q.db.Exec(ctx, updateOrgName, arg.Oid, arg.Name)
-	return err
-}
-
-const updatePassword = `-- name: UpdatePassword :exec
-update mg.org set password = $2 where oid = $1
-`
-
-type UpdatePasswordParams struct {
-	Oid      int64
-	Password []byte
-}
-
-func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error {
-	_, err := q.db.Exec(ctx, updatePassword, arg.Oid, arg.Password)
 	return err
 }
 
@@ -453,9 +320,9 @@ insert into mg.dbentry (fid, start, data) values ($1, $2, $3)
 `
 
 type WriteParams struct {
-	Fid   int64
-	Start int64
-	Data  []byte
+	Fid   int64  `json:"fid"`
+	Start int64  `json:"start"`
+	Data  []byte `json:"data"`
 }
 
 func (q *Queries) Write(ctx context.Context, arg WriteParams) error {
