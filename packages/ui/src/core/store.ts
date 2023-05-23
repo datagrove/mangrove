@@ -206,8 +206,8 @@ export async function getUser(id: string): Promise<UserSettings> {
   return {
     tools: [
       //"home",
-      "edit",
       "site",
+      "edit",
       "search",
       "alert",
       "dm",

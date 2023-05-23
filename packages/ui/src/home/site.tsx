@@ -45,13 +45,13 @@ function getSites(): MenuEntry[] {
         {
             name: "Pinned", path: "/settings",
             children: [
-                { name: "Public Blog", path: "/en/site/blog/index.html" },
-                { name: "Private Blog", path: "/en/site/blog/index.html" },
-                { name: "Personal Notes", path: "/en/site/blog/index.html" },
-                { name: "Public Store", path: "/en/site/blog/index.html" },
-                { name: "Private Store", path: "/en/site/blog/index.html" },
-                { name: "Public Chat", path: "/en/site/blog/index.html" },
-                { name: "Private Chat", path: "/en/site/blog/index.html" },
+                { name: "Public Blog", path: "/en/site/blog/" },
+                { name: "Private Blog", path: "/en/site/private-blog/" },
+                { name: "Private Notes", path: "/en/site/notes/" },
+                { name: "Public Store", path: "/en/site/store/" },
+                { name: "Private Store", path: "/en/site/private-store/" },
+                { name: "Public Chat", path: "/en/site/chat/" },
+                { name: "Private Chat", path: "/en/site/private-chat/" },
             ]
         },
         {
@@ -99,7 +99,7 @@ export const SiteMenuContent: Component<{}> = (props) => {
 
     // level is just based on the path length.
     // the first piece of the path
-    const showPages = () => loc.pathname.split("/").length > 4
+    const showPages = () => loc.pathname.split("/").length > 3
     // in a path, the first bit is the site, the rest defines the page
     // to get the blocks in a page (outline) we need to get the page.
     // probably don't need to do in the tool, rather in the viewer.
@@ -111,7 +111,7 @@ export const SiteMenuContent: Component<{}> = (props) => {
 
     const navback = () => {
         // /en/site/xxx ; this should position to the site xxx
-        const p = loc.pathname.split("/").slice(0, 4).join("/")
+        const p = loc.pathname.split("/").slice(0, 3).join("/")
         nav(p)
     }
 
@@ -178,6 +178,14 @@ export function SiteViewer() {
 
 // these pages need a floating search/menu when small.
 // maybe use a standard page tool.
+// <div class='flex items-end  mx-8 flex-wrap space-y-6 space-x-6 '>
+function Grid(props: { children: JSXElement[] }) {
+    return <div style={{
+        "display": "grid",
+        "grid-template-columns": "repeat(auto-fit, minmax(130px, 1fr))"
+    }}> {props.children}</div >
+}
+
 
 export type IconPath = typeof homeModern
 // floating is for small screens only? map mode can still have the rail.
@@ -193,14 +201,14 @@ export function Home() {
                     <Icon path={bars_3} class='dark:text-white h-6 w-6' /></button>
                 <div class='w-full'>
                     <div class=' flex items-center p-2 w-full    rounded-md'
-                    onclick={() => {
-                        console.log("search")
-                    }}
-                >
+                        onclick={() => {
+                            console.log("search")
+                        }}
+                    >
 
-                    <input autofocus
-                        class=" flex-1 border-0 focus:ring-0 focus:outline-none dark:bg-solid-dark"
-                        placeholder={"Search or type URL"} type="search" /></div></div>
+                        <input autofocus
+                            class=" flex-1 border-0 focus:ring-0 focus:outline-none dark:bg-solid-dark"
+                            placeholder={"Search or type URL"} type="search" /></div></div>
             </div>
         </div>)
     }
@@ -212,20 +220,20 @@ export function Home() {
     const o = getSites()
     const pinned = o[0].children
 
-    const Card = (props: {href: string,name: string, icon: IconPath}) => {
-        return <A href={props.href}><div class='w-28 h-28 flex flex-col justify-center text-center bg-neutral-900 hover:dark:bg-neutral-500 rounded-md' ><div class='flex justify-center w-full'><Icon path={props.icon} class='h-12 w-12' /></div>
-        <div> {props.name}</div>
+    const Card = (props: { href: string, name: string, icon: IconPath }) => {
+        return <A href={props.href}><div class='p-2 m-2 w-28 h-28 flex flex-col justify-center text-center bg-neutral-900 hover:dark:bg-neutral-500 rounded-md' ><div class='flex justify-center w-full'><Icon path={props.icon} class='h-12 w-12' /></div>
+            <div> {props.name}</div>
         </div></A>
     }
     const click = (m: MenuEntry) => {
         console.log("click", m)
     }
 
-    const EventCard = (props: {children: JSXElement}) => {
+    const EventCard = (props: { children: JSXElement }) => {
         return <div class='w-full flex items-center  p-2 bg-neutral-900 hover:dark:bg-neutral-500 rounded-md' >
             <div class='flex '><Icon path={homeModern} class='h-12 w-12' /></div>
-        <div class='flex-grow ml-2'> {props.children}
-        </div></div>
+            <div class='flex-grow ml-2'> {props.children}
+            </div></div>
     }
 
     return <Page>
@@ -234,28 +242,30 @@ export function Home() {
         <div class='flex justify-center'><Search /></div>
 
         <div class='w-full text-center text-neutral-500'>Find Help</div>
-        <div class='flex justify-center'><div class='flex items-end  mx-8 flex-wrap space-y-6 space-x-6 '>
-            <Card name='Docs' icon={bookOpen} href='https://datagrove.com'/>
-            <Card name='Store' icon={shoppingBag}  href='https://datagrove.com'/>
-            <Card name='Youtube' icon={videoCamera} href='https://datagrove.com'/>
-            <Card name='Our Blog' icon={pencilSquare} href='https://datagrove.com'/>
-            <Card name='Chat' icon={chatBubbleOvalLeft}  href='https://datagrove.com'/>
-        </div></div>
+        <Grid>
+            <Card name='Docs' icon={bookOpen} href='https://datagrove.com' />
+            <Card name='Store' icon={shoppingBag} href='https://datagrove.com' />
+            <Card name='Youtube' icon={videoCamera} href='https://www.youtube.com/@datagrove6599/featured' />
+            <Card name='Our Blog' icon={pencilSquare} href='https://datagrove.com' />
+            <Card name='Chat' icon={chatBubbleOvalLeft} href='https://datagrove.com' />
+        </Grid>
+
         <div class='w-full p-4 text-center text-neutral-500'>Create</div>
-        <div class='flex items-end  mx-8 flex-wrap space-y-6 space-x-6 '>
-            <Card name='New Site' icon={plus} href='#'/>
-            <For each={pinned}>{(e,i)=>{
-                return <Card name={e.name} icon={homeModern} href={e.name}/>
+        <div class='px-4'> <Grid>
+            <Card name='New Site' icon={plus} href='#' />
+            <For each={pinned}>{(e, i) => {
+                return <Card name={e.name} icon={homeModern} href={e.name} />
             }}</For>
-        </div>
+        </Grid></div>
+
         <div class='w-full p-4 text-center text-neutral-500'>Recent Activity</div>
         <div class='space-y-2'>
-        <For each={pinned}>{(e,i)=>{
-            return <div class='flex items-end  mx-8 flex-wrap space-y-6 space-x-6 '>
-                <EventCard>
-                    { faker.lorem.sentences(4) }
-                </EventCard>
-            </div>
-        }}</For></div>
+            <For each={pinned}>{(e, i) => {
+                return <div class='flex items-end  mx-8 flex-wrap space-y-6 space-x-6 '>
+                    <EventCard>
+                        {faker.lorem.sentences(4)}
+                    </EventCard>
+                </div>
+            }}</For></div>
     </Page>
 }
