@@ -1,3 +1,34 @@
+Each site has an outline. Currently loaded in memory with json, but in the future will move to a database vector.
+
+
+-- this is also an outline, but it probably is a sorted one?
+-- Are these two different types of editors? symlinks
+-- one idea is that all outlines are pinned + sorted. Pins are manually ordered.
+-- option to view without pins, or only pins. SSG sites might be only pins.
+create table settings(
+    oid,
+    sites, -- should be vector, for now blob.
+)
+
+
+create table site(
+    sid,  -- 64 bit integer assigned by host of record. offline creation uses negative numbers until one is assigned.
+    did,
+    outline,
+)
+
+create table page(
+    sid,
+    pathn,
+    path
+    format 
+    data bytea
+)
+
+
+
+
+
 home is an interface for the user's metabase.
 
 Like finder or explorer, lets you browse the databases you are connected with. Each database is displayed in an iframe sandbox, allowing the database to customize its user interface.
