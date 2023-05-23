@@ -56,11 +56,17 @@ insert into mg.dbentry (fid, start, data) values ($1, $2, $3);
 -- name: Trim :exec
 delete from mg.dbentry where fid = $1 and start between $2 and $3;
 
--- name: InsertPasskey :exec
-insert into mg.credential (cid, oid, name, password_hash, value) values ($1, $2, $3, $4, $5);
+-- name: InsertCredential :exec
+insert into mg.credential (cid, oid, name, value) values ($1, $2, $3, $4);
 
--- name: SelectPasskey :one
+-- name: UpdateCredential :exec
+update mg.credential set  value = $2 where cid = $1;
+
+-- name: SelectCredential :one
 select * from mg.credential where cid = $1;
+
+-- name: SelectCredentialByOid :many
+select * from mg.credential where oid = $1;
 
 -- name: DeleteCredential :exec
 delete from mg.credential where cid = $1;

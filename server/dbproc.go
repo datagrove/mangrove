@@ -17,6 +17,7 @@ import (
 	sq "github.com/datagrove/mangrove/mangrove_sql/mangrove_sql"
 	"github.com/datagrove/mangrove/message"
 	"github.com/datagrove/mangrove/ucan"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/goombaio/namegenerator"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -200,27 +201,28 @@ func (s *Server) TotpBytes(url string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type Credential struct {
+	Totp          []byte
+	PasswordHash  []byte
+	PasswordClear string //optional use for proxy.
+	Phone         string
+	Email         string
+}
+
 // this is for the proxy to create a new user
 // this is from http, how can we get the session, do we need it?
 func (s *Server) CreateUser(user, pass, ph string) error {
-	key, e := s.TotpSecret(user)
+
+	n, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
+		Did:      pt(""),
+		Name:     user,
+		Recovery: []byte{},
+	})
 	if e != nil {
 		return e
 	}
-	_, e = s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
-		Name:     user,
-		IsUser:   true,
-		Password: []byte(pass),
-		HashAlg:  "",
-		Email:    pt(user),
-		Mobile:   pt(ph),
-		Pin:      "",
-		Webauthn: "",
-		Totp:     key,
-		Flags:    0,
-	})
 
-	return e
+	return s.AddPasswordCredential(n, user, pass, ph, "")
 
 }
 
@@ -258,18 +260,9 @@ func (s *Server) RegisterEmailPassword(sess *Session, email, password string) er
 // registers with a passkey only
 func (s *Server) RegisterPasskey(sess *Session) error {
 	n, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
-		Name:          sess.Name,
-		IsUser:        false,
-		Password:      []byte{},
-		HashAlg:       "",
-		Email:         pgtype.Text{},
-		Mobile:        pgtype.Text{},
-		Pin:           "",
-		Webauthn:      "",
-		Totp:          "",
-		Flags:         0,
-		TotpPng:       []byte{},
-		DefaultFactor: 0,
+		Did:      pt(""),
+		Name:     sess.Name,
+		Recovery: []byte{},
 	})
 	if e != nil {
 		return e
@@ -279,11 +272,10 @@ func (s *Server) RegisterPasskey(sess *Session) error {
 	if e != nil {
 		return e
 	}
-	return s.Db.qu.InsertPasskey(context.Background(), mangrove_sql.InsertPasskeyParams{
-		Cid:   []byte(sess.ID),
+	return s.Db.qu.InsertCredential(context.Background(), mangrove_sql.InsertCredentialParams{
+		Cid:   []byte("p:" + sess.ID),
 		Oid:   n,
 		Name:  pgtype.Text{},
-		Type:  pgtype.Text{},
 		Value: b,
 	})
 
@@ -307,17 +299,9 @@ func (s *Server) Register(sess *Session) (string, error) {
 	png.Encode(&buf, img)
 
 	oid, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
+		Did:      pgtype.Text{},
 		Name:     user,
-		IsUser:   true,
-		Password: []byte(sess.Password),
-		HashAlg:  "",
-		Email:    pt(sess.Email),
-		Mobile:   pt(sess.Phone),
-		Pin:      "",
-		Webauthn: "",
-		Totp:     key.Secret(),
-		TotpPng:  buf.Bytes(),
-		Flags:    0,
+		Recovery: []byte{},
 	})
 	sess.Oid = oid
 	sess.Name = user
@@ -328,99 +312,110 @@ func (s *Server) Register(sess *Session) (string, error) {
 // this can be 0, it can be kNone. In both cases we should send the loginInfo since we are already logged in.
 var errBadLogin = fmt.Errorf("invalidLogin")
 
+func (s *Server) AddPasswordCredential(oid int64, user, password, ph, email string) error {
+	pass, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	password = "" // add option to keep
+
+	// generate a totp credential
+	key, e := s.TotpSecret(user)
+	if e != nil {
+		return e
+	}
+	cred := &Credential{
+		Totp:          []byte(key),
+		PasswordHash:  pass,
+		PasswordClear: password,
+		Phone:         ph,
+		Email:         "",
+	}
+	b, e := cbor.Marshal(cred)
+	// to use a totp we need a user name, so the cid is
+	// totp:username
+	// the secret is in the value.
+	e = s.Db.qu.InsertCredential(context.Background(), mangrove_sql.InsertCredentialParams{
+		Cid:   []byte(fmt.Sprintf("mfa:%s", user)),
+		Oid:   0,
+		Name:  pgtype.Text{},
+		Value: b,
+	})
+	return e
+	return nil
+}
+
+func (s *Server) ProxyLogin1(sess *Session, user, password string, pref int) (*ChallengeNotify, error) {
+	// we can't find the user, but check to see if the proxy knows them
+	//return nil, e
+	sess.Username = user
+	sess.Password = password
+	li, e := s.GetLoginInfo(sess)
+	if e != nil {
+		return nil, e
+	}
+
+	// there is a lot of duplication of this code!
+
+	oid, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
+		Oid:      0,
+		Did:      pgtype.Text{},
+		Name:     user,
+		Recovery: []byte{},
+	})
+	if e != nil {
+		return nil, e
+	}
+	sess.Oid = oid
+
+	return &ChallengeNotify{
+		ChallengeType:   0,
+		ChallengeSentTo: "",
+		OtherOptions:    0,
+		LoginInfo:       li,
+	}, nil
+}
+
 // pref should be a mask?
 func (s *Server) PasswordLogin(sess *Session, user, password string, pref int) (*ChallengeNotify, error) {
-	a, e := s.Db.qu.SelectOrgByName(context.Background(), user)
+	cid := []byte(fmt.Sprintf("mfa:%s", user))
+	a, e := s.Db.qu.SelectCredential(context.Background(), cid)
+	if e != nil && s.ProxyLogin != nil {
+		return s.ProxyLogin1(sess, user, password, pref)
+	}
+	var cred Credential
+	cbor.Unmarshal(a.Value, &cred)
+
+	e = bcrypt.CompareHashAndPassword(cred.PasswordHash, []byte(password))
 	if e != nil {
-		// we can't find the user, but check to see if the proxy knows them
-		//return nil, e
-		sess.Username = user
-		sess.Password = password
-		li, e := s.GetLoginInfo(sess)
-		if e != nil {
-			return nil, e
-		}
-
-		// there is a lot of duplication of this code!
-
-		// no bcrypt, we wouldn't be able to proxy, should be optional when not a proxy though
-		// pass, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-		// store the user locally
-		key, e := s.TotpSecret(user)
-		if e != nil {
-			return nil, e
-		}
-		oid, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
-			Name:          user,
-			IsUser:        true,
-			Password:      []byte(password),
-			HashAlg:       (""),
-			Email:         pt(li.Email),
-			Mobile:        pt(li.Phone),
-			Pin:           "",
-			Webauthn:      "",
-			Totp:          key,
-			Flags:         0,
-			TotpPng:       []byte{},
-			DefaultFactor: 0,
-		})
-		if e != nil {
-			return nil, e
-		}
-		sess.Oid = oid
-
-		return &ChallengeNotify{
-			ChallengeType:   0,
-			ChallengeSentTo: "",
-			OtherOptions:    0,
-			LoginInfo:       li,
-		}, nil
-
+		return nil, errBadLogin
 	}
 
-	switch a.HashAlg {
-	case "bcrypt":
-		e = bcrypt.CompareHashAndPassword([]byte(a.Password), []byte(password))
-		if e != nil {
-			return nil, errBadLogin
-		}
-	case "":
-		if string(a.Password) != password {
-			return nil, errBadLogin
-		}
-	}
-	sess.Oid = a.Oid
-	sess.Username = a.Name
-	sess.Password = string(a.Password)
-
-	sess.Name = a.Name
-	sess.DisplayName = a.Name
-	sess.Mobile = a.Mobile.String
-	sess.Email = a.Email.String
-	sess.Voice = a.Mobile.String
-	sess.Totp = a.Totp
-	sess.DefaultFactor = int(a.DefaultFactor)
-
-	return s.SendChallenge(sess)
+	return s.SendChallenge(sess, &cred)
 }
 
 // always send LoginInfo.
 func (s *Server) GetSettings(sess *Session) (*Settings, error) {
-	a, e := s.Db.qu.SelectOrg(context.Background(), sess.Oid)
+	a, e := s.Db.qu.SelectCredentialByOid(context.Background(), sess.Oid)
 	if e != nil {
 		return nil, e
 	}
-	png, e := s.TotpBytes(string(a.Totp))
+	x := []Credential{}
+	totp := []byte{}
+	for _, v := range a {
+		var cred Credential
+		cbor.Unmarshal(v.Value, &cred)
+		if len(cred.Totp) > 0 {
+			totp = cred.Totp
+		}
+		x = append(x, cred)
+	}
+
+	png, e := s.TotpBytes(string(totp))
 	if e != nil {
 		return nil, e
 	}
 	return &Settings{
-		UserSecret:      "",
-		Img:             png,
-		Email:           a.Email.String,
-		Phone:           a.Mobile.String,
-		ActivatePasskey: true,
-		ActivateTotp:    true,
+		UserSecret: "",
+		Img:        png,
+		Credential: x,
 	}, nil
 
 }
@@ -434,13 +429,13 @@ func (s *Server) Configure(sess *Session, li *Settings) error {
 	return nil
 }
 
-func (s *Server) GetPasswordFromEmail(email string) (string, error) {
-	a, e := s.Db.qu.SelectOrgByName(context.Background(), email)
-	if e != nil {
-		return "", e
-	}
-	return string(a.Password), nil
-}
+// func (s *Server) GetPasswordFromEmail(email string) (string, error) {
+// 	a, e := s.Db.qu.SelectOrgByName(context.Background(), email)
+// 	if e != nil {
+// 		return "", e
+// 	}
+// 	return string(a.Password), nil
+// }
 
 // call this based on successfully finding the oid in a passkey record
 func (s *Server) LoginInfoFromOid(sess *Session, oid int64) (*LoginInfo, error) {
@@ -448,24 +443,23 @@ func (s *Server) LoginInfoFromOid(sess *Session, oid int64) (*LoginInfo, error) 
 	if e != nil {
 		return nil, e
 	}
-	if s.ProxyLogin != nil {
-		// why do we know these things here? shouldn't they be parameters
-		// these things are meaningless if there is no proxy
-		li, e := s.ProxyLogin(a.Name, string(a.Password))
-		if e != nil {
-			return nil, e
-		}
-		li.UserSecret, e = s.UserToSecret(sess.Oid)
-		if e != nil {
-			return nil, e
-		}
-		return li, nil
-	}
+	_ = a
+	// if s.ProxyLogin != nil {
+	// 	// why do we know these things here? shouldn't they be parameters
+	// 	// these things are meaningless if there is no proxy
+	// 	li, e := s.ProxyLogin(a.Name, string(a.Password))
+	// 	if e != nil {
+	// 		return nil, e
+	// 	}
+	// 	li.UserSecret, e = s.UserToSecret(sess.Oid)
+	// 	if e != nil {
+	// 		return nil, e
+	// 	}
+	// 	return li, nil
+	// }
 
 	return &LoginInfo{
 		Home:            "../home",
-		Email:           a.Email.String,
-		Phone:           a.Mobile.String,
 		Cookies:         []string{},
 		UserSecret:      "",
 		Options:         0,
@@ -505,13 +499,33 @@ func (s *Server) GetLoginInfo(sess *Session) (*LoginInfo, error) {
 	}
 	return li, nil
 }
-func (s *Server) RecoverPasswordResponse2(sess *Session, challenge, password string) error {
+func (s *Server) GetCredential(sess *Session, cid string) (*Credential, error) {
+	a, e := s.Db.qu.SelectCredential(context.Background(), []byte(cid))
+	if e != nil {
+		return nil, e
+	}
+	var cred Credential
+	cbor.Unmarshal(a.Value, &cred)
+	return &cred, nil
+}
+func (s *Server) RecoverPasswordResponse(sess *Session, challenge, password string) error {
 	if challenge != sess.Challenge {
 		return errBadLogin
 	}
-	e := s.Db.qu.UpdatePassword(context.Background(), mangrove_sql.UpdatePasswordParams{
-		Oid:      sess.Oid,
-		Password: []byte(password),
+	// read, modify, write a new credential
+	cred, e := s.GetCredential(sess, sess.Cid)
+	if e != nil {
+		return e
+	}
+	cred.PasswordHash, e = bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if e != nil {
+		return e
+	}
+	b, e := cbor.Marshal(cred)
+	// we need to update the credential
+	e = s.Db.qu.UpdateCredential(context.Background(), mangrove_sql.UpdateCredentialParams{
+		Cid:   []byte(sess.Cid),
+		Value: b,
 	})
 	if e != nil {
 		return e
@@ -526,46 +540,33 @@ func (s *Server) RecoverPasswordResponse2(sess *Session, challenge, password str
 	// at this point they will redirect to the login page.
 	return nil
 }
-func (s *Server) RecoverPasswordResponse(sess *Session, challenge string) bool {
-	// They may have recovered their password here, but they may need to still provide a second factor.
-	// we should probably get rid of the session variables and use encryption instead.
-	// this would work better with serverless.
-	// we could do this generally with the session, but we would want to minimize the session size
 
-	return sess.Challenge == challenge
-}
+// recover with phone or email
 func (s *Server) RecoverPasswordChallenge(sess *Session, email, phone string) error {
-	if len(email) > 0 {
-		a, e := s.Db.qu.OrgByEmail(context.Background(), pt(email))
-		if e != nil {
-			return e
-		}
-		sess.Name = a.Name
-		sess.DisplayName = a.Name
-		sess.Mobile = a.Mobile.String
-		sess.Email = a.Email.String
-		sess.Voice = a.Mobile.String
-		_ = a
-		s.SendChallenge(sess)
-	} else if len(phone) > 0 {
-		a, e := s.Db.qu.OrgByPhone(context.Background(), pt(phone))
-		if e != nil {
-			return e
-		}
-		sess.Name = a.Name
-		sess.DisplayName = a.Name
-		sess.Mobile = a.Mobile.String
-		sess.Email = a.Email.String
-		sess.Voice = a.Mobile.String
-		s.SendChallenge(sess)
-	}
+	var cred *Credential
 
+	var e error
+	if len(email) > 0 {
+		sess.Cid = "email:" + email
+		cred, e = s.GetCredential(sess, "email:"+email)
+		if e != nil {
+			return e
+		}
+
+	} else if len(phone) > 0 {
+		sess.Cid = "phone:" + phone
+		cred, e = s.GetCredential(sess, "phone:"+phone)
+		if e != nil {
+			return e
+		}
+	}
+	_, e = s.SendChallenge(sess, cred)
 	return nil
 }
 
 // using the database here is not good
 // we want to test the values before we store them
-func (s *Server) SendChallenge(sess *Session) (*ChallengeNotify, error) {
+func (s *Server) SendChallenge(sess *Session, cred *Credential) (*ChallengeNotify, error) {
 	code, e := message.CreateCode()
 	if e != nil {
 		return nil, e
@@ -641,46 +642,37 @@ func (s *Server) StoreFactor(sess *Session, key int, value string, cred *webauth
 	}
 
 	sess.PasskeyCredential.Credential = *cred
-	b, e := json.Marshal(&sess.PasskeyCredential)
+	_, e = json.Marshal(&sess.PasskeyCredential)
 	if e != nil {
 		return e
 	}
-	a.Webauthn = string(b)
+	//a.Webauthn = string(b)
 
-	a.DefaultFactor = int32(key)
-	switch key {
-	case kPasskey:
-		a.Flags |= kPasskey
-	case kPasskeyp:
-		a.Flags |= kPasskeyp
-	case kEmail:
-		a.Email = pt(value)
-	case kMobile:
-		a.Mobile = pt(value)
-		a.Flags |= kMobile
-	case kTotp:
-		// already stored, but sets the flag
-		a.Flags |= kTotp
-	case kApp:
-		a.Flags |= kApp
-	case kVoice:
-		a.Mobile = pt(value)
-		a.Flags |= kVoice
-	}
+	// a.DefaultFactor = int32(key)
+	// switch key {
+	// case kPasskey:
+	// 	a.Flags |= kPasskey
+	// case kPasskeyp:
+	// 	a.Flags |= kPasskeyp
+	// case kEmail:
+	// 	a.Email = pt(value)
+	// case kMobile:
+	// 	a.Mobile = pt(value)
+	// 	a.Flags |= kMobile
+	// case kTotp:
+	// 	// already stored, but sets the flag
+	// 	a.Flags |= kTotp
+	// case kApp:
+	// 	a.Flags |= kApp
+	// case kVoice:
+	// 	a.Mobile = pt(value)
+	// 	a.Flags |= kVoice
+	// }
 	s.Db.qu.UpdateOrg(context.Background(), mangrove_sql.UpdateOrgParams{
-		Oid:           a.Oid,
-		Name:          a.Name,
-		IsUser:        a.IsUser,
-		Password:      a.Password,
-		HashAlg:       a.HashAlg,
-		Email:         a.Email,
-		Mobile:        a.Mobile,
-		Pin:           a.Pin,
-		Webauthn:      a.Webauthn,
-		Totp:          a.Totp,
-		Flags:         a.Flags,
-		TotpPng:       a.TotpPng,
-		DefaultFactor: a.DefaultFactor,
+		Oid:      a.Oid,
+		Did:      pgtype.Text{},
+		Name:     a.Name,
+		Recovery: []byte{},
 	})
 
 	return nil
@@ -898,7 +890,7 @@ func (s *Server) NewDevice(u *PasskeyCredential) error {
 }
 func (s *Server) LoadWebauthnUser(sess *Session, id string) error {
 
-	a, e := s.Db.qu.SelectPasskey(context.Background(), []byte(id))
+	a, e := s.Db.qu.SelectCredential(context.Background(), []byte("p:"+id))
 	sess.Oid = a.Oid
 	if e != nil {
 		return e

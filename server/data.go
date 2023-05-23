@@ -26,6 +26,7 @@ type Session struct {
 	Handle   map[int64]StreamHandle
 	Notifier SessionNotifier
 	RegisterInfo
+	Cid           string
 	Mobile        string
 	Email         string
 	Voice         string

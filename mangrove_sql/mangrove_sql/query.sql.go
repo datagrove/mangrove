@@ -65,6 +65,27 @@ func (q *Queries) GetDevice(ctx context.Context, device int64) (MgDevice, error)
 	return i, err
 }
 
+const insertCredential = `-- name: InsertCredential :exec
+insert into mg.credential (cid, oid, name, value) values ($1, $2, $3, $4)
+`
+
+type InsertCredentialParams struct {
+	Cid   []byte      `json:"cid"`
+	Oid   int64       `json:"oid"`
+	Name  pgtype.Text `json:"name"`
+	Value []byte      `json:"value"`
+}
+
+func (q *Queries) InsertCredential(ctx context.Context, arg InsertCredentialParams) error {
+	_, err := q.db.Exec(ctx, insertCredential,
+		arg.Cid,
+		arg.Oid,
+		arg.Name,
+		arg.Value,
+	)
+	return err
+}
+
 const insertDevice = `-- name: InsertDevice :exec
 insert into mg.device (device, webauthn) values ($1, $2)
 `
@@ -99,10 +120,10 @@ insert into mg.org (oid,did,name,recovery) values ($1, $2, $3, $4) returning oid
 `
 
 type InsertOrgParams struct {
-	Oid      int64  `json:"oid"`
-	Did      string `json:"did"`
-	Name     string `json:"name"`
-	Recovery []byte `json:"recovery"`
+	Oid      int64       `json:"oid"`
+	Did      pgtype.Text `json:"did"`
+	Name     string      `json:"name"`
+	Recovery []byte      `json:"recovery"`
 }
 
 func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) (int64, error) {
@@ -115,29 +136,6 @@ func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) (int64, er
 	var oid int64
 	err := row.Scan(&oid)
 	return oid, err
-}
-
-const insertPasskey = `-- name: InsertPasskey :exec
-insert into mg.credential (cid, oid, name, password_hash, value) values ($1, $2, $3, $4, $5)
-`
-
-type InsertPasskeyParams struct {
-	Cid          []byte      `json:"cid"`
-	Oid          int64       `json:"oid"`
-	Name         pgtype.Text `json:"name"`
-	PasswordHash []byte      `json:"password_hash"`
-	Value        []byte      `json:"value"`
-}
-
-func (q *Queries) InsertPasskey(ctx context.Context, arg InsertPasskeyParams) error {
-	_, err := q.db.Exec(ctx, insertPasskey,
-		arg.Cid,
-		arg.Oid,
-		arg.Name,
-		arg.PasswordHash,
-		arg.Value,
-	)
-	return err
 }
 
 const insertPrefix = `-- name: InsertPrefix :exec
@@ -204,8 +202,53 @@ func (q *Queries) RevokeDevice(ctx context.Context, arg RevokeDeviceParams) erro
 	return err
 }
 
+const selectCredential = `-- name: SelectCredential :one
+select cid, oid, name, value from mg.credential where cid = $1
+`
+
+func (q *Queries) SelectCredential(ctx context.Context, cid []byte) (MgCredential, error) {
+	row := q.db.QueryRow(ctx, selectCredential, cid)
+	var i MgCredential
+	err := row.Scan(
+		&i.Cid,
+		&i.Oid,
+		&i.Name,
+		&i.Value,
+	)
+	return i, err
+}
+
+const selectCredentialByOid = `-- name: SelectCredentialByOid :many
+select cid, oid, name, value from mg.credential where oid = $1
+`
+
+func (q *Queries) SelectCredentialByOid(ctx context.Context, oid int64) ([]MgCredential, error) {
+	rows, err := q.db.Query(ctx, selectCredentialByOid, oid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MgCredential
+	for rows.Next() {
+		var i MgCredential
+		if err := rows.Scan(
+			&i.Cid,
+			&i.Oid,
+			&i.Name,
+			&i.Value,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const selectOrg = `-- name: SelectOrg :one
-select oid, did, name, recovery from mg.org where oid = $1
+select oid, did, name, recovery, private_key from mg.org where oid = $1
 `
 
 func (q *Queries) SelectOrg(ctx context.Context, oid int64) (MgOrg, error) {
@@ -216,12 +259,13 @@ func (q *Queries) SelectOrg(ctx context.Context, oid int64) (MgOrg, error) {
 		&i.Did,
 		&i.Name,
 		&i.Recovery,
+		&i.PrivateKey,
 	)
 	return i, err
 }
 
 const selectOrgByName = `-- name: SelectOrgByName :one
-select oid, did, name, recovery from mg.org where name = $1
+select oid, did, name, recovery, private_key from mg.org where name = $1
 `
 
 func (q *Queries) SelectOrgByName(ctx context.Context, name string) (MgOrg, error) {
@@ -232,23 +276,7 @@ func (q *Queries) SelectOrgByName(ctx context.Context, name string) (MgOrg, erro
 		&i.Did,
 		&i.Name,
 		&i.Recovery,
-	)
-	return i, err
-}
-
-const selectPasskey = `-- name: SelectPasskey :one
-select cid, password_hash, oid, name, value from mg.credential where cid = $1
-`
-
-func (q *Queries) SelectPasskey(ctx context.Context, cid []byte) (MgCredential, error) {
-	row := q.db.QueryRow(ctx, selectPasskey, cid)
-	var i MgCredential
-	err := row.Scan(
-		&i.Cid,
-		&i.PasswordHash,
-		&i.Oid,
-		&i.Name,
-		&i.Value,
+		&i.PrivateKey,
 	)
 	return i, err
 }
@@ -265,6 +293,20 @@ type TrimParams struct {
 
 func (q *Queries) Trim(ctx context.Context, arg TrimParams) error {
 	_, err := q.db.Exec(ctx, trim, arg.Fid, arg.Start, arg.Start_2)
+	return err
+}
+
+const updateCredential = `-- name: UpdateCredential :exec
+update mg.credential set  value = $2 where cid = $1
+`
+
+type UpdateCredentialParams struct {
+	Cid   []byte `json:"cid"`
+	Value []byte `json:"value"`
+}
+
+func (q *Queries) UpdateCredential(ctx context.Context, arg UpdateCredentialParams) error {
+	_, err := q.db.Exec(ctx, updateCredential, arg.Cid, arg.Value)
 	return err
 }
 
@@ -288,10 +330,10 @@ update mg.org set did = $2, name = $3, recovery = $4 where oid = $1
 `
 
 type UpdateOrgParams struct {
-	Oid      int64  `json:"oid"`
-	Did      string `json:"did"`
-	Name     string `json:"name"`
-	Recovery []byte `json:"recovery"`
+	Oid      int64       `json:"oid"`
+	Did      pgtype.Text `json:"did"`
+	Name     string      `json:"name"`
+	Recovery []byte      `json:"recovery"`
 }
 
 func (q *Queries) UpdateOrg(ctx context.Context, arg UpdateOrgParams) error {

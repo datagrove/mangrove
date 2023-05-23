@@ -9,11 +9,10 @@ import (
 )
 
 type MgCredential struct {
-	Cid          []byte      `json:"cid"`
-	PasswordHash []byte      `json:"password_hash"`
-	Oid          int64       `json:"oid"`
-	Name         pgtype.Text `json:"name"`
-	Value        []byte      `json:"value"`
+	Cid   []byte      `json:"cid"`
+	Oid   int64       `json:"oid"`
+	Name  pgtype.Text `json:"name"`
+	Value []byte      `json:"value"`
 }
 
 type MgDbentry struct {
@@ -57,10 +56,11 @@ type MgNamePrefix struct {
 }
 
 type MgOrg struct {
-	Oid      int64  `json:"oid"`
-	Did      string `json:"did"`
-	Name     string `json:"name"`
-	Recovery []byte `json:"recovery"`
+	Oid        int64       `json:"oid"`
+	Did        pgtype.Text `json:"did"`
+	Name       string      `json:"name"`
+	Recovery   []byte      `json:"recovery"`
+	PrivateKey []byte      `json:"private_key"`
 }
 
 type MgOrgDb struct {

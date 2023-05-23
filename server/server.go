@@ -135,12 +135,13 @@ type LoginInfo struct {
 }
 
 type Settings struct {
-	UserSecret      string `json:"user_secret"` // user_secret: string
-	Img             []byte `json:"img"`         // img: Uint8Array | undefined
-	Email           string `json:"email"`
-	Phone           string `json:"phone"`
-	ActivatePasskey bool   `json:"activate_passkey"`
-	ActivateTotp    bool   `json:"activate_totp"`
+	UserSecret string       `json:"user_secret"` // user_secret: string
+	Img        []byte       `json:"img"`         // img: Uint8Array | undefined
+	Credential []Credential `json:"credential"`  // credential: Credential | undefined
+	// Email           string `json:"email"`
+	// Phone           string `json:"phone"`
+	// ActivatePasskey bool   `json:"activate_passkey"`
+	// ActivateTotp    bool   `json:"activate_totp"`
 }
 
 type ProxyLogin = LoginInfo

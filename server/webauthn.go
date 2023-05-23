@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -132,6 +131,9 @@ func WebauthnSocket(mg *Server) error {
 		return mg.GetSettings(r.Session)
 	})
 
+	// recover: send email or phone
+	// recover2: send secret (retrieved from email or phone)
+	// recover3: send new password (should do in step 2? but then it could fail?)
 	mg.AddApij("recover", false, func(r *Rpcpj) (any, error) {
 		var v struct {
 			Email string `json:"email"`
@@ -147,7 +149,8 @@ func WebauthnSocket(mg *Server) error {
 	// same as loginpassword2?
 	mg.AddApij("recover2", false, func(r *Rpcpj) (any, error) {
 		var v struct {
-			Secret string `json:"secret"`
+			Secret   string `json:"secret"`
+			Password string `json:"password"`
 		}
 		e := json.Unmarshal(r.Params, &v)
 		if e != nil {
@@ -156,21 +159,7 @@ func WebauthnSocket(mg *Server) error {
 		if v.Secret != r.Session.Secret {
 			return nil, errBadLogin
 		}
-		mg.RecoverPasswordResponse(r.Session, v.Secret)
-		return true, nil
-	})
-	mg.AddApij("recover3", false, func(r *Rpcpj) (any, error) {
-		var v struct {
-			Secret   string `json:"secret"`
-			Password string `json:"password"`
-		}
-		e := json.Unmarshal(r.Params, &v)
-		if e != nil {
-			return nil, e
-		}
-		mg.RecoverPasswordResponse2(r.Session, v.Secret, v.Password)
-		// how do we change the password in proxied app?
-		return nil, nil
+		return true, mg.RecoverPasswordResponse(r.Session, v.Secret, v.Password)
 	})
 
 	// how should we safely confirm the recovery code? It's basically a password.
@@ -346,22 +335,22 @@ func WebauthnSocket(mg *Server) error {
 		return mg.OkName(r.Session, v.Name), nil
 	})
 
-	mg.AddApi("gettotp", true, func(r *Rpcp) (any, error) {
-		a, e := mg.Db.qu.SelectOrg(context.Background(), r.Oid)
-		if e != nil {
-			return nil, e
-		}
+	// mg.AddApi("gettotp", true, func(r *Rpcp) (any, error) {
+	// 	a, e := mg.Db.qu.SelectOrg(context.Background(), r.Oid)
+	// 	if e != nil {
+	// 		return nil, e
+	// 	}
 
-		type Totp struct {
-			Img    []byte `json:"img,omitempty"`
-			Secret string `json:"secret,omitempty"`
-		}
-		rx := Totp{
-			Img:    a.TotpPng,
-			Secret: a.Totp,
-		}
-		return &rx, nil
-	})
+	// 	type Totp struct {
+	// 		Img    []byte `json:"img,omitempty"`
+	// 		Secret string `json:"secret,omitempty"`
+	// 	}
+	// 	rx := Totp{
+	// 		Img:    a.TotpPng,
+	// 		Secret: a.Totp,
+	// 	}
+	// 	return &rx, nil
+	// })
 
 	// don't store in the database until we check it.
 	mg.AddApij("addfactor", true, func(r *Rpcpj) (any, error) {
@@ -386,7 +375,8 @@ func WebauthnSocket(mg *Server) error {
 			r.Session.Mobile = v.Value
 		}
 
-		return mg.SendChallenge(r.Session)
+		//return mg.SendChallenge(r.Session)
+		return true, nil
 	})
 	// check the challenge and add the factor
 	mg.AddApij("addfactor2", true, func(r *Rpcpj) (any, error) {

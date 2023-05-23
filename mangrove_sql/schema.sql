@@ -11,9 +11,10 @@ drop table if exists mg.tasklog;
 -- should email and mobile be unique? what if I want two identities to recover to the same account? but if they login with gmail, that's all I have.
 create table  mg.org ( 
     oid bigserial primary key,
-    did text unique not null, 
+    did text unique, 
     name text not null, -- purely descriptive, mostly for testing
-    recovery bytea -- cbor encoded recovery information: methods email, phone, pin etc. empty array if no recovery options desired. may be encrypted by local server key.
+    recovery bytea,   -- cbor encoded recovery information: methods email, phone, pin etc. empty array if no recovery options desired. may be encrypted by local server key.
+    private_key bytea  -- should be empty, but in some applications we may want to manage on the server.
 );
 
 
@@ -73,12 +74,12 @@ create table mg.r2(
 -- most credentials require at least a username, most will request a password.
 
 -- a normal credential might be a pw:user
+-- an email credential is for recovery email:user@example.com
+-- it can also be used for oauth sign in.
 create table mg.credential (
     cid bytea primary key,
-    password_hash bytea,
     oid bigint not null,
-    name text, -- not used, but could capture some context about device
-
+    name text, -- name identifying credential, allow deletion.
     value bytea,
     foreign key (oid) references mg.org(oid)
  );
