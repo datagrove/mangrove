@@ -24,10 +24,10 @@ insert into mg.device_org (device,oid) values ($1, $2);
 delete from mg.device_org where device = $1 and oid = $2;
 
 -- name: InsertOrg :one
-insert into mg.org (oid,did,name,recovery) values ($1, $2, $3, $4) returning oid;
+insert into mg.org (oid,did,name,notify) values ($1, $2, $3, $4) returning oid;
 
 -- name: UpdateOrg :exec
-update mg.org set did = $2, name = $3, recovery = $4 where oid = $1;
+update mg.org set did = $2, name = $3, notify = $4 where oid = $1;
 
 -- name: SelectOrg :one
 select * from mg.org where oid = $1;
@@ -71,4 +71,12 @@ select * from mg.credential where oid = $1;
 -- name: DeleteCredential :exec
 delete from mg.credential where cid = $1;
 
+-- name: InsertPush :exec
+select * from mg.push where sid = $1;
+
+-- name: DeletePush :exec
+delete from mg.push where sid = $1 and oid = $2;
+
+-- name: SelectPush :many
+select mute, notify from mg.push join mg.org on (mg.push.oid = mg.org.oid)  where sid = $1;
 

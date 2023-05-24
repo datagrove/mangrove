@@ -13,8 +13,8 @@ create table  mg.org (
     oid bigserial primary key,
     did text unique, 
     name text not null, -- purely descriptive, mostly for testing
-    recovery bytea,   -- cbor encoded recovery information: methods email, phone, pin etc. empty array if no recovery options desired. may be encrypted by local server key.
-    private_key bytea  -- should be empty, but in some applications we may want to manage on the server.
+    private_key bytea,  -- should be empty, but in some applications we may want to manage on the server.
+    notify bytea -- notification information.
 );
 
 
@@ -58,6 +58,16 @@ create table mg.site(
     length bigint not null, -- length of site log
     lastwriter bigint not null -- device id of last writer
 );
+-- clients will send notify(sid,oid[]), rate limited. get oid from site database, filter on the client.
+create table mg.push(
+    sid bigint not null,
+    oid bigint not null, -- org id
+    mute bytea, -- cbor encoded mute information
+    primary key (sid, oid)
+);
+-- show subscriptions
+create index push_oid on mg.push(oid);
+
 -- everything goes into the site log, including the toc.
 --     device bigint not null, -- device id is in the encrypted part.
 -- conceptually this is in s3,
@@ -83,10 +93,8 @@ create table mg.credential (
     value bytea,
     foreign key (oid) references mg.org(oid)
  );
- create index credential_oid on mg.credential(oid);
+create index credential_oid on mg.credential(oid);
 
-
- 
 create table mg.org_db(
     oid bigint not null, 
     db bigserial not null,  

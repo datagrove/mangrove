@@ -59,8 +59,8 @@ type MgOrg struct {
 	Oid        int64       `json:"oid"`
 	Did        pgtype.Text `json:"did"`
 	Name       string      `json:"name"`
-	Recovery   []byte      `json:"recovery"`
 	PrivateKey []byte      `json:"private_key"`
+	Notify     []byte      `json:"notify"`
 }
 
 type MgOrgDb struct {
@@ -72,6 +72,12 @@ type MgOrgMember struct {
 	Oid    int64       `json:"oid"`
 	Member string      `json:"member"`
 	Ucan   pgtype.Text `json:"ucan"`
+}
+
+type MgPush struct {
+	Sid  int64  `json:"sid"`
+	Oid  int64  `json:"oid"`
+	Mute []byte `json:"mute"`
 }
 
 type MgR2 struct {

@@ -214,9 +214,9 @@ type Credential struct {
 func (s *Server) CreateUser(user, pass, ph string) error {
 
 	n, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
-		Did:      pt(""),
-		Name:     user,
-		Recovery: []byte{},
+		Did:    pt(""),
+		Name:   user,
+		Notify: []byte{},
 	})
 	if e != nil {
 		return e
@@ -260,9 +260,9 @@ func (s *Server) RegisterEmailPassword(sess *Session, email, password string) er
 // registers with a passkey only
 func (s *Server) RegisterPasskey(sess *Session) error {
 	n, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
-		Did:      pt(""),
-		Name:     sess.Name,
-		Recovery: []byte{},
+		Did:    pt(""),
+		Name:   sess.Name,
+		Notify: []byte{},
 	})
 	if e != nil {
 		return e
@@ -299,9 +299,9 @@ func (s *Server) Register(sess *Session) (string, error) {
 	png.Encode(&buf, img)
 
 	oid, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
-		Did:      pgtype.Text{},
-		Name:     user,
-		Recovery: []byte{},
+		Did:    pgtype.Text{},
+		Name:   user,
+		Notify: []byte{},
 	})
 	sess.Oid = oid
 	sess.Name = user
@@ -355,10 +355,10 @@ func (s *Server) ProxyLogin1(sess *Session, user, password string, pref int) (*C
 	// there is a lot of duplication of this code!
 
 	oid, e := s.Db.qu.InsertOrg(context.Background(), mangrove_sql.InsertOrgParams{
-		Oid:      0,
-		Did:      pgtype.Text{},
-		Name:     user,
-		Recovery: []byte{},
+		Oid:    0,
+		Did:    pgtype.Text{},
+		Name:   user,
+		Notify: []byte{},
 	})
 	if e != nil {
 		return nil, e
@@ -669,10 +669,10 @@ func (s *Server) StoreFactor(sess *Session, key int, value string, cred *webauth
 	// 	a.Flags |= kVoice
 	// }
 	s.Db.qu.UpdateOrg(context.Background(), mangrove_sql.UpdateOrgParams{
-		Oid:      a.Oid,
-		Did:      pgtype.Text{},
-		Name:     a.Name,
-		Recovery: []byte{},
+		Oid:    a.Oid,
+		Did:    pgtype.Text{},
+		Name:   a.Name,
+		Notify: []byte{},
 	})
 
 	return nil

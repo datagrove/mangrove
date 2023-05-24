@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"firebase.google.com/go/messaging"
 	"github.com/datagrove/mangrove/oauth"
 	"github.com/gliderlabs/ssh"
 	"github.com/gorilla/mux"
@@ -263,8 +264,14 @@ func NewServer(optc *Config) (*Server, error) {
 		return nil, e
 	}
 	svr := &Server{
-		Config:       optc,
-		Db:           db,
+		Config: optc,
+		Db:     db,
+		fcm: &FcmBuffer{
+			fcmClient:        &messaging.Client{},
+			dispatchInterval: 0,
+			batchCh:          make(chan *messaging.Message),
+			wg:               sync.WaitGroup{},
+		},
 		Mux:          mmux,
 		Home:         "",
 		Ws:           ws,
@@ -280,15 +287,12 @@ func NewServer(optc *Config) (*Server, error) {
 		EmbedHandler: fs,
 		WsHandler: func(http.ResponseWriter, *http.Request) {
 		},
-		UserSecret: UserSecret{
-			mu:     sync.Mutex{},
-			Users:  map[int64]string{},
-			Secret: map[string]int64{},
-		},
+		UserSecret: UserSecret{mu: sync.Mutex{}, Users: map[int64]string{}, Secret: map[string]int64{}},
 	}
 
 	WebauthnSocket(svr)
 	svr.DbApi()
+	svr.DbApi2()
 	SettingsApi(svr)
 	svr.WsHandler = svr.onWebSocket()
 	// return unstarted to allow the application to modify the server

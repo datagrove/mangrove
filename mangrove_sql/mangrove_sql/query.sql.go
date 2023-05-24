@@ -54,6 +54,20 @@ func (q *Queries) DeleteDevice(ctx context.Context, device int64) error {
 	return err
 }
 
+const deletePush = `-- name: DeletePush :exec
+delete from mg.push where sid = $1 and oid = $2
+`
+
+type DeletePushParams struct {
+	Sid int64 `json:"sid"`
+	Oid int64 `json:"oid"`
+}
+
+func (q *Queries) DeletePush(ctx context.Context, arg DeletePushParams) error {
+	_, err := q.db.Exec(ctx, deletePush, arg.Sid, arg.Oid)
+	return err
+}
+
 const getDevice = `-- name: GetDevice :one
 select device, webauthn from mg.device where device = $1
 `
@@ -116,14 +130,14 @@ func (q *Queries) InsertLock(ctx context.Context, arg InsertLockParams) error {
 }
 
 const insertOrg = `-- name: InsertOrg :one
-insert into mg.org (oid,did,name,recovery) values ($1, $2, $3, $4) returning oid
+insert into mg.org (oid,did,name,notify) values ($1, $2, $3, $4) returning oid
 `
 
 type InsertOrgParams struct {
-	Oid      int64       `json:"oid"`
-	Did      pgtype.Text `json:"did"`
-	Name     string      `json:"name"`
-	Recovery []byte      `json:"recovery"`
+	Oid    int64       `json:"oid"`
+	Did    pgtype.Text `json:"did"`
+	Name   string      `json:"name"`
+	Notify []byte      `json:"notify"`
 }
 
 func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) (int64, error) {
@@ -131,7 +145,7 @@ func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) (int64, er
 		arg.Oid,
 		arg.Did,
 		arg.Name,
-		arg.Recovery,
+		arg.Notify,
 	)
 	var oid int64
 	err := row.Scan(&oid)
@@ -144,6 +158,15 @@ insert into mg.name_prefix (name,count) values ($1,0) on conflict do nothing
 
 func (q *Queries) InsertPrefix(ctx context.Context, name string) error {
 	_, err := q.db.Exec(ctx, insertPrefix, name)
+	return err
+}
+
+const insertPush = `-- name: InsertPush :exec
+select sid, oid, mute from mg.push where sid = $1
+`
+
+func (q *Queries) InsertPush(ctx context.Context, sid int64) error {
+	_, err := q.db.Exec(ctx, insertPush, sid)
 	return err
 }
 
@@ -248,7 +271,7 @@ func (q *Queries) SelectCredentialByOid(ctx context.Context, oid int64) ([]MgCre
 }
 
 const selectOrg = `-- name: SelectOrg :one
-select oid, did, name, recovery, private_key from mg.org where oid = $1
+select oid, did, name, private_key, notify from mg.org where oid = $1
 `
 
 func (q *Queries) SelectOrg(ctx context.Context, oid int64) (MgOrg, error) {
@@ -258,14 +281,14 @@ func (q *Queries) SelectOrg(ctx context.Context, oid int64) (MgOrg, error) {
 		&i.Oid,
 		&i.Did,
 		&i.Name,
-		&i.Recovery,
 		&i.PrivateKey,
+		&i.Notify,
 	)
 	return i, err
 }
 
 const selectOrgByName = `-- name: SelectOrgByName :one
-select oid, did, name, recovery, private_key from mg.org where name = $1
+select oid, did, name, private_key, notify from mg.org where name = $1
 `
 
 func (q *Queries) SelectOrgByName(ctx context.Context, name string) (MgOrg, error) {
@@ -275,10 +298,39 @@ func (q *Queries) SelectOrgByName(ctx context.Context, name string) (MgOrg, erro
 		&i.Oid,
 		&i.Did,
 		&i.Name,
-		&i.Recovery,
 		&i.PrivateKey,
+		&i.Notify,
 	)
 	return i, err
+}
+
+const selectPush = `-- name: SelectPush :many
+select mute, notify from mg.push join mg.org on (mg.push.oid = mg.org.oid)  where sid = $1
+`
+
+type SelectPushRow struct {
+	Mute   []byte `json:"mute"`
+	Notify []byte `json:"notify"`
+}
+
+func (q *Queries) SelectPush(ctx context.Context, sid int64) ([]SelectPushRow, error) {
+	rows, err := q.db.Query(ctx, selectPush, sid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectPushRow
+	for rows.Next() {
+		var i SelectPushRow
+		if err := rows.Scan(&i.Mute, &i.Notify); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const trim = `-- name: Trim :exec
@@ -326,14 +378,14 @@ func (q *Queries) UpdateLock(ctx context.Context, arg UpdateLockParams) error {
 }
 
 const updateOrg = `-- name: UpdateOrg :exec
-update mg.org set did = $2, name = $3, recovery = $4 where oid = $1
+update mg.org set did = $2, name = $3, notify = $4 where oid = $1
 `
 
 type UpdateOrgParams struct {
-	Oid      int64       `json:"oid"`
-	Did      pgtype.Text `json:"did"`
-	Name     string      `json:"name"`
-	Recovery []byte      `json:"recovery"`
+	Oid    int64       `json:"oid"`
+	Did    pgtype.Text `json:"did"`
+	Name   string      `json:"name"`
+	Notify []byte      `json:"notify"`
 }
 
 func (q *Queries) UpdateOrg(ctx context.Context, arg UpdateOrgParams) error {
@@ -341,7 +393,7 @@ func (q *Queries) UpdateOrg(ctx context.Context, arg UpdateOrgParams) error {
 		arg.Oid,
 		arg.Did,
 		arg.Name,
-		arg.Recovery,
+		arg.Notify,
 	)
 	return err
 }

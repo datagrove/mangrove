@@ -23,6 +23,7 @@ type Rpcf = func(a *Rpcp) (any, error)
 type Server struct {
 	*Config
 	*Db
+	fcm *FcmBuffer
 	//*FileWatcher
 	Mux  *mux.Router //*http.ServeMux
 	Home string
