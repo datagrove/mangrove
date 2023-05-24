@@ -2,11 +2,13 @@ package main
 
 import (
 	"embed"
+	"log"
 	"os"
 
 	"github.com/datagrove/mangrove/server"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/kardianos/service"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -58,8 +60,25 @@ func main() {
 
 		Ui: Res,
 	}
-	j := server.DefaultCommands(opt)
-	j.Execute()
+	rootCmd := server.DefaultCommands(opt)
+	rootCmd.AddCommand(&cobra.Command{
+		Use: "sftp source target",
+		Run: func(cmd *cobra.Command, args []string) {
+			source := args[0]
+			target := args[1]
+			SftpCopy(source, target, 22, "")
+			// use service to install the service
+			x, e := server.NewServer(opt) // opt.Name, HomeDir(args), opt.Res)
+			if e != nil {
+				log.Fatal(e)
+			}
+			// how do we add command line paramters?
+			e = x.Install()
+			if e != nil {
+				log.Fatal(e)
+			}
+		}})
+	rootCmd.Execute()
 }
 
 /*

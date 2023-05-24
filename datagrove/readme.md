@@ -17,3 +17,15 @@ Allowable second factors
 [ ] Phone app
 
 [ ] Second factor required
+
+# Cli commands
+
+_assumes_ you have set up id with keygen and pasted the public key into your datagrove security settings.
+
+dg sftp user@<SITE>.datagrove.net:/folder ~/tofolder
+dg sftp ~/fromfolder user@<SITE>.datagrove.net:/folder
+dg build <SITE>
+
+<SITE> maybe DID or a display name
+
+we could access the site at the same <SITE>.datagrove.net/en/~tool
