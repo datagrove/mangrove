@@ -22,8 +22,11 @@ Allowable second factors
 
 _assumes_ you have set up id with keygen and pasted the public key into your datagrove security settings.
 
-dg sftp user@<SITE>.datagrove.net:/folder ~/tofolder
-dg sftp ~/fromfolder user@<SITE>.datagrove.net:/folder
+potentially we could use this approach to offer an sftp interface to r2.
+
+dg sftp datagrove.net:/<Site>/folder ~/tofolder
+dg sftp ~/fromfolder user@datagrove.net:/<SITE>/folder
+
 dg build <SITE>
 
 <SITE> maybe DID or a display name

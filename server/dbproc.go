@@ -10,7 +10,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/datagrove/mangrove/mangrove_sql/mangrove_sql"
@@ -42,82 +41,6 @@ const (
 const (
 	demo123 = "$2a$12$moAgCg/c0OUQyS67TktVJehoY71wxds3syPOvKwNNONfabXGwGyPG"
 )
-
-func (s *Server) CloseStream(fid int64) {
-	s.muStream.Lock()
-	defer s.muStream.Unlock()
-	delete(s.Stream, fid)
-}
-func (s *Server) OpenStream(fid int64) (*Stream, error) {
-	s.muStream.Lock()
-	defer s.muStream.Unlock()
-	if stream, ok := s.Stream[fid]; ok {
-		return stream, nil
-	}
-	stream := &Stream{
-		mu:     sync.Mutex{},
-		fid:    fid,
-		listen: map[*Session]int64{},
-	}
-	s.Stream[fid] = stream
-	return stream, nil
-}
-
-func Dbproc(mg *Server) error {
-
-	// add typesafe query apis
-	// server / organization / database / table-or-$ / if $ then $/path
-	mg.AddApi("open", true, func(r *Rpcp) (any, error) {
-		var v OpenDb
-		e := sockUnmarshal(r.Params, &v)
-		if e != nil {
-			return nil, e
-		}
-		return mg.Open(r.Session, &v)
-	})
-	mg.AddApi("close", true, func(r *Rpcp) (any, error) {
-		var v struct {
-			Handle int64
-		}
-		sockUnmarshal(r.Params, &v)
-		return true, mg.Close(r.Session, v.Handle)
-	})
-
-	mg.AddApi("commit", true, func(r *Rpcp) (any, error) {
-		var v Transaction
-		e := sockUnmarshal(r.Params, &v)
-		if e != nil {
-			return nil, e
-		}
-		return true, mg.Commit(r.Session, &v)
-	})
-	mg.AddApi("read", true, func(r *Rpcp) (any, error) {
-		var v ReadLog
-		e := sockUnmarshal(r.Params, &v)
-		if e != nil {
-			return nil, e
-		}
-		return mg.Read(r.Session, &v)
-	})
-	mg.AddApi("append", true, func(r *Rpcp) (any, error) {
-		var v Append
-		e := sockUnmarshal(r.Params, &v)
-		if e != nil {
-			return nil, e
-		}
-		return true, mg.Append(r.Session, &v)
-	})
-	mg.AddApi("trim", true, func(r *Rpcp) (any, error) {
-		var v Trim
-		e := sockUnmarshal(r.Params, &v)
-		if e != nil {
-			return nil, e
-		}
-		return true, mg.Trim(r.Session, &v)
-	})
-
-	return nil
-}
 
 // two stage api because we might want to use things other than socket apis
 type ReadLog struct {
@@ -692,7 +615,7 @@ func (s *Server) Close(sess *Session, handle int64) error {
 	defer stream.mu.Unlock()
 	delete(stream.listen, sess)
 	if len(stream.listen) == 0 {
-		s.CloseStream(stream.fid)
+		//s.CloseStream(stream.fid)
 	}
 	delete(sess.Handle, handle)
 	return nil

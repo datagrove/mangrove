@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/datagrove/mangrove/server"
+	"github.com/datagrove/mangrove/tasks"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
@@ -45,7 +46,7 @@ func main() {
 		ConfigJson: server.ConfigJson{
 			Key:           "",
 			Https:         "",
-			Sftp:          "",
+			Sftp:          ":2023",
 			HttpsCert:     "",
 			HttpsPrivate:  "",
 			Root:          "",
@@ -66,7 +67,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			source := args[0]
 			target := args[1]
-			SftpCopy(source, target, 22, "")
+			tasks.SftpCopy(source, target, 22, "")
 			// use service to install the service
 			x, e := server.NewServer(opt) // opt.Name, HomeDir(args), opt.Res)
 			if e != nil {

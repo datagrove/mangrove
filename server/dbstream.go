@@ -2,14 +2,10 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
-	"sync"
-	"time"
 
-	firebase "firebase.google.com/go"
-	"firebase.google.com/go/messaging"
+	"github.com/datagrove/mangrove/logdb/logdb"
 	"github.com/datagrove/mangrove/mangrove_sql/mangrove_sql"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/jackc/pgx/v5"
@@ -21,32 +17,14 @@ import (
 
 // write as many sites as you want, will return
 
-// Locks are just sites for now?
-type StreamLock struct {
-	Sid    int64
-	Key    []byte // not used
-	Length int64
-}
-
-// the write always succeeds
-// the lock only succeeds if the length is correct
-type StreamTx struct {
-	Lock  []StreamLock
-	Write []struct {
-		Sid  int64
-		Data []byte
-	}
-}
-type StreamTxResult struct {
-	Offset       []int64
-	WriteSuccess bool
-	LockSuccess  bool
-}
-
 // move tail to redis? might be faster to just keep in ram
 // for notifications, we can
 func (s *Server) DbApi2() {
-	s.fcm = NewFcmBuffer()
+	var e error
+	s.fcm, e = NewFcmBuffer()
+	if e != nil {
+		log.Printf("Push is disabled. Configure the .env file and restart to enable")
+	}
 
 	// we should return redirects? what is cors going to do to us?
 	// we should get the tail when we connect or join, the rest we should read directly.
@@ -63,7 +41,7 @@ func (s *Server) DbApi2() {
 	})
 
 	s.AddApi("tx", false, func(r *Rpcp) (any, error) {
-		var v []StreamTx
+		var v []logdb.treamTx
 		sockUnmarshal(r.Params, &v)
 		return s.Commit(r.Session, v)
 	})
@@ -99,8 +77,8 @@ const (
 	CanAdmin = 4
 )
 
-func (s *Server) Commit(sess *Session, tx []StreamTx) ([]StreamTxResult, error) {
-	one := func(v *StreamTx, r *StreamTxResult) error {
+func (s *Server) Commit(sess *Session, tx []logdb.StreamTx) ([]logdb.StreamTxResult, error) {
+	one := func(v *logdb.StreamTx, r *logdb.StreamTxResult) error {
 		update := func() error {
 			type Info struct {
 				Length     int64
@@ -204,148 +182,12 @@ func (s *Server) Commit(sess *Session, tx []StreamTx) ([]StreamTxResult, error) 
 		}
 	}
 
-	result := make([]StreamTxResult, len(tx))
+	result := make([]logdb.StreamTxResult, len(tx))
 	for i := range tx {
 		one(&tx[i], &result[i])
 	}
 	return result, nil
 
-}
-
-// typically you might publish to a topic, and retrieve the subscribers to that topic
-// but you also need wild cards and mute? data leaking here of course
-type Notify struct {
-	Sid      int64
-	Topic    string
-	Subject  string // a thing? maybe for email
-	Message  string
-	ImageURL string
-}
-type NotifySettings struct {
-}
-
-// how do we rate limit?
-func (s *Server) Can(sess *Session, sid int64, cap int) bool {
-	return true
-}
-
-var errNoPermission = errors.New("no permission")
-
-func (s *Server) SendPush(v *Notify, data []byte) {
-	o := &messaging.Notification{
-		Title:    v.Subject,
-		Body:     v.Message,
-		ImageURL: v.ImageURL,
-	}
-	_ = o
-}
-func (s *Server) Notify(sess *Session, v *Notify) error {
-	if !s.Can(sess, v.Sid, 1) {
-		return errNoPermission
-	}
-	a, e := s.qu.SelectPush(context.Background(), v.Sid)
-	if e != nil {
-		return e
-	}
-	for _, r := range a {
-		if len(r.Mute) > 0 {
-			continue
-		}
-		s.SendPush(v, r.Mute)
-	}
-	return nil
-}
-
-// FcmBuffer batches all incoming push messages and send them periodically.
-type FcmBuffer struct {
-	fcmClient        *messaging.Client
-	dispatchInterval time.Duration
-	batchCh          chan *messaging.Message
-	wg               sync.WaitGroup
-}
-
-func NewFcmBuffer() *FcmBuffer {
-	// There are different ways to add credentials on init.
-	// if we have a path to the JSON credentials file, we use the GOOGLE_APPLICATION_CREDENTIALS env var
-	//os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", c.Firebase.Credentials)
-	// or pass the file path directly
-	//opts := []option.ClientOption{option.WithCredentialsFile("creds.json")}
-
-	// if we have a raw JSON credentials value, we use the FIREBASE_CONFIG env var
-	//os.Setenv("FIREBASE_CONFIG", "{...}")
-
-	// or we can pass the raw JSON value directly as an option
-	//opts := []option.ClientOption{option.WithCredentialsJSON([]byte("{...}"))}
-
-	app, err := firebase.NewApp(context.Background(), nil)
-	if err != nil {
-		log.Fatalf("new firebase app: %s", err)
-	}
-
-	fcmClient, err := app.Messaging(context.TODO())
-	if err != nil {
-		log.Fatalf("messaging: %s", err)
-	}
-	return &FcmBuffer{
-		fcmClient:        fcmClient,
-		dispatchInterval: 5 * time.Second,
-		batchCh:          make(chan *messaging.Message, 1000),
-	}
-}
-
-func (b *FcmBuffer) SendPush(msg *messaging.Message) {
-	b.batchCh <- msg
-}
-
-func (b *FcmBuffer) sender() {
-	defer b.wg.Done()
-
-	// set your interval
-	t := time.NewTicker(b.dispatchInterval)
-
-	// we can send up to 500 messages per call to Firebase
-	messages := make([]*messaging.Message, 0, 500)
-
-	defer func() {
-		t.Stop()
-
-		// send all buffered messages before quit
-		b.sendMessages(messages)
-
-		log.Println("batch sender finished")
-	}()
-
-	for {
-		select {
-		case m, ok := <-b.batchCh:
-			if !ok {
-				return
-			}
-
-			messages = append(messages, m)
-		case <-t.C:
-			b.sendMessages(messages)
-			messages = messages[:0]
-		}
-	}
-}
-
-func (b *FcmBuffer) Run() {
-	b.wg.Add(1)
-	go b.sender()
-}
-
-func (b *FcmBuffer) Stop() {
-	close(b.batchCh)
-	b.wg.Wait()
-}
-
-func (b *FcmBuffer) sendMessages(messages []*messaging.Message) {
-	if len(messages) == 0 {
-		return
-	}
-	batchResp, err := b.fcmClient.SendAll(context.TODO(), messages)
-	log.Printf("batch response: %+v, err: %s \n", batchResp, err)
 }
 
 // By default, you’ll receive email notifications when you join a Slack workspace and haven’t enabled mobile notifications. When you’re not active in Slack, you can receive email notifications to alert you of mentions, DMs and replies to threads you're following. These notifications are bundled and sent once every 15 minutes or once an hour, depending on your preferences.
@@ -369,4 +211,81 @@ func (b *FcmBuffer) sendMessages(messages []*messaging.Message) {
 
 		return nil,nil
 	})
+
+func (s *Server) CloseStream(fid int64) {
+	s.muStream.Lock()
+	defer s.muStream.Unlock()
+	delete(s.Stream, fid)
+}
+func (s *Server) OpenStream(fid int64) (*Stream, error) {
+	s.muStream.Lock()
+	defer s.muStream.Unlock()
+	if stream, ok := s.Stream[fid]; ok {
+		return stream, nil
+	}
+	stream := &Stream{
+		mu:     sync.Mutex{},
+		fid:    fid,
+		listen: map[*Session]int64{},
+	}
+	s.Stream[fid] = stream
+	return stream, nil
+}
+
+func Dbproc(mg *Server) error {
+
+	// add typesafe query apis
+	// server / organization / database / table-or-$ / if $ then $/path
+	mg.AddApi("open", true, func(r *Rpcp) (any, error) {
+		var v OpenDb
+		e := sockUnmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		return mg.Open(r.Session, &v)
+	})
+	mg.AddApi("close", true, func(r *Rpcp) (any, error) {
+		var v struct {
+			Handle int64
+		}
+		sockUnmarshal(r.Params, &v)
+		return true, mg.Close(r.Session, v.Handle)
+	})
+
+	mg.AddApi("commit", true, func(r *Rpcp) (any, error) {
+		var v Transaction
+		e := sockUnmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		return true, mg.Commit(r.Session, &v)
+	})
+	mg.AddApi("read", true, func(r *Rpcp) (any, error) {
+		var v ReadLog
+		e := sockUnmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		return mg.Read(r.Session, &v)
+	})
+	mg.AddApi("append", true, func(r *Rpcp) (any, error) {
+		var v Append
+		e := sockUnmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		return true, mg.Append(r.Session, &v)
+	})
+	mg.AddApi("trim", true, func(r *Rpcp) (any, error) {
+		var v Trim
+		e := sockUnmarshal(r.Params, &v)
+		if e != nil {
+			return nil, e
+		}
+		return true, mg.Trim(r.Session, &v)
+	})
+
+	return nil
+}
+
 */

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -16,13 +15,11 @@ import (
 
 	"firebase.google.com/go/messaging"
 	"github.com/datagrove/mangrove/oauth"
-	"github.com/gliderlabs/ssh"
 	"github.com/gorilla/mux"
 	"github.com/lesismal/llib/std/crypto/tls"
 	"github.com/lesismal/nbio/nbhttp"
 	"github.com/lesismal/nbio/nbhttp/websocket"
 	"github.com/markbates/goth"
-	"github.com/pkg/sftp"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/fxamacker/cbor/v2"
@@ -447,27 +444,4 @@ func (x *Server) FileTask(dir string, then func(path string) error, opt ...TaskO
 	<-done
 	return nil
 
-}
-
-// SftpHandler handler for SFTP subsystem
-func SftpHandlerx(sess ssh.Session) {
-	debugStream := io.Discard
-	serverOptions := []sftp.ServerOption{
-		sftp.WithDebug(debugStream),
-	}
-	server, err := sftp.NewServer(
-		sess,
-		serverOptions...,
-	)
-	if err != nil {
-		log.Printf("sftp server init error: %s\n", err)
-		return
-	}
-
-	if err := server.Serve(); err == io.EOF {
-		server.Close()
-		fmt.Println("sftp client exited session.")
-	} else if err != nil {
-		fmt.Println("sftp server completed with error:", err)
-	}
 }
