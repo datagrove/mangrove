@@ -29,3 +29,7 @@ dg build <SITE>
 <SITE> maybe DID or a display name
 
 we could access the site at the same <SITE>.datagrove.net/en/~tool
+but this assumes that we serve all our code like that and move it around.
+it might be simpler to just log into datagrove to edit?
+safety matters though, can we use an anonymous iframe as isolation for just the viewer?
+isn't an editor potentially dangerous as well though?
