@@ -46,8 +46,9 @@ type MgDeviceOrg struct {
 }
 
 type MgFriendly struct {
-	Name string `json:"name"`
-	Oid  int64  `json:"oid"`
+	Name    string      `json:"name"`
+	Sid     pgtype.Int8 `json:"sid"`
+	Profile []byte      `json:"profile"`
 }
 
 type MgNamePrefix struct {
@@ -61,6 +62,8 @@ type MgOrg struct {
 	Name       string      `json:"name"`
 	PrivateKey []byte      `json:"private_key"`
 	Notify     []byte      `json:"notify"`
+	Wallet     interface{} `json:"wallet"`
+	Profile    []byte      `json:"profile"`
 }
 
 type MgOrgDb struct {
@@ -81,15 +84,22 @@ type MgPush struct {
 }
 
 type MgR2 struct {
-	Key   []byte `json:"key"`
+	Key   string `json:"key"`
 	Value []byte `json:"value"`
 }
 
 type MgSite struct {
 	Sid        int64  `json:"sid"`
-	Root       string `json:"root"`
 	Length     int64  `json:"length"`
-	Lastwriter int64  `json:"lastwriter"`
+	Lastcommit int64  `json:"lastcommit"`
+	Bucket     string `json:"bucket"`
+	Credential []byte `json:"credential"`
+}
+
+type MgSiteowner struct {
+	Sid   int64   `json:"sid"`
+	Oid   int64   `json:"oid"`
+	Share float64 `json:"share"`
 }
 
 type MgTask struct {

@@ -14,7 +14,9 @@ create table  mg.org (
     did text unique, 
     name text not null, -- purely descriptive, mostly for testing
     private_key bytea,  -- should be empty, but in some applications we may want to manage on the server.
-    notify bytea -- notification information.
+    notify bytea, -- notification information.
+    wallet bytes,
+    profile bytea -- public info
 );
 
 
@@ -42,9 +44,11 @@ create table mg.tasklog (
     result bytea
 );
 
+-- friendly names for orgs and sites? namespace then?
 create table mg.friendly (
     name text primary key,
-    oid bigint not null,
+    sid bigint,
+    profile bytea, -- cbor encoded profile information
     foreign key (oid) references mg.org(oid)
 );
 -- use to limit the number of names assigned to one org
@@ -53,11 +57,20 @@ create index on mg.friendly(oid);
 
 create table mg.site(
     sid bigserial primary key,  -- 64 bit integer assigned by host of record. offline creation uses negative numbers until one is assigned.
-    root text not null, -- public key (DID) of owner. owner must be root signature 
     -- keep the length and tail here, the rest of the log is in r2
     length bigint not null, -- length of site log
-    lastwriter bigint not null -- device id of last writer
+    lastcommit bigint not null, -- offset of last commit
+    bucket text not null, -- bucket name
+    credential bytea -- credential for bucket
 );
+
+create table mg.siteowner(
+    sid bigint not null,
+    oid bigint not null,
+    share double precision not null, -- share of site
+    primary key (sid, oid)
+);
+
 -- clients will send notify(sid,oid[]), rate limited. get oid from site database, filter on the client.
 create table mg.push(
     sid bigint not null,
@@ -72,7 +85,7 @@ create index push_oid on mg.push(oid);
 --     device bigint not null, -- device id is in the encrypted part.
 -- conceptually this is in s3,
 create table mg.r2(
-    key bytea primary key, -- site id, offset
+    key text primary key, -- site id, offset
     value bytea -- ciphertext
 );
 -- more than passkey, cid is namespaced.

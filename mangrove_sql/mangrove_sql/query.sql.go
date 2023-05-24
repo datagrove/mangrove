@@ -54,6 +54,34 @@ func (q *Queries) DeleteDevice(ctx context.Context, device int64) error {
 	return err
 }
 
+const deleteFriendly = `-- name: DeleteFriendly :exec
+delete from mg.friendly where sid = $1 and name = $2
+`
+
+type DeleteFriendlyParams struct {
+	Sid  pgtype.Int8 `json:"sid"`
+	Name string      `json:"name"`
+}
+
+func (q *Queries) DeleteFriendly(ctx context.Context, arg DeleteFriendlyParams) error {
+	_, err := q.db.Exec(ctx, deleteFriendly, arg.Sid, arg.Name)
+	return err
+}
+
+const deleteOwner = `-- name: DeleteOwner :exec
+delete from mg.siteowner where sid = $1 and oid = $2
+`
+
+type DeleteOwnerParams struct {
+	Sid int64 `json:"sid"`
+	Oid int64 `json:"oid"`
+}
+
+func (q *Queries) DeleteOwner(ctx context.Context, arg DeleteOwnerParams) error {
+	_, err := q.db.Exec(ctx, deleteOwner, arg.Sid, arg.Oid)
+	return err
+}
+
 const deletePush = `-- name: DeletePush :exec
 delete from mg.push where sid = $1 and oid = $2
 `
@@ -114,6 +142,20 @@ func (q *Queries) InsertDevice(ctx context.Context, arg InsertDeviceParams) erro
 	return err
 }
 
+const insertFriendly = `-- name: InsertFriendly :exec
+insert into mg.friendly (sid, name) values ($1, $2)
+`
+
+type InsertFriendlyParams struct {
+	Sid  pgtype.Int8 `json:"sid"`
+	Name string      `json:"name"`
+}
+
+func (q *Queries) InsertFriendly(ctx context.Context, arg InsertFriendlyParams) error {
+	_, err := q.db.Exec(ctx, insertFriendly, arg.Sid, arg.Name)
+	return err
+}
+
 const insertLock = `-- name: InsertLock :exec
 insert into mg.dblock (db, name, serial) values ($1, $2, 1)
 `
@@ -152,6 +194,21 @@ func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) (int64, er
 	return oid, err
 }
 
+const insertOwner = `-- name: InsertOwner :exec
+insert into mg.siteowner (sid, oid,share) values ($1, $2,$3)
+`
+
+type InsertOwnerParams struct {
+	Sid   int64   `json:"sid"`
+	Oid   int64   `json:"oid"`
+	Share float64 `json:"share"`
+}
+
+func (q *Queries) InsertOwner(ctx context.Context, arg InsertOwnerParams) error {
+	_, err := q.db.Exec(ctx, insertOwner, arg.Sid, arg.Oid, arg.Share)
+	return err
+}
+
 const insertPrefix = `-- name: InsertPrefix :exec
 insert into mg.name_prefix (name,count) values ($1,0) on conflict do nothing
 `
@@ -162,12 +219,43 @@ func (q *Queries) InsertPrefix(ctx context.Context, name string) error {
 }
 
 const insertPush = `-- name: InsertPush :exec
-select sid, oid, mute from mg.push where sid = $1
+insert into  mg.push(sid,oid,mute) values($1,$2,$3)
 `
 
-func (q *Queries) InsertPush(ctx context.Context, sid int64) error {
-	_, err := q.db.Exec(ctx, insertPush, sid)
+type InsertPushParams struct {
+	Sid  int64  `json:"sid"`
+	Oid  int64  `json:"oid"`
+	Mute []byte `json:"mute"`
+}
+
+func (q *Queries) InsertPush(ctx context.Context, arg InsertPushParams) error {
+	_, err := q.db.Exec(ctx, insertPush, arg.Sid, arg.Oid, arg.Mute)
 	return err
+}
+
+const insertR2 = `-- name: InsertR2 :exec
+insert into mg.r2 (key, value) values ($1, $2)
+`
+
+type InsertR2Params struct {
+	Key   string `json:"key"`
+	Value []byte `json:"value"`
+}
+
+func (q *Queries) InsertR2(ctx context.Context, arg InsertR2Params) error {
+	_, err := q.db.Exec(ctx, insertR2, arg.Key, arg.Value)
+	return err
+}
+
+const insertSite = `-- name: InsertSite :one
+insert into mg.site (length,lastcommit) values (0,0) returning sid
+`
+
+func (q *Queries) InsertSite(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, insertSite)
+	var sid int64
+	err := row.Scan(&sid)
+	return sid, err
 }
 
 const namePrefix = `-- name: NamePrefix :one
@@ -270,8 +358,32 @@ func (q *Queries) SelectCredentialByOid(ctx context.Context, oid int64) ([]MgCre
 	return items, nil
 }
 
+const selectFriendly = `-- name: SelectFriendly :many
+select name, sid, profile from mg.friendly where sid = $1
+`
+
+func (q *Queries) SelectFriendly(ctx context.Context, sid pgtype.Int8) ([]MgFriendly, error) {
+	rows, err := q.db.Query(ctx, selectFriendly, sid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MgFriendly
+	for rows.Next() {
+		var i MgFriendly
+		if err := rows.Scan(&i.Name, &i.Sid, &i.Profile); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const selectOrg = `-- name: SelectOrg :one
-select oid, did, name, private_key, notify from mg.org where oid = $1
+select oid, did, name, private_key, notify, wallet, profile from mg.org where oid = $1
 `
 
 func (q *Queries) SelectOrg(ctx context.Context, oid int64) (MgOrg, error) {
@@ -283,12 +395,14 @@ func (q *Queries) SelectOrg(ctx context.Context, oid int64) (MgOrg, error) {
 		&i.Name,
 		&i.PrivateKey,
 		&i.Notify,
+		&i.Wallet,
+		&i.Profile,
 	)
 	return i, err
 }
 
 const selectOrgByName = `-- name: SelectOrgByName :one
-select oid, did, name, private_key, notify from mg.org where name = $1
+select oid, did, name, private_key, notify, wallet, profile from mg.org where name = $1
 `
 
 func (q *Queries) SelectOrgByName(ctx context.Context, name string) (MgOrg, error) {
@@ -300,6 +414,8 @@ func (q *Queries) SelectOrgByName(ctx context.Context, name string) (MgOrg, erro
 		&i.Name,
 		&i.PrivateKey,
 		&i.Notify,
+		&i.Wallet,
+		&i.Profile,
 	)
 	return i, err
 }
@@ -333,6 +449,34 @@ func (q *Queries) SelectPush(ctx context.Context, sid int64) ([]SelectPushRow, e
 	return items, nil
 }
 
+const selectR2 = `-- name: SelectR2 :one
+select value from mg.r2 where key = $1
+`
+
+func (q *Queries) SelectR2(ctx context.Context, key string) ([]byte, error) {
+	row := q.db.QueryRow(ctx, selectR2, key)
+	var value []byte
+	err := row.Scan(&value)
+	return value, err
+}
+
+const selectSite = `-- name: SelectSite :one
+select sid, length, lastcommit, bucket, credential from mg.site where sid = $1
+`
+
+func (q *Queries) SelectSite(ctx context.Context, sid int64) (MgSite, error) {
+	row := q.db.QueryRow(ctx, selectSite, sid)
+	var i MgSite
+	err := row.Scan(
+		&i.Sid,
+		&i.Length,
+		&i.Lastcommit,
+		&i.Bucket,
+		&i.Credential,
+	)
+	return i, err
+}
+
 const trim = `-- name: Trim :exec
 delete from mg.dbentry where fid = $1 and start between $2 and $3
 `
@@ -359,6 +503,21 @@ type UpdateCredentialParams struct {
 
 func (q *Queries) UpdateCredential(ctx context.Context, arg UpdateCredentialParams) error {
 	_, err := q.db.Exec(ctx, updateCredential, arg.Cid, arg.Value)
+	return err
+}
+
+const updateLength = `-- name: UpdateLength :exec
+update mg.site set length = $1 , lastcommit = $2 where sid = $3
+`
+
+type UpdateLengthParams struct {
+	Length     int64 `json:"length"`
+	Lastcommit int64 `json:"lastcommit"`
+	Sid        int64 `json:"sid"`
+}
+
+func (q *Queries) UpdateLength(ctx context.Context, arg UpdateLengthParams) error {
+	_, err := q.db.Exec(ctx, updateLength, arg.Length, arg.Lastcommit, arg.Sid)
 	return err
 }
 
@@ -407,6 +566,20 @@ func (q *Queries) UpdatePrefix(ctx context.Context, name string) (int64, error) 
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const updateR2 = `-- name: UpdateR2 :exec
+update mg.r2 set value = $2 where key = $1
+`
+
+type UpdateR2Params struct {
+	Key   string `json:"key"`
+	Value []byte `json:"value"`
+}
+
+func (q *Queries) UpdateR2(ctx context.Context, arg UpdateR2Params) error {
+	_, err := q.db.Exec(ctx, updateR2, arg.Key, arg.Value)
+	return err
 }
 
 const write = `-- name: Write :exec

@@ -72,11 +72,45 @@ select * from mg.credential where oid = $1;
 delete from mg.credential where cid = $1;
 
 -- name: InsertPush :exec
-select * from mg.push where sid = $1;
+insert into  mg.push(sid,oid,mute) values($1,$2,$3);
 
 -- name: DeletePush :exec
 delete from mg.push where sid = $1 and oid = $2;
 
 -- name: SelectPush :many
 select mute, notify from mg.push join mg.org on (mg.push.oid = mg.org.oid)  where sid = $1;
+
+-- name: SelectSite :one
+select * from mg.site where sid = $1;
+
+-- name: InsertSite :one
+insert into mg.site (length,lastcommit) values (0,0) returning sid;
+
+-- name: InsertFriendly :exec
+insert into mg.friendly (sid, name) values ($1, $2);
+
+-- name: DeleteFriendly :exec
+delete from mg.friendly where sid = $1 and name = $2;
+
+-- name: SelectFriendly :many
+select * from mg.friendly where sid = $1;
+
+-- name: InsertOwner :exec
+insert into mg.siteowner (sid, oid,share) values ($1, $2,$3);
+
+-- name: DeleteOwner :exec
+delete from mg.siteowner where sid = $1 and oid = $2;
+
+-- name: UpdateLength :exec
+update mg.site set length = $1 , lastcommit = $2 where sid = $3;
+
+
+-- name: SelectR2 :one
+select value from mg.r2 where key = $1;
+
+-- name: InsertR2 :exec
+insert into mg.r2 (key, value) values ($1, $2);
+
+-- name: UpdateR2 :exec
+update mg.r2 set value = $2 where key = $1;
 

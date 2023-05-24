@@ -5,11 +5,122 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/datagrove/mangrove/mangrove_sql/mangrove_sql"
 	"github.com/fxamacker/cbor/v2"
 	_ "github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/pgxpool"
 )
+
+// direct dynamic access by api, as is postgress was local
+
+
+// we should allow sites to have their own bucket?
+// whatever the bucket we need to be able to write to it.
+// we could have drivers.
+
+// write as many sites as you want, will return
+
+// Locks are just sites for now?
+//
+//	type Lock struct {
+//		Sid	int64
+//		Key []byte   // not used
+//		Length int64
+//	}
+//
+// when packed into the log, we can map the Handles to Fid's
+// but then why not use fid's to begin with?
+type Transaction struct {
+	Locks  []Lock
+	Handle []int64
+	Start  []int
+	Fn     []*Functor
+}
+type Lock struct {
+	Handle int64
+	Name   []byte //
+	Serial int64
+}
+
+// key = server://org/db/table/...[primary key]/column/after
+type Functor struct {
+	Op    string // insert,  delete, update,
+	Key   []any  // cbor byte[] for update the key needs to include the column, #after if vector
+	Value []byte // argument to functor: f(old, value) -> new
+}
+
+// locks only advance. The lock succeeds if the proposed serial number is +1 from existing one.
+// if any lock fails, the commit fails
+// locks are meta data leaked to the server, so plan accordingly.
+// locks are published in the stream
+
+func (mg *Server) Commit(sess *Session, tx *Transaction) error {
+	b := context.Background()
+	// see if we have permission
+	for _, f := range tx.Handle {
+		hx, ok := sess.Handle[f]
+		if !ok || hx.flags&1 == 0 {
+			return badHandle
+		}
+	}
+
+	// see if we have locks; these have to take postgres locks
+	for _, lock := range tx.Locks {
+		_ = lock
+	}
+
+	// we can't really apply the functors, we just pack them into the main log
+	// should we write open transactions to the log or substitute the path?
+	tc, e := mg.Db.conn.Begin(b)
+	if e != nil {
+		return e
+	}
+
+	tc.Rollback(b)
+	return tc.Commit(b)
+}
+
+type Append struct {
+	Handle int64
+	At     int64 `json:"at"`
+	Root   bool
+	Data   []byte `json:"data"`
+}
+
+// we can identify the snapshot with the device did of the client
+func (mg *Server) Append(sess *Session, append *Append) error {
+	x, ok := sess.Handle[append.Handle]
+	if !ok || x.flags&2 == 0 {
+		return badHandle
+	}
+	e := mg.Db.qu.Write(context.Background(), mangrove_sql.WriteParams{
+		Fid:   x.Stream.fid,
+		Start: append.At,
+		Data:  append.Data,
+	})
+
+	return e
+}
+
+type Trim struct {
+	Handle int64
+	From   int64 `json:"from"`
+	To     int64 `json:"to"`
+}
+
+func (mg *Server) Trim(sess *Session, trim *Trim) error {
+	x, ok := sess.Handle[trim.Handle]
+	if !ok || x.flags&2 == 0 {
+		return badHandle
+	}
+	e := mg.Db.qu.Trim(context.Background(), mangrove_sql.TrimParams{
+		Fid:     x.Stream.fid,
+		Start:   trim.From,
+		Start_2: trim.To,
+	})
+	return e
+}
 
 func (s *Server) DbApi() {
 	s.AddApi("delete1", true, func(r *Rpcp) (any, error) {
