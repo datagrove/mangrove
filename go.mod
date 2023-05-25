@@ -84,6 +84,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/websocket v1.5.0
 	github.com/jackc/pglogrepl v0.0.0-20230318140337-5ef673a9d169
 	github.com/jackc/pgx/v5 v5.3.1
 	github.com/kardianos/service v1.2.2

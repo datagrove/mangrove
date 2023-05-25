@@ -1,16 +1,40 @@
 package logdb
 
+type Caps = int
+type Handle struct {
+	Site int64
+	Id   int64
+}
+
+type Lstx struct {
+}
+
+// a transaction that attempts to note particular device logs as canon
+type Lstag struct {
+}
+
+// remote interface: sees things as sites and locks
+
+// takes a server
+
+type Credential interface {
+}
+
+type Listener interface{}
+
+// note that queueing a task is inserting a tuple in shared db
+
+// things we can do with encrypted bits
+type Log interface {
+	Write(handle Handle, device int64, data []byte) (int64, error)
+	Read(handle Handle, device int64, data []byte) (int64, error)
+	Trim(handle Handle, device int64, pos int64) error
+
+	Commit(handle Handle, device int64) error
+}
+
 // maybe the server looks like a client and we configure it with tasks that we remotely ask it to do.
 type DbModel interface {
-	Commit([]*StreamTx, []*StreamTxResult) error
-	Join(did string, server string) error
-	Invite(user string, site string) error
-	Leave(did string) error
-	Subscribe(sub *Subscription) error
-	Unsubscribe(sub *Subscription) error
-	// on here could be a description of resources like Ray
-	// one resource necessary is access to the necessary keys
-	QueueTask(on string, cmd string, args []string) error
 }
 type LocalModel interface {
 	Write(data []byte) (int64, error)

@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"sync"
 
+	"github.com/datagrove/mangrove/logdb"
 	"github.com/gliderlabs/ssh"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/gorilla/mux"
@@ -25,12 +26,12 @@ type Server struct {
 	*Db
 	fcm *FcmBuffer
 	//*FileWatcher
-	Mux  *mux.Router //*http.ServeMux
-	Home string
-	Ws   *nbhttp.Server
-	Cert string
-	Key  string
-
+	Mux       *mux.Router //*http.ServeMux
+	Home      string
+	Ws        *nbhttp.Server
+	Cert      string
+	Key       string
+	Logdb     logdb.Database
 	Api       map[string]Rpcf
 	Apij      map[string]Rpcfj
 	muSession sync.Mutex
