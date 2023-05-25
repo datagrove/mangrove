@@ -143,6 +143,10 @@ type RangeState[Record any] struct {
 	Size  int64 // for the entire begin:end, not regarding offset/limit
 }
 
+func (cr *RangeState[Record]) Changes(func(x, y int, c Cell)) {
+
+}
+
 func (rs *RangeState[Record]) Cell(column, row int64) Cell {
 	return &CellImpl{}
 }

@@ -19,6 +19,11 @@ func Test_client(t *testing.T) {
 	const insert = "hello"
 	for i := 0; i < len(insert); i++ {
 		st := rg.Wait()
+		// once we get some updates we need to apply them to something lexical editor
+		// we might need to iterate the changed rows?
+		st.Changes(func(x, y int, c Cell) {
+
+		})
 		spew.Dump(rg)
 
 		cl.Commit(func(ctx Transaction) error {
