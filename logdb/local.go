@@ -92,6 +92,14 @@ type Database interface {
 	// one function that will get called for udf's.
 }
 
+// communicate through a message channel
+type InprocessDb struct {
+	Database
+	
+}
+func (i *InprocessDb) {
+
+}
 // we can listen to the online as a range on a vtable
 type SessionImpl struct {
 }

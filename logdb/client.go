@@ -276,11 +276,25 @@ type ClientModifier = func(c *Client) error
 
 // this should allow tree shaking if you only need one of these.
 func NewMemoryClient(opt *ClientOptions, more ...[]ClientModifier) (*Client, error) {
-
-	return nil, nil
+	// run's database in process taking requests over a go channel
+	// all data is kept in memory
+	x := &Client{
+		port:  nil,
+		next:  0,
+		await: make(map[int64]func(*RpcResult)),
+		mu:    sync.Mutex{},
+	}
+	return x, nil
 }
 
 func NewLocalClient(path string, opt *ClientOptions, more ...[]ClientModifier) (*Client, error) {
+	// run's database in process taking requests over a go channe
+	x := &Client{
+		port:  nil,
+		next:  0,
+		await: make(map[int64]func(*RpcResult)),
+		mu:    sync.Mutex{},
+	}
 	return nil, nil
 }
 

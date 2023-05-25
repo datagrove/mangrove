@@ -20,6 +20,26 @@ type MessageChannel interface {
 	Close() error
 }
 
+type InprocessChannel struct {
+	ch chan []byte
+}
+
+var _ MessageChannel = (*InprocessChannel)(nil)
+
+func (ipc *InprocessChannel) Send(data []byte) error {
+	ipc.ch <- data
+	return nil
+}
+func (ipc *InprocessChannel) Close() error {
+	close(ipc.ch)
+	return nil
+}
+func NewInprocessChannel() MessageChannel {
+	return &InprocessChannel{
+		ch: make(chan []byte),
+	}
+}
+
 type SocketChannel struct {
 	conn     *websocket.Conn
 	url      string
