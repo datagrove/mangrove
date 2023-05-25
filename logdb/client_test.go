@@ -7,7 +7,7 @@ import (
 )
 
 func Test_client(t *testing.T) {
-	cl, e := NewClient("process", nil)
+	cl, e := NewMemoryClient(nil)
 	if e != nil {
 		t.Error(e)
 	}
@@ -16,12 +16,14 @@ func Test_client(t *testing.T) {
 	rg := Open("", EmployeeTable, Select[int64](0, 1, 0, 0))
 	rg.Update(Select[int64](0, 1, 0, 0))
 
-	for {
+	const insert = "hello"
+	for i := 0; i < len(insert); i++ {
 		st := rg.Wait()
 		spew.Dump(rg)
 
 		cl.Commit(func(ctx Transaction) error {
-			ctx.GetRoot(st.Cell(0, 1)).Insert(0, "hello")
+			//ctx.GetRoot(st.Cell(0, 1)).Insert(0, insert[i:i+1])
+			ctx.GetRoot(st.Row(0).Fname).Insert(0, "hello")
 			return nil // return error to rollback
 		})
 
@@ -31,9 +33,10 @@ func Test_client(t *testing.T) {
 }
 
 type Employee struct {
-	Id    Cell
-	Fname Cell
-	Lname Cell
+	// Id represents the unique identifier of an employee.
+	Id    Cell `json:"id,omitempty"`
+	Fname Cell `json:"fname,omitempty"`
+	Lname Cell `json:"lname,omitempty"`
 }
 
 var EmployeeTable = TableDesc[Employee, int64]{

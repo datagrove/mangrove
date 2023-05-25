@@ -14,8 +14,55 @@ const (
 	OpFormat
 )
 
+type Node interface {
+	Insert(begin int, value string)
+	InsertBlock(begin, value cbor.RawMessage) Node
+	Delete(begin, end int64)
+	Style(begin, end int64, value cbor.RawMessage)
+}
+
+// each node is a key and a reference to the transaction being built
+// we can use it to write updates to the node.
+type NodeImpl struct {
+	// we can register the node with the transaction
+	// we we commit it we can retrieve all its changes.
+	// do nodes have unique ids?
+
+	functor []Functor
+}
+
+// Delete implements Node
+func (*NodeImpl) Delete(begin int64, end int64) {
+	panic("unimplemented")
+}
+
+// Insert implements Node
+func (*NodeImpl) Insert(begin int, value string) {
+	panic("unimplemented")
+}
+
+// InsertBlock implements Node
+func (*NodeImpl) InsertBlock(begin cbor.RawMessage, value cbor.RawMessage) Node {
+	panic("unimplemented")
+}
+
+// Style implements Node
+func (*NodeImpl) Style(begin int64, end int64, value cbor.RawMessage) {
+	panic("unimplemented")
+}
+
+var _ Node = (*NodeImpl)(nil)
+
 type Transaction interface {
 	GetRoot(cell Cell) Node
+}
+type TransactionImpl struct {
+	//
+}
+
+// GetRoot implements Transaction
+func (*TransactionImpl) GetRoot(cell Cell) Node {
+	return &NodeImpl{}
 }
 
 // roughly a map of proposed values
@@ -29,10 +76,10 @@ type ConsensusValueUpdate struct {
 
 // a functor updates a cell, so this can be OT?
 type Functor struct {
-	TableHandle int
-	UpdateKey   []byte
-	UpdateValue ConsensusValueUpdate
-	Op          string
+	TableHandle  int
+	UpdateKey    []byte
+	UpdateColumn int
+	UpdateValue  []ConsensusValueUpdate
 }
 type Tx struct {
 	Session string
@@ -42,12 +89,7 @@ type Tx struct {
 // set of steps? we know that some steps need to be dropped
 type CellState struct {
 }
-type Node interface {
-	Insert(begin int, value string)
-	InsertBlock(begin, value cbor.RawMessage)
-	Delete(begin, end int64)
-	Style(begin, end int64, value cbor.RawMessage)
-}
+
 type Cell interface {
 	State() CellState
 	Update(func())
@@ -101,7 +143,9 @@ type RangeState[Record any] struct {
 func (rs *RangeState[Record]) Cell(column, row int64) Cell {
 	return &CellImpl{}
 }
-
+func (rs *RangeState[Record]) Row(row int64) *Record {
+	return nil
+}
 func (cr *ClientRange[Record, Key]) Update(tr TableRangeSpec[Key]) error {
 	return nil
 }
@@ -123,14 +167,7 @@ type Client struct {
 	port  MessageChannel
 	next  int64
 	await map[int64]func(*RpcResult)
-}
-
-type TransactionImpl struct {
-}
-
-// GetRoot implements Transaction
-func (*TransactionImpl) GetRoot(cell Cell) Node {
-	panic("unimplemented")
+	mu    sync.Mutex
 }
 
 var _ Transaction = &TransactionImpl{}
@@ -146,9 +183,6 @@ func (cl *Client) Commit(fn func(ctx Transaction) error) error {
 // Client pretty dead in water if it loses connection, so maybe message channel should
 // use keep alive or similar.
 // maybe should be in it's own package?
-var mu sync.Mutex
-var global_client *Client
-var counter int
 
 type Rpc struct {
 	Method string          `json:"method,omitempty"`
@@ -168,13 +202,9 @@ type RpcResult struct {
 
 // Close implements ClientThread
 func (cl *Client) Close() error {
-	mu.Lock()
-	defer mu.Unlock()
-	counter--
-	if counter == 0 {
-		cl.port.Close()
-		global_client = nil
-	}
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	cl.port.Close()
 	return nil
 }
 
@@ -190,7 +220,7 @@ func (cl *Client) SendCommit(method string, params interface{}) (interface{}, er
 	if e != nil {
 		return nil, e
 	}
-	mu.Lock()
+	cl.mu.Lock()
 	var wg sync.WaitGroup
 	var x *RpcResult
 	wg.Add(1)
@@ -199,11 +229,11 @@ func (cl *Client) SendCommit(method string, params interface{}) (interface{}, er
 		wg.Done()
 	}
 	cl.port.Send(b)
-	mu.Unlock()
+	cl.mu.Unlock()
 	wg.Wait()
-	mu.Lock()
+	cl.mu.Lock()
 	delete(cl.await, v.Id)
-	mu.Unlock()
+	cl.mu.Unlock()
 	if x.Result != nil {
 		return x.Result, nil
 	} else {
@@ -240,27 +270,32 @@ type ClientModifier = func(c *Client) error
 // this client assumes that it will be connected to a Database
 // the Database could be running locally, in which case the message channel will
 // be a go channel, otherwise it could be a websocket or DataChannel
-func NewClient(url string, opt *ClientOptions, more ...[]ClientModifier) (*Client, error) {
-	// depending on the url we may start a server here
-	// there should not be more than one server per process
-	mu.Lock()
-	defer mu.Unlock()
-	if global_client != nil {
-		return global_client, nil
-	}
+
+// this should allow tree shaking if you only need one of these.
+func NewMemoryClient(opt *ClientOptions, more ...[]ClientModifier) (*Client, error) {
+
+	return nil, nil
+}
+
+func NewLocalClient(path string, opt *ClientOptions, more ...[]ClientModifier) (*Client, error) {
+	return nil, nil
+}
+
+func NewNetworkClient(url string, opt *ClientOptions, more ...[]ClientModifier) (*Client, error) {
+	cl := &Client{}
 	b, e := cbor.Marshal(&opt.Credential)
 	if e != nil {
 		return nil, e
 	}
-	ch, e := Dial(url, b, func([]byte) {
+	cl.port, e = Dial(url, b, func([]byte) {
 		var rpc RpcResult
 		e = cbor.Unmarshal(b, &rpc)
 		if e != nil {
 			return
 		}
-		mu.Lock()
-		defer mu.Unlock()
-		f, ok := global_client.await[rpc.Id]
+		cl.mu.Lock()
+		defer cl.mu.Unlock()
+		f, ok := cl.await[rpc.Id]
 		if ok {
 			f(&rpc)
 		}
@@ -270,8 +305,6 @@ func NewClient(url string, opt *ClientOptions, more ...[]ClientModifier) (*Clien
 	if e != nil {
 		return nil, e
 	}
-	global_client, e = &Client{
-		port: ch,
-	}, nil
-	return global_client, nil
+	return cl, nil
+
 }
