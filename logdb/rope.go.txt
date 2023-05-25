@@ -5,15 +5,15 @@ import (
 	"strings"
 )
 
-type Rope struct {
-	left   *Rope
-	right  *Rope
+type RopeAny struct {
+	left   *RopeAny
+	right  *RopeAny
 	weight int
 	value  string
 }
 
-func NewRope(value string) *Rope {
-	return &Rope{
+func NewRope(value string) *RopeAny {
+	return &RopeAny{
 		left:   nil,
 		right:  nil,
 		weight: len(value),
@@ -21,14 +21,14 @@ func NewRope(value string) *Rope {
 	}
 }
 
-func (r *Rope) Length() int {
+func (r *RopeAny) Length() int {
 	if r == nil {
 		return 0
 	}
 	return r.weight
 }
 
-func (r *Rope) Index(index int) (byte, error) {
+func (r *RopeAny) Index(index int) (byte, error) {
 	if index < 0 || index >= r.Length() {
 		return 0, fmt.Errorf("index out of range")
 	}
@@ -44,7 +44,7 @@ func (r *Rope) Index(index int) (byte, error) {
 	return r.value[index], nil
 }
 
-func (r *Rope) Concatenate(other *Rope) *Rope {
+func (r *RopeAny) Concatenate(other *RopeAny) *RopeAny {
 	if r == nil {
 		return other
 	}
@@ -75,7 +75,7 @@ func (r *Rope) Concatenate(other *Rope) *Rope {
 	return r
 }
 
-func (r *Rope) Substring(start, end int) (*Rope, error) {
+func (r *RopeAny) Substring(start, end int) (*RopeAny, error) {
 	if start < 0 || end > r.Length() || start > end {
 		return nil, fmt.Errorf("substring indices out of range")
 	}
@@ -96,7 +96,7 @@ func (r *Rope) Substring(start, end int) (*Rope, error) {
 	return NewRope(r.value[start:end]), nil
 }
 
-func (r *Rope) String() string {
+func (r *RopeAny) String() string {
 	if r == nil {
 		return ""
 	}
@@ -106,7 +106,7 @@ func (r *Rope) String() string {
 	return sb.String()
 }
 
-func (r *Rope) writeToStringBuilder(sb *strings.Builder) {
+func (r *RopeAny) writeToStringBuilder(sb *strings.Builder) {
 	if r.left != nil {
 		r.left.writeToStringBuilder(sb)
 		r.right.writeToStringBuilder(sb)

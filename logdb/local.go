@@ -180,11 +180,6 @@ func (*LocalStoreSimple) Disconnect(Session) error {
 	panic("unimplemented")
 }
 
-// ListenRange implements ClientStore
-func (*LocalStoreSimple) ListenRange(r *Range, online func(old *RangeState, new *RangeState)) (Listener, error) {
-	panic("unimplemented")
-}
-
 // Open implements ClientStore
 func (*LocalStoreSimple) Open(Session string, table string) (TableHandle, error) {
 	panic("unimplemented")
@@ -199,8 +194,6 @@ func (*LocalStoreSimple) Propose(tx Proposal) (bool, error) {
 func (*LocalStoreSimple) RemoveListener(Listener) error {
 	panic("unimplemented")
 }
-
-var _ ClientStore = (*LocalStoreSimple)(nil)
 
 func NewLocalStoreSimple(store FileStore, fn CustomFunction) (*LocalStoreSimple, error) {
 	f, e := store.Create("log")
@@ -220,8 +213,7 @@ func NewLocalStoreSimple(store FileStore, fn CustomFunction) (*LocalStoreSimple,
 		f.WriteAt(page, 0)
 		f.WriteAt(page, 4096)
 		// make some initial transactions.
-		var tx Tx
-		f.Commit1(&tx)
+
 	}
 
 	return r, nil

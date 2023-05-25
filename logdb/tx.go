@@ -29,12 +29,6 @@ type TableRange struct {
 	Offset, Limit int64
 }
 
-// set of steps? we know that some steps need to be dropped
-type Cell interface {
-	get() string
-	set(string)
-}
-
 // a list of cell lists. cells are signals
 type SubscriptionState struct {
 	Width  int64

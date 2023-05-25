@@ -5,6 +5,10 @@ import (
 	"io"
 )
 
+type Rope[T any] struct {
+	root *Node
+}
+
 type RopeLog struct {
 	log Log
 }
