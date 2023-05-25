@@ -6,7 +6,7 @@ import (
 )
 
 type Rope[T any] struct {
-	root *Node
+	root *RopeNode
 }
 
 type RopeLog struct {
@@ -37,21 +37,21 @@ type LogEntry struct {
 	pos  int64
 }
 
-// A Node in the rope structure. If the kind is tLeaf, only the value and
+// A RopeNode in the rope structure. If the kind is tLeaf, only the value and
 // length are valid, and if the kind is tNode, only length, left, right are
 // valid.
-type Node struct {
+type RopeNode struct {
 	kind        byte
 	value       []byte
 	length      int
-	left, right *Node
+	left, right *RopeNode
 }
 
 // New returns a new rope node from the given byte slice. The underlying
 // data is not copied so the user should ensure that it is okay to insert and
 // delete from the input slice.
-func New(b []byte) *Node {
-	n := &Node{
+func New(b []byte) *RopeNode {
+	n := &RopeNode{
 		kind:   tLeaf,
 		value:  b[0:len(b):len(b)],
 		length: len(b),
@@ -61,11 +61,11 @@ func New(b []byte) *Node {
 }
 
 // Len returns the number of elements stored in the rope.
-func (n *Node) Len() int {
+func (n *RopeNode) Len() int {
 	return n.length
 }
 
-func (n *Node) adjust() {
+func (n *RopeNode) adjust() {
 	switch n.kind {
 	case tLeaf:
 		if n.length > SplitLength {
@@ -90,7 +90,7 @@ func (n *Node) adjust() {
 // Value returns the elements of this node concatenated into a slice. May
 // return the underyling slice without copying, so do not modify the returned
 // slice.
-func (n *Node) Value() []byte {
+func (n *RopeNode) Value() []byte {
 	switch n.kind {
 	case tLeaf:
 		return n.value
@@ -101,7 +101,7 @@ func (n *Node) Value() []byte {
 }
 
 // Remove deletes the range [start:end) (exclusive bound) from the rope.
-func (n *Node) Remove(start, end int) {
+func (n *RopeNode) Remove(start, end int) {
 	switch n.kind {
 	case tLeaf:
 		// slice tricks delete
@@ -126,7 +126,7 @@ func (n *Node) Remove(start, end int) {
 }
 
 // Insert inserts the given value at pos.
-func (n *Node) Insert(pos int, value []byte) {
+func (n *RopeNode) Insert(pos int, value []byte) {
 	switch n.kind {
 	case tLeaf:
 		// slice tricks insert
@@ -146,7 +146,7 @@ func (n *Node) Insert(pos int, value []byte) {
 
 // Slice returns the range of the rope from [start:end). The returned slice
 // is not copied.
-func (n *Node) Slice(start, end int) []byte {
+func (n *RopeNode) Slice(start, end int) []byte {
 	if start >= end {
 		return []byte{}
 	}
@@ -180,14 +180,14 @@ func (n *Node) Slice(start, end int) []byte {
 }
 
 // At returns the element at the given position.
-func (n *Node) At(pos int) byte {
+func (n *RopeNode) At(pos int) byte {
 	s := n.Slice(pos, pos+1)
 	return s[0]
 }
 
 // SplitAt splits the node at the given index and returns two new ropes
 // corresponding to the left and right portions of the split.
-func (n *Node) SplitAt(i int) (*Node, *Node) {
+func (n *RopeNode) SplitAt(i int) (*RopeNode, *RopeNode) {
 	switch n.kind {
 	case tLeaf:
 		return New(n.value[:i]), New(n.value[i:])
@@ -205,8 +205,8 @@ func (n *Node) SplitAt(i int) (*Node, *Node) {
 	panic("unreachable")
 }
 
-func join(l, r *Node) *Node {
-	n := &Node{
+func join(l, r *RopeNode) *RopeNode {
+	n := &RopeNode{
 		left:   l,
 		right:  r,
 		length: l.length + r.length,
@@ -217,7 +217,7 @@ func join(l, r *Node) *Node {
 }
 
 // Join merges all the given ropes together into one rope.
-func Join(a, b *Node, more ...*Node) *Node {
+func Join(a, b *RopeNode, more ...*RopeNode) *RopeNode {
 	s := join(a, b)
 	for _, n := range more {
 		s = join(s, n)
@@ -226,7 +226,7 @@ func Join(a, b *Node, more ...*Node) *Node {
 }
 
 // Rebuild rebuilds the entire rope structure, resulting in a balanced tree.
-func (n *Node) Rebuild() {
+func (n *RopeNode) Rebuild() {
 	switch n.kind {
 	case tNode:
 		n.value = concat(n.left.Value(), n.right.Value())
@@ -237,7 +237,7 @@ func (n *Node) Rebuild() {
 }
 
 // Rebalance finds unbalanced nodes and rebuilds them.
-func (n *Node) Rebalance() {
+func (n *RopeNode) Rebalance() {
 	switch n.kind {
 	case tNode:
 		lratio := float64(n.left.length) / float64(n.right.length)
@@ -252,7 +252,7 @@ func (n *Node) Rebalance() {
 }
 
 // Each applies the given function to every node in the rope.
-func (n *Node) Each(fn func(n *Node)) {
+func (n *RopeNode) Each(fn func(n *RopeNode)) {
 	fn(n)
 	if n.kind == tNode {
 		n.left.Each(fn)
@@ -261,7 +261,7 @@ func (n *Node) Each(fn func(n *Node)) {
 }
 
 // EachLeaf applies the given function to every leaf node in order.
-func (n *Node) EachLeaf(fn func(n *Node) bool) bool {
+func (n *RopeNode) EachLeaf(fn func(n *RopeNode) bool) bool {
 	switch n.kind {
 	case tLeaf:
 		return fn(n)
@@ -275,12 +275,12 @@ func (n *Node) EachLeaf(fn func(n *Node) bool) bool {
 
 // Count the number of occurrences of 'sep' in this rope in the range
 // [start:end).
-func (n *Node) Count(start, end int, sep []byte) int {
+func (n *RopeNode) Count(start, end int, sep []byte) int {
 	_, r := n.SplitAt(start)
 	l, _ := r.SplitAt(end - start)
 
 	var count int
-	l.EachLeaf(func(n *Node) bool {
+	l.EachLeaf(func(n *RopeNode) bool {
 		count += bytes.Count(n.Value(), sep)
 		return false
 	})
@@ -290,12 +290,12 @@ func (n *Node) Count(start, end int, sep []byte) int {
 // IndexAllFunc iterates through all occurrences of 'sep' in the range
 // [start:end) and calls fn each time with the index of the occurrence. If 'fn'
 // returns 'true' iteration is aborted and fn will no longer be called.
-func (n *Node) IndexAllFunc(start, end int, sep []byte, fn func(idx int) bool) {
+func (n *RopeNode) IndexAllFunc(start, end int, sep []byte, fn func(idx int) bool) {
 	_, r := n.SplitAt(start)
 	l, _ := r.SplitAt(end - start)
 
 	var total int
-	l.EachLeaf(func(it *Node) bool {
+	l.EachLeaf(func(it *RopeNode) bool {
 		val := it.Value()
 		var acc int
 		for {
@@ -317,7 +317,7 @@ func (n *Node) IndexAllFunc(start, end int, sep []byte, fn func(idx int) bool) {
 }
 
 // ReadAt implements the io.ReaderAt interface.
-func (n *Node) ReadAt(p []byte, off int64) (nread int, err error) {
+func (n *RopeNode) ReadAt(p []byte, off int64) (nread int, err error) {
 	if off > int64(n.length) {
 		return 0, io.EOF
 	}
@@ -333,10 +333,10 @@ func (n *Node) ReadAt(p []byte, off int64) (nread int, err error) {
 }
 
 // WriteTo implements the io.WriterTo interface.
-func (n *Node) WriteTo(w io.Writer) (int64, error) {
+func (n *RopeNode) WriteTo(w io.Writer) (int64, error) {
 	var err error
 	var ntotal int64
-	n.EachLeaf(func(it *Node) bool {
+	n.EachLeaf(func(it *RopeNode) bool {
 		var nwritten int
 		nwritten, err = w.Write(it.Value())
 		ntotal += int64(nwritten)

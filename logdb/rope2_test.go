@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func check(r *Node, b *basicText, t *testing.T) {
+func check(r *RopeNode, b *basicText, t *testing.T) {
 	if !bytes.Equal(r.Value(), b.value()) {
 		t.Errorf("incorrect bytes: %s %s", string(r.Value()), string(b.value()))
 	}
@@ -18,7 +18,7 @@ func check(r *Node, b *basicText, t *testing.T) {
 
 const datasz = 5000
 
-func data() (*Node, *basicText) {
+func data() (*RopeNode, *basicText) {
 	data := randbytes(datasz)
 	r := New(data)
 	b := newBasicText(data)

@@ -21,33 +21,6 @@ type ProposeLock struct {
 
 // we need to allow a custom merge function that is used to close orphans
 
-// don't delete formats; overwrite the format the way you want
-const (
-	OpInsert = iota // only thing that changes positions, and only increases them
-	OpDelete        // not exactly a delete, more of a format as hidden. positions don't change.
-	OpFormat
-)
-
-// roughly a map of proposed values
-// each values is an interval tree of formatting ranges
-type ConsensusValueUpdate struct {
-	Begin int64
-	End   int64
-	Op    int
-	Data  []byte
-}
-
-// a functor updates a cell, so this can be OT?
-type Functor struct {
-	TableHandle int
-	UpdateKey   []byte
-	UpdateValue ConsensusValueUpdate
-	Op          string
-}
-type Tx struct {
-	Session string
-	Functor []Functor
-}
 type Proposal struct {
 }
 type TableHandle interface{}

@@ -17,8 +17,16 @@ func Test_client(t *testing.T) {
 	rg.Update(Select[int64](0, 1, 0, 0))
 
 	for {
-		rg.Wait()
+		st := rg.Wait()
 		spew.Dump(rg)
+
+		cl.Commit(func(ctx Transaction) error {
+			ctx.GetRoot(st.Cell(0, 1)).Insert(0, "hello")
+			return nil // return error to rollback
+		})
+
+		// make some random update to a cell, maybe change the
+
 	}
 }
 

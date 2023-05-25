@@ -7,23 +7,73 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
+// don't delete formats; overwrite the format the way you want
+const (
+	OpInsert = iota // only thing that changes positions, and only increases them
+	OpDelete        // not exactly a delete, more of a format as hidden. positions don't change.
+	OpFormat
+)
+
+type Transaction interface {
+	GetRoot(cell Cell) Node
+}
+
+// roughly a map of proposed values
+// each values is an interval tree of formatting ranges
+type ConsensusValueUpdate struct {
+	Begin int64
+	End   int64
+	Op    int
+	Data  []byte
+}
+
+// a functor updates a cell, so this can be OT?
+type Functor struct {
+	TableHandle int
+	UpdateKey   []byte
+	UpdateValue ConsensusValueUpdate
+	Op          string
+}
+type Tx struct {
+	Session string
+	Functor []Functor
+}
+
 // set of steps? we know that some steps need to be dropped
 type CellState struct {
+}
+type Node interface {
+	Insert(begin int, value string)
+	InsertBlock(begin, value cbor.RawMessage)
+	Delete(begin, end int64)
+	Style(begin, end int64, value cbor.RawMessage)
 }
 type Cell interface {
 	State() CellState
 	Update(func())
+	Root() Node // why not pass this to update?
 }
-type SimpleCell struct {
+type CellImpl struct {
+	state CellState
 }
 
-func (cs *SimpleCell) update(fn func()) {
+func (cs *CellImpl) State() CellState {
+	return cs.state
+}
+func (cs *CellImpl) Update(fn func()) {
 	fn()
+}
+func (cs *CellImpl) Root() Node {
+	return Node(nil)
 }
 
 type TableDesc[Record any, Key any] struct {
 	Name string
 }
+
+// we might need column specs as well? do we want to rely on reflection?
+// not every language has it. dart for example
+// this could be vector of cell states.
 type TableRangeSpec[Key any] struct {
 	Begin  Key
 	End    Key
@@ -38,13 +88,18 @@ type ClientRange[Record any, Key any] struct {
 	state  RangeState[Record]
 }
 
-func (cr *ClientRange[Record, Key]) Wait() {
+func (cr *ClientRange[Record, Key]) Wait() RangeState[Record] {
 	cr.state = <-cr.wait
+	return cr.state
 }
 
 type RangeState[Record any] struct {
 	tuple Rope[Record]
 	Size  int64 // for the entire begin:end, not regarding offset/limit
+}
+
+func (rs *RangeState[Record]) Cell(column, row int64) Cell {
+	return &CellImpl{}
 }
 
 func (cr *ClientRange[Record, Key]) Update(tr TableRangeSpec[Key]) error {
@@ -68,6 +123,21 @@ type Client struct {
 	port  MessageChannel
 	next  int64
 	await map[int64]func(*RpcResult)
+}
+
+type TransactionImpl struct {
+}
+
+// GetRoot implements Transaction
+func (*TransactionImpl) GetRoot(cell Cell) Node {
+	panic("unimplemented")
+}
+
+var _ Transaction = &TransactionImpl{}
+
+func (cl *Client) Commit(fn func(ctx Transaction) error) error {
+	ctx := &TransactionImpl{}
+	return fn(ctx)
 }
 
 // we need generated code for correct types
@@ -109,7 +179,7 @@ func (cl *Client) Close() error {
 }
 
 // Commit implements ClientThread
-func (cl *Client) Commit(method string, params interface{}) (interface{}, error) {
+func (cl *Client) SendCommit(method string, params interface{}) (interface{}, error) {
 	v := Rpcx{
 		Method: method,
 		Id:     cl.next,

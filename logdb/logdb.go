@@ -6,13 +6,6 @@ type Handle struct {
 	Id   int64
 }
 
-type Lstx struct {
-}
-
-// a transaction that attempts to note particular device logs as canon
-type Lstag struct {
-}
-
 // remote interface: sees things as sites and locks
 
 // takes a server
