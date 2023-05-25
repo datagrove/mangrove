@@ -7,6 +7,9 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
+// we need to keep an exclusive lock on the client interface while executing a transaction
+// we must know the position is not changing, and that we don't create concurrency within a single session
+
 // don't delete formats; overwrite the format the way you want
 const (
 	OpInsert = iota // only thing that changes positions, and only increases them
