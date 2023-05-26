@@ -81,6 +81,17 @@ create table mg.push(
 -- show subscriptions
 create index push_oid on mg.push(oid);
 
+-- should I count this, or just get the entire site in one go?
+-- 
+create table mg.file(
+    sid bigint not null,
+    count smallint not null,
+    path text not null,
+    data bytea,
+    modified timestamp not null,
+    size bigint not null,
+    primary key (sid, count, path)
+);
 -- everything goes into the site log, including the toc.
 --     device bigint not null, -- device id is in the encrypted part.
 -- conceptually this is in s3,

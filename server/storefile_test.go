@@ -30,7 +30,7 @@ func Test_r2(t *testing.T) {
 		panic(e)
 	}
 
-	e = cl.Upload("/test.txt", []byte("hello world"))
+	e = cl.Upload("/test.txt", "text/html", []byte("hello world"))
 	if e != nil {
 		panic(e)
 	}

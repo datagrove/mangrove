@@ -114,3 +114,14 @@ insert into mg.r2 (key, value) values ($1, $2);
 -- name: UpdateR2 :exec
 update mg.r2 set value = $2 where key = $1;
 
+-- name: ListFiles :many
+select * from mg.file where sid = $1;
+
+-- name: InsertFile :exec
+insert into mg.file (sid, count, path, size, modified, data) values ($1, $2, $3, $4, $5,$6) on conflict do update set count = $2, size = $4, mtime = $5, data = $6;
+
+-- name: ReadFile :one
+select * from mg.file where sid = $1 and count=$2 and path = $3;
+
+-- name: DeleteFile :exec
+delete from mg.file where sid = $1 and count = $2 and path = $3;

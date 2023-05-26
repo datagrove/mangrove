@@ -45,6 +45,15 @@ type MgDeviceOrg struct {
 	Ucan   string `json:"ucan"`
 }
 
+type MgFile struct {
+	Sid      int64            `json:"sid"`
+	Count    int16            `json:"count"`
+	Path     string           `json:"path"`
+	Data     []byte           `json:"data"`
+	Modified pgtype.Timestamp `json:"modified"`
+	Size     int64            `json:"size"`
+}
+
 type MgFriendly struct {
 	Name    string      `json:"name"`
 	Sid     pgtype.Int8 `json:"sid"`

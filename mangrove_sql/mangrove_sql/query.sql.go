@@ -54,6 +54,21 @@ func (q *Queries) DeleteDevice(ctx context.Context, device int64) error {
 	return err
 }
 
+const deleteFile = `-- name: DeleteFile :exec
+delete from mg.file where sid = $1 and count = $2 and path = $3
+`
+
+type DeleteFileParams struct {
+	Sid   int64  `json:"sid"`
+	Count int16  `json:"count"`
+	Path  string `json:"path"`
+}
+
+func (q *Queries) DeleteFile(ctx context.Context, arg DeleteFileParams) error {
+	_, err := q.db.Exec(ctx, deleteFile, arg.Sid, arg.Count, arg.Path)
+	return err
+}
+
 const deleteFriendly = `-- name: DeleteFriendly :exec
 delete from mg.friendly where sid = $1 and name = $2
 `
@@ -139,6 +154,31 @@ type InsertDeviceParams struct {
 
 func (q *Queries) InsertDevice(ctx context.Context, arg InsertDeviceParams) error {
 	_, err := q.db.Exec(ctx, insertDevice, arg.Device, arg.Webauthn)
+	return err
+}
+
+const insertFile = `-- name: InsertFile :exec
+insert into mg.file (sid, count, path, size, modified, data) values ($1, $2, $3, $4, $5,$6) on conflict do update set count = $2, size = $4, mtime = $5, data = $6
+`
+
+type InsertFileParams struct {
+	Sid      int64            `json:"sid"`
+	Count    int16            `json:"count"`
+	Path     string           `json:"path"`
+	Size     int64            `json:"size"`
+	Modified pgtype.Timestamp `json:"modified"`
+	Data     []byte           `json:"data"`
+}
+
+func (q *Queries) InsertFile(ctx context.Context, arg InsertFileParams) error {
+	_, err := q.db.Exec(ctx, insertFile,
+		arg.Sid,
+		arg.Count,
+		arg.Path,
+		arg.Size,
+		arg.Modified,
+		arg.Data,
+	)
 	return err
 }
 
@@ -258,6 +298,37 @@ func (q *Queries) InsertSite(ctx context.Context) (int64, error) {
 	return sid, err
 }
 
+const listFiles = `-- name: ListFiles :many
+select sid, count, path, data, modified, size from mg.file where sid = $1
+`
+
+func (q *Queries) ListFiles(ctx context.Context, sid int64) ([]MgFile, error) {
+	rows, err := q.db.Query(ctx, listFiles, sid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MgFile
+	for rows.Next() {
+		var i MgFile
+		if err := rows.Scan(
+			&i.Sid,
+			&i.Count,
+			&i.Path,
+			&i.Data,
+			&i.Modified,
+			&i.Size,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const namePrefix = `-- name: NamePrefix :one
 select name, count from mg.name_prefix where name = $1
 `
@@ -297,6 +368,30 @@ func (q *Queries) Read(ctx context.Context, arg ReadParams) ([]MgDbentry, error)
 		return nil, err
 	}
 	return items, nil
+}
+
+const readFile = `-- name: ReadFile :one
+select sid, count, path, data, modified, size from mg.file where sid = $1 and count=$2 and path = $3
+`
+
+type ReadFileParams struct {
+	Sid   int64  `json:"sid"`
+	Count int16  `json:"count"`
+	Path  string `json:"path"`
+}
+
+func (q *Queries) ReadFile(ctx context.Context, arg ReadFileParams) (MgFile, error) {
+	row := q.db.QueryRow(ctx, readFile, arg.Sid, arg.Count, arg.Path)
+	var i MgFile
+	err := row.Scan(
+		&i.Sid,
+		&i.Count,
+		&i.Path,
+		&i.Data,
+		&i.Modified,
+		&i.Size,
+	)
+	return i, err
 }
 
 const revokeDevice = `-- name: RevokeDevice :exec
