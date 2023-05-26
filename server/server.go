@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"sync"
 
-	"github.com/datagrove/mangrove/logdb"
 	"github.com/gliderlabs/ssh"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/gorilla/mux"
@@ -21,17 +20,18 @@ var logger service.Logger
 
 type Rpcfj = func(a *Rpcpj) (any, error)
 type Rpcf = func(a *Rpcp) (any, error)
+
 type Server struct {
 	*Config
 	*Db
 	fcm *FcmBuffer
 	//*FileWatcher
-	Mux       *mux.Router //*http.ServeMux
-	Home      string
-	Ws        *nbhttp.Server
-	Cert      string
-	Key       string
-	Logdb     logdb.Database
+	Mux  *mux.Router //*http.ServeMux
+	Home string
+	Ws   *nbhttp.Server
+	Cert string
+	Key  string
+	//Logdb     logdb.Database
 	Api       map[string]Rpcf
 	Apij      map[string]Rpcfj
 	muSession sync.Mutex

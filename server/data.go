@@ -3,7 +3,6 @@ package server
 import (
 	"sync"
 
-	"github.com/datagrove/mangrove/logdb"
 	"github.com/go-webauthn/webauthn/webauthn"
 )
 
@@ -36,7 +35,7 @@ type Session struct {
 	DefaultFactor int
 	FactorValue   string // hold a value while we are testing it.
 	CredentialId  int64
-	db            logdb.Session
+	//db            logdb.Session
 }
 type StreamHandle struct {
 	*Stream
