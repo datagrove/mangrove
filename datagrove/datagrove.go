@@ -49,7 +49,7 @@ func main() {
 			Sftp:          ":2023",
 			HttpsCert:     "",
 			HttpsPrivate:  "",
-			Root:          "",
+			Root:          "/Users/jim/dev/dgdata",
 			AddrsTLS:      []string{},
 			Addrs:         []string{ip},
 			EmailSource:   "",
