@@ -83,11 +83,4 @@ func (*Db) Unsubscribe(sub *Subscription) error {
 	panic("unimplemented")
 }
 
-func NewDb(model LocalModel, log RemoteModel) (*Db, error) {
-	return &Db{
-		remote: model,
-		local:  model,
-	}, nil
-}
-
 var _ DbModel = (*Db)(nil)

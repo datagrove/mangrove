@@ -47,8 +47,6 @@ type TableHandle interface{}
 // server stores only handle encrypted data.
 type CustomFunction func(method string, tx Tx, data []byte) error
 
-type Session interface{}
-
 type Statement interface{}
 
 type Package struct{}
@@ -93,13 +91,16 @@ type Database interface {
 }
 
 // communicate through a message channel
-type InprocessDb struct {
+type DbImpl struct {
 	Database
-	
+	in  chan []byte
+	out map[int64]chan []byte
 }
-func (i *InprocessDb) {
 
+func NewDb(st Store) *DbImpl {
+	r := &InprocessDb{}
 }
+
 // we can listen to the online as a range on a vtable
 type SessionImpl struct {
 }
@@ -174,30 +175,6 @@ func (*LocalStoreSimple) Propose(tx Proposal) (bool, error) {
 // RemoveListener implements ClientStore
 func (*LocalStoreSimple) RemoveListener(Listener) error {
 	panic("unimplemented")
-}
-
-func NewLocalStoreSimple(store FileStore, fn CustomFunction) (*LocalStoreSimple, error) {
-	f, e := store.Create("log")
-	if e != nil {
-		return nil, e
-	}
-
-	r := &LocalStoreSimple{
-		store: store,
-		f:     f,
-	}
-	// recover our state from the store, or generate a new one
-	// connect to our servers and synchronize
-	if f.Length() == 0 {
-		// the first two pages are alternate roots
-		var page = make([]byte, 4096)
-		f.WriteAt(page, 0)
-		f.WriteAt(page, 4096)
-		// make some initial transactions.
-
-	}
-
-	return r, nil
 }
 
 //Listen(event func(server string, bytes []byte)) (Listener, error)
