@@ -1,0 +1,96 @@
+// new users are initialized from this file
+{
+    "banner": [
+        {
+            "name": "Docs",
+            "icon": "bookOpen",
+            "href": "../datagrove"
+        },
+        {
+            "name": "Store",
+            "icon": "shoppingBag",
+            "href": "https://datagrove.com"
+        },
+        {
+            "name": "Youtube",
+            "icon": "videoCamera",
+            "href": "https://www.youtube.com/@datagrove6599/featured"
+        },
+        {
+            "name": "Our Blog",
+            "icon": "pencilSquare",
+            "href": "https://datagrove.com"
+        },
+        {
+            "name": "Chat",
+            "icon": "chatBubbleOvalLeft",
+            "href": "https://datagrove.com"
+        }
+    ],
+    "pinned": {
+        "name": "Pinned",
+        "path": "/settings",
+        "children": [
+            {
+                "name": "Public Blog",
+                "path": "/en/site/blog/"
+            },
+            {
+                "name": "Private Blog",
+                "path": "/en/site/private-blog/"
+            },
+            {
+                "name": "Private Notes",
+                "path": "/en/site/notes/"
+            },
+            {
+                "name": "Public Store",
+                "path": "/en/site/store/"
+            },
+            {
+                "name": "Private Store",
+                "path": "/en/site/private-store/"
+            },
+            {
+                "name": "Public Chat",
+                "path": "/en/site/chat/"
+            },
+            {
+                "name": "Private Chat",
+                "path": "/en/site/private-chat/"
+            }
+        ]
+    },
+    "sites": [
+        {
+            "name": "Recent",
+            "path": "/settings",
+            "children": [
+                {
+                    "name": "Datagrove",
+                    "path": "/en/site/datagrove/welcome.html"
+                }
+            ]
+        },
+        {
+            "name": "My Sites",
+            "path": "/settings",
+            "children": [
+                {
+                    "name": "Datagrove",
+                    "path": "/settings"
+                }
+            ]
+        },
+        {
+            "name": "Other",
+            "path": "/settings",
+            "children": [
+                {
+                    "name": "Solid",
+                    "path": "/settings"
+                }
+            ]
+        }
+    ]
+}

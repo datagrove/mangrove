@@ -16,9 +16,6 @@ import { createResource } from "solid-js";
 import { UserContext, getUser, login } from "../../../packages/ui/src/core"
 
 
-
-
-
 function App() {
     const nav = useNavigate()
     const loc = useLocation()

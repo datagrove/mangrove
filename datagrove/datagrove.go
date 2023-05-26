@@ -2,14 +2,17 @@ package main
 
 import (
 	"embed"
-	"log"
+	"fmt"
 	"os"
 
 	"github.com/datagrove/mangrove/server"
 	"github.com/datagrove/mangrove/tasks"
+	"github.com/fsnotify/fsnotify"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/joho/godotenv"
 	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -18,6 +21,21 @@ var (
 )
 
 func main() {
+	godotenv.Load()
+	viper.SetConfigName(".datagrove")       // name of config file (without extension)
+	viper.SetConfigType("yaml")             // REQUIRED if the config file does not have the extension in the name
+	viper.AddConfigPath("/etc/datagrove/")  // path to look for the config file in
+	viper.AddConfigPath("$HOME/.datagrove") // call multiple times to add many search paths
+	viper.AddConfigPath(".")                // optionally look for config in the working directory
+	err := viper.ReadInConfig()             // Find and read the config file
+	if err != nil {                         // Handle errors reading the config file
+		panic(fmt.Errorf("fatal error config file: %w", err))
+	}
+	viper.OnConfigChange(func(e fsnotify.Event) {
+		fmt.Println("Config file changed:", e.Name)
+	})
+	viper.WatchConfig()
+
 	os.Args = []string{"dg", "start"}
 	ip := "localhost:3000"
 	wconfig := &webauthn.Config{
@@ -49,7 +67,7 @@ func main() {
 			Sftp:          ":2023",
 			HttpsCert:     "",
 			HttpsPrivate:  "",
-			Root:          "/Users/jim/dev/dgdata",
+			Root:          os.Getenv("HOME"),
 			AddrsTLS:      []string{},
 			Addrs:         []string{ip},
 			EmailSource:   "",
@@ -61,6 +79,9 @@ func main() {
 
 		Ui: Res,
 	}
+	viper.Unmarshal(opt)
+	viper.WriteConfigAs("running.yaml")
+
 	rootCmd := server.DefaultCommands(opt)
 	rootCmd.AddCommand(&cobra.Command{
 		Use: "sftp source target",
@@ -68,17 +89,16 @@ func main() {
 			source := args[0]
 			target := args[1]
 			tasks.SftpCopy(source, target, 22, "")
-			// use service to install the service
-			x, e := server.NewServer(opt) // opt.Name, HomeDir(args), opt.Res)
-			if e != nil {
-				log.Fatal(e)
-			}
-			// how do we add command line paramters?
-			e = x.Install()
-			if e != nil {
-				log.Fatal(e)
-			}
 		}})
+	rootCmd.AddCommand(&cobra.Command{
+		Use: "adduser user password",
+		Run: func(cmd *cobra.Command, args []string) {
+			user := args[0]
+			password := args[1]
+			_ = user
+			_ = password
+		}})
+
 	rootCmd.Execute()
 }
 

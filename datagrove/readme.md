@@ -1,3 +1,12 @@
+there is a server-wide home page that can be configured
+by default there should be a site for docs
+
+For the home page to run it should download these server wide links
+It should provide templates for onboarding users
+
+in general templates should be in a template directory off from home
+sites directories will all be numeric, so any name is ok
+
 Login Page
 
 1. Accept user and password or passkey
