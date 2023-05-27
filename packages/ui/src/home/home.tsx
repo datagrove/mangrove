@@ -14,7 +14,7 @@ import { createWindowSize } from "@solid-primitives/resize-observer";
 import { SearchPanel } from "./search";
 import { Settings } from "./settings";
 import { Message } from "./message";
-import { Graphic, SitePage, SitePageContext, SiteRef, Tool, online, useUser } from "../core";
+import { Graphic, SitePage, SitePageContext, Tool, online, useUser } from "../core";
 import { SiteViewer } from "./site";
 import { HomeViewer, Home } from "./home_viewer";
 import { MapTool, MapViewer } from "./map";
@@ -210,11 +210,7 @@ export function LoggedIn() {
   })
   const toolViewer = () => purl().tool.viewer
   // the sitePage is derived from the location. maybe memo it? 
-  const siteRef = (): SiteRef => {
-    return {
-      name: purl().site,
-    }
-  }
+
 
 
   // page is things we can get sync, no fetch
@@ -223,7 +219,7 @@ export function LoggedIn() {
       user: user,
       hash: purl().hash,
       doc: {
-        site: siteRef(),
+        name: purl().site,
         path: purl().path,
 
       },

@@ -15,7 +15,7 @@ import { Show, Switch, createEffect } from "solid-js"
 import { createResource } from "solid-js";
 import { UserContext, getUser, login } from "../../../packages/ui/src/core"
 
-
+// we can know if we are logged in synchronously, but not know if the login is valid
 function App() {
     const nav = useNavigate()
     const loc = useLocation()

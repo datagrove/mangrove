@@ -81,13 +81,11 @@ export interface SitePage {
 }
 
 export interface SiteDocumentRef {
-  site: SiteRef
-  path: string
-}
-export interface SiteRef {
   did?: string
   name?: string
+  path: string
 }
+
 
 // we can construct the Sitemap from the Site
 export interface Org {
@@ -243,7 +241,7 @@ export async function getUser(id: string): Promise<UserSettings> {
 }
 
 
-export async function getSitemap(p: SiteRef): Promise<Sitemap> {
+export async function getSitemap(p: SiteDocumentRef): Promise<Sitemap> {
   return {
     menu: orgsite.sitemap,
     owner: {

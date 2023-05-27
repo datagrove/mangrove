@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -25,6 +26,15 @@ func fileApi(mg *Server) {
 	var df Fsi = &Osfs{
 		mg: mg,
 	}
+	mg.AddApij("getLive", true, func(a *Rpcpj) (any, error) {
+		var v struct {
+			did  string
+			name string
+			path string
+		}
+		json.Unmarshal(a.Params, &v)
+		return "https://datagrove.com", nil
+	})
 	mg.AddApi("write", true, func(a *Rpcp) (any, error) {
 		var v struct {
 			Sid  int64  `json:"sid,omitempty"` // we have to make sure they can write this
