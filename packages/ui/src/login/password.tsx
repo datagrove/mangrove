@@ -47,5 +47,5 @@ export const PasswordCell: Component<{ cell: Cell }> = (props) => {
             topAction: top
         }
     }
-    return <InputCell cell={c()} />
+    return <InputCell cell={props.cell} />
 }

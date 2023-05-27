@@ -3,7 +3,7 @@ import { Component, For, JSXElement, Match, Show, Suspense, Switch, createResour
 import { TextViewer, TextEditor } from "../lexical"
 import { SettingsViewer } from "./settings"
 import { ChatViewer, WhiteboardViewer, SheetViewer, CodeViewer } from "./viewer"
-import { DocumentContext, MenuEntry, Viewer, getDocument, getSitemap, usePage } from "../core"
+import { DocumentContext, MenuEntry, Viewer, getDocument, getLive, getSitemap, usePage } from "../core"
 import { Icon } from "solid-heroicons"
 import { chevronLeft, bars_3, magnifyingGlass, homeModern, plus, bookOpen, shoppingBag, videoCamera, pencilSquare, chatBubbleOvalLeft } from "solid-heroicons/solid"
 import { Bb, Ab } from "../layout/nav"
@@ -100,16 +100,32 @@ function Github() {
 // everything can scroll off; maximum use of space. easy to find top anyway.
 // we probably need a sticky to close? maybe this can be done with the rail though
 
-export function DangerousHtml() {
-    return <iframe srcdoc={html}></iframe>
+// we need to reimplement caching on top of sockets 
+// maybe this should be one iframe instead of two?
+
+
+// we can get these site pages directly from r2, but we may need to filter it through the service worker if we have published offline, and we may want this to function as a preview even for unpublished sites.
+// we probably don't want srcdoc here, because how would it get images and such with no base url? what if I put these sites on 3001? each on their own port? running locally we don't want to mess around with their dns, do we?
+
+const SampleIframe = () => {
+    return <iframe srcdoc={"<div style='background-color: white'>I'm an Iframe, but I can still use datagrove services offline</div>"}></iframe>
 }
-export const SiteMenuContent: Component<{}> = (props) => {
+export function SiteViewer() {
     const st = usePage()
-    const [sitemap] = createResource(st.doc.site, getHtml)
-    return <iframe>{dangerousHtml()}</iframe>
+    const [url] = createResource(st.doc, getLive)
+    const loc = useLocation()
+    const nav = useNavigate()
+
+    // the actual site here needs to be computed from the path
+    // we might want to probe and see if its real
+    // this probably has to be configured? 
+    // running locally we will need to make a query to the database to get a port
+    return <Suspense fallback={<div>loading...</div>} >
+            <iframe class='w-full h-full' src={url()} />
+        </Suspense>
 }
 
-export function Sitemap(props: { sitemap: Sitemap }) {
+export function Sitemap(props: { menu: MenuEntry[] }) {
     const nav = useNavigate()
     const loc = useLocation()
 
@@ -132,7 +148,7 @@ export function Sitemap(props: { sitemap: Sitemap }) {
                         <Icon class='block w-5 h-5 mr-1' path={chevronLeft} /></div>
                     Anonymous</div></Bb>
                 <div class='text-sm ml-7 mb-4'><Ab href='#'>by Anonymous</Ab></div>
-                <SectionNav tabs={props.sitemap.menu} />
+                <SectionNav tabs={props.menu} />
             </div>
         </div></div>
 }
@@ -140,7 +156,7 @@ export function Sitemap(props: { sitemap: Sitemap }) {
 // start at site, drill into pages, drill into blocks
 // if we are at the site menu then we show a home page of sorts.
 // pinned, recent, etc.
-export function SiteViewer() {
+export function SiteViewer2() {
     const loc = useLocation()
     const nav = useNavigate()
 
@@ -180,7 +196,7 @@ function Grid(props: { children: JSXElement }) {
     }}> {props.children}</div ></div>
 }
 
-
+/*
 export type IconPath = typeof homeModern
 // floating is for small screens only? map mode can still have the rail.
 // when we scroll up the search should fix to the top.
@@ -270,3 +286,4 @@ export function Home() {
             }}</For></div>
     </Page>
 }
+*/

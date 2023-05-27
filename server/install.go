@@ -148,7 +148,7 @@ func (p *Server) Stop(s service.Service) error {
 }
 
 func (sx *Server) Uninstall() error {
-	s, err := service.New(sx, &sx.Config.Config)
+	s, err := service.New(sx, &sx.Config.Service)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func (sx *Server) Uninstall() error {
 
 func (sx *Server) Install() error {
 
-	s, err := service.New(sx, &sx.Config.Config)
+	s, err := service.New(sx, &sx.Config.Service)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func (sx *Server) Install() error {
 }
 
 func (sx *Server) RunService() {
-	s, err := service.New(sx, &sx.Config.Config)
+	s, err := service.New(sx, &sx.Config.Service)
 	if err != nil {
 		log.Fatal(err)
 	}

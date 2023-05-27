@@ -15,7 +15,7 @@ import { SearchPanel } from "./search";
 import { Settings } from "./settings";
 import { Message } from "./message";
 import { Graphic, SitePage, SitePageContext, SiteRef, Tool, online, useUser } from "../core";
-import { SiteMenuContent, SiteViewer } from "./site";
+import { SiteViewer } from "./site";
 import { HomeViewer, Home } from "./home_viewer";
 import { MapTool, MapViewer } from "./map";
 import { DbTool, DbViewer } from "./db";
@@ -63,7 +63,6 @@ export function SearchViewer() {
 const builtinTools: { [key: string]: Tool } = {
   "site": {
     icon: () => <FloatIcon path={menu} />,
-    component: () => <SiteMenuContent />,
     path: 'a/b/text',
     viewer: () => <SiteViewer />
   },
@@ -344,46 +343,78 @@ export function LoggedIn() {
     }} onMouseDown={mousedown}>
       <Icon path={eastWest} class='h-6 w-6 text-neutral-500' /></div>
   }
-  return <SitePageContext.Provider value={sitePage()}><Show when={sitePage()} >
-    <HSplitterButton />
-    <div class='flex h-screen w-screen fixed overflow-hidden'>
-      <Show when={windowSize.width > 640 || sitePage().flyout}>
-        <Toolicons />
-        <div
-          class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden top-0 bottom-0'
-          style={{
-            left: "56px",
-            width: left() - 56 + "px"
-          }}
-        >
-          <div
-            class='absolute overflow-auto top-0 left-0 right-0  '
-            style={{
-              bottom: "0px",
-            }}
-          >
-            <Suspense fallback={<div>waiting</div>}>
-              {purl().tool.component()}
-            </Suspense>
+  const MobileSearchButton = ()=> {
+
+    // we can have our status buttons here too, jump directly to new messages
+    return  <div>
+        <div class='fixed left-4 bottom-4'>
+        <button onClick={()=>{nav('/search')}}><Icon class='w-6 h-6' path={magnifyingGlass}></Icon></button>
+        </div>
+      </div>
+  }
+
+  return <SitePageContext.Provider value={sitePage()}>
+    <Switch>
+      <Match when={purl().tool.component}>   <HSplitterButton />
+        <div class='flex h-screen w-screen fixed overflow-hidden'>
 
 
-          </div>
-          <div class=' hidden absolute bottom-0 left-0 right-0 h-16 bg-neutral-900'>
-            <input placeholder='Send a message' />
+          <Show when={(windowSize.width > 640 || sitePage().flyout)}>
+            <Toolicons />
+            <div
+              class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden top-0 bottom-0'
+              style={{
+                left: "56px",
+                width: left() - 56 + "px"
+              }}
+            >
+              <div
+                class='absolute overflow-auto top-0 left-0 right-0  '
+                style={{
+                  bottom: "0px",
+                }}
+              >
+                <Suspense fallback={<div>waiting</div>}>
+                  {purl().tool.component!()}
+                </Suspense>
+
+
+              </div>
+              <div class=' hidden absolute bottom-0 left-0 right-0 h-16 bg-neutral-900'>
+                <input placeholder='Send a message' />
+              </div>
+            </div>
+          </Show>
+          <div class='fixed' style={{
+            left: (left()) + "px",
+            right: "0px",
+            top: "0px",
+            bottom: "0px"
+          }}>
+            {toolViewer()()}
+            <InfoBox />
           </div>
         </div>
-      </Show>
-      <div class='fixed' style={{
-        left: (left()) + "px",
-        right: "0px",
-        top: "0px",
-        bottom: "0px"
-      }}>
-        {toolViewer()()}
-        <InfoBox />
-      </div>
-    </div>
-  </Show></SitePageContext.Provider>
+      </Match>
+      <Match when={true}>
+        <Switch>
+        <Match when={windowSize.width < 640}>
+         
+            {/* this appears in mobile it mainly needs to activate search*/}
+            <MobileSearchButton/>
+          
+          {toolViewer()()}
+        </Match>
+        <Match when={true}>
+          <div class='flex h-screen w-screen fixed overflow-hidden'>
+          <Toolicons/>
+          {toolViewer()()}
+          </div>
+          </Match>
+        </Switch>
+      </Match>
+    </Switch>
+  </SitePageContext.Provider>
 
 }
 // <Splitter left={left} setLeft={setLeft}>

@@ -85,6 +85,7 @@ func (s *UserSecret) SecretToUser(secret string) int64 {
 
 // override defaults with index.jsonc
 type ConfigJson struct {
+	Name     string
 	AddrsTLS []string
 	Addrs    []string
 	Root     string
@@ -101,10 +102,11 @@ type ConfigJson struct {
 	HttpsCert     string           `json:"https_cert,omitempty"`
 	HttpsPrivate  string           `json:"https_private,omitempty"`
 	PasskeyConfig *webauthn.Config `json:"passkey_config,omitempty"`
+	Service       service.Config
 }
 type Config struct {
 	ConfigJson
-	service.Config
+
 	Ui     embed.FS
 	Launch func(*Server) error
 

@@ -20,23 +20,7 @@ var (
 	Res embed.FS
 )
 
-func main() {
-	godotenv.Load()
-	viper.SetConfigName(".datagrove")       // name of config file (without extension)
-	viper.SetConfigType("yaml")             // REQUIRED if the config file does not have the extension in the name
-	viper.AddConfigPath("/etc/datagrove/")  // path to look for the config file in
-	viper.AddConfigPath("$HOME/.datagrove") // call multiple times to add many search paths
-	viper.AddConfigPath(".")                // optionally look for config in the working directory
-	err := viper.ReadInConfig()             // Find and read the config file
-	if err != nil {                         // Handle errors reading the config file
-		panic(fmt.Errorf("fatal error config file: %w", err))
-	}
-	viper.OnConfigChange(func(e fsnotify.Event) {
-		fmt.Println("Config file changed:", e.Name)
-	})
-	viper.WatchConfig()
-
-	os.Args = []string{"dg", "start"}
+func defaultConfig() server.ConfigJson {
 	ip := "localhost:3000"
 	wconfig := &webauthn.Config{
 		RPDisplayName: "Go Webauthn", // Display Name for your site
@@ -47,8 +31,19 @@ func main() {
 			"https://localhost:5783"}, // The origin URLs allowed for WebAuthn requests
 	}
 
-	opt := &server.Config{
-		Config: service.Config{
+	return server.ConfigJson{
+		Name:          "Datagrove",
+		Key:           "",
+		Https:         "",
+		Sftp:          ":2023",
+		HttpsCert:     "",
+		HttpsPrivate:  "",
+		Root:          os.Getenv("HOME"),
+		AddrsTLS:      []string{},
+		Addrs:         []string{ip},
+		EmailSource:   "",
+		PasskeyConfig: wconfig,
+		Service: service.Config{
 			Name:             "Datagrove",
 			DisplayName:      "Datagrove",
 			Description:      "Datagrove",
@@ -61,26 +56,37 @@ func main() {
 			Option:           map[string]interface{}{},
 			EnvVars:          map[string]string{},
 		},
-		ConfigJson: server.ConfigJson{
-			Key:           "",
-			Https:         "",
-			Sftp:          ":2023",
-			HttpsCert:     "",
-			HttpsPrivate:  "",
-			Root:          os.Getenv("HOME"),
-			AddrsTLS:      []string{},
-			Addrs:         []string{ip},
-			EmailSource:   "",
-			PasskeyConfig: wconfig,
-		},
+	}
+}
 
+func main() {
+	godotenv.Load()
+	config := defaultConfig()
+	viper.SetConfigName(".datagrove")       // name of config file (without extension)
+	viper.SetConfigType("yaml")             // REQUIRED if the config file does not have the extension in the name
+	viper.AddConfigPath("/etc/datagrove/")  // path to look for the config file in
+	viper.AddConfigPath("$HOME/.datagrove") // call multiple times to add many search paths
+	viper.AddConfigPath(".")                // optionally look for config in the working directory
+	err := viper.ReadInConfig()             // Find and read the config file
+	if err != nil {
+		// write a configuration file based on defaults
+
+	}
+	viper.Unmarshal(config)
+	viper.WriteConfigAs("running.yaml")
+	viper.OnConfigChange(func(e fsnotify.Event) {
+		fmt.Println("Config file changed:", e.Name)
+	})
+	viper.WatchConfig()
+
+	os.Args = []string{"dg", "start"}
+
+	opt := &server.Config{
+		ConfigJson:          config,
 		ProxyLogin:          nil,
 		ProxyUpdatePassword: nil,
-
-		Ui: Res,
+		Ui:                  Res,
 	}
-	viper.Unmarshal(opt)
-	viper.WriteConfigAs("running.yaml")
 
 	rootCmd := server.DefaultCommands(opt)
 	rootCmd.AddCommand(&cobra.Command{

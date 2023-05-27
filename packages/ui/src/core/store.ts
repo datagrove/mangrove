@@ -1,6 +1,7 @@
 import { JSXElement, createContext, createSignal, useContext } from "solid-js"
 import { orgsite } from "./site_menu_test";
 import { createStore } from "solid-js/store";
+import { createWs } from "./socket";
 
 export const [online, setOnline] = createSignal(false)
 
@@ -53,7 +54,7 @@ export interface Caps {
 export interface Tool {
   global?: boolean  // a global tool does not have a path
   icon: () => JSXElement
-  component: () => JSXElement
+  component?: () => JSXElement
   path: string
   viewer: () => JSXElement// pick a viewer the first time the tool is used, after that restore state for that tool (url)
 }
@@ -106,7 +107,17 @@ export interface SiteDocument {
   type: string
 }
 
+// this will find a previewable version of the document, maybe even compile one
+// 
+export async function getLive(id: SiteDocumentRef): Promise<string> {
+  // we need to ask the database where we can find this document
+  const t = id.path.split("/").slice(-1)[0]
+  const ws = createWs()
+  return await ws.rpcj("getLive", id)
+}
 export async function getDocument(id: SiteDocumentRef): Promise<SiteDocument> {
+  // we need to ask the database where we can find this document
+
   const t = id.path.split("/").slice(-1)[0]
   return {
     type: t
