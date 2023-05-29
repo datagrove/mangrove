@@ -3,7 +3,7 @@ import { Component, For, JSXElement, Match, Show, Suspense, Switch, createResour
 import { TextViewer, TextEditor } from "../lexical"
 import { SettingsViewer } from "./settings"
 import { ChatViewer, SheetViewer, CodeViewer } from "./viewer"
-import { DocumentContext, MenuEntry, Viewer, getDocument, getLive, getSitemap, usePage } from "../core"
+import { DocumentContext, MenuEntry, SiteDocumentRef, Viewer, getDocument, getLive, getSitemap, usePage } from "../core"
 import { Icon } from "solid-heroicons"
 import { chevronLeft, bars_3, magnifyingGlass, homeModern, plus, bookOpen, shoppingBag, videoCamera, pencilSquare, chatBubbleOvalLeft } from "solid-heroicons/solid"
 import { Bb, Ab } from "../layout/nav"
@@ -113,16 +113,29 @@ const SampleIframe = () => {
 // How can we view live sites? how do we adapt when offline?
 // how do we connect edit and view?
 // we don't always have access to the site offline? will all our published sites be available offline? what shortcuts can we use for toggling back and forth?
+
+function baseUrl(sd: SiteDocumentRef) {
+    const did = sd.did.startsWith("did%3a")
+    if (did) {
+        return did
+    } else {
+        return did
+    }
+}
+
+// getLive must compute the url based on the site name
+// it doesn't really need to ask any database, it can use the site name directly.
 export function SiteViewer() {
-    const st = usePage()
-    const [url] = createResource(st.doc, getLive)
     const loc = useLocation()
+    const url = ()=> "https://" + loc.pathname.split("/").slice(3).join("/")
     const nav = useNavigate()
+
 
     // the actual site here needs to be computed from the path
     // we might want to probe and see if its real
     // this probably has to be configured? 
     // running locally we will need to make a query to the database to get a port
+   // return <div>{url()}</div>
     return <Suspense fallback={<div>loading...</div>} >
         <iframe class='w-full h-full' src={url()} />
     </Suspense>

@@ -21,6 +21,10 @@ var logger service.Logger
 type Rpcfj = func(a *Rpcpj) (any, error)
 type Rpcf = func(a *Rpcp) (any, error)
 
+// the server can be in local mode where isolation is built on ports
+// or it can be in dns mode where isolation is built on subdomains
+// there can be some crossover here though; why not just make our own mapping that let's us use subdomains locally? How do we secure these? how does tailscale do it? say we had x.froov.net always map to localhost, and say we published the private key. Can we do better though? what if we map abc-x.froov.net to localhost, but the public key is published by its owner and we sign it using acme. one problem with this is that the host server will see the private key. but maybe we can customize acme to avoid this.
+
 type Server struct {
 	*Config
 	*Db

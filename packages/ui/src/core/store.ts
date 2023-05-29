@@ -115,11 +115,13 @@ export async function getSite(did: string): Promise<boolean> {
 
   return false
 }
-// this should not be over websockets, but rather https directly?
+// each site must load its own custom service worker on its own domain.
+// 
 // it's not clear how we can dodge the cors issue though.
 // we should probably use an offline site if we can, and get the whole offline site here if it's available.
 // getLive needs to somehow package the references as well, is service worker the easiest way to do all this? maybe we need a service worker to do anything?
-export async function getLive(id: SiteDocumentRef): Promise<string> {
+
+export async function getLive(id: SiteDocumentRef): Promise<boolean> {
   // we need to ask the database where we can find this document
   const st = await getSite(id.did)
   if (st) {
@@ -128,6 +130,7 @@ export async function getLive(id: SiteDocumentRef): Promise<string> {
     // we can try to view the site from the R2 bucket. (how?)
 
   }
+  return true
 }
 export async function getDocument(id: SiteDocumentRef): Promise<SiteDocument> {
   // we need to ask the database where we can find this document

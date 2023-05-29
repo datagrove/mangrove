@@ -219,7 +219,7 @@ export function LoggedIn() {
       user: user,
       hash: purl().hash,
       doc: {
-        name: purl().site,
+        did: purl().site,
         path: purl().path,
 
       },
