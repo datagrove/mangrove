@@ -1,6 +1,7 @@
 // @ts-ignore
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { ListenerContext } from '../worker/data';
+import { createListener } from '../worker/listen';
 
 interface ClientState {
 
@@ -57,3 +58,10 @@ const init = async (ctx: Ctx) => {
 
     ctx.log("%c db started", "color: green")
 }
+
+const api = {
+    async connect(context: Ctx, params: any) {
+    }
+}
+createListener(api, {} as ClientState, init)
+

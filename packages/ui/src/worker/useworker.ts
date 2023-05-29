@@ -3,6 +3,7 @@ import { UpdateRow, RpcService, NotifyHandler } from "../core/socket"
 
 export async function createWorker(w: Worker): Promise<SendToWorker> {
     const r = new SendToWorker((data: any) => w.postMessage(data))
+    console.log("%c worker started", "color: green")
     w.onmessage = async (e: MessageEvent) => {
         r.recv(e)
     }
