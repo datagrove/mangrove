@@ -62,7 +62,7 @@ function App() {
 
     return <Show when={login()} fallback={loginRoutes()} >
         <Routes>
-            <Route path="/:ln/:app/**" component={Main} />
+            <Route path="/:ln/:app/*" component={Main} />
             <Route path="*" component={Main} />
         </Routes>
     </Show>

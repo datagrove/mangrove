@@ -18,25 +18,7 @@ export default defineConfig({
   },
   server: {
     host: true,
-
-    proxy: {
-      // '/wss': {
-      //   target: 'https://localhost:5078/wss',
-      //   changeOrigin: true,
-      //   secure: false,
-      //   ws: true
-      // }, 
-      '/api': {
-        target: 'https://localhost:8089',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/TestResults': {
-        target: 'https://localhost:5078',
-        changeOrigin: true,
-        secure: false,
-      }
-    },
-    port: 5783,
+    https: true,
+    port: 8080,
   },
 });

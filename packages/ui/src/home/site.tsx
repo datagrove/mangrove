@@ -137,7 +137,7 @@ export function SiteViewer() {
     // running locally we will need to make a query to the database to get a port
    // return <div>{url()}</div>
     return <Suspense fallback={<div>loading...</div>} >
-        <iframe class='w-full h-full' src={url()} />
+        <iframe class='w-full h-full' src={"http://localhost:8080"} />
     </Suspense>
 }
 
