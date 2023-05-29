@@ -1,3 +1,12 @@
+
+export interface Rpc<T> {
+    method: string
+    args: T
+    id: number
+    more: Uint8Array
+}
+
+export type NotifyHandler = (r: Rpc<any>) => void
 export class ListenerContext<T> {
     public constructor(public post: (x: any) => void, public state: T) {
     }

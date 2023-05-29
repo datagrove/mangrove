@@ -1,5 +1,6 @@
 import { ListenerContext, createSharedListener } from "../worker/shared_listen";
-
+import { createWorker } from "../worker/useworker";
+import Worker from './worker?worker'
 
 // this module runs as shared worker it's only executed once per session. opening a tab will create a new client state.
 interface ClientState {
@@ -19,9 +20,13 @@ const api = {
   }
 }
 
-const init = (context: Ctx) => {
+const init = async (context: Ctx) => {
   context.log("shared started")
+  let s = await createWorker(new Worker, context.log)
 }
+
+
+ 
 createSharedListener(api, {} as ClientState, init)
 
 

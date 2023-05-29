@@ -13,7 +13,7 @@
 import { Accessor, createSignal } from "solid-js"
 import { CellOptions } from "./v2/cell"
 import Shared from './shared?sharedworker'
-import Worker from './worker?worker'
+
 import { SendToWorker, createSharedWorker, createWorker } from '../worker/useworker'
 export class Db {
     public constructor(public w: SendToWorker) {
@@ -23,7 +23,7 @@ export class Db {
 
 
 export async function createDatabase(): Promise<Db> {
-    let s = await createWorker(new Worker)
+    let s = await createSharedWorker(new Shared)
     return new Db(s)
 }
 

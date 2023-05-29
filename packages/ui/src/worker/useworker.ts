@@ -1,35 +1,37 @@
 
-import { UpdateRow, RpcService, NotifyHandler } from "../core/socket"
+import { NotifyHandler } from "./data"
 
-export async function createWorker(w: Worker): Promise<SendToWorker> {
-    const r = new SendToWorker((data: any) => w.postMessage(data))
+export async function createWorker(w: Worker,log?: LogFn): Promise<SendToWorker> {
+    const r = new SendToWorker((data: any) => w.postMessage(data),log)
     console.log("%c worker started", "color: green")
     w.onmessage = async (e: MessageEvent) => {
         r.recv(e)
     }
     return r
 }
-export async function createSharedWorker(w: SharedWorker): Promise<SendToWorker> {
+export async function createSharedWorker(w: SharedWorker,log?: LogFn): Promise<SendToWorker> {
     w.port.start()
     console.log("%c port started", "color: green")
-    const r = new SendToWorker((data: any) => w.port.postMessage(data))
+    const r = new SendToWorker((data: any) => w.port.postMessage(data),log)
     w.port.onmessage = async (e: MessageEvent) => {
         r.recv(e)
     }
     return r
 }
 
+type LogFn  = (...args: any[]) => void
+
 export class SendToWorker {
     nextId = 1
     reply = new Map<number, [(data: any) => void, (data: any) => void]>()
     onmessage_ = new Map<string, NotifyHandler>()
-    // listens are call backs tied to a negative id.
-    listen = new Map<number, (r: UpdateRow<any>[]) => void>()
-    mock = new RpcService()
-    port: (data: any) => void // Worker|SharedWorker
 
-    constructor(port: (data: any) => void) {
+    port: (data: any) => void // Worker|SharedWorker
+    log: LogFn 
+
+    constructor(port: (data: any) => void,log?: (...args: any[]) => void) {
         this.port = port
+        this.log = log??console.log
     }
 
     async recv(e: MessageEvent) {
@@ -46,14 +48,14 @@ export class SendToWorker {
         }
         // listening uses id < 0
         if (data.id) {
-            if (data.id < 0) {
-                const r = this.listen.get(data.id)
-                if (r) {
-                    r(data.result)
-                } else {
-                    console.log("no listener", data.id)
-                }
-            } else {
+            // if (data.id < 0) {
+            //     const r = this.listen.get(data.id)
+            //     if (r) {
+            //         r(data.result)
+            //     } else {
+            //         console.log("no listener", data.id)
+            //     }
+            // } else {
                 const r = this.reply.get(data.id)
                 if (r) {
                     this.reply.delete(data.id)
@@ -68,7 +70,7 @@ export class SendToWorker {
                 } else {
                     console.log("no awaiter", data)
                 }
-            }
+            //}
         } else {
             switch (data.method) {
                 case "log":
@@ -81,17 +83,17 @@ export class SendToWorker {
     }
 
     async rpc<T>(method: string, params?: any): Promise<T> {
-        const o = this.mock.get(method)
-        if (o) {
-            return await o(params) as T
-        } else {
+        // const o = this.mock.get(method)
+        // if (o) {
+        //     return await o(params) as T
+        // } else {
             console.log("send", method, params)
             const id = this.nextId++
             this.port(structuredClone({ method, params, id: id }))
             return new Promise<T>((resolve, reject) => {
                 this.reply.set(id, [resolve, reject])
             })
-        }
+       // }
     }
 
     //
