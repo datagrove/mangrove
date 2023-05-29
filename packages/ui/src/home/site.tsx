@@ -109,6 +109,10 @@ function Github() {
 const SampleIframe = () => {
     return <iframe srcdoc={"<div style='background-color: white'>I'm an Iframe, but I can still use datagrove services offline</div>"}></iframe>
 }
+
+// How can we view live sites? how do we adapt when offline?
+// how do we connect edit and view?
+// we don't always have access to the site offline? will all our published sites be available offline? what shortcuts can we use for toggling back and forth?
 export function SiteViewer() {
     const st = usePage()
     const [url] = createResource(st.doc, getLive)

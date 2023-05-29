@@ -3,9 +3,9 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 
+	"github.com/datagrove/mangrove/store"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/joho/godotenv"
 )
@@ -16,15 +16,16 @@ func countPath(path string) int16 {
 
 // we should generate a putobject and let the browser upload the file.
 func fileApi(mg *Server) {
-	cl, e := NewS3Client()
-	if e != nil {
-		log.Fatal(e)
-	}
-	_ = cl
+	// cl, e := store.NewS3Client()
+	// if e != nil {
+	// 	log.Fatal(e)
+	// }
+	// _ = cl
 	godotenv.Load()
 
-	var df Fsi = &Osfs{
-		mg: mg,
+	// we can change this to other kinds of stores.
+	var df store.Fsi = &store.Osfs{
+		Root: mg.Root,
 	}
 	mg.AddApij("getLive", true, func(a *Rpcpj) (any, error) {
 		var v struct {

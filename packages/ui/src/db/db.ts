@@ -22,7 +22,6 @@ export class Db {
     }
 }
 
-
 const api: Api = {
     becomeLeader: async (context: ListenerContext<any>, params: any) => {
         console.log("becomeLeader starting worker")

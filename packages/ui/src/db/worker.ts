@@ -3,6 +3,13 @@ import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { ListenerContext } from '../worker/data';
 import { createListener } from '../worker/listen';
 
+// possibly restore a snapshot in one go here?
+// a full sqlite file? a zip file?
+// in some ways sqlite is closer to what we want?
+// opens up search possibilities?
+
+
+
 interface ClientState {
 
 }

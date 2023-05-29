@@ -81,8 +81,7 @@ export interface SitePage {
 }
 
 export interface SiteDocumentRef {
-  did?: string
-  name?: string
+  did: string   // if this is empty then we will use the server's default. if it doesn't begin with did: then we will assume its a unique name
   path: string
 }
 
@@ -106,12 +105,29 @@ export interface SiteDocument {
 }
 
 // this will find a previewable version of the document, maybe even compile one
-// 
+
+// is did either did or unique name?
+export async function getSite(did: string): Promise<boolean> {
+  const ws = createWs()
+  const zip =  await ws.rpcj("getLive", did)
+  // we want to merge the zip into a single sqlite database, that way we can search across sites (or not)
+
+
+  return false
+}
+// this should not be over websockets, but rather https directly?
+// it's not clear how we can dodge the cors issue though.
+// we should probably use an offline site if we can, and get the whole offline site here if it's available.
+// getLive needs to somehow package the references as well, is service worker the easiest way to do all this? maybe we need a service worker to do anything?
 export async function getLive(id: SiteDocumentRef): Promise<string> {
   // we need to ask the database where we can find this document
-  const t = id.path.split("/").slice(-1)[0]
-  const ws = createWs()
-  return await ws.rpcj("getLive", id)
+  const st = await getSite(id.did)
+  if (st) {
+
+  } else {
+    // we can try to view the site from the R2 bucket. (how?)
+
+  }
 }
 export async function getDocument(id: SiteDocumentRef): Promise<SiteDocument> {
   // we need to ask the database where we can find this document

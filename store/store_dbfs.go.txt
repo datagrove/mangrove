@@ -1,0 +1,64 @@
+package store
+
+import (
+	"context"
+	"fmt"
+	"io/fs"
+	"os"
+
+	"github.com/datagrove/mangrove/mangrove_sql/mangrove_sql"
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+
+
+type Dbfs struct {
+	//mg *Server
+}
+
+
+var _ Fsi = (*Dbfs)(nil)
+
+func (d *Dbfs) Write(sid int64, filePath string, data []byte) error {
+	return d.mg.qu.InsertFile(context.Background(), mangrove_sql.InsertFileParams{
+		Sid:      sid,
+		Count:    countPath(filePath),
+		Path:     filePath,
+		Size:     0,
+		Modified: pgtype.Timestamp{},
+		Data:     data,
+	})
+}
+
+
+
+func (d *Dbfs) Ls(sid int64) ([]FileInfo, error) {
+	ax, e := d.mg.qu.ListFiles(context.Background(), sid)
+	if e != nil {
+		return nil, e
+	}
+	r := []FileInfo{}
+	for _, v := range ax {
+		r = append(r, FileInfo{
+			Path: v.Path,
+		})
+
+	}
+	return r, nil
+}
+func (d *Dbfs) Read(sid int64, filePath string) ([]byte, error) {
+	a, e := d.mg.qu.ReadFile(context.Background(), mangrove_sql.ReadFileParams{
+		Sid:   sid,
+		Count: 0,
+		Path:  filePath,
+	})
+	return a.Data, e
+}
+
+func (d *Dbfs) Delete(sid int64, filePath string) error {
+	return d.mg.qu.DeleteFile(context.Background(), mangrove_sql.DeleteFileParams{
+		Sid:   sid,
+		Count: countPath(filePath),
+		Path:  filePath,
+	})
+}
