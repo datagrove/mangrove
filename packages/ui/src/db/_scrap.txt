@@ -160,3 +160,49 @@ enum CellState {
     // use array here so we can point to it? is there a cheaper way?
     //let v: string[] = [props?.default ?? ""]
 
+
+class Client {
+    shared: SendToWorker | undefined
+
+    makeRpc<P, R>(method: string) {
+        return async (x: P) => await this.shared?.rpc<R>(method, x)
+    }
+}
+// const cl = new Client()
+// async function init() {
+//     cl.shared = await SendToWorker.shared(new Shared)
+// }
+// init()
+
+export const watch = cl.makeRpc<Watch, number>('watch')
+export const update = cl.makeRpc<Tx, void>('updateTx')
+export const read = cl.makeRpc<Tx, Uint8Array[]>('readTx')
+export const commit = cl.makeRpc<number, void>('commitTx')
+export const unwatch = cl.makeRpc<number, void>('unwatch')
+
+    /*
+    s.set('begin', async (params: any): Promise<number> => st.begin())
+    s.set('updateTx', async (params: Write): Promise<void> => {
+      //st.tx.get(params.tx)?.update(params)
+    })
+
+    s.set('readTx', async (params: Read): Promise<PageRef[]> => {
+      // return st.tx.get(params.tx)?.read(params) ?? []
+    })
+
+
+    s.set('commitTx', async (params: number): Promise<void> => {
+      st.tx.get(params)?.commit()
+    })
+
+    // subscriptions act like an advisory lock; if the range has been updated then we send a notification
+
+    s.set('watch', async (params: Watch): Promise<number> => {
+      st.watch.set(++st.nextWatch, params)
+      // more to do - contact server etc
+      return st.nextWatch
+    })
+    s.set('unwatch', async (params: number): Promise<void> => {
+      st.watch.delete(params)
+    })
+    */

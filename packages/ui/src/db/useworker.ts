@@ -1,16 +1,8 @@
 
-import { Sequencer } from "./sequencer"
-import { encode, decode } from 'cbor-x'
-
-// accepts steps in order, or rejects them.
-// Each committer can create a eqivalent snapshot stream
-// use lock interface here?
+import { decode } from 'cbor-x'
 import Shared from './shared?sharedworker'
 import { Tx } from "../dbt/tree"
-import { Watch, toBytes } from "./data"
-import { set, z } from "zod"
-import { l } from "../i18n/en"
-import { JSXElement, createSignal } from "solid-js"
+import { Watch } from "./data"
 import { Cell } from "./cell"
 import { UpdateRow, RpcService, NotifyHandler } from "../core/socket"
 
@@ -38,8 +30,10 @@ export class SendToWorker {
     }
     static async shared(w: SharedWorker): Promise<SendToWorker> {
         w.port.start()
+        console.log("%c port started", "color: green")
         const r = new SendToWorker((data: any) => w.port.postMessage(data))
         w.port.onmessage = async (e: MessageEvent) => {
+            console.log("%c got message", "color: green")
             r.recv(e)
         }
         return r
@@ -56,11 +50,13 @@ export class SendToWorker {
         if (typeof e.data === "string") {
             const txt = await e.data
             data = JSON.parse(txt)
+        } else {
+            data = e.data
         }
-        else {
-            const b = await e.data.arrayBuffer()
-            data = decode(new Uint8Array(b))
-        }
+        // else if (typeof e.data === "object" && e.data instanceof ArrayBuffer) {
+        //     const b = await e.data.arrayBuffer()
+        //     data = decode(new Uint8Array(b))
+        // }
 
         // listening uses id < 0
         if (data.id) {
@@ -88,7 +84,12 @@ export class SendToWorker {
                 }
             }
         } else {
-            console.log("no id")
+            switch (data.method) {
+                case "log":
+                    console.log("%c %s", data.params.css, data.params)
+                default:
+                    console.log("unknown", data)
+            }
         }
     }
 
@@ -108,26 +109,6 @@ export class SendToWorker {
 
     //
 }
-
-class Client {
-    shared: SendToWorker | undefined
-
-    makeRpc<P, R>(method: string) {
-        return async (x: P) => await this.shared?.rpc<R>(method, x)
-    }
-}
-const cl = new Client()
-async function init() {
-    cl.shared = await SendToWorker.shared(new Shared)
-}
-init()
-
-export const watch = cl.makeRpc<Watch, number>('watch')
-export const update = cl.makeRpc<Tx, void>('updateTx')
-export const read = cl.makeRpc<Tx, Uint8Array[]>('readTx')
-export const commit = cl.makeRpc<number, void>('commitTx')
-export const unwatch = cl.makeRpc<number, void>('unwatch')
-
 
 export type DbTable<T, K> = {
     name: string
@@ -218,6 +199,8 @@ export type dbstrDb = {
     table: DbTable<any, any>
     key: any
 }
+
+/*
 export function createEditor(d: Cell, setError: (s: string) => void): [refset<HTMLInputElement>] {
 
     return [(el: HTMLInputElement) => {
@@ -232,3 +215,4 @@ export function createEditor(d: Cell, setError: (s: string) => void): [refset<HT
         })
     }]
 }
+*/

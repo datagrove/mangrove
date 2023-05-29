@@ -2,6 +2,9 @@
 // user settings should be a store? does the context deliver a store then?
 // is a database something related but different than a store?
 
+// some of these things we might replace with C++
+
+
 
 // there is only one database, so that's global constant
 // it acts like a store (is it a store?), views are reactive
@@ -9,16 +12,20 @@
 
 import { Accessor, createSignal } from "solid-js"
 import { CellOptions } from "./cell"
-
-export interface Database {
-
+import Shared from './shared?sharedworker'
+import { SendToWorker } from './useworker'
+export class Db {
+    public constructor(public w: SendToWorker) {
+    }
 }
-// there is only ever one database, and its always available
-// we may need a worker database? in general though the database server will 
-// live in a shared worker.
-export const db: Database = {
 
+
+
+export async function createDatabase(): Promise<Db> {
+    let s = await SendToWorker.shared(new Shared)
+    return new Db(s)
 }
+
 
 // makeCell(cellTemplate)
 // we could have a query return cellTempate[]? more like it takes that as argument

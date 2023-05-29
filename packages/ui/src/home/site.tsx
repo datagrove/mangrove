@@ -2,7 +2,7 @@ import { A, useLocation, useNavigate } from "@solidjs/router"
 import { Component, For, JSXElement, Match, Show, Suspense, Switch, createResource, createSignal } from "solid-js"
 import { TextViewer, TextEditor } from "../lexical"
 import { SettingsViewer } from "./settings"
-import { ChatViewer, WhiteboardViewer, SheetViewer, CodeViewer } from "./viewer"
+import { ChatViewer, SheetViewer, CodeViewer } from "./viewer"
 import { DocumentContext, MenuEntry, Viewer, getDocument, getLive, getSitemap, usePage } from "../core"
 import { Icon } from "solid-heroicons"
 import { chevronLeft, bars_3, magnifyingGlass, homeModern, plus, bookOpen, shoppingBag, videoCamera, pencilSquare, chatBubbleOvalLeft } from "solid-heroicons/solid"
@@ -22,7 +22,6 @@ const builtinViewers: ViewerMap = {
     "text-edit": { default: () => <TextEditor /> },
     "chat": { default: () => <ChatViewer /> },
     "settings": { default: () => <SettingsViewer /> },
-    "whiteboard": { default: () => <WhiteboardViewer /> },
     "sheet": { default: () => <SheetViewer /> },
     "code": { default: () => <CodeViewer /> },
     "form": { default: () => <div>Form</div> } // can also be perspective of text?
@@ -121,8 +120,8 @@ export function SiteViewer() {
     // this probably has to be configured? 
     // running locally we will need to make a query to the database to get a port
     return <Suspense fallback={<div>loading...</div>} >
-            <iframe class='w-full h-full' src={url()} />
-        </Suspense>
+        <iframe class='w-full h-full' src={url()} />
+    </Suspense>
 }
 
 export function Sitemap(props: { menu: MenuEntry[] }) {

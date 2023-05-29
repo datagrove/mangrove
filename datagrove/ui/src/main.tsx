@@ -14,12 +14,22 @@ import { Show, Switch, createEffect } from "solid-js"
 
 import { createResource } from "solid-js";
 import { UserContext, getUser, login } from "../../../packages/ui/src/core"
+import { createDatabase } from "../../../packages/ui/src/db"
 
-// we can know if we are logged in synchronously, but not know if the login is valid
+// we can know if we have an account synchronously, but not know if the login is valid
+// also we want to be able to work offline, so here a login is not required
+// I could start building out the service worker, or I could fake that with go?
 function App() {
     const nav = useNavigate()
     const loc = useLocation()
 
+    // probably should just await before mounting anything?
+    // eventually this could take a while, so we should have a loading screen
+    const startup = async function () {
+        console.log("%c starting up", "color: green")
+        let db = await createDatabase()
+    }
+    startup()
     createEffect(() => {
         if (!login()) {
             nav("/en/login")

@@ -8,8 +8,15 @@ export default defineConfig({
   plugins: [solidPlugin(), mkcert()], //
   appType: 'spa',
   //base: './',
+  optimizeDeps: {
+    exclude: ['@sqlite.org/sqlite-wasm'],
+  },
   server: {
     host: true,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
     proxy: {
       // '/wss': {
       //   target: 'https://localhost:5078/wss',

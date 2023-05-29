@@ -119,8 +119,8 @@ export class Ws {
                             console.log("resolved", data.result)
                             r[0](data.result)
                         } else {
-                            console.log("error", data.error)
-                            r[1](data.error)
+                            console.log("%c %s", "color: red", data.error)
+                            //r[1](data.error)
                         }
                         return
                     } else {
