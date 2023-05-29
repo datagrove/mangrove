@@ -63,5 +63,5 @@ const api = {
     async connect(context: Ctx, params: any) {
     }
 }
-createListener(api, {} as ClientState, init)
+createListener(api, {} as ClientState)
 

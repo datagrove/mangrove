@@ -1,5 +1,4 @@
 import { ListenerContext, createSharedListener } from "../worker/shared_listen";
-import { createWorker } from "../worker/useworker";
 
 // ugh - https://bugs.chromium.org/p/chromium/issues/detail?id=31666
 // no worker from shared worker. no opfs from shared worker.
@@ -9,19 +8,17 @@ import { createWorker } from "../worker/useworker";
 
 // the shared worker keeps track of the leader, if the leader tab closes, another tab must take over the database.
 
-interface ClientState {
-
-}
+interface ClientState {}
 type Ctx = ListenerContext<ClientState>
 
 let leader: Ctx | undefined = undefined
-
 let all = new Set<ClientState>()
 
 const api = {
   async connect(context: Ctx, params: any) {
     all.add(context.state)
     if (!leader) {
+    
       leader = context
       context.notify("becomeLeader", {})
     }
@@ -34,7 +31,7 @@ const api = {
       leader?.notify("becomeLeader", {})
     }
   },
-  async forward(context: Ctx, params: any) {
+  async unknown(context: Ctx, params: any) {
     leader?.post(params)
   }
 }

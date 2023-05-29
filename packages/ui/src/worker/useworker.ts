@@ -9,8 +9,9 @@ export async function createWorker(w: Worker, api?: Api): Promise<SendToWorker> 
     }
     return r
 }
+type ApiFn = (context: ListenerContext<{}>, params: any) => Promise<any>
 export type Api = {
-    [key: string]: (context: ListenerContext<{}>, params: any) => Promise<any>
+    [key: string]: ApiFn
 }
 export async function createSharedWorker<T extends Api>(w: SharedWorker, api?: Api): Promise<SendToWorker> {
     api = api ?? {}
@@ -19,6 +20,7 @@ export async function createSharedWorker<T extends Api>(w: SharedWorker, api?: A
 
     const r = new SendToWorker((data: any) => w.port.postMessage(data), api)
     w.port.onmessage = async (e: MessageEvent) => {
+        console.log("recv", e.data)
         r.recv(e)
     }
     return r
@@ -31,13 +33,21 @@ export class SendToWorker {
     reply = new Map<number, [(data: any) => void, (data: any) => void]>()
     onmessage_ = new Map<string, NotifyHandler>()
 
-    port: (data: any) => void // Worker|SharedWorker
+    unknown: ApiFn
+    lc : ListenerContext<any>
+
+    send: (data: any) => void // Worker|SharedWorker
     // log: LogFn
 
     constructor(port: (data: any) => void, public api?: Api) {
         this.api ??= {}
-        this.port = port
+        this.send = port
         //this.log = log ?? console.log
+        const unk : ApiFn = async (c,p)=>{
+            console.log("unknown", c, p)
+        }
+        this.unknown = this.api["unknown"]??unk
+        this.lc = new ListenerContext(this.send, {})
     }
 
     async recv(e: MessageEvent) {
@@ -74,16 +84,16 @@ export class SendToWorker {
                 }
                 return
             } else {
-                console.log("no awaiter", data)
+                
+                this.unknown(this.lc,data)
             }
             //}
         } else {
             const a = this.api![data.method]
             if (a) {
-                const context = new ListenerContext(this.port, {})
-                const r = await a(context, data.params)
+                 const r = await a(this.lc, data.params)
             } else {
-                console.log("unknown", data)
+               this.unknown(this.lc,data)
             }
 
         }
@@ -96,7 +106,7 @@ export class SendToWorker {
         // } else {
         console.log("send", method, params)
         const id = this.nextId++
-        this.port(structuredClone({ method, params, id: id }))
+        this.send(structuredClone({ method, params, id: id }))
         return new Promise<T>((resolve, reject) => {
             this.reply.set(id, [resolve, reject])
         })

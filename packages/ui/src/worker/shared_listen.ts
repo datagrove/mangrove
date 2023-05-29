@@ -20,28 +20,39 @@ export function createSharedListener<T>(api: ServiceFn<T>, init: T) {
         const state = { ...init }
         const context = new ListenerContext((x: any) => port.postMessage(x), state)
 
+        // if the api does not have a log function, add one
+        if (!api["log"]) {
+            api["log"] = async (context: ListenerContext<any>, params: any) => {
+                port.postMessage({
+                    method: "log",
+                    params: params
+                })
+            }
+        }
+        let unknown = api["unknown"]
+        if (!unknown) {
+            unknown = async (context: ListenerContext<any>, params: any) => {
+                context.log("unknown", params)
+            }
+        }
         port.addEventListener("message", (e: any) => {
             const rpc = e.data as {
                 method: string
                 id: number
                 params: any
             }
-            const o = api[rpc.method]
-            if (o) {
-                o(context, rpc.params).then((r: any) => {
-                    port.postMessage({
-                        id: rpc.id,
-                        result: r
-                    })
-                }).catch((e: any) => {
-                    port.postMessage({
-                        id: rpc.id,
-                        error: e
-                    })
+            const o = api[rpc.method] ?? unknown
+            o(context, rpc.params).then((r: any) => {
+                port.postMessage({
+                    id: rpc.id,
+                    result: r
                 })
-            } else {
-                port.postMessage({ id: rpc.id, error: `no method ${rpc.method}` })
-            }
+            }).catch((e: any) => {
+                port.postMessage({
+                    id: rpc.id,
+                    error: e
+                })
+            })
         })
 
         port.start(); // Required when using addEventListener. Otherwise called implicitly by onmessage setter.
@@ -49,6 +60,8 @@ export function createSharedListener<T>(api: ServiceFn<T>, init: T) {
         if (initfn) {
             initfn(context, {})
         }
+        context.log("connected wtf", initfn)
+
         //addPort(port)
     }
 }
