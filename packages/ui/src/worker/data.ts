@@ -17,6 +17,13 @@ export class ListenerContext<T> {
             params: args,
         });
     }
+    notify(method: string, args: any) {
+        this.post({
+            method,
+            id: 0,
+            params: args,
+        });
+    }
 }
 export type ServiceFn<State> = {
     [key: string]: (context: ListenerContext<State>, params: any) => Promise<any>

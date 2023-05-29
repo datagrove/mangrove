@@ -13,17 +13,28 @@
 import { Accessor, createSignal } from "solid-js"
 import { CellOptions } from "./v2/cell"
 import Shared from './shared?sharedworker'
+import Worker from './worker?worker'
 
-import { SendToWorker, createSharedWorker, createWorker } from '../worker/useworker'
+import { Api, SendToWorker, createSharedWorker, createWorker } from '../worker/useworker'
+import { ListenerContext } from "../worker/data"
 export class Db {
     public constructor(public w: SendToWorker) {
     }
 }
 
-
-
+const api: Api = {
+    "becomeLeader": async (context: ListenerContext<any>, params: any) => {
+        return undefined
+    },
+    "log": async (context: ListenerContext<any>, params: any) => {
+        console.log(...params)
+        return undefined
+    }
+}
 export async function createDatabase(): Promise<Db> {
-    let s = await createSharedWorker(new Shared)
+    // let w = await createWorker(new Worker)
+    // return new Db(w)
+    let s = await createSharedWorker(new Shared, api)
     return new Db(s)
 }
 

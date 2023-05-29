@@ -14,7 +14,7 @@ export type { ListenerContext, ServiceFn } from "./data";
 const ctx = self as any;
 // service abstracted so it could run in the main thread, it's just a map of callbacks.
 
-export function createSharedListener<T>(api: ServiceFn<T>, init: T, initfn?: (ctx: ListenerContext<T>) => void) {
+export function createSharedListener<T>(api: ServiceFn<T>, init: T) {
     ctx.onconnect = (e: any) => {
         const port = e.ports[0];
         const state = { ...init }
@@ -45,8 +45,9 @@ export function createSharedListener<T>(api: ServiceFn<T>, init: T, initfn?: (ct
         })
 
         port.start(); // Required when using addEventListener. Otherwise called implicitly by onmessage setter.
+        let initfn = api["connect"]
         if (initfn) {
-            initfn(context)
+            initfn(context, {})
         }
         //addPort(port)
     }

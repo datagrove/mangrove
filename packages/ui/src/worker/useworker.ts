@@ -1,25 +1,30 @@
 
-import { NotifyHandler } from "./data"
+import { ListenerContext, NotifyHandler } from "./data"
 
-export async function createWorker(w: Worker,log?: LogFn): Promise<SendToWorker> {
-    const r = new SendToWorker((data: any) => w.postMessage(data),log)
+export async function createWorker(w: Worker, api?: Api): Promise<SendToWorker> {
+    const r = new SendToWorker((data: any) => w.postMessage(data), api)
     console.log("%c worker started", "color: green")
     w.onmessage = async (e: MessageEvent) => {
         r.recv(e)
     }
     return r
 }
-export async function createSharedWorker(w: SharedWorker,log?: LogFn): Promise<SendToWorker> {
+export type Api = {
+    [key: string]: (context: ListenerContext<{}>, params: any) => Promise<any>
+}
+export async function createSharedWorker<T extends Api>(w: SharedWorker, api?: Api): Promise<SendToWorker> {
+    api = api ?? {}
     w.port.start()
     console.log("%c port started", "color: green")
-    const r = new SendToWorker((data: any) => w.port.postMessage(data),log)
+
+    const r = new SendToWorker((data: any) => w.port.postMessage(data), api)
     w.port.onmessage = async (e: MessageEvent) => {
         r.recv(e)
     }
     return r
 }
 
-type LogFn  = (...args: any[]) => void
+//type LogFn = (...args: any[]) => void
 
 export class SendToWorker {
     nextId = 1
@@ -27,11 +32,12 @@ export class SendToWorker {
     onmessage_ = new Map<string, NotifyHandler>()
 
     port: (data: any) => void // Worker|SharedWorker
-    log: LogFn 
+    // log: LogFn
 
-    constructor(port: (data: any) => void,log?: (...args: any[]) => void) {
+    constructor(port: (data: any) => void, public api?: Api) {
+        this.api ??= {}
         this.port = port
-        this.log = log??console.log
+        //this.log = log ?? console.log
     }
 
     async recv(e: MessageEvent) {
@@ -56,29 +62,30 @@ export class SendToWorker {
             //         console.log("no listener", data.id)
             //     }
             // } else {
-                const r = this.reply.get(data.id)
-                if (r) {
-                    this.reply.delete(data.id)
-                    if (data.result) {
-                        console.log("resolved", data.result)
-                        r[0](data.result)
-                    } else {
-                        console.log("error", data.error)
-                        r[1](data.error)
-                    }
-                    return
+            const r = this.reply.get(data.id)
+            if (r) {
+                this.reply.delete(data.id)
+                if (data.result) {
+                    console.log("resolved", data.result)
+                    r[0](data.result)
                 } else {
-                    console.log("no awaiter", data)
+                    console.log("error", data.error)
+                    r[1](data.error)
                 }
+                return
+            } else {
+                console.log("no awaiter", data)
+            }
             //}
         } else {
-            switch (data.method) {
-                case "log":
-                    console.log.apply(null, data.params)
-                    break
-                default:
-                    console.log("unknown", data)
+            const a = this.api![data.method]
+            if (a) {
+                const context = new ListenerContext(this.port, {})
+                const r = await a(context, data.params)
+            } else {
+                console.log("unknown", data)
             }
+
         }
     }
 
@@ -87,13 +94,13 @@ export class SendToWorker {
         // if (o) {
         //     return await o(params) as T
         // } else {
-            console.log("send", method, params)
-            const id = this.nextId++
-            this.port(structuredClone({ method, params, id: id }))
-            return new Promise<T>((resolve, reject) => {
-                this.reply.set(id, [resolve, reject])
-            })
-       // }
+        console.log("send", method, params)
+        const id = this.nextId++
+        this.port(structuredClone({ method, params, id: id }))
+        return new Promise<T>((resolve, reject) => {
+            this.reply.set(id, [resolve, reject])
+        })
+        // }
     }
 
     //
