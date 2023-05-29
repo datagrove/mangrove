@@ -1,24 +1,18 @@
 
-import { decode } from 'cbor-x'
-import Shared from './shared?sharedworker'
-import { Tx } from "../dbt/tree"
-import { Watch } from "../db/data"
-import { Cell } from "../db/v2/cell"
 import { UpdateRow, RpcService, NotifyHandler } from "../core/socket"
 
-export  async function  createWorker(w: Worker): Promise<SendToWorker> {
+export async function createWorker(w: Worker): Promise<SendToWorker> {
     const r = new SendToWorker((data: any) => w.postMessage(data))
     w.onmessage = async (e: MessageEvent) => {
         r.recv(e)
     }
     return r
 }
-export async function  createSharedWorker(w: SharedWorker): Promise<SendToWorker> {
+export async function createSharedWorker(w: SharedWorker): Promise<SendToWorker> {
     w.port.start()
     console.log("%c port started", "color: green")
     const r = new SendToWorker((data: any) => w.port.postMessage(data))
     w.port.onmessage = async (e: MessageEvent) => {
-        console.log("%c got message", "color: green")
         r.recv(e)
     }
     return r
@@ -37,14 +31,10 @@ export class SendToWorker {
         this.port = port
     }
 
-    //mock = new Map<string, MockHandler>
-
-
-
     async recv(e: MessageEvent) {
         // we need to parse the message.
         // split at '\n', first part is json, second part is binary
-        console.log('got', e)
+        //console.log('got', e)
 
         let data: any
         if (typeof e.data === "string") {
@@ -75,13 +65,14 @@ export class SendToWorker {
                     }
                     return
                 } else {
-                    console.log("no awaiter", data.id)
+                    console.log("no awaiter", data)
                 }
             }
         } else {
             switch (data.method) {
                 case "log":
                     console.log.apply(null, data.params)
+                    break
                 default:
                     console.log("unknown", data)
             }

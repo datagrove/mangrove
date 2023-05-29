@@ -2,17 +2,9 @@
 
 // framework for service apis
 // 
-export class ListenerContext<T> {
-    public constructor(public port: MessagePort, public state: T) {
-    }
-    log(...args: any[]) {
-        this.port.postMessage({
-            method: 'log',
-            id: 0,
-            params: args,
-        });
-    }
-}
+
+import { ListenerContext, ServiceFn } from "./data";
+export type { ListenerContext, ServiceFn } from "./data";
 // this should be part of a call back client. both shared and worker
 
 // this needs to go to the main thread, even if the error is from a worker
@@ -21,16 +13,12 @@ export class ListenerContext<T> {
 //const st = new Store("db")
 const ctx = self as any;
 // service abstracted so it could run in the main thread, it's just a map of callbacks.
-export type ServiceFn<State> = {
-    [key: string]: (context: ListenerContext<State>, params: any) => Promise<any>
-}
 
 export function createSharedListener<T>(api: ServiceFn<T>, init: T, initfn?: (ctx: ListenerContext<T>) => void) {
     ctx.onconnect = (e: any) => {
         const port = e.ports[0];
         const state = { ...init }
-        const context = new ListenerContext(port, state)
-
+        const context = new ListenerContext((x: any) => port.postMessage(x), state)
 
         port.addEventListener("message", (e: any) => {
             const rpc = e.data as {
