@@ -22,11 +22,20 @@ export class Db {
     }
 }
 
+let dbw: SendToWorker | undefined
 const api: Api = {
     becomeLeader: async (context: ListenerContext<any>, params: any) => {
         console.log("becomeLeader starting worker")
         // when we get messages back from the database worker we need to return them to the shared worker
-        dbw = await createWorker(new Worker,swapi)
+        const swapi = {
+            log: async (context: ListenerContext<any>, params: any) => {
+                console.log(...params)
+            },
+            unknown: async (context: ListenerContext<any>, msg: any) => {
+                sharedWorker.send(msg)
+            }
+        }
+        dbw = await createWorker(new Worker, swapi)
     },
     log: async (context: ListenerContext<any>, params: any) => {
         console.log(...params)
@@ -34,23 +43,21 @@ const api: Api = {
     unknown: async (context: ListenerContext<any>, params: any) => {
         if (dbw) {
             return dbw.send(params)
+        } else {
+            console.log("unknown message", params)
         }
     }
 }
 // messages that come back from db worker need to be sent to shared worker
-const swapi = {
-    unknown: async (context: ListenerContext<any>, msg: any) => {
-        sharedWorker.send(msg)
-    }
-}
+
 
 // always global, because shared worker is global
 let sharedWorker = await createSharedWorker(new Shared, api)
-let dbw: SendToWorker | undefined = undefined
-
+const db = new Db(sharedWorker)
 
 export async function createDatabase(): Promise<Db> {
-    return new Db(sharedWorker)
+    // we might need to initiaize something here, currently unused wrapper
+    return db
 }
 
 

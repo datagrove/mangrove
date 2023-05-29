@@ -60,7 +60,7 @@ export function createSharedListener<T>(api: ServiceFn<T>, init: T) {
         if (initfn) {
             initfn(context, {})
         }
-        context.log("connected wtf", initfn)
+        context.log("connected wtf")
 
         //addPort(port)
     }
