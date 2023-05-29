@@ -1,5 +1,5 @@
 import { openDB } from "idb"
-import { Service, Watch } from "./data"
+import { Service, Watch } from "../data"
 
 // we could opfs or indexeddb?
 // should we use swizzling?

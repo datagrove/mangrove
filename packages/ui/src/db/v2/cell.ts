@@ -2,7 +2,7 @@
 import { z } from 'zod'
 import { JSXElement, Signal, createEffect, createSignal } from 'solid-js'
 import { create, get } from 'sortablejs'
-import { Ws } from '../core/socket'
+import { Ws } from '../../core/socket'
 import { SetStoreFunction, Store, createStore, unwrap } from 'solid-js/store'
 
 type StorePair<T> = [get: Store<T>, set: SetStoreFunction<T>]

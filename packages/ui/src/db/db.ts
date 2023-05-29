@@ -11,9 +11,9 @@
 // views should be an array of cells, so that edits are 2 way
 
 import { Accessor, createSignal } from "solid-js"
-import { CellOptions } from "./cell"
+import { CellOptions } from "./v2/cell"
 import Shared from './shared?sharedworker'
-import { SendToWorker } from './useworker'
+import { SendToWorker,createSharedWorker } from '../worker/useworker'
 export class Db {
     public constructor(public w: SendToWorker) {
     }
@@ -22,7 +22,7 @@ export class Db {
 
 
 export async function createDatabase(): Promise<Db> {
-    let s = await SendToWorker.shared(new Shared)
+    let s = await createSharedWorker(new Shared)
     return new Db(s)
 }
 

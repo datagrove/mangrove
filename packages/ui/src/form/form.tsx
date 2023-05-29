@@ -1,5 +1,5 @@
 import { For, Match, Show, Signal, Switch, createResource, createSignal } from "solid-js"
-import { Cell, CellOptions } from "../db/cell"
+import { Cell, CellOptions } from "../db/v2/cell"
 import { useNavigate } from "@solidjs/router"
 import { SiteDocumentRef, usePage } from "../core"
 import { InputCell } from "../lib/input"

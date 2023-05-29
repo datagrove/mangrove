@@ -2,9 +2,27 @@
 import { decode } from 'cbor-x'
 import Shared from './shared?sharedworker'
 import { Tx } from "../dbt/tree"
-import { Watch } from "./data"
-import { Cell } from "./cell"
+import { Watch } from "../db/data"
+import { Cell } from "../db/v2/cell"
 import { UpdateRow, RpcService, NotifyHandler } from "../core/socket"
+
+export  async function  createWorker(w: Worker): Promise<SendToWorker> {
+    const r = new SendToWorker((data: any) => w.postMessage(data))
+    w.onmessage = async (e: MessageEvent) => {
+        r.recv(e)
+    }
+    return r
+}
+export async function  createSharedWorker(w: SharedWorker): Promise<SendToWorker> {
+    w.port.start()
+    console.log("%c port started", "color: green")
+    const r = new SendToWorker((data: any) => w.port.postMessage(data))
+    w.port.onmessage = async (e: MessageEvent) => {
+        console.log("%c got message", "color: green")
+        r.recv(e)
+    }
+    return r
+}
 
 export class SendToWorker {
     nextId = 1
@@ -20,24 +38,6 @@ export class SendToWorker {
     }
 
     //mock = new Map<string, MockHandler>
-    static async worker(w: Worker): Promise<SendToWorker> {
-
-        const r = new SendToWorker((data: any) => w.postMessage(data))
-        w.onmessage = async (e: MessageEvent) => {
-            r.recv(e)
-        }
-        return r
-    }
-    static async shared(w: SharedWorker): Promise<SendToWorker> {
-        w.port.start()
-        console.log("%c port started", "color: green")
-        const r = new SendToWorker((data: any) => w.port.postMessage(data))
-        w.port.onmessage = async (e: MessageEvent) => {
-            console.log("%c got message", "color: green")
-            r.recv(e)
-        }
-        return r
-    }
 
 
 
@@ -53,11 +53,6 @@ export class SendToWorker {
         } else {
             data = e.data
         }
-        // else if (typeof e.data === "object" && e.data instanceof ArrayBuffer) {
-        //     const b = await e.data.arrayBuffer()
-        //     data = decode(new Uint8Array(b))
-        // }
-
         // listening uses id < 0
         if (data.id) {
             if (data.id < 0) {
@@ -86,7 +81,7 @@ export class SendToWorker {
         } else {
             switch (data.method) {
                 case "log":
-                    console.log("%c %s", data.params.css, data.params)
+                    console.log.apply(null, data.params)
                 default:
                     console.log("unknown", data)
             }

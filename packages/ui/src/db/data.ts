@@ -1,6 +1,4 @@
-export class Service extends Map<string, (params: any) => Promise<any>>{
 
-}
 
 export interface Watch {
     server: string

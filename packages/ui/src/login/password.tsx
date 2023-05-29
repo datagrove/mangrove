@@ -1,6 +1,6 @@
 
 import { Component, createSignal } from "solid-js"
-import { Cell } from "../db/cell"
+import { Cell } from "../db/v2/cell"
 import { Bb } from "../layout/nav"
 import { InputLabel } from "./passkey_add"
 import { useLn } from "./passkey_i18n"
