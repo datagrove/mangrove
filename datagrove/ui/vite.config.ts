@@ -18,7 +18,10 @@ export default defineConfig({
   },
   server: {
     host: true,
-
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
     proxy: {
       // '/wss': {
       //   target: 'https://localhost:5078/wss',
@@ -28,11 +31,11 @@ export default defineConfig({
       // }, 
 
       // this doesn't exercise the service worker though.
-      '/~': {
-        target: 'http://127.0.0.1:3000',
-        changeOrigin: true,
-        secure: false,
-      },
+      // '/~': {
+      //   target: 'http://127.0.0.1:3000',
+      //   changeOrigin: true,
+      //   secure: false,
+      // },
       '/api': {
         target: 'https://localhost:8089',
         changeOrigin: true,
