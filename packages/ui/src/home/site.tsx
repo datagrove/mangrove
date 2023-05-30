@@ -133,7 +133,7 @@ export function SiteViewer() {
     const url = ()=>  loc.pathname.split("/").slice(3).join("/")
     const nav = useNavigate()
     return <Suspense fallback={<div>loading...</div>} >
-        <iframe class='w-full h-full' sandbox="" src={"/~/"+url()} />
+        <iframe class='w-full h-full' sandbox="allow-same-origin allow-scripts" src={"/~/test"} />
     </Suspense>
 }
 

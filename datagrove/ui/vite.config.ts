@@ -30,12 +30,12 @@ export default defineConfig({
       //   ws: true
       // }, 
 
-      // this doesn't exercise the service worker though.
-      // '/~': {
-      //   target: 'http://127.0.0.1:3000',
-      //   changeOrigin: true,
-      //   secure: false,
-      // },
+      //this doesn't exercise the service worker though.
+      '/~': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api': {
         target: 'https://localhost:8089',
         changeOrigin: true,
