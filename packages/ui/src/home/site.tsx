@@ -127,15 +127,8 @@ export function SiteViewer() {
     const loc = useLocation()
     const url = ()=> "https://" + loc.pathname.split("/").slice(3).join("/")
     const nav = useNavigate()
-
-
-    // the actual site here needs to be computed from the path
-    // we might want to probe and see if its real
-    // this probably has to be configured? 
-    // running locally we will need to make a query to the database to get a port
-   // return <div>{url()}</div>
     return <Suspense fallback={<div>loading...</div>} >
-        <iframe class='w-full h-full' src={"https://localhost:8080"} />
+        <iframe class='w-full h-full' src={url()} />
     </Suspense>
 }
 
