@@ -1,5 +1,5 @@
 
- 
+
 
 // self.addEventListener("fetch", event => {
 //     let url = new URL(event.request.url);
@@ -15,7 +15,7 @@ let next = 0
 
 function leaderRespond(data) {
   console.log("response", data)
-  let {method, id, params , result, error } = data
+  let { method, id, params, result, error } = data
   if (result || error) {
     let o = waiting.get(id)
     if (o) {
@@ -36,14 +36,14 @@ function leaderRespond(data) {
 
 }
 function log(s) {
-  leader?.postMessage({method: 'log', params: [`%c ${s}`, 'color: blue']})
+  leader?.postMessage({ method: 'log', params: [`%c ${s}`, 'color: blue'] })
 }
 async function fromLeader(url) {
   return new Response(`Hello from worker7! ${!!leader} ${url}`)
   next++
   return new Promise((resolve, reject) => {
-    waiting.set(next, {resolve, reject})
-    leaderRespond({id: next, result: new Blob("Hello from worker wtf!")})
+    waiting.set(next, { resolve, reject })
+    leaderRespond({ id: next, result: new Blob("Hello from worker wtf!") })
   })
 }
 async function notifyFetch(path) {
@@ -53,35 +53,47 @@ async function notifyFetch(path) {
     includeUncontrolled: true,
   });
   cl.forEach(c => {
-    c.postMessage({method: 'fetch', params: [path]})
+    c.postMessage({ method: 'fetch', params: [path] })
   })
-  return new Response(`Hello from worker! ${path}`)
+  const newHeaders = new Headers({
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    'Cross-Origin-Embedder-Policy': 'require-corp',
+    'Content-Type': 'text/html',
+  });
+  const bl = new Blob([`Hello from worker9! ${path}`], {
+    type: "text/html"
+  })
+  return new Response(bl, {
+    status: 200,
+    statusText: "OK",
+    headers: newHeaders
+  })
 }
-self.addEventListener("fetch",  (event) => {
-    let url = new URL(event.request.url);
-    if (url.pathname.startsWith("/~")) {
-      event.respondWith(notifyFetch(url.pathname))
-    }
+self.addEventListener("fetch", (event) => {
+  let url = new URL(event.request.url);
+  if (url.pathname.startsWith("/~")) {
+    event.respondWith(notifyFetch(url.pathname))
+  }
 })
 
-  //   log(`fetch ${url.pathname}`)
-  //   if (url.pathname.startsWith("/test")) {
-  //     event.respondWith(fromLeader(event.request.url));
-  //   }
-  // });
-  // self.addEventListener('message', (event) => {
-  //   if (event.data && event.data.type === 'INIT_PORT') {
-  //     leader = event.ports[0];
-  //     console.log('connected to leader')
-  //   }
-  // });
-  self.addEventListener('message', (event) => {
-    const d = event.data
-    switch(d.method) {
+//   log(`fetch ${url.pathname}`)
+//   if (url.pathname.startsWith("/test")) {
+//     event.respondWith(fromLeader(event.request.url));
+//   }
+// });
+// self.addEventListener('message', (event) => {
+//   if (event.data && event.data.type === 'INIT_PORT') {
+//     leader = event.ports[0];
+//     console.log('connected to leader')
+//   }
+// });
+self.addEventListener('message', (event) => {
+  const d = event.data
+  switch (d.method) {
     default:
-        leaderRespond(d.params)
-    }
-  })
+      leaderRespond(d.params)
+  }
+})
 // self.addEventListener('message', (event) => {
 //     console.log(JSON.stringify(event.data))
 //     const d = event.data;

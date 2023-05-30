@@ -132,8 +132,14 @@ export function SiteViewer() {
     const loc = useLocation()
     const url = ()=>  loc.pathname.split("/").slice(3).join("/")
     const nav = useNavigate()
+    const [text,setText] = createSignal("<div>loading...</div>")
+    fetch("/~/test").then((r) => {
+        r.text().then((t) => {
+            console.log("got text", t)
+            setText(t)
+        })})
     return <Suspense fallback={<div>loading...</div>} >
-        <iframe class='w-full h-full' sandbox="allow-same-origin allow-scripts" src={"/~/test"} />
+        <iframe class='w-full h-full' sandbox="allow-same-origin allow-scripts" src="https://localhost:5783/~/test" />
     </Suspense>
 }
 
