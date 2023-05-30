@@ -2,6 +2,7 @@ package server
 
 import (
 	"embed"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -207,9 +208,13 @@ func (s *Server) Start2() {
 	if s.Config.Start != nil {
 		log.Fatal(s.Config.Start(s))
 	} else {
-		s.Mux.NotFoundHandler = s.EmbedHandler
-		s.Mux.Handle("/", s.EmbedHandler)
+		//s.Mux.NotFoundHandler = s.EmbedHandler
 		s.Mux.HandleFunc("/wss", s.WsHandler)
+		s.Mux.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
+		})
+		//s.Mux.Handle("/", s.EmbedHandler)
+
 		// generate a QR from a url
 		s.Mux.HandleFunc("/api/qr/", func(w http.ResponseWriter, r *http.Request) {
 			data := r.URL.Path[8:]

@@ -123,12 +123,17 @@ function baseUrl(sd: SiteDocumentRef) {
 
 // getLive must compute the url based on the site name
 // it doesn't really need to ask any database, it can use the site name directly.
+// can the site itself be hybrid? how does routing work on a hybrid site?
+
+// can we switch to srcdoc when we can access the html from the database?
+// that doesn't solve the asset problem, we need service worker for that
+// can we use service worker inside vite?
 export function SiteViewer() {
     const loc = useLocation()
-    const url = ()=> "https://" + loc.pathname.split("/").slice(3).join("/")
+    const url = ()=>  loc.pathname.split("/").slice(3).join("/")
     const nav = useNavigate()
     return <Suspense fallback={<div>loading...</div>} >
-        <iframe class='w-full h-full' src={url()} />
+        <iframe class='w-full h-full' sandbox="" src={"/~/"+url()} />
     </Suspense>
 }
 
