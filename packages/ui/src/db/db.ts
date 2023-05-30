@@ -12,7 +12,9 @@
 
 import { Accessor, createSignal } from "solid-js"
 import { CellOptions } from "./v2/cell"
+// @ts-ignore
 import Shared from './shared?sharedworker'
+// @ts-ignore
 import Worker from './worker?worker'
 
 import { Api, SendToWorker, createSharedWorker, createWorker } from '../worker/useworker'
@@ -32,7 +34,7 @@ const api: Api = {
                 console.log(...params)
             },
             unknown: async (context: ListenerContext<any>, msg: any) => {
-                sharedWorker.send(msg)
+                sharedWorker?.send(msg)
             }
         }
         dbw = await createWorker(new Worker, swapi)
@@ -52,10 +54,13 @@ const api: Api = {
 
 
 // always global, because shared worker is global
-let sharedWorker = await createSharedWorker(new Shared, api)
-const db = new Db(sharedWorker)
+let sharedWorker : SendToWorker | undefined
+
+let db: Db // new Db(sharedWorker)
 
 export async function createDatabase(): Promise<Db> {
+    sharedWorker = await createSharedWorker(new Shared, api)
+    db = new Db(sharedWorker)
     // we might need to initiaize something here, currently unused wrapper
     return db
 }

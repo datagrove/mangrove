@@ -1,16 +1,14 @@
-import { A, useLocation, useNavigate } from "@solidjs/router"
-import { Component, For, JSXElement, Match, Show, Suspense, Switch, createResource, createSignal } from "solid-js"
+import { useLocation, useNavigate } from "@solidjs/router"
+import { JSXElement, Show, Suspense, createResource, createSignal } from "solid-js"
 import { TextViewer, TextEditor } from "../lexical"
 import { SettingsViewer } from "./settings"
 import { ChatViewer, SheetViewer, CodeViewer } from "./viewer"
-import { DocumentContext, MenuEntry, SiteDocumentRef, Viewer, getDocument, getLive, getSitemap, usePage } from "../core"
+import { DocumentContext, MenuEntry, SiteDocumentRef, Viewer, getDocument, usePage } from "../core"
 import { Icon } from "solid-heroicons"
-import { chevronLeft, bars_3, magnifyingGlass, homeModern, plus, bookOpen, shoppingBag, videoCamera, pencilSquare, chatBubbleOvalLeft } from "solid-heroicons/solid"
+import { chevronLeft } from "solid-heroicons/solid"
 import { Bb, Ab } from "../layout/nav"
 import { SearchBox } from "./search"
 import { SectionNav } from "./site_menu"
-import { TextDivider } from "../lib/form"
-import { faker } from "@faker-js/faker"
 
 // viewers are selected by the document type, can be overridden by the hash
 export type ViewerMap = {
@@ -137,7 +135,7 @@ export function SiteViewer() {
     // running locally we will need to make a query to the database to get a port
    // return <div>{url()}</div>
     return <Suspense fallback={<div>loading...</div>} >
-        <iframe class='w-full h-full' src={"http://localhost:8080"} />
+        <iframe class='w-full h-full' src={"https://localhost:8080"} />
     </Suspense>
 }
 
