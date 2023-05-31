@@ -1,6 +1,6 @@
 
 
-import { For, JSXElement, Match, Show, Suspense, Switch, createMemo, createSignal } from "solid-js";
+import { For, JSXElement, Match, Show, Suspense, Switch, createMemo, createResource, createSignal } from "solid-js";
 import { createWs } from "../core/socket";
 import { A, useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
@@ -11,11 +11,11 @@ import { ChatViewer } from "./viewer";
 import { SettingsViewer } from "./settings";
 import { DarkButton } from "../lib";
 import { createWindowSize } from "@solid-primitives/resize-observer";
-import { SearchPanel } from "./search";
+import { SearchPanel, SearchViewer } from "./search";
 import { Settings } from "./settings";
 import { Message } from "./message";
-import { Graphic, SitePage, SitePageContext, Tool, online, useUser } from "../core";
-import { SiteViewer } from "./site";
+import { DocumentContext, Graphic, SitePage, SitePageContext, Tool, getDocument, online, useUser } from "../core";
+//import { SiteViewer } from "./site";
 import { HomeViewer, Home } from "./home_viewer";
 import { MapTool, MapViewer } from "./map";
 import { DbTool, DbViewer } from "./db";
@@ -57,15 +57,12 @@ export const [isOut, setOut] = createSignal(false)
 // the router will reload starting from the database.
 
 
-export function SearchViewer() {
-  return <div>SearchViewer</div>
-}
 const builtinTools: { [key: string]: Tool } = {
-  "site": {
-    icon: () => <FloatIcon path={menu} />,
-    path: 'a/b/text',
-    viewer: () => <SiteViewer />
-  },
+  // "site": {
+  //   icon: () => <FloatIcon path={menu} />,
+  //   path: 'a/b/text',
+  //   viewer: () => <SiteViewer />
+  // },
   "edit": {
     icon: () => <FloatIcon path={pencil} />,
     component: () => <EditTool />,
@@ -194,13 +191,12 @@ export function LoggedIn() {
       hash: h.slice(3).join("/"),
       ln: p[1],
       toolname: p[2], // this includes the index.
-      owner: [3] ?? "",
-      site: p[4] ?? "home",
+      owner: p[3] ?? "",
+      site: p[4] ?? "",
       viewer: h[0] ?? "",
       flyout: h[1] ?? "",
       path: p.slice(5).join("/"),
       global: glb,
-      toolpath: p.slice(3).join("/"),
       allpath: loc.pathname,  // use to add hash modifiers
       toolindex: toolindex,
       tool: ft
@@ -208,8 +204,6 @@ export function LoggedIn() {
     console.log("purl", r)
     return r
   })
-  const toolViewer = () => purl().tool.viewer
-  // the sitePage is derived from the location. maybe memo it? 
 
 
 
@@ -219,9 +213,9 @@ export function LoggedIn() {
       user: user,
       hash: purl().hash,
       doc: {
-        did: purl().site,
+        owner: purl().owner,
+        site: purl().site,
         path: purl().path,
-
       },
       viewer: purl().viewer,
       toolname: purl().toolname,
@@ -229,9 +223,20 @@ export function LoggedIn() {
     }
   }
 
-
-
-
+  // maybe the tool viewer should establish the document provider?
+  const ToolViewer = () => {
+    const [doc] = createResource(sitePage().doc, getDocument)
+    return < Suspense fallback={< div > Loading document</div >}>
+      <Switch>
+        <Match when={doc.loading}>Loading...</Match>
+        <Match when={doc.error}>Error: {doc.error.message}</Match>
+        <Match when={doc()}>
+          <DocumentContext.Provider value={doc()}>
+            {purl().tool.viewer()}
+          </DocumentContext.Provider>
+        </Match>
+      </Switch></Suspense>
+  }
   // is this a resource or many? we need to get the counts for all the user shortcuts
   // getting the user store is also a reference.
   const getCounter = (name: string) => {
@@ -339,22 +344,20 @@ export function LoggedIn() {
     }} onMouseDown={mousedown}>
       <Icon path={eastWest} class='h-6 w-6 text-neutral-500' /></div>
   }
-  const MobileSearchButton = ()=> {
+  const MobileSearchButton = () => {
 
     // we can have our status buttons here too, jump directly to new messages
-    return  <div>
-        <div class='fixed left-4 bottom-4'>
-        <button onClick={()=>{nav('/search')}}><Icon class='w-6 h-6' path={magnifyingGlass}></Icon></button>
-        </div>
+    return <div>
+      <div class='fixed left-4 bottom-4'>
+        <button onClick={() => { nav('/search') }}><Icon class='w-6 h-6' path={magnifyingGlass}></Icon></button>
       </div>
+    </div>
   }
 
   return <SitePageContext.Provider value={sitePage()}>
     <Switch>
       <Match when={purl().tool.component}>   <HSplitterButton />
         <div class='flex h-screen w-screen fixed overflow-hidden'>
-
-
           <Show when={(windowSize.width > 640 || sitePage().flyout)}>
             <Toolicons />
             <div
@@ -387,25 +390,25 @@ export function LoggedIn() {
             top: "0px",
             bottom: "0px"
           }}>
-            {toolViewer()()}
+            <ToolViewer />
             <InfoBox />
           </div>
         </div>
       </Match>
       <Match when={true}>
         <Switch>
-        <Match when={windowSize.width < 640}>
-         
+          <Match when={windowSize.width < 640}>
+
             {/* this appears in mobile it mainly needs to activate search*/}
-            <MobileSearchButton/>
-          
-          {toolViewer()()}
-        </Match>
-        <Match when={true}>
-          <div class='flex h-screen w-screen fixed overflow-hidden'>
-          <Toolicons/>
-          {toolViewer()()}
-          </div>
+            <MobileSearchButton />
+
+            <ToolViewer />
+          </Match>
+          <Match when={true}>
+            <div class='flex h-screen w-screen fixed overflow-hidden'>
+              <Toolicons />
+              <ToolViewer />
+            </div>
           </Match>
         </Switch>
       </Match>

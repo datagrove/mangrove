@@ -81,7 +81,8 @@ export interface SitePage {
 }
 
 export interface SiteDocumentRef {
-  did: string   // if this is empty then we will use the server's default. if it doesn't begin with did: then we will assume its a unique name
+  owner: string
+  site: string   // if this is empty then we will use the server's default. if it doesn't begin with did: then we will assume its a unique name
   path: string
 }
 
@@ -101,12 +102,14 @@ export interface Sitemap {
 
 // extend for various document types?
 export interface SiteDocument {
+  doc: SiteDocumentRef
   type: string
 }
 
 // this will find a previewable version of the document, maybe even compile one
 
-// is did either did or unique name?
+// did or unique name?
+// in general we allow partial databases, but not implemented yet.
 export async function getSite(did: string): Promise<boolean> {
   const ws = createWs()
   const zip =  await ws.rpcj("getLive", did)
@@ -123,7 +126,7 @@ export async function getSite(did: string): Promise<boolean> {
 
 export async function getLive(id: SiteDocumentRef): Promise<boolean> {
   // we need to ask the database where we can find this document
-  const st = await getSite(id.did)
+  const st = await getSite(id.site)
   if (st) {
 
   } else {
@@ -134,10 +137,10 @@ export async function getLive(id: SiteDocumentRef): Promise<boolean> {
 }
 export async function getDocument(id: SiteDocumentRef): Promise<SiteDocument> {
   // we need to ask the database where we can find this document
-
-  const t = id.path.split("/").slice(-1)[0]
+  const t = id.path.split("/").at(-1)
   return {
-    type: t
+    doc: id,
+    type: t??""
   }
 }
 export interface Graphic {
@@ -234,18 +237,12 @@ export async function getUser(id: string): Promise<UserSettings> {
   return {
     tools: [
       //"home",
-      "site",
-      "edit",
       "search",
+      "edit",
       "alert",
       "dm",
-
-
-      "ai",
       "account", // setting is similar to home database
-      "map",
       //"folder",
-      "db",
       "pindb",
     ],
     name: "Anonymous",

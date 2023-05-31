@@ -108,10 +108,6 @@ export function EditTool() {
         </div>
     }
 
-
-
-
-
     return (
         <Sortable idField="path" items={items} setItems={setItems} >
             {item => <FileEntry file={item} />}
