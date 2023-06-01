@@ -14,7 +14,7 @@ import { createWindowSize } from "@solid-primitives/resize-observer";
 import { SearchPanel, SearchViewer } from "./search";
 import { Settings } from "./settings";
 import { Message } from "./message";
-import { Graphic, SitePage, SitePageContext, Tool, online, useUser, userState } from "../core";
+import { Graphic, SitePage, SitePageContext, Tool, getUser, login, online, useUser, userState } from "../core";
 import { EditTool, EditViewer } from "./edit";
 
 
@@ -80,29 +80,31 @@ const [flyout, setFlyout] = createSignal(false)
     // owner / ln / branch / db  / viewpath  
 export function LoggedIn() {
   const ws = createWs()
-  const ln = useLn()
   const onav = useNavigate()
   const loc = useLocation()
-  const user = useUser()
 
   // page is things we can get sync, no fetch
-  const sitePage = createMemo(() => {
-      const [err, setErr] = createSignal<Error>()
+  const sitePage = () => {
       const p = loc.pathname.split("/")
-      // [0] is empty
-      // [1] is ln
+      // [0] is empty,  [1] is ln
       const name = p[2]??"search"
       let ft = tools()[name]??tools()["search"]
-
       const r: SitePage =   {
         tool: ft,
         path: p.slice(3).join("/"),
         toolname: name
       }
       return r
-  })
+  }
+
   const ToolViewer : () => JSXElement = () => {
-    return <>sitePage()&&{sitePage().tool.viewer()}</>
+    return <>
+      <pre>{JSON.stringify({
+        login: login(),
+        state: userState()
+      },null,2)}</pre>
+      {sitePage()&&sitePage().tool.viewer()}
+      </>
   }
 
   const nav = (path: string) => {
@@ -134,12 +136,9 @@ export function LoggedIn() {
   }
 
   const bl = (fl: boolean) => fl ? "border-white" : "border-transparent"
-  const ml = (e: string) => bl(e == sitePage()?.toolname)
   const Toolicons = () => {
     return <div class='w-14 flex-col flex mt-4 items-center space-y-6'>
-      <Show when={!online()}>
-        <RoundIcon class='text-red-500' path={signalSlash} />
-      </Show>
+
       <For each={userState().tools}>{(e, i) => {
         const tl = tools()[e]
         return <Switch>
@@ -176,6 +175,9 @@ export function LoggedIn() {
       }
       }</For>
       <DarkButton />
+      <Show when={!online()}>
+        <RoundIcon class='text-red-500' path={signalSlash} />
+      </Show>
     </div>
   }
 
@@ -215,7 +217,6 @@ export function LoggedIn() {
       </div>
     </div>
   }
-
   return <SitePageContext.Provider value={sitePage()}>
     <Switch>
       <Match when={sitePage().tool.component}>   <HSplitterButton />

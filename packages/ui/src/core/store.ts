@@ -4,13 +4,51 @@ import { createWs } from "./socket";
 
 export const [online, setOnline] = createSignal(false)
 
+// login state kept in local storage
 interface Login {
   did: string
 }
 export const [login, setLogin_] = createSignal(localStorage.getItem("login") as Login | null)
-export function setCoreLogin(l: Login) {
+export function setCoreLogin(l: Login|null) {
   localStorage.setItem("login", JSON.stringify(l))
   setLogin_(l)
+  if (l) getUser(l.did)
+}
+
+// user state cached in local database, update from cloud
+const defaultUserSettings : UserSettings = {
+  name: "",
+  tools: [],
+  pindm: [],
+  pindb: [],
+  recentdb: [],
+  counters: {},
+  alert: []
+}
+export const [userState, setUserState] = createSignal(defaultUserSettings)
+
+export async function getUser(id: string) {
+  console.log("getUser");
+  setUserState( {
+    tools: [
+      //"home",
+      "search",
+      "edit",
+      "alert",
+      "dm",
+      "account", // setting is similar to home database
+      //"folder",
+      "pindb",
+    ],
+    name: "Anonymous",
+    alert: standardAlerts,
+    pindm: [],
+    pindb: [],
+    recentdb: [],
+    counters: {
+      "datagrove": 3
+    }
+  })
 }
 
 export const DocumentContext = createContext<SiteDocument>();
@@ -217,16 +255,7 @@ export interface UserSettings {
 }
 
 
-const defaultUserSettings : UserSettings = {
-  name: "",
-  tools: [],
-  pindm: [],
-  pindb: [],
-  recentdb: [],
-  counters: {},
-  alert: []
-}
-export const [userState, setUserState] = createSignal(defaultUserSettings)
+
 
 // export interface UserState {
 //   settings: UserSettings,
@@ -238,29 +267,7 @@ export const [userState, setUserState] = createSignal(defaultUserSettings)
 // we need to get the user state before everything else, since it impacts the success of getting site and document
 // user becomes a proxy, every field of user is reactive
 // call once when we log in 
-export async function getUser(id: string) {
-  console.log("getUser");
-  setUserState( {
-    tools: [
-      //"home",
-      "search",
-      "edit",
-      "alert",
-      "dm",
-      "account", // setting is similar to home database
-      //"folder",
-      "pindb",
-    ],
-    name: "Anonymous",
-    alert: standardAlerts,
-    pindm: [],
-    pindb: [],
-    recentdb: [],
-    counters: {
-      "datagrove": 3
-    }
-  })
-}
+
 
 
 export async function getSitemap(p: SiteDocumentRef): Promise<Sitemap> {

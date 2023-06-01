@@ -7,7 +7,7 @@ import { Component, For, JSXElement, Match, Show, Suspense, Switch, createResour
 import { TextViewer, TextEditor } from "../lexical"
 import { SettingsViewer } from "./settings"
 import { ChatViewer, SheetViewer, CodeViewer } from "./viewer"
-import { DocumentContext, MenuEntry, SiteDocument, Viewer, getDocument, getSitemap, useDocument, usePage } from "../core"
+import { DocumentContext, MenuEntry, SiteDocument, SiteDocumentRef, Viewer, getDocument, getSitemap, useDocument, usePage } from "../core"
 import { Icon } from "solid-heroicons"
 import { chevronLeft, bars_3, magnifyingGlass, homeModern, plus, bookOpen, shoppingBag, videoCamera, pencilSquare, chatBubbleOvalLeft } from "solid-heroicons/solid"
 import { Bb, Ab } from "../layout/nav"
@@ -263,11 +263,11 @@ function getSites(): MenuEntry[] {
 // we need to build based on the route
 // everything can scroll off; maximum use of space. easy to find top anyway.
 // we probably need a sticky to close? maybe this can be done with the rail though
-export const SiteMenuContent: Component<{}> = (props) => {
+export const SiteMenuContent: Component<{doc: SiteDocumentRef}> = (props) => {
     const nav = useNavigate()
     const loc = useLocation()
     const st = usePage()
-    const [sitemap] = createResource(st.doc, getSitemap)
+    const [sitemap] = createResource(props.doc, getSitemap)
 
     // level is just based on the path length.
     // the first piece of the path
@@ -333,16 +333,16 @@ export function SearchViewer() {
     // hash is intended to pick perspective, flyout, and also an anchor.
     const hash = loc.hash.split("/")[0]
 
-    const Viewer = (props: {doc: SiteDocument}) => {
-        let vn = sp.viewer ? props.doc.type + "-" + sp.viewer : props.doc.type
-        const vt = viewers()[vn]
-        if (!vt) return  <div>!{JSON.stringify(props.doc)}! no viewer ({vn})</div>
-        return vt.default()
-    }
+    // const Viewer = (props: {doc: SiteDocument}) => {
+    //     let vn = sp.tool.viewer ? props.doc.type + "-" + sp.viewer : props.doc.type
+    //     const vt = viewers()[vn]
+    //     if (!vt) return  <div>!{JSON.stringify(props.doc)}! no viewer ({vn})</div>
+    //     return vt.default()
+    // }
     //const [doc] = createResource(sp.doc, getDocument)
-    const docx = useDocument()
+    //const docx = useDocument() // <Viewer doc={docx} />
     return <Show when={!showHome()} fallback={<Home />} >  
-                <Viewer doc={docx} />
+                
            </Show>
 }
 

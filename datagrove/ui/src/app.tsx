@@ -6,14 +6,7 @@ import { createResource } from "solid-js";
 import { UserContext, getUser, login } from "../../../packages/ui/src/core"
 import { createDatabase } from "../../../packages/ui/src/db"
 
-const Main = () => {
-    const [user] = createResource("1", getUser)
-    return <Show when={user()}>
-        <UserContext.Provider value={user()}>
-            <LoggedIn />
-        </UserContext.Provider>
-    </Show>
-}
+
 const LoginRoutes = () => {
     const nav = useNavigate()
     return <Routes>
@@ -36,13 +29,15 @@ export function App() {
         if (!login()) {
             nav("/en/login")
             console.log("redirecting to login")
+        } else {
+            getUser(login()!.did)
         }
     })
 
     return <Show when={login()} fallback={LoginRoutes()} >
         <Routes>
-            <Route path="/:ln/:app/*" component={Main} />
-            <Route path="*" component={Main} />
+            <Route path="/:ln/:app/*" component={LoggedIn} />
+            <Route path="*" component={LoggedIn} />
         </Routes>
     </Show>
 }
