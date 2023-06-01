@@ -14,14 +14,15 @@ import { createWindowSize } from "@solid-primitives/resize-observer";
 import { SearchPanel, SearchViewer } from "./search";
 import { Settings } from "./settings";
 import { Message } from "./message";
-import { DocumentContext, Graphic, SitePage, SitePageContext, Tool, getDocument, online, useUser } from "../core";
-//import { SiteViewer } from "./site";
+import { Graphic, SitePage, SitePageContext, Tool, getUser, online, useUser } from "../core";
+import { SiteViewer } from "./site";
 import { HomeViewer, Home } from "./home_viewer";
 import { MapTool, MapViewer } from "./map";
 import { DbTool, DbViewer } from "./db";
 import { AiTool, AiViewer } from "./ai";
 import { FolderTool, FolderViewer } from "./folder";
 import { EditTool, EditViewer } from "./edit";
+import { UserState } from "./user";
 
 // mapview should start with flyout shut, even on large screens.
 
@@ -57,78 +58,87 @@ export const [isOut, setOut] = createSignal(false)
 // the router will reload starting from the database.
 
 
+export function SearchViewer() {
+  return <div>SearchViewer</div>
+}
+
+
 const builtinTools: { [key: string]: Tool } = {
-  // "site": {
-  //   icon: () => <FloatIcon path={menu} />,
-  //   path: 'a/b/text',
-  //   viewer: () => <SiteViewer />
-  // },
   "edit": {
     icon: () => <FloatIcon path={pencil} />,
-    component: () => <EditTool />,
+    component: EditTool,
     path: 'a/b/text',
-    viewer: () => <EditViewer />
+    viewer: EditViewer
   },
-  "db": {
-    icon: () => <FloatIcon path={dbicon} />,
-    component: () => <DbTool />,
-    path: 'a/b/text',
-    viewer: () => <DbViewer />
-  },
-  "map": {
-    icon: () => <FloatIcon path={map} />,
-    component: () => <MapTool />,
-    path: 'a/b/text',
-    viewer: () => <MapViewer />
-  },
-  "ai": {
-    icon: () => <FloatIcon path={sparkles} />,
-    component: () => <AiTool />,
-    path: 'a/b/text',
-    viewer: () => <AiViewer />
-  },
+  // message home
   // Message component is also used for the alerts - how?
   "dm": {
     icon: () => <FloatIcon path={friend} />,
     component: () => <Message />,
     path: 'a/b/chat',
-    viewer: () => <ChatViewer />
+    viewer: ChatViewer
   },
+  "account": {
+    icon: () => <FloatIcon path={avatar} />,
+    component: Settings,
+    path: 'a/b/form',
+    viewer: SettingsViewer
+  },
+  "search": {
+    icon: () => <FloatIcon path={magnifyingGlass} />,
+    component: SearchPanel,
+    path: 'a/b/folder',
+    viewer: SearchViewer
+  }
+}
+/*
+
+  "site": {
+    icon: () => <FloatIcon path={menu} />,
+    path: 'a/b/text',
+    viewer: SiteViewer
+  },
+
+  "db": {
+    icon: () => <FloatIcon path={dbicon} />,
+    component: () => <DbTool />,
+    path: 'a/b/text',
+    viewer: DbViewer 
+  },
+  "map": {
+    icon: () => <FloatIcon path={map} />,
+    component: () => <MapTool />,
+    path: 'a/b/text',
+    viewer: MapViewer
+  },
+  "ai": {
+    icon: () => <FloatIcon path={sparkles} />,
+    component: () => <AiTool />,
+    path: 'a/b/text',
+    viewer: AiViewer
+  },
+
   "alert": {
     icon: () => <FloatIcon path={friend} />,
     component: () => <Message />,
     path: 'a/b/chat',
     global: true,
-    viewer: () => <ChatViewer />
+    viewer: ChatViewer
   },
   "home": {
     icon: () => <FloatIcon path={faceSmile} />,
     component: () => <Home />,
     path: 'a/b/text',
-    viewer: () => <HomeViewer />
+    viewer: HomeViewer
   },
   "folder": {
     icon: () => <FloatIcon path={folder} />,
-    component: () => <FolderTool />,
+    component: FolderTool,
     path: 'a/b/text',
-    viewer: () => <FolderViewer />
+    viewer: FolderViewer
   },
-
-
-  "account": {
-    icon: () => <FloatIcon path={avatar} />,
-    component: () => <Settings />,
-    path: 'a/b/form',
-    viewer: () => <SettingsViewer />
-  },
-
-  "search": {
-    icon: () => <FloatIcon path={magnifyingGlass} />,
-    component: () => <div><SearchPanel /></div>,
-    path: 'a/b/folder',
-    viewer: () => <SearchViewer />
-  }
 }
+*/
 
 
 // change when we install new tools? or when we change the active tool?
@@ -157,90 +167,38 @@ export function XX() {
   const u = useUser()
   return <div>{JSON.stringify(u)}</div>
 }
-export function LoggedIn() {
-  const user = useUser()
-  console.log("user", user)
 
+
+
+const [flyout, setFlyout] = createSignal(false)
+
+// take flyout out of url? the argument for it in, is that we can bookmark it, send a link to it,. Out will leave as at the actual page though, and is more conventional.
+    // owner / ln / branch / db  / viewpath  
+export function LoggedIn() {
   const ws = createWs()
   const ln = useLn()
   const onav = useNavigate()
   const loc = useLocation()
-  if (!user) {
-    console.log("no user")
-    return
-  }
-
-  const purl = createMemo(() => {
-    const [err, setErr] = createSignal<Error>()
-    const p = loc.pathname.split("/")
-    const h = loc.hash.split("/")
-    h[0] = h[0].slice(1)
-    // owner / ln / branch / db  / viewpath  
-    let toolp = (p[2] ?? "").split("-")
-    let tool = toolp[0]
-    let toolindex = toolp[1] ?? 0
-    let ft = tools()[tool]
-    let glb = ft?.global ?? false
-    if (!ft) {
-      console.log("bad tool", tool, ft, toolp, p[2], tools())
-      tool = "home"
-      ft = tools()[tool]
-    }
-
-    const r = {
-      hash: h.slice(3).join("/"),
-      ln: p[1],
-      toolname: p[2], // this includes the index.
-      owner: p[3] ?? "",
-      site: p[4] ?? "",
-      viewer: h[0] ?? "",
-      flyout: h[1] ?? "",
-      path: p.slice(5).join("/"),
-      global: glb,
-      allpath: loc.pathname,  // use to add hash modifiers
-      toolindex: toolindex,
-      tool: ft
-    }
-    console.log("purl", r)
-    return r
-  })
-
-
+  const user = useUser()
 
   // page is things we can get sync, no fetch
-  const sitePage = (): SitePage => {
-    return {
-      user: user,
-      hash: purl().hash,
-      doc: {
-        owner: purl().owner,
-        site: purl().site,
-        path: purl().path,
-      },
-      viewer: purl().viewer,
-      toolname: purl().toolname,
-      flyout: purl().flyout,
-    }
-  }
+  const sitePage = createMemo(() => {
+      const [err, setErr] = createSignal<Error>()
+      const p = loc.pathname.split("/")
+      // [0] is empty
+      // [1] is ln
+      const name = p[2]??"search"
+      let ft = tools()[name]??tools()["search"]
 
-  // maybe the tool viewer should establish the document provider?
-  const ToolViewer = () => {
-    const [doc] = createResource(sitePage().doc, getDocument)
-    return < Suspense fallback={< div > Loading document</div >}>
-      <Switch>
-        <Match when={doc.loading}>Loading...</Match>
-        <Match when={doc.error}>Error: {doc.error.message}</Match>
-        <Match when={doc()}>
-          <DocumentContext.Provider value={doc()}>
-            {purl().tool.viewer()}
-          </DocumentContext.Provider>
-        </Match>
-      </Switch></Suspense>
-  }
-  // is this a resource or many? we need to get the counts for all the user shortcuts
-  // getting the user store is also a reference.
-  const getCounter = (name: string) => {
-    return 0
+      const r: SitePage =   {
+        tool: ft,
+        path: p.slice(3).join("/"),
+        toolname: name
+      }
+      return r
+  })
+  const ToolViewer : () => JSXElement = () => {
+    return <>sitePage()&&{sitePage().tool.viewer()}</>
   }
 
   const nav = (path: string) => {
@@ -320,7 +278,7 @@ export function LoggedIn() {
   const windowSize = createWindowSize();
   const left = () => {
     if (windowSize.width < 640) {
-      return sitePage().flyout ? windowSize.width : 0
+      return flyout()? windowSize.width : 0
     } else return left_()
   }
 
@@ -356,9 +314,9 @@ export function LoggedIn() {
 
   return <SitePageContext.Provider value={sitePage()}>
     <Switch>
-      <Match when={purl().tool.component}>   <HSplitterButton />
+      <Match when={sitePage().tool.component}>   <HSplitterButton />
         <div class='flex h-screen w-screen fixed overflow-hidden'>
-          <Show when={(windowSize.width > 640 || sitePage().flyout)}>
+          <Show when={(windowSize.width > 640 || flyout())}>
             <Toolicons />
             <div
               class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden top-0 bottom-0'
@@ -374,7 +332,7 @@ export function LoggedIn() {
                 }}
               >
                 <Suspense fallback={<div>waiting</div>}>
-                  {purl().tool.component!()}
+                  {sitePage().tool.component!()}
                 </Suspense>
 
 
@@ -397,18 +355,17 @@ export function LoggedIn() {
       </Match>
       <Match when={true}>
         <Switch>
-          <Match when={windowSize.width < 640}>
-
+        <Match when={windowSize.width < 640}>
             {/* this appears in mobile it mainly needs to activate search*/}
-            <MobileSearchButton />
-
-            <ToolViewer />
-          </Match>
-          <Match when={true}>
-            <div class='flex h-screen w-screen fixed overflow-hidden'>
-              <Toolicons />
-              <ToolViewer />
-            </div>
+            <MobileSearchButton/>
+          
+          <ToolViewer/>
+        </Match>
+        <Match when={true}>
+          <div class='flex h-screen w-screen fixed overflow-hidden'>
+          <Toolicons/>
+          <ToolViewer/>
+          </div>
           </Match>
         </Switch>
       </Match>

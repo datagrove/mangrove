@@ -71,12 +71,9 @@ export type Viewer = {
 
 
 export interface SitePage {
-  doc: SiteDocumentRef,
-  toolname: string
-  viewer: string
-  flyout: string
-  hash: string
-  user: UserSettings // left over after extracting  flyout and  viewer
+  path: string
+  tool: Tool,
+  toolname: string,
 }
 
 export interface SiteDocumentRef {
@@ -220,6 +217,16 @@ export interface UserSettings {
 }
 
 
+const defaultUserSettings : UserSettings = {
+  name: "",
+  tools: [],
+  pindm: [],
+  pindb: [],
+  recentdb: [],
+  counters: {},
+  alert: []
+}
+export const [userState, setUserState] = createSignal(defaultUserSettings)
 
 // export interface UserState {
 //   settings: UserSettings,
@@ -230,10 +237,10 @@ export interface UserSettings {
 
 // we need to get the user state before everything else, since it impacts the success of getting site and document
 // user becomes a proxy, every field of user is reactive
-
-export async function getUser(id: string): Promise<UserSettings> {
+// call once when we log in 
+export async function getUser(id: string) {
   console.log("getUser");
-  return {
+  setUserState( {
     tools: [
       //"home",
       "search",
@@ -252,7 +259,7 @@ export async function getUser(id: string): Promise<UserSettings> {
     counters: {
       "datagrove": 3
     }
-  }
+  })
 }
 
 
