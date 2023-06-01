@@ -1,12 +1,12 @@
 
 
-import { For, JSXElement, Match, Show, Suspense, Switch, createMemo, createResource, createSignal } from "solid-js";
+import { For, JSXElement, Match, Show, Suspense, Switch, createMemo, createSignal } from "solid-js";
 import { createWs } from "../core/socket";
 import { A, useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
 import { Icon, } from "solid-heroicons";
-import { faceSmile, folder, signalSlash, user as avatar, sparkles, circleStack as dbicon, clock as history, pencil, bookOpen as menu, chatBubbleBottomCenter as friend, magnifyingGlass, arrowsRightLeft as eastWest, map } from "solid-heroicons/solid";
+import { signalSlash, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, arrowsRightLeft as eastWest } from "solid-heroicons/solid";
 import { ChatViewer } from "./viewer";
 import { SettingsViewer } from "./settings";
 import { DarkButton } from "../lib";
@@ -14,15 +14,8 @@ import { createWindowSize } from "@solid-primitives/resize-observer";
 import { SearchPanel, SearchViewer } from "./search";
 import { Settings } from "./settings";
 import { Message } from "./message";
-import { Graphic, SitePage, SitePageContext, Tool, getUser, online, useUser } from "../core";
-import { SiteViewer } from "./site";
-import { HomeViewer, Home } from "./home_viewer";
-import { MapTool, MapViewer } from "./map";
-import { DbTool, DbViewer } from "./db";
-import { AiTool, AiViewer } from "./ai";
-import { FolderTool, FolderViewer } from "./folder";
+import { Graphic, SitePage, SitePageContext, Tool, online, useUser, userState } from "../core";
 import { EditTool, EditViewer } from "./edit";
-import { UserState } from "./user";
 
 // mapview should start with flyout shut, even on large screens.
 
@@ -56,12 +49,6 @@ export const [isOut, setOut] = createSignal(false)
 
 // to simulate: put the database in localstorage, then navigate to link.
 // the router will reload starting from the database.
-
-
-export function SearchViewer() {
-  return <div>SearchViewer</div>
-}
-
 
 const builtinTools: { [key: string]: Tool } = {
   "edit": {
@@ -236,11 +223,11 @@ export function LoggedIn() {
       <Show when={!online()}>
         <RoundIcon class='text-red-500' path={signalSlash} />
       </Show>
-      <For each={user.tools}>{(e, i) => {
+      <For each={userState().tools}>{(e, i) => {
         const tl = tools()[e]
         return <Switch>
           <Match when={e == "alert"}>
-            <For each={user.alert}>
+            <For each={userState().alert}>
               {(e, i) => {
                 // show avatar if available
                 let href = setActiveTool("alert-" + i())
@@ -249,7 +236,7 @@ export function LoggedIn() {
             </For>
           </Match>
           <Match when={e == "pindb"}>
-            <For each={user.pindb}>{(e, i) => {
+            <For each={userState().pindb}>{(e, i) => {
               // use database icon if available     
               return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
             }
@@ -257,7 +244,7 @@ export function LoggedIn() {
             </For>
           </Match>
           <Match when={e == "recentdb"}>
-            <For each={user.recentdb}>{(e, i) => {
+            <For each={userState().recentdb}>{(e, i) => {
               // use database icon if available
               return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
             }}
