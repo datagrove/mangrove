@@ -1,12 +1,12 @@
 
 
-import { For, JSXElement, Match, Show, Suspense, Switch, createMemo, createSignal } from "solid-js";
+import { For, JSXElement, Match, Show, Suspense, Switch, createEffect, createMemo, createSignal } from "solid-js";
 import { createWs } from "../core/socket";
 import { A, useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
 import { Icon, } from "solid-heroicons";
-import { signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, arrowsRightLeft as eastWest, map } from "solid-heroicons/solid";
+import { signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, arrowsRightLeft as eastWest, map, plusCircle } from "solid-heroicons/solid";
 import { ChatViewer } from "./viewer";
 import { SettingsViewer } from "./settings";
 import { DarkButton } from "../lib";
@@ -17,6 +17,7 @@ import { Message } from "./message";
 import { Graphic, SitePage, SitePageContext, Tool, contentLeft, getUser, layout, left, login, menuToggle, mobile, online, setLayout, setLeft, showPanel, showTools, useUser, userState } from "../core";
 import { EditTool, EditViewer } from "./edit";
 import { MapTool, MapViewer } from "./map";
+import { NewModal, setShowNew } from "./new";
 
 const builtinTools: { [key: string]: Tool } = {
   "edit": {
@@ -87,8 +88,6 @@ export function XX() {
   return <div>{JSON.stringify(u)}</div>
 }
 
-
-
 // take flyout out of url? the argument for it in, is that we can bookmark it, send a link to it,. Out will leave as at the actual page though, and is more conventional.
     // owner / ln / branch / db  / viewpath  
 export function LoggedIn() {
@@ -96,6 +95,24 @@ export function LoggedIn() {
   const loc = useLocation()
   const ln = useLn()
 
+  let el : HTMLDivElement
+
+  createEffect(() => {
+
+
+    el.addEventListener('dragover', (event) => {
+      event.preventDefault();
+    });
+
+    el.addEventListener('drop', (event) => {
+      event.preventDefault();
+      const files = event.dataTransfer?.files;
+      if (files) {
+        // Handle dropped files here
+      }
+    });
+  })
+  
   // page is things we can get sync, no fetch
   const sitePage = () => {
       const p = loc.pathname.split("/")
@@ -164,6 +181,7 @@ export function LoggedIn() {
   const Toolicons = () => {
     return <div class='w-14 flex-col flex mt-4 items-center space-y-6'>
       <RoundIcon path={menu} onClick={menuToggle} />
+      <RoundIcon path={plusCircle} onClick={()=>setShowNew(true)} />
       <For each={userState().tools}>{(e, i) => {
         const tl = tools()[e]
         return <Switch>
@@ -221,9 +239,10 @@ export function LoggedIn() {
     </div>
   }
   return <SitePageContext.Provider value={sitePage()}>
+    <NewModal/>
     <Switch>
       <Match when={sitePage().tool.component}>  
-        <div class='flex h-screen w-screen fixed overflow-hidden'>
+        <div ref={el!} class='flex h-screen w-screen fixed overflow-hidden'>
           <Show when={showTools()}>
             <Toolicons />
           </Show>

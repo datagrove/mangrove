@@ -3,8 +3,8 @@ import { timeAgo, usePage } from "../core"
 import { QueryResult, createQuery } from "../db"
 import { RichTextEditor, TableView } from "./viewer"
 import { BuilderFn, Scroller, ScrollerProps, TableContext } from "../editor"
-import { createEffect, createSignal } from "solid-js"
-import { xMark, arrowsRightLeft, document } from 'solid-heroicons/solid'
+import { Show, createEffect, createSignal } from "solid-js"
+import { xMark, arrowsRightLeft, document, arrowUp } from 'solid-heroicons/solid'
 import { Icon } from 'solid-heroicons'
 import { createStore } from "solid-js/store"
 import Sortable from "solid-sortablejs"
@@ -12,6 +12,7 @@ import { JSX } from "solid-js";
 import { Bb } from "../layout/nav"
 import { set } from "zod"
 import { useNavigate } from "@solidjs/router"
+import { BlueButton } from "../lib/form"
 
 export const [activePath, setActivePath] = createSignal("")
 export function EditViewer() {
@@ -60,11 +61,7 @@ export function FolderViewer() {
 }
 
 
-
-// this is a list of open files. Should it be just a simple list? how long could it be?
-// or should we keep it standard and use fast list?
-export function EditTool() {
-    const nav = useNavigate()
+const fake = () => {
     const f: FileInfo[] = []
     for (let i = 0; i < 100; i++) {
         f.push({
@@ -75,10 +72,17 @@ export function EditTool() {
             size: 100
         })
     }
+    return f
+}
+export const [items, setItems] = createStore<FileInfo[]>(fake())
+
+
+
+// this is a list of open files. Should it be just a simple list? how long could it be?
+// or should we keep it standard and use fast list?
+export function EditTool() {
+    const nav = useNavigate()
     const itemStyles: JSX.CSSProperties = { "user-select": "none", background: "green", padding: "10px", "min-width": "100px", margin: "5px", "border-radius": "4px", color: "white" };
-
-
-    const [items, setItems] = createStore(f)
 
     const FileEntry = (props: { file: FileInfo }) => {
         const tm = new Date(props.file.modified)
@@ -104,14 +108,20 @@ export function EditTool() {
                 <div class='text-ellipsis h-6 overflow-hidden'>{props.file.name}</div>
                 <div class='flex-grow font-sm text-neutral-500 truncate h-6 '>{dt} {props.file.path}</div>
             </div>
-            <div class='w-6 h-6'><Bb class='block w-6 h-6f' onClick={sync}><Icon path={arrowsRightLeft} class='block ' /></Bb></div>
         </div>
     }
-
+    const closeall = () => {
+    }
+    // use a header with a button
     return (
+        <div class='flex flex-col w-full h-full'>
+            <div><BlueButton onClick={()=>closeall()}>CloseAll</BlueButton></div>
+            <div class='flex-grow overflow-auto'>
         <Sortable idField="path" items={items} setItems={setItems} >
             {item => <FileEntry file={item} />}
         </Sortable>
+        </div>
+        </div>
     );
     // let el: HTMLDivElement | null = null
     // createEffect(() => {

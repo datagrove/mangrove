@@ -1,9 +1,8 @@
-import { render } from "solid-js/web"
-import { LoginPage, RegisterPage, RegisterPage2, SettingsPage, initWs, LoggedIn, } from '../../../packages/ui/src'
-import { Route, Router, Routes, useLocation, useNavigate } from "../../../packages/ui/src/core/dg"
+import { LoginPage, RegisterPage, RegisterPage2, SettingsPage, LoggedIn, } from '../../../packages/ui/src'
+import { Route, Routes, useNavigate } from "../../../packages/ui/src/core/dg"
 import { Show, createEffect } from "solid-js"
 import { createResource } from "solid-js";
-import { UserContext, getUser, login } from "../../../packages/ui/src/core"
+import { getUser, login } from "../../../packages/ui/src/core"
 import { createDatabase } from "../../../packages/ui/src/db"
 
 

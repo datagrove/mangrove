@@ -7,7 +7,7 @@ import { Component, For, JSXElement, Match, Show, Suspense, Switch, createResour
 import { TextViewer, TextEditor } from "../lexical"
 import { SettingsViewer } from "./settings"
 import { ChatViewer, SheetViewer, CodeViewer } from "./viewer"
-import { DocumentContext, MenuEntry, SiteDocument, SiteDocumentRef, Viewer, getDocument, getSitemap, useDocument, usePage } from "../core"
+import { DocumentContext, MenuEntry, SiteDocument, SiteDocumentRef, Viewer, getDocument, getSitemap, mobile, useDocument, usePage } from "../core"
 import { Icon } from "solid-heroicons"
 import { chevronLeft, bars_3, magnifyingGlass, homeModern, plus, bookOpen, shoppingBag, videoCamera, pencilSquare, chatBubbleOvalLeft } from "solid-heroicons/solid"
 import { Bb, Ab } from "../layout/nav"
@@ -147,7 +147,7 @@ export const SearchPanel = () => {
     <SearchBox class='p-2 w-full' />
     <div class='flex-1 overflow-auto'>
       <div class='flex flex-wrap'>
-        <Chips options={["By path"]} onChange={setSelected}/>
+        <Chips options={["By path", "Starred", "Page", "Discussion", "Data", "Sheet", "Whiteboard", "Table of Contents"]} onChange={setSelected}/>
       </div>
       <Switch>
         <Match when={result().length}>
@@ -348,10 +348,10 @@ export function SearchViewer() {
 // maybe use a standard page tool.
 // <div class='flex items-end  mx-8 flex-wrap space-y-6 space-x-6 '>
 function Grid(props: { children: JSXElement }) {
-    return <div class='flex justify-light justify-center'><div style={{
+    return <div style={{
         "display": "grid",
-        "grid-template-columns": "repeat(5, 130px)"
-    }}> {props.children}</div ></div>
+        "grid-template-columns": "repeat(auto-fit, 130px)"
+    }}> {props.children}</div >
 }
 
 
@@ -413,21 +413,11 @@ export function Home() {
             </div></div>
     }
 
-    const showSearch =  () => false
-
     return <Page>
         <Github />
-        <h1 class='w-full text-center mt-16'>Datagrove</h1>
-        <Show when={showSearch()}><div class='flex justify-center'><Search /></div></Show>
+        <h1 class='w-full text-center mt-16 mb-8'>Datagrove</h1>
+        <Show when={mobile()}><div class='flex justify-center'><Search /></div></Show>
 
-        <div class='w-full text-center text-neutral-500'>Find Help</div>
-        <Grid>
-            <For each={ourCards}>{(e, i) => {
-                return <Card name={e.name} icon={e.icon} href={e.href} />
-            }}</For>
-        </Grid>
-
-        <div class='w-full p-4 text-center text-neutral-500'>Create</div>
         <div class='px-4'> <Grid>
             <Card name='New Site' icon={plus} href='#' />
             <For each={pinned}>{(e, i) => {
