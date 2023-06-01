@@ -38,3 +38,87 @@ createEffect(async () => {
         setSitePage(pg)
     }
 })
+
+
+// mapview should start with flyout shut, even on large screens.
+
+// every command calls setOut(false)? should this be in the hash?
+// that way every navigation potentially closes it.
+// the out status doesn't matter if screen is wide enough.
+
+
+// the left icons set the rest of the screen
+// map, 
+
+// tools don't all need a site, but most do
+// ln/search is valid
+// Messages can have user assigned icons and labels for as many categories as they want
+
+
+// viewers are picked by the document referenced in the path, but may also put information in the hash
+// document types; map to common mime types?
+
+
+// each tool is associated with a database, and a home "page" in the database which is used the first time the tool is used.
+// this is 
+// each tool maintains its last state, it switches the menu and the viewer
+// each has its own history? that's pretty hard on the web, and probably confusing.
+// try going the most recent url associated with the tool.
+
+// history is not the same as find because find is sticky and remembers the current search, previous searches etc.
+// thin out the icons, these should be sharable anyway
+
+// how can we make vite move about "domains", when they are all on localhost, without confusing it? do we still need the database part of the path if we are using the subdomain for the same purpose? Maybe there's a difference? The problem is that when we are editing a database, we are also previewing it. Could the preview come from an iframe always? Would this be security enough? can we sanitize the data securely enough to edit it? what is the downside to continually switching domains? Can we imitate the domain in development using local storage? 
+
+// to simulate: put the database in localstorage, then navigate to link.
+// the router will reload starting from the database.
+
+
+/*
+
+  "site": {
+    icon: () => <FloatIcon path={menu} />,
+    path: 'a/b/text',
+    viewer: SiteViewer
+  },
+
+  "db": {
+    icon: () => <FloatIcon path={dbicon} />,
+    component: () => <DbTool />,
+    path: 'a/b/text',
+    viewer: DbViewer 
+  },
+  "map": {
+    icon: () => <FloatIcon path={map} />,
+    component: () => <MapTool />,
+    path: 'a/b/text',
+    viewer: MapViewer
+  },
+  "ai": {
+    icon: () => <FloatIcon path={sparkles} />,
+    component: () => <AiTool />,
+    path: 'a/b/text',
+    viewer: AiViewer
+  },
+
+  "alert": {
+    icon: () => <FloatIcon path={friend} />,
+    component: () => <Message />,
+    path: 'a/b/chat',
+    global: true,
+    viewer: ChatViewer
+  },
+  "home": {
+    icon: () => <FloatIcon path={faceSmile} />,
+    component: () => <Home />,
+    path: 'a/b/text',
+    viewer: HomeViewer
+  },
+  "folder": {
+    icon: () => <FloatIcon path={folder} />,
+    component: FolderTool,
+    path: 'a/b/text',
+    viewer: FolderViewer
+  },
+}
+*/
