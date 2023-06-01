@@ -13,19 +13,26 @@
 import { Accessor, createSignal } from "solid-js"
 import { CellOptions } from "./v2/cell"
 // @ts-ignore
-import Shared from './shared?sharedworker'
-// @ts-ignore
 import Worker from './worker?worker'
 
 import { Api, SendToWorker, createSharedWorker, createWorker } from '../worker/useworker'
 import { ListenerContext } from "../worker/data"
+
+
+
 export class Db {
     public constructor(public w: SendToWorker) {
+    }
+
+    dropFiles(files: FileList) {
+        // this has to go to the dedicated worker
+        this.w.rpc('dropFiles', { dropFiles: [...files] })
     }
 }
 
 let dbw: SendToWorker | undefined
-const api: Api = {
+
+export const callbackApi: Api = {
     becomeLeader: async (context: ListenerContext<any>, params: any) => {
         console.log("becomeLeader starting worker")
         // when we get messages back from the database worker we need to return them to the shared worker
@@ -58,12 +65,6 @@ let sharedWorker : SendToWorker | undefined
 
 let db: Db // new Db(sharedWorker)
 
-export async function createDatabase(): Promise<Db> {
-    sharedWorker = await createSharedWorker(new Shared, api)
-    db = new Db(sharedWorker)
-    // we might need to initiaize something here, currently unused wrapper
-    return db
-}
 
 
 // makeCell(cellTemplate)

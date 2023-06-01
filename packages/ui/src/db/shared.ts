@@ -15,6 +15,8 @@ let leader: Ctx | undefined = undefined
 let all = new Set<ClientState>()
 
 const api = {
+
+  // tabs connect to the shared worker, the first tab becomes the leader.
   async connect(context: Ctx, params: any) {
     all.add(context.state)
     if (!leader) {
@@ -24,6 +26,7 @@ const api = {
     }
   },
   // what do we need to do here? reference count?
+  // when a tab closes it needs to disonnect from the shared worker.
   async disconnect(context: Ctx, params: any) {
     all.delete(context.state)
     if (leader === context && all.size > 0) {
@@ -31,12 +34,14 @@ const api = {
       leader?.notify("becomeLeader", {})
     }
   },
+
+  // everything else is simply forwarded to the leader.
   async unknown(context: Ctx, params: any) {
     leader?.post(params)
   }
 }
 
-
+// a shared listener listens to api calls.
 createSharedListener(api, {} as ClientState)
 
 
