@@ -17,7 +17,7 @@ import { Message } from "./message";
 import { Graphic, SitePage, SitePageContext, Tool, contentLeft, getUser, layout, left, login, menuToggle, mobile, online, setLayout, setLeft, showPanel, showTools, useUser, userState } from "../core";
 import { EditTool, EditViewer } from "./edit";
 import { MapTool, MapViewer } from "./map";
-import { DropModal, NewModal, setShowNew, uploadFiles } from "./new";
+import { DropModal, NewModal, PickGroupModal, setShowNew, uploadFiles } from "./new";
 import { db } from "../db";
 import { Database } from "../lib/db";
 
@@ -117,8 +117,8 @@ export function LoggedIn2() {
         if (files) {
           // Handle dropped files here
           // start the new dialog, with files alread prepped.
-
-          uploadFiles(files)
+          const group = db()!.recentGroup(1)
+          uploadFiles(files,group[0])
         }
       });
     }
@@ -253,6 +253,7 @@ export function LoggedIn2() {
     <SitePageContext.Provider value={sitePage()}>
     <NewModal/>
     <DropModal/>
+    <PickGroupModal/>
     <Switch>
       <Match when={sitePage().tool.component}>  
         <div ref={el!} class='flex h-screen w-screen fixed overflow-hidden'>

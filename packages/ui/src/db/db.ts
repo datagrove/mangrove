@@ -18,12 +18,22 @@ import { Api, SendToWorker, createSharedWorker, createWorker } from '../worker/u
 import { ListenerContext } from "../worker/data"
 
 
-
+export interface SiteRef {
+    name: string
+    did: string
+}
 
 export class Db {
     public constructor(public w: SendToWorker) {
     }
 
+    recentGroup(n: number) {
+        const group :SiteRef = {
+            name: "private",
+            did: ""
+          }
+          return [group]
+    }
     async uploadFiles(files: FileList, path: string) {
         // this has to go to the dedicated worker
         await this.w.rpc('dropFiles', { dropFiles: [...files] })
