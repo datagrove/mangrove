@@ -27,7 +27,6 @@ export function uploadFiles(fl: FileList,group?: SiteRef) {
         files:fl,
         group:group
     })
-
 }
 
 export interface SiteRef {
