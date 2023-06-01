@@ -8,7 +8,8 @@ import { createListener } from '../worker/listen';
 // in some ways sqlite is closer to what we want?
 // opens up search possibilities?
 
-
+// most of the api's are defined here.
+// 
 
 interface ClientState {
 

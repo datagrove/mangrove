@@ -12,11 +12,11 @@
 
 import { Accessor, createSignal } from "solid-js"
 import { CellOptions } from "./v2/cell"
-// @ts-ignore
-import Worker from './worker?worker'
+
 
 import { Api, SendToWorker, createSharedWorker, createWorker } from '../worker/useworker'
 import { ListenerContext } from "../worker/data"
+
 
 
 
@@ -24,12 +24,15 @@ export class Db {
     public constructor(public w: SendToWorker) {
     }
 
-    dropFiles(files: FileList) {
+    async uploadFiles(files: FileList, path: string) {
         // this has to go to the dedicated worker
-        this.w.rpc('dropFiles', { dropFiles: [...files] })
+        await this.w.rpc('dropFiles', { dropFiles: [...files] })
+        // the drop files should signal client already?
     }
 }
 
+// we create a dedicated worker when we become leader
+// we stay leader until this tab is closed.
 let dbw: SendToWorker | undefined
 
 export const callbackApi: Api = {
@@ -44,7 +47,7 @@ export const callbackApi: Api = {
                 sharedWorker?.send(msg)
             }
         }
-        dbw = await createWorker(new Worker, swapi)
+        //dbw = await createWorker(new Worker, swapi)
     },
     log: async (context: ListenerContext<any>, params: any) => {
         console.log(...params)

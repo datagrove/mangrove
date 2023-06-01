@@ -37,3 +37,7 @@ export function Modal(props: { children?: any }) {
         <div class='w-1/2 h-1/2 rounded-xl border-1 shadow-xl border-white bg-white dark:bg-neutral-700 p-2'>{props.children}</div>
     </div>
 }
+
+export function ListTile(props: { children?: any, onClick?: () => void }) {
+    return <div><button onClick={props.onClick}>{props.children} </button></div>
+}

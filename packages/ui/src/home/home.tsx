@@ -17,7 +17,9 @@ import { Message } from "./message";
 import { Graphic, SitePage, SitePageContext, Tool, contentLeft, getUser, layout, left, login, menuToggle, mobile, online, setLayout, setLeft, showPanel, showTools, useUser, userState } from "../core";
 import { EditTool, EditViewer } from "./edit";
 import { MapTool, MapViewer } from "./map";
-import { NewModal, setShowNew } from "./new";
+import { DropModal, NewModal, setShowNew, uploadFiles } from "./new";
+import { db } from "../db";
+import { Database } from "../lib/db";
 
 const builtinTools: { [key: string]: Tool } = {
   "edit": {
@@ -90,29 +92,38 @@ export function XX() {
 
 // take flyout out of url? the argument for it in, is that we can bookmark it, send a link to it,. Out will leave as at the actual page though, and is more conventional.
     // owner / ln / branch / db  / viewpath  
+
 export function LoggedIn() {
+  // pause here until we have a database
+  return <Show when={!db.loading} fallback={<div>Loading...</div>}><LoggedIn2 /></Show>
+}
+export function LoggedIn2() {
   const ws = createWs()
   const loc = useLocation()
   const ln = useLn()
 
   let el : HTMLDivElement
 
-  createEffect(() => {
+  createEffect(async () => {
+    // this will happen after mounting, but not necessarily before the database is ready.
+    if (db()) {
+      el.addEventListener('dragover', (event) => {
+        event.preventDefault();
+      });
 
+      el.addEventListener('drop', (event) => {
+        event.preventDefault();
+        const files = event.dataTransfer?.files;
+        if (files) {
+          // Handle dropped files here
+          // start the new dialog, with files alread prepped.
 
-    el.addEventListener('dragover', (event) => {
-      event.preventDefault();
-    });
-
-    el.addEventListener('drop', (event) => {
-      event.preventDefault();
-      const files = event.dataTransfer?.files;
-      if (files) {
-        // Handle dropped files here
-      }
-    });
+          uploadFiles(files)
+        }
+      });
+    }
   })
-  
+
   // page is things we can get sync, no fetch
   const sitePage = () => {
       const p = loc.pathname.split("/")
@@ -238,8 +249,10 @@ export function LoggedIn() {
       </div>
     </div>
   }
-  return <SitePageContext.Provider value={sitePage()}>
+  return <>
+    <SitePageContext.Provider value={sitePage()}>
     <NewModal/>
+    <DropModal/>
     <Switch>
       <Match when={sitePage().tool.component}>  
         <div ref={el!} class='flex h-screen w-screen fixed overflow-hidden'>
@@ -295,7 +308,7 @@ export function LoggedIn() {
         </Switch>
       </Match>
     </Switch>
-  </SitePageContext.Provider>
+  </SitePageContext.Provider></>
 
 }
 // <Splitter left={left} setLeft={setLeft}>
