@@ -1,13 +1,58 @@
-import { JSXElement, createContext, createSignal, useContext } from "solid-js"
+import { JSXElement, createContext, createEffect, createSignal, useContext } from "solid-js"
 import { orgsite } from "./site_menu_test";
 import { createWs } from "./socket";
+import { createWindowSize } from "@solid-primitives/resize-observer";
 
+const windowSize = createWindowSize();
 export const [online, setOnline] = createSignal(false)
+
+export const [left, setLeft] = createSignal(350)
+// layout state: split, allPanel, allContent. It's always manual if the screen is small
+// panel states: none, partial, all
+// the default depends on the screen size.
+// if the screen is small then partial is always treated as all
+
+export const mobile = () => windowSize.width < 640
+export enum Layout {
+  split,
+  allPanel,  // always shows tools
+  allContent
+}
+export const [layout, setLayout] = createSignal(windowSize.width > 640? Layout.split : Layout.allContent)
+
+export const showPanel = () => layout() == Layout.split || layout() == Layout.allPanel
+export const showContent = () => layout() == Layout.split || layout() == Layout.allContent
+export const showTools = () => layout() == Layout.split || layout() == Layout.allPanel || !mobile()
+
+// whenever the screen size changes, we may need to eliminate the split.
+createEffect(() => {
+  if (layout()==Layout.split && windowSize.width < 640) setLayout(Layout.allContent)
+})
+
+export const  menuToggle = () => {
+  if (mobile()) {
+    setLayout( layout()==Layout.allContent ? Layout.allPanel : Layout.allContent )
+  } else {
+    setLayout( layout()==Layout.split ? Layout.allContent : Layout.split )
+  }
+}
 
 // login state kept in local storage
 interface Login {
   did: string
 }
+
+
+// there is one more state? shouldn't we keep the tool icons as long as we are not mobile?
+export const contentLeft = () => {
+    switch(layout()) {
+      case Layout.split: return left()
+      case Layout.allPanel: return 0
+      case Layout.allContent: return mobile()? 0 : 56
+    }
+}
+
+
 export const [login, setLogin_] = createSignal(localStorage.getItem("login") as Login | null)
 export function setCoreLogin(l: Login|null) {
   localStorage.setItem("login", JSON.stringify(l))
@@ -23,7 +68,7 @@ const defaultUserSettings : UserSettings = {
   pindb: [],
   recentdb: [],
   counters: {},
-  alert: []
+  watch: []
 }
 export const [userState, setUserState] = createSignal(defaultUserSettings)
 
@@ -34,14 +79,14 @@ export async function getUser(id: string) {
       //"home",
       "search",
       "edit",
-      "alert",
       "dm",
+      "watch",  // alerts can be any path, not just a folder with conversations
+      "map",
       "account", // setting is similar to home database
       //"folder",
-      "pindb",
     ],
     name: "Anonymous",
-    alert: standardAlerts,
+    watch: standardAlerts,
     pindm: [],
     pindb: [],
     recentdb: [],
@@ -212,7 +257,8 @@ const snooze: Graphic = {
 `
 }
 
-export interface Alert {
+export interface Watch {
+  path: string
   icon: Graphic
   color: string
   showNumber: boolean
@@ -222,20 +268,27 @@ export interface Alert {
 
 
 // these could be emojis or svg, url for that?
-const standardAlerts: Alert[] = [
+
+// alerts are alertable paths, maybe sets of paths?
+// alertable folders then?
+// shows selected if the path matches in the url
+const standardAlerts: Watch[] = [
   {
+    path: "friend",
     icon: heart,
     color: "red",
     showNumber: false,
     mute: 0
   },
   {
+    path: "business",
     icon: business,
     color: "blue",
     showNumber: true,
     mute: 0
   },
   {
+    path: "watch",
     icon: snooze,
     color: "#888",
     showNumber: true,
@@ -251,7 +304,7 @@ export interface UserSettings {
   counters: {
     [key: string]: number
   }
-  alert: Alert[]
+  watch: Watch[]
 }
 
 

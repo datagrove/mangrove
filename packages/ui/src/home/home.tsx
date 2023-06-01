@@ -6,7 +6,7 @@ import { A, useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
 import { Icon, } from "solid-heroicons";
-import { signalSlash, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, arrowsRightLeft as eastWest } from "solid-heroicons/solid";
+import { signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, arrowsRightLeft as eastWest, map } from "solid-heroicons/solid";
 import { ChatViewer } from "./viewer";
 import { SettingsViewer } from "./settings";
 import { DarkButton } from "../lib";
@@ -14,9 +14,9 @@ import { createWindowSize } from "@solid-primitives/resize-observer";
 import { SearchPanel, SearchViewer } from "./search";
 import { Settings } from "./settings";
 import { Message } from "./message";
-import { Graphic, SitePage, SitePageContext, Tool, getUser, login, online, useUser, userState } from "../core";
+import { Graphic, SitePage, SitePageContext, Tool, contentLeft, getUser, layout, left, login, menuToggle, mobile, online, setLayout, setLeft, showPanel, showTools, useUser, userState } from "../core";
 import { EditTool, EditViewer } from "./edit";
-
+import { MapTool, MapViewer } from "./map";
 
 const builtinTools: { [key: string]: Tool } = {
   "edit": {
@@ -33,6 +33,12 @@ const builtinTools: { [key: string]: Tool } = {
     path: 'a/b/chat',
     viewer: ChatViewer
   },
+  "watch": {
+    icon: () => <FloatIcon path={friend} />,
+    component: () => <Message />,
+    path: 'a/b/chat',
+    viewer: ChatViewer
+  },
   "account": {
     icon: () => <FloatIcon path={avatar} />,
     component: Settings,
@@ -44,7 +50,14 @@ const builtinTools: { [key: string]: Tool } = {
     component: SearchPanel,
     path: 'a/b/folder',
     viewer: SearchViewer
-  }
+  },
+  "map": {
+    icon: () => <FloatIcon path={map} />,
+    component: MapTool,
+    path: 'a/b/text',
+    viewer: MapViewer
+  },
+ 
 }
 
 // change when we install new tools? or when we change the active tool?
@@ -74,14 +87,14 @@ export function XX() {
   return <div>{JSON.stringify(u)}</div>
 }
 
-const [flyout, setFlyout] = createSignal(false)
+
 
 // take flyout out of url? the argument for it in, is that we can bookmark it, send a link to it,. Out will leave as at the actual page though, and is more conventional.
     // owner / ln / branch / db  / viewpath  
 export function LoggedIn() {
   const ws = createWs()
-  const onav = useNavigate()
   const loc = useLocation()
+  const ln = useLn()
 
   // page is things we can get sync, no fetch
   const sitePage = () => {
@@ -99,76 +112,73 @@ export function LoggedIn() {
 
   const ToolViewer : () => JSXElement = () => {
     return <>
-      <pre>{JSON.stringify({
+      {false &&<pre>{JSON.stringify({
         login: login(),
         state: userState()
-      },null,2)}</pre>
+      },null,2)}</pre>}
       {sitePage()&&sitePage().tool.viewer()}
       </>
   }
 
-  const nav = (path: string) => {
-    const p = loc.hash.split("/")
-    const h = (p[0].length ? "" : "#") + "/y"
-    onav(path + h)
-  }
+  // const nav = (path: string) => {
+  //   onav("/"+ln().ln +"/" + path )
+  // }
   // how do we display counters? how do we update them?
   // when does clicking a tool change the viewer? always?
 
-  const [left_, setLeft] = createSignal(350)
+  // sets the left of the main content, 
 
   const count = (i: number) => { return i == 1 ? 2 : 0 }
 
-  const setActiveTool = (toolname: string) => {
-    const p = loc.pathname.split("/")
-    const pth = "/" + p[1] + "/" + toolname + "/" + p.slice(3).join("/") + "#/y"
-    return pth
-  }
+  // return a link that activates the tool, and may set the path.
+  // some links in the tool pane are only active if the path matches as well.
+
+ 
+  // should include set active tool in this?
   const Seldiv = (props: {
     children: JSXElement,
-    href: string
+    toolname: string,
+    path?: string
   }) => {
-    const toolname = () => props.href.split("/")[2]
-    const sel = () => toolname() == sitePage()?.toolname
-    return <A href={props.href} class={`border-l-2 ${sel() ? "border-white" : "border-transparent"} h-8 w-12  text-center`}>
+    
+    const p = ()=>loc.pathname.split("/").slice(3).join("/")
+    const href = () => "/" + ln().ln + "/" + props.toolname + (props.path?"/"+props.path:"")
+    const sel = () => {
+      if (props.path) {
+        return props.toolname == sitePage()?.toolname && props.path == p()
+      } else {
+        return props.toolname == sitePage()?.toolname
+      }
+    }
+    return <A href={href()} class={`border-l-2 ${sel() ? "border-white" : "border-transparent"} h-8 w-12  text-center`}>
       {props.children}
     </A>
   }
 
   const bl = (fl: boolean) => fl ? "border-white" : "border-transparent"
+  // if we click on a selected tool, then we should always change the layout from content to split
+  // or split to content
+  // or maybe we should do what gmail does and just show a hamburger for that.
+
+
   const Toolicons = () => {
     return <div class='w-14 flex-col flex mt-4 items-center space-y-6'>
-
+      <RoundIcon path={menu} onClick={menuToggle} />
       <For each={userState().tools}>{(e, i) => {
         const tl = tools()[e]
         return <Switch>
-          <Match when={e == "alert"}>
-            <For each={userState().alert}>
+          <Match when={e == "watch"}>
+            <For each={userState().watch}>
               {(e, i) => {
                 // show avatar if available
-                let href = setActiveTool("alert-" + i())
-                return <Seldiv href={href} ><GraphicIcon class={bl(true)} count={count(i())} graphic={e.icon} color={e.color} onClick={() => nav(href)} /></Seldiv>
+
+                return <Seldiv toolname='watch' path={e.path} ><GraphicIcon class={bl(true)} count={count(i())} graphic={e.icon} color={e.color} /></Seldiv>
               }}
-            </For>
-          </Match>
-          <Match when={e == "pindb"}>
-            <For each={userState().pindb}>{(e, i) => {
-              // use database icon if available     
-              return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
-            }
-            }
-            </For>
-          </Match>
-          <Match when={e == "recentdb"}>
-            <For each={userState().recentdb}>{(e, i) => {
-              // use database icon if available
-              return <RoundIcon path={pencil} onClick={() => nav("/" + e)} />
-            }}
             </For>
           </Match>
           <Match when={true}>
             <Show when={tl} fallback={<div>{e}</div>}>
-              <Seldiv href={setActiveTool(e)}>{tl.icon()}</Seldiv>
+              <Seldiv toolname={e}>{tl.icon()}</Seldiv>
             </Show>
           </Match>
         </Switch>
@@ -179,13 +189,6 @@ export function LoggedIn() {
         <RoundIcon class='text-red-500' path={signalSlash} />
       </Show>
     </div>
-  }
-
-  const windowSize = createWindowSize();
-  const left = () => {
-    if (windowSize.width < 640) {
-      return flyout()? windowSize.width : 0
-    } else return left_()
   }
 
   const HSplitterButton = () => {
@@ -203,26 +206,29 @@ export function LoggedIn() {
       window.addEventListener("mouseup", up)
     }
     return <div class={`fixed p-2  bg-neutral-900 rounded-tr-full rounded-br-full bottom-4 w-10 cursor-col-resize`} style={{
-      left: left() + "px",
+      left: left()-56 + "px",
       "z-index": '900'
     }} onMouseDown={mousedown}>
       <Icon path={eastWest} class='h-6 w-6 text-neutral-500' /></div>
   }
+  // how this is shown may depend on the tool
   const MobileSearchButton = () => {
-
     // we can have our status buttons here too, jump directly to new messages
     return <div>
       <div class='fixed left-4 bottom-4'>
-        <button onClick={() => { nav('/search') }}><Icon class='w-6 h-6' path={magnifyingGlass}></Icon></button>
+        <Seldiv toolname='search'><Icon class='w-6 h-6' path={magnifyingGlass}></Icon></Seldiv>
       </div>
     </div>
   }
   return <SitePageContext.Provider value={sitePage()}>
     <Switch>
-      <Match when={sitePage().tool.component}>   <HSplitterButton />
+      <Match when={sitePage().tool.component}>  
         <div class='flex h-screen w-screen fixed overflow-hidden'>
-          <Show when={(windowSize.width > 640 || flyout())}>
+          <Show when={showTools()}>
             <Toolicons />
+          </Show>
+          <Show when={showPanel()}>
+            <HSplitterButton />
             <div
               class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden top-0 bottom-0'
               style={{
@@ -239,16 +245,11 @@ export function LoggedIn() {
                 <Suspense fallback={<div>waiting</div>}>
                   {sitePage().tool.component!()}
                 </Suspense>
-
-
-              </div>
-              <div class=' hidden absolute bottom-0 left-0 right-0 h-16 bg-neutral-900'>
-                <input placeholder='Send a message' />
               </div>
             </div>
           </Show>
           <div class='fixed' style={{
-            left: (left()) + "px",
+            left: (contentLeft()) + "px",
             right: "0px",
             top: "0px",
             bottom: "0px"
@@ -260,7 +261,7 @@ export function LoggedIn() {
       </Match>
       <Match when={true}>
         <Switch>
-        <Match when={windowSize.width < 640}>
+        <Match when={mobile()}>
             {/* this appears in mobile it mainly needs to activate search*/}
             <MobileSearchButton/>
           

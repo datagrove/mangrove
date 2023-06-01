@@ -18,8 +18,6 @@ import { createStore, unwrap } from "solid-js/store"
 const [search, setSearch] = createSignal([] as SearchResult[]) // = []
 const [result, setResult] = createSignal<SearchResult[]>([])
 
-
-
 interface SearchResult {
   title: string
   href: string
@@ -149,7 +147,7 @@ export const SearchPanel = () => {
     <SearchBox class='p-2 w-full' />
     <div class='flex-1 overflow-auto'>
       <div class='flex flex-wrap'>
-        <Chips options={["File", "Map", "Data"]} onChange={setSelected}/>
+        <Chips options={["By path"]} onChange={setSelected}/>
       </div>
       <Switch>
         <Match when={result().length}>
@@ -363,6 +361,8 @@ export type IconPath = typeof homeModern
 //     <Icon class="hidden mr-2  h-6 w-6 flex-none text-neutral-500" path={magnifyingGlass} />
 export function Home() {
     const nav = useNavigate()
+
+    // only show if not flyout
     const Search = () => {
         const onMenu = () => { }
         return (<div class="dark:bg-neutral-900 shadow sm:rounded-lg  z-50 m-4 w-[372px]">
@@ -413,12 +413,12 @@ export function Home() {
             </div></div>
     }
 
-
+    const showSearch =  () => false
 
     return <Page>
         <Github />
         <h1 class='w-full text-center mt-16'>Datagrove</h1>
-        <div class='flex justify-center'><Search /></div>
+        <Show when={showSearch()}><div class='flex justify-center'><Search /></div></Show>
 
         <div class='w-full text-center text-neutral-500'>Find Help</div>
         <Grid>

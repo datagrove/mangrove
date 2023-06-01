@@ -88,12 +88,7 @@ createEffect(async () => {
     path: 'a/b/text',
     viewer: DbViewer 
   },
-  "map": {
-    icon: () => <FloatIcon path={map} />,
-    component: () => <MapTool />,
-    path: 'a/b/text',
-    viewer: MapViewer
-  },
+
   "ai": {
     icon: () => <FloatIcon path={sparkles} />,
     component: () => <AiTool />,
