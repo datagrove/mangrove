@@ -222,6 +222,19 @@ export class RangeView<T> {
     }
 }
 
+// we need to get the last read location (shared among all one user's devices)
+interface Usage {
+    lastRead: number
+}
+export async function getUsage(path: string) : Promise<Usage> {
+    return {
+        lastRead: 0
+    }
+}
+export async function setUsage(path: string, usage: Usage) {
+
+}
+
 export function ChatViewer() {
     let el: HTMLDivElement | null = null
     let el2: HTMLDivElement | null = null   
@@ -230,16 +243,16 @@ export function ChatViewer() {
 
     const sp = usePage()
 
-    // we need to compute the from key using user lastRead.
-    // this can return a signal that the server modifies
+        // we need to compute the from key using user lastRead.
+    const [usage] = createResource(sp.path, getUsage)
+
     const q : ScanQuery = {
         site: sp.path,
         table: "chat",
         from: sp.path,
         limit: 1000
     }
-
-    const [wf, upd] = watchRange(q)
+    const [wf, updateQuery] = watchRange(q)
     const tr = new RangeView<Message>()
 
     // maybe instead of a builder we should 
@@ -255,7 +268,7 @@ export function ChatViewer() {
             builder: function (ctx: TableContext): void {
                 // if we don't have ctx.row then fetch and return a tombstone
                 // 
-                const o = ctx.data as Message
+                const o = ctx.old.value as Message
                 // maybe render with some kind of key, so that we can later
                 // 
                 ctx.render(<MessageWithUser message={o} />)
@@ -266,11 +279,22 @@ export function ChatViewer() {
         ed = new Scroller(opts)
     })
     createEffect(() => {
-        // we could return the net change in rows
         // we need to translate the scroller anchor into a key?
-        const a = anchor()  // depends on anchor
-        tr.apply(wf())
-        
+        const a = anchor()  // depends on ancho
+        if (a > (usage()?.lastRead??0)){
+            setUsage(sp.path, {
+                lastRead: a
+            })
+        }
+        // if the anchor is 
+        updateQuery(q)     
+    })
+
+    createEffect(()=>{
+        // sort the incoming keys, we will do a sort merge
+        const o =  ed.rendered_ 
+
+        //tr.apply(wf())
     })
     // anything can change, we need to let the scroller know
     // some changes can be deletions and insertions.

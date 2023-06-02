@@ -21,7 +21,6 @@ export class TableContext {
     row = 0
     column!: Column
     offset = 0
-    data : any = null
     //get key() { return this.scroller.props.state.columns?.order }
 
     // alloc(n: number): [Map<number, HTMLElement>, HTMLElement[]] {
@@ -123,8 +122,10 @@ function rotate<T>(a: T[], n: number) {
 export class TableRow {
     constructor(public node: HTMLElement) {
     }
-    height = 0
+    height = 0 // can height 0 be a dirty flag? -1 maybe?
     top = 0
+    value: any
+    key: any
 }
 
 // index is the top visible item, offset is how far scroll off the top it is (0 is flush to top)
@@ -362,7 +363,9 @@ export class Scroller {
         // }
     }
     measure(item: TableRow) {
-        this.measuredHeight_ -= item.height
+        if (item.height > 0){
+            this.measuredHeight_ -= item.height
+        }
         const height = item.node.offsetHeight
         item.height = height
         this.measuredHeight_ += height
