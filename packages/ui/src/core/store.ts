@@ -214,11 +214,15 @@ export async function getLive(id: SiteDocumentRef): Promise<boolean> {
   }
   return true
 }
-export async function getDocument(id: SiteDocumentRef): Promise<SiteDocument> {
+export async function getDocument(path: string): Promise<SiteDocument> {
   // we need to ask the database where we can find this document
-  const t = id.path.split("/").at(-1)
+  const t = path.split("/").at(-1)
   return {
-    doc: id,
+    doc: {
+      owner: "",
+      site: "",
+      path: ""
+    },
     type: t??""
   }
 }
@@ -340,7 +344,7 @@ export async function getSitemap(p: SiteDocumentRef): Promise<Sitemap> {
 }
 
 // resolved into dataurls? I'd rather not
-export async function readAll(doc: SiteDocument): Promise<string> {
+export async function readAll(doc: string): Promise<string> {
   await new Promise(r => setTimeout(r, 2000));
   return "hello, world"
 }

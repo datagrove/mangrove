@@ -1,9 +1,9 @@
 import { faker } from "@faker-js/faker"
-import { timeAgo, usePage } from "../core"
+import { getDocument, timeAgo, usePage } from "../core"
 import { QueryResult, createQuery } from "../db"
 import { RichTextEditor, TableView } from "./viewer"
 import { BuilderFn, Scroller, ScrollerProps, TableContext } from "../editor"
-import { Show, createEffect, createSignal } from "solid-js"
+import { Show, createEffect, createResource, createSignal } from "solid-js"
 import { xMark, arrowsRightLeft, document, arrowUp } from 'solid-heroicons/solid'
 import { Icon } from 'solid-heroicons'
 import { createStore } from "solid-js/store"
@@ -14,14 +14,15 @@ import { set } from "zod"
 import { useNavigate } from "@solidjs/router"
 import { BlueButton } from "../lib/form"
 
-export const [activePath, setActivePath] = createSignal("")
+
 export function EditViewer() {
+    const page = usePage()
+    const doc = createResource(page.path, getDocument)
 
     // this should be an editor for the particular page in the url
     // we should respect the hash in positioning to a url.
     return <>
-        <div>{activePath()}</div>
-
+        <RichTextEditor/>
     </>
 }
 
@@ -95,15 +96,12 @@ export function EditTool() {
         const close = () => {
             setItems(items.filter(x => x.path != props.file.path))
         }
-        const show = () => {
-            console.log("show", props.file.path)
-            setActivePath(props.file.path)
-        }
+
         return <div class='w-full cursor-pointer flex py-2 bg-tool flex-row items-center space-x-2'>
             <div class='w-6 h-6'>
                 <Bb class='block w-6 h-6 overflow-hidden' onClick={close} ><Icon path={xMark} /></Bb></div>
             <div class='w-6 h-6'><Icon path={document} class='block w-6 h-6' /></div>
-            <div class='flex-grow overflow-hidden text-ellipsis' onClick={show}>
+            <div class='flex-grow overflow-hidden text-ellipsis' onClick={sync}>
 
                 <div class='text-ellipsis h-6 overflow-hidden'>{props.file.name}</div>
                 <div class='flex-grow font-sm text-neutral-500 truncate h-6 '>{dt} {props.file.path}</div>

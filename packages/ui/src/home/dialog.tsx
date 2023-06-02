@@ -90,7 +90,7 @@ export function UploadButton(props: { onClick?: () => void }) {
 }
 export function Modal(props: { class?: string,children?: any , when?: boolean}) {
     return <Show when={props.when}><div class={props.class}><div class='fixed  z-50 top-0 left-0 right-0 bottom-0 bg-black bg-opacity-50 flex justify-center items-center'>
-        <div class='w-1/2 h-1/2 rounded-xl border-1 shadow-xl border-white bg-white dark:bg-neutral-900 p-2'>{props.children}</div>
+        <div class='max-w-md rounded-xl border-1 shadow-xl border-white bg-white dark:bg-neutral-900 p-2'>{props.children}</div>
     </div></div></Show>
 }
 
@@ -103,7 +103,7 @@ export function ModalTitle(props: {
     children?: any 
     onOk? : () => void
     onCancel?: () => void}) {
-    return <div class='flex justify-between items-center'>
+    return <div class='flex justify-between items-center mb-6'>
         <div>{ props.onOk && <Text onClick={props.onOk}>Ok</Text> }</div> 
         <div class='text-xl  font-bold'>{props.children}</div>
         <div>{ props.onCancel && <Text onClick={props.onCancel}>Cancel</Text> }</div>

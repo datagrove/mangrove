@@ -29,7 +29,7 @@ import { createEffect, createResource } from "solid-js";
 
 import { pencil } from "solid-heroicons/solid";
 import { useNavigate } from "@solidjs/router";
-import { SiteDocument, readAll, useDocument } from "../core";
+import { SiteDocument, readAll, useDocument, usePage } from "../core";
 
 
 
@@ -94,8 +94,8 @@ export interface RteProps {
 }
 export function RichTextEditor(props: RteProps) {
   const nav = useNavigate()
-  const doc = useDocument()
-  const [h] = createResource(doc, readAll)
+  const doc = usePage()
+  const [h] = createResource(doc.path, readAll)
 
   const onedit = () => {
     nav('')
@@ -182,8 +182,8 @@ export function TextEditor() {
 // note that as html / markdown we'll have to resolve links relative to the doc
 export function TextViewer() {
   const nav = useNavigate()
-  const doc = useDocument()
-  const [h] = createResource(doc, readAll)
+  const doc = usePage()
+  const [h] = createResource(doc.path, readAll)
 
   const onedit = () => {
     nav('#edit')

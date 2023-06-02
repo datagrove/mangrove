@@ -81,7 +81,7 @@ export function SheetViewer() {
     // const ed = new Editor
     // let edel: HTMLDivElement
     let tombstone: HTMLDivElement
-    const [debugstr, setDebugstr] = createSignal("woa")
+  
     const N = 100
 
     const c : Column[] = []
@@ -117,7 +117,6 @@ export function SheetViewer() {
             height: est,
         }
         const s = new Scroller(props)
-        setDebugstr(JSON.stringify(s, null, 2))
         const r = () => {
             // we should be able to adjust grid options here.
             // maybe just use update?

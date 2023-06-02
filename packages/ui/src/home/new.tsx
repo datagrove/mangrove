@@ -1,9 +1,11 @@
-import { For, Show, Signal, createSignal } from "solid-js"
+import { For, Show, Signal, createEffect, createSignal } from "solid-js"
 import { ListTile, Modal, Text, ModalBody, ModalButton, ModalTitle, SearchProps, SelectionList, UploadButton, SearchableView } from "./dialog"
 import { arrowUp } from "solid-heroicons/solid"
 import { H2 } from "../layout/nav"
 import { FacetSelect, SiteRef, db } from "../db"
-import { SearchBox } from "./search"
+import { IconPath, SearchBox } from "./search"
+import { useNavigate } from "@solidjs/router"
+import { Input } from "../lib/input"
 
 
 // Pick Group
@@ -119,26 +121,45 @@ export async function pickNewFile() {
 }
 const [recentGroup,setRecentGroup] = createSignal<SiteRef>({ name: "Private", did: "" })
 
-export function NewModal() {
-      const upload = () => {
-        setShowNew(false)
-    }
-    const newPage = () => {
-        setShowNew(false)
-    }
-    const newFolder = () => {
-        setShowNew(false)
-    }
+interface NewTool {
+    name: string
+    icon: IconPath
+    create: (handle: number)=>void
+}
+const allNew = [
+    { name: "Site", icon: arrowUp, create: (handle: number)=>{} },
+    { name: "Folder", icon: arrowUp, create: (handle: number)=>{} },
+    { name: "Page", icon: arrowUp, create: (handle: number)=>{} },
+    { name: "Sheet", icon: arrowUp, create: (handle: number)=>{} },
+]
 
+
+export function NewModal() {
+    const nav = useNavigate()
+    let el: HTMLInputElement
+    createEffect(() => {
+        if (showNew()) el.focus()
+    })
+
+    const create = (tool: NewTool) => {
+        const gr = recentGroup()
+
+        tool.create(0)
+        setShowNew(false)
+        // navigate to the new page in the editor
+        // insert the new page into the database
+
+    }
     return <Modal when={showNew()}>
             <ModalTitle onCancel={()=>setShowNew(false)}>New Page</ModalTitle>
             <ModalBody class='space-y-6'>
             <GroupPicker value={recentGroup()} onChange={setRecentGroup} />
-                <div class='flex flex-wrap space-x-2'>
-                    
+            <div><Input ref={el!} value='' placeholder='Name your page' /></div>
+                <div class='flex flex-wrap space-x-4 '>
                     <UploadButton />
-                    <ModalButton onClick={upload} path={arrowUp} text="Page" />
-                    <ModalButton onClick={upload} path={arrowUp} text="Folder" />
+                    <For each={allNew}>{ (e,i) => {
+                        return <ModalButton onClick={()=>create(e)} path={e.icon} text={e.name} />
+                    }}</For>
                 </div>
             </ModalBody>
         </Modal>

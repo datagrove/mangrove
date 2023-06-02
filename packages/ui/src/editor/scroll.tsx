@@ -263,7 +263,8 @@ export class Scroller {
         this.anchorItem.index = props.row?.initial?.row ?? 0
 
         this.scroller_.addEventListener('scroll', () => this.onScroll_());
-
+        window.addEventListener('resize', this.onResize_.bind(this));
+        
         const d = document.createElement('div');
         d.textContent = ' ';
         d.style.position = 'absolute';
