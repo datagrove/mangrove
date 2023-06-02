@@ -23,9 +23,15 @@ export interface SiteRef {
     did: string
 }
 
+
+export type FacetSelect<T> = {
+    limit?: number
+    offset?: number
+}
 export class Db {
     public constructor(public w: SendToWorker) {
     }
+
 
     recentGroup(n: number) {
         const group :SiteRef = {

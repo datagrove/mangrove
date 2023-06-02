@@ -1,34 +1,32 @@
-import { For, Show, createSignal } from "solid-js"
-import { ListTile, Modal, Text, ModalBody, ModalButton, ModalTitle, SearchProps, SelectionList, UploadButton } from "./dialog"
+import { For, Show, Signal, createSignal } from "solid-js"
+import { ListTile, Modal, Text, ModalBody, ModalButton, ModalTitle, SearchProps, SelectionList, UploadButton, SearchableView } from "./dialog"
 import { arrowUp } from "solid-heroicons/solid"
 import { H2 } from "../layout/nav"
-import { SiteRef, db } from "../db"
+import { FacetSelect, SiteRef, db } from "../db"
 import { SearchBox } from "./search"
 
 
+// Pick Group
 
-// all files are associated with a group/site that can read and maybe write files in the group
-
-// we have standard groups of public and private
-// 
-
-// what about categories of results?
-async function writableGroups(props: SearchProps<SiteRef>): Promise<SiteRef[]> {
-    return [
-        { name: "Private", did: "" },
-        { name: "Public", did: "" },
-    ]
-}
-
-export interface DropProps {
-    files: FileList
-    group: SiteRef   // this is the default 
-}
-export const [showDrop, setShowDrop] = createSignal<DropProps | undefined>(undefined)
-export const [showNew, setShowNew] = createSignal(false)
-
+// should be HOC, that returns { Dialog(), picker()}
+// [ Dialog, picker ] = createDialog<Props,Result>( ()=>{ }, searcher? )
 export type Dialog<Props, Result> = [props: Props, resolve: (result: Result) => void]|undefined
 const [showGroupPicker, setShowGroupPicker] = createSignal<Dialog<SiteRef,SiteRef>>()
+async function groupPicker(group: SiteRef): Promise<SiteRef> {
+    return new Promise((resolve, reject) => {
+        // dialogs can take parameters, and a setter with result
+        setShowGroupPicker([group, resolve])
+    })
+}
+export const searchWritableGroups : SearchableView<SiteRef> = {
+    search: async (x: FacetSelect<any>): Promise<SiteRef[]> => {
+            return [
+                { name: "Private", did: "" },
+                { name: "Public", did: "" },
+            ]
+    },
+    facets: []
+}
 
 // a modal to pick a group
 export const PickGroupModal = () => {
@@ -39,8 +37,8 @@ export const PickGroupModal = () => {
         <div class='flex flex-col space-y-2'>
         <SelectionList
             prefix=""
-            label='Write to Group'
-            search={writableGroups}
+            label="Groups"
+            view={searchWritableGroups}
         >
            { e=> <ListTile>Private</ListTile> }
             </SelectionList>
@@ -49,30 +47,40 @@ export const PickGroupModal = () => {
         </Modal></Show>
 }
 
-// from drop files; we off a chance to set the group
-// we might have dropped it on the group reference, then that should be the default
-
-// can we make this async? Is that more organized?
-export function uploadFiles(fl: FileList, group: SiteRef) {
-    setShowDrop({
-        files: fl,
-        group: group
-    })
+interface PickerProp<T> {
+    value: T
+    onChange: (x: T) => void
+}
+export function GroupPicker(props: PickerProp<SiteRef>) {
+     const pickGroup = async () => {
+        props.onChange( await groupPicker(props.value))
+    }
+    return <div>Upload to <Text onClick={pickGroup}> {props.value.name}</Text></div>
 }
 
-async function groupPicker(group: SiteRef): Promise<SiteRef> {
+///////////////////
+// drop file dialog
+export interface DropProps {
+    files: FileList
+    group: SiteRef   // this is the default 
+}
+export const [showDrop, setShowDrop] = createSignal<Dialog<DropProps,void>>()
+// can we make this async? Is that more organized?
+export async function uploadFiles(fl: FileList, group: SiteRef) {
     return new Promise((resolve, reject) => {
-        // dialogs can take parameters, and a setter with result
-        setShowGroupPicker([group, resolve])
+        setShowDrop([{
+            files: fl,
+            group: group
+        }, resolve])
     })
 }
 
 export function DropModal() {
     const [group,setGroup] = createSignal<SiteRef>({name:"Private", did:""})
     const upload = () => {
-        db()!.uploadFiles(showDrop()!.files!, showDrop()!.group!.did)
+        db()!.uploadFiles(showDrop()![0].files!, showDrop()![0].group!.did)
     }
-    const fileList = () => showDrop()?.files;
+    const fileList = () => showDrop()![0].files;
     const fileNames = () => Array.from(fileList() || []).map((file) => file.name);
 
     const pickGroup = async () => {
@@ -82,8 +90,8 @@ export function DropModal() {
         <Modal>
             <ModalTitle onOk={upload} onCancel={()=>setShowDrop(undefined)}>Upload Files</ModalTitle>
             <ModalBody>
-                <div>Upload to <Text onClick={pickGroup}> { showDrop()!.group.name }</Text></div>
-            {showDrop()?.files?.length ?? 0} files to upload
+                <GroupPicker value={recentGroup()} onChange={setRecentGroup}/>
+            {showDrop()![0].files?.length ?? 0} files to upload
             <For each={fileNames()}>{ (e,i) => {
                 return <div>{e}</div>
             }}</For>
@@ -91,11 +99,28 @@ export function DropModal() {
         </Modal>
     </Show>
 }
-export function NewModal() {
-    // we could pick a template or a group, similar dynamic?
 
-    const [group, setGroup] = createSignal<SiteRef>({ name: "Private", did: "" })
-    const upload = () => {
+// all files are associated with a group/site that can read and maybe write files in the group
+
+// we have standard groups of public and private
+// 
+
+// what about categories of results?
+
+
+
+// new file dialog
+export const [showNew, setShowNew] = createSignal(false)
+
+export async function pickNewFile() {
+    return new Promise((resolve, reject) => {
+        setShowNew(true)
+    })
+}
+const [recentGroup,setRecentGroup] = createSignal<SiteRef>({ name: "Private", did: "" })
+
+export function NewModal() {
+      const upload = () => {
         setShowNew(false)
     }
     const newPage = () => {
@@ -105,22 +130,18 @@ export function NewModal() {
         setShowNew(false)
     }
 
-
-    return <Show when={showNew()}>
-        <Modal>
-            <Show when={!showGroupPicker()} >
-
+    return <Modal when={showNew()}>
+            <ModalTitle onCancel={()=>setShowNew(false)}>New Page</ModalTitle>
+            <ModalBody class='space-y-6'>
+            <GroupPicker value={recentGroup()} onChange={setRecentGroup} />
                 <div class='flex flex-wrap space-x-2'>
-                    <div>
-                        <ListTile >{group()}</ListTile>
-                    </div>
-                    <div></div>
+                    
                     <UploadButton />
                     <ModalButton onClick={upload} path={arrowUp} text="Page" />
                     <ModalButton onClick={upload} path={arrowUp} text="Folder" />
-
-                </div></Show>
+                </div>
+            </ModalBody>
         </Modal>
-    </Show>
+    
 
 }

@@ -17,7 +17,7 @@ import { Message } from "./message";
 import { Graphic, SitePage, SitePageContext, Tool, contentLeft, getUser, layout, left, login, menuToggle, mobile, online, setLayout, setLeft, showPanel, showTools, useUser, userState } from "../core";
 import { EditTool, EditViewer } from "./edit";
 import { MapTool, MapViewer } from "./map";
-import { DropModal, NewModal, PickGroupModal, setShowNew, uploadFiles } from "./new";
+import { DropModal, NewModal, PickGroupModal, pickNewFile, setShowNew, uploadFiles } from "./new";
 import { db } from "../db";
 import { Database } from "../lib/db";
 
@@ -188,11 +188,14 @@ export function LoggedIn2() {
   // or split to content
   // or maybe we should do what gmail does and just show a hamburger for that.
 
+  const newFile = async() => {
+    const r = await pickNewFile()
+  }
 
   const Toolicons = () => {
     return <div class='w-14 flex-col flex mt-4 items-center space-y-6'>
       <RoundIcon path={menu} onClick={menuToggle} />
-      <RoundIcon path={plusCircle} onClick={()=>setShowNew(true)} />
+      <RoundIcon path={plusCircle} onClick={newFile} />
       <For each={userState().tools}>{(e, i) => {
         const tl = tools()[e]
         return <Switch>
