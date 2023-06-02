@@ -21,6 +21,7 @@ export class TableContext {
     row = 0
     column!: Column
     offset = 0
+    data : any = null
     //get key() { return this.scroller.props.state.columns?.order }
 
     // alloc(n: number): [Map<number, HTMLElement>, HTMLElement[]] {

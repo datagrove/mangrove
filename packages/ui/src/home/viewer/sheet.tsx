@@ -150,3 +150,41 @@ export function SheetViewer() {
 
 
 
+// a sheet state is 
+// sparse cell[] 
+// row[]
+
+export interface Format {
+
+}
+// row or column
+export interface Rc {
+    ptr: number
+    format: Format
+    size: number
+}
+export interface SheetCell {
+    // a crdt holds the cell data
+}
+
+// rows and columns are rearranged, but not truly inserted or deleted.
+// to colaborate, we want to move the rows and columns according to RGA, the ptr can be the tie breaker.
+export interface Sheet {
+    rc: Rc[]  // 1 million 
+    columns: Rc[]  // 16K
+    cells: SheetCell[]
+
+    reverseRow: { [key: number]: number }
+    reverseColumn: { [key: number]: number }
+}
+
+// last writer wins
+export interface MoveRc {
+    from: number
+    after: number
+    size: number
+}
+
+// everything else changes cells alone, referenced by its original ptr.
+// column size 
+

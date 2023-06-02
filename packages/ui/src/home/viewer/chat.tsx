@@ -27,8 +27,14 @@ import { handThumbUp as reactionIcon , arrowUturnLeft as  replyIcon, hashtag as 
 // images are generall sent with a message.
 // what about grouping these in the query?
 
-// chat panels are mostly ordered, like a spreadsheet
+// chat panels are mostly ordered, like a spreadsheet (but no blank rows, 1 column)
 // chat viewers are sorted by date, like a table
+
+// this should basically be edited as lexical document?
+// it could be displayed with threads dynamically added (and removed)
+// maybe "more" to solve disappearing threads? This could show the threads as a table.
+// maybe it should be compiled back and forth for optimization?
+
 const show = [
     {
         "name": "Messages",
@@ -152,44 +158,44 @@ async function getChats(cursor: ChatQuery,x: {value:any, refetching: boolean}  )
 }
 // can we build a subscribe resource on top of this?
 
-export function watchRange<T,Q>(path: string) {
+// we don't need a mutator here; the local database will return right away.
+interface ScanQuery {
+    site: string    // the site can import the schema to give it versioning?
+    table: string   // schema.table
+    // one of from or two is needed.
+    from?: string | Uint8Array // needs to include the site key
+    to?: string | Uint8Array
+    limit?: number
+    offset?: number
+}
+// instead of a signal for every row, we have a diff signal for the range.
+// 
+
+// when syncing the database will send an insert for the global version and a delete for the old version
+export interface TableUpdate {
+    type: 'replace' | 'delete'
+    key: Uint8Array[]
+    version: number
+    value: Uint8Array[]  // in some cases this could be a delta too. we could invoke a blob then? maybe the (handle,length) of the bloglog changes to trigger.
+}
+
+// only one db?
+export function listen(query: ScanQuery, setO: (o: TableUpdate[]) => void) {
+
+}   
+// there is some racing here, but it can be managed by the database thread
+type UpdateListen = (query: ScanQuery) => void
+export function closeListen(query: ScanQuery) {
+
+}
+export function watchRange(query: ScanQuery) : [Accessor<TableUpdate[]> ,UpdateListen]{
     // should I diff here? a self mutating signal would be counter to normal practice
     // potentially once we are done with an effect, we could advance? not clearly better.
-
+    const [o,setO] = createSignal<TableUpdate[]>([])
+    listen(query,setO)
+    return [o, (q: ScanQuery) => {}]
 }
 
-export function watchCell(){
-    
-}
-
-function SomeCellUser() {
-    // mount a lexical editor and watch the cell
-
-}
-
-
-
-function SomeRangeUser() {
-    // the normal input signal idea might be odd for scrolling
-    // use mutate for that? if we create our own resource-like thing, how?
-    const [a,scrollTo] = watchRange({path: "somepath", offset: 0, length: 10})
-    let ed: Scroller
-    onMount(()=>{
-        // we need a call back that lets us know when the scroller wants to modify the range.
-        ed = new Scroller(el,scrollTo)
-
-    })
-    createEffect(()=>{
-        // don't call this again before you apply all the changes. Be careful to not call async in setA()
-        ed.apply(a())
-
-    })
-}
-export function watchFile(path: string) : Accessor<number> {
-    const [state, setState] = createSignal(0)
-
-    return state
-}
 
 // any message (message group?) can change at any time.
 // [chats, refresh] = createResource(path, getChats)
@@ -198,72 +204,65 @@ export function watchFile(path: string) : Accessor<number> {
 // create table(gtime, message)
 // I want to subscribe to a range , the signal could give me just a version
 // or could it stream differences? or either?
+// we might have a last read from state in our user state
+
+// chat's can be deleted, but cannot be inserted.
+// should we take advantage of this though? scroller should suport insertions?
+// insertions can only be based on position, not really on key?
+// afterKey becomes hard if the key gets deleted? 
+// deletions mess up the count.
+// not all virtual scrollers necessarily have a count.
+// only create the scroller once, even if the data changes
+
 export function ChatViewer() {
-    const sp = usePage()
-
-    // this can return a signal that the server modifies
-    const wf = watchFile(sp.path)
-
-    const req = ():ChatQuery  => { 
-        return {
-            path: sp.path,
-            lastRead: wf(),
-            offset: 0,
-        }
-    }
-    const res = {
-        message: [],
-        offset: 0,
-        count: 0
-    }
-    const cache = {
-        built:[]  // 
-    }
-    const [doc, {mutate,refetch}] = createResource(req, getChats)
-    // we might have a last read from state in our user state
-
-    
     let el: HTMLDivElement | null = null
     let el2: HTMLDivElement | null = null   
     let ed: Scroller
 
-    // chat's can be deleted, but cannot be inserted.
-    // should we take advantage of this though? scroller should suport insertions?
-    // insertions can only be based on position, not really on key?
-    // afterKey becomes hard if the key gets deleted? 
-    // deletions mess up the count.
-    // not all virtual scrollers necessarily have a count.
-    // only create the scroller once, even if the data changes
+    const sp = usePage()
+
+    // we need to compute the from key using user lastRead.
+    // this can return a signal that the server modifies
+    const q : ScanQuery = {
+        site: sp.path,
+        table: "chat",
+        from: sp.path,
+        limit: 1000
+    }
+
+    const [wf, upd] = watchRange(q)
+
     onMount(() => {
         const cm = new Map<number, Column>()
+        // we don't really know how many rows we will have when we mount.
         let opts: ScrollerProps = {
             container: el!,
-            row: {
-                count: req().lastRead,
-            },
             // we could cache and revoke the context.
             // we could 
             // builder could be async? cause a refresh?
             builder: function (ctx: TableContext): void {
                 // if we don't have ctx.row then fetch and return a tombstone
                 // 
-                const o: Message = chats[ctx.row]
+                const o = ctx.data as Message
                 // maybe render with some kind of key, so that we can later
                 // 
                 ctx.render(<MessageWithUser message={o} />)
             }
         }
-        ed = new Scroller(opts)
+        // maybe give the scroller a signal that it can use to ask for more
+        ed = new Scroller(opts,)
+    })
+    createEffect(() => {
+        const o = wf()
+        for (let i = 0; i < o.length; i++) {
+            const u = o[i]
+            ed.update(u.key, u.value)
+        }
     })
     // anything can change, we need to let the scroller know
     // some changes can be deletions and insertions.
     // some could be character by character, probably probably not here.
-    createEffect(() => {
-        // do some kind of diff?
 
-        // we 
-        ed.
-    })
   
     const send = (html: any) => {
         console.log(html)
@@ -300,6 +299,7 @@ function MenuIcon(props: { path: IconPath, onClick: () => void }) {
 import { IconPath } from "../search"
 import { Icon } from "solid-heroicons"
 import { SectionNav } from "../site_menu"
+import { Db } from "../../db"
 function MessageMenu(props: { message: Message }) {
     const reply = () => {}
     const dots = () => {}
