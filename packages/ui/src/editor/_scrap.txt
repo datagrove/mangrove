@@ -1,0 +1,11 @@
+// GridUpdate should be related to the initial parameters
+// It is a delta though, which allows us to handle animiation here if we want.
+
+// steps can be strung together into transactions.
+// these changes may come from a server or from the user.
+export interface ScrollerTx {
+    functor: string[]
+    parameters: any[]
+}
+type plugin = (tx: ScrollerTx) => void
+

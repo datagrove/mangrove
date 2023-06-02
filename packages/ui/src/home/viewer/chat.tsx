@@ -214,9 +214,18 @@ export function watchRange(query: ScanQuery) : [Accessor<TableUpdate[]> ,UpdateL
 // not all virtual scrollers necessarily have a count.
 // only create the scroller once, even if the data changes
 
+export class RangeView<T> {
+    data: T[] = []
+
+    apply(updates: TableUpdate[]) {
+
+    }
+}
+
 export function ChatViewer() {
     let el: HTMLDivElement | null = null
     let el2: HTMLDivElement | null = null   
+    const [anchor,setAnchor] = createSignal(0)
     let ed: Scroller
 
     const sp = usePage()
@@ -231,12 +240,15 @@ export function ChatViewer() {
     }
 
     const [wf, upd] = watchRange(q)
+    const tr = new RangeView<Message>()
 
+    // maybe instead of a builder we should 
     onMount(() => {
         const cm = new Map<number, Column>()
         // we don't really know how many rows we will have when we mount.
         let opts: ScrollerProps = {
             container: el!,
+            onChange: setAnchor,
             // we could cache and revoke the context.
             // we could 
             // builder could be async? cause a refresh?
@@ -249,15 +261,16 @@ export function ChatViewer() {
                 ctx.render(<MessageWithUser message={o} />)
             }
         }
-        // maybe give the scroller a signal that it can use to ask for more
-        ed = new Scroller(opts,)
+        // maybe give the scroller a signal that it can use to ask for more?
+        
+        ed = new Scroller(opts)
     })
     createEffect(() => {
-        const o = wf()
-        for (let i = 0; i < o.length; i++) {
-            const u = o[i]
-            ed.update(u.key, u.value)
-        }
+        // we could return the net change in rows
+        // we need to translate the scroller anchor into a key?
+        const a = anchor()  // depends on anchor
+        tr.apply(wf())
+        
     })
     // anything can change, we need to let the scroller know
     // some changes can be deletions and insertions.

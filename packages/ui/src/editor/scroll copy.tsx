@@ -83,9 +83,6 @@ export interface RowState {
 // these are part of instantiating a scroller, but can't be serialized
 export interface ScrollerProps {
     container: HTMLElement
-
-    // what if we replaced the builder, instead we directly manipulate the array?
-    // we need be able to invalidate the array so it can be remeasured?
     builder: BuilderFn,
 
     row?: RowState
@@ -97,14 +94,14 @@ export interface ScrollerProps {
     onChange?: (i: number)=>void
 }
 
-// interface GridUpdate {
-//     props: ScrollerProps  // new description
-//     // these must be sorted and not overlap.
-//     // the index for an insert is new location of the row, others will be shifted down
-//     // we could calulate by diff? how do we move/reorder rows or columns?
-//     rows: [Op, number, number][]
-//     columns: [Op, number, number][]
-// }
+interface GridUpdate {
+    props: ScrollerProps  // new description
+    // these must be sorted and not overlap.
+    // the index for an insert is new location of the row, others will be shifted down
+    // we could calulate by diff? how do we move/reorder rows or columns?
+    rows: [Op, number, number][]
+    columns: [Op, number, number][]
+}
 
 
 
@@ -115,16 +112,22 @@ function rotate<T>(a: T[], n: number) {
     return a;
 }
 
-// each row is a div. this simplifies some things and make other things harder
-// the main appeal of this is that we can measure the height of a row in one operation
 // index is given to builder to build the dom. inf indicates nto as
 // arrays are basically maps of int, so we don't need to have complete vectors
 // especially if we have uniform columns like a 2d map
 export class TableRow {
+
+    //node = new Map<any, HTMLElement>
+    //el: HTMLElement[] = []
     constructor(public node: HTMLElement) {
+        // this.el = [item]
+        // this.node.set(0, item)
     }
+    // on an update we can scan this to 
     height = 0
+    //width: number 
     top = 0
+
 }
 
 // index is the top visible item, offset is how far scroll off the top it is (0 is flush to top)
@@ -133,6 +136,24 @@ interface Anchor {
     offset: number
 }
 
+export enum Op {
+    Insert,
+    Delete,
+    Update,
+}
+
+
+// GridUpdate should be related to the initial parameters
+// It is a delta though, which allows us to handle animiation here if we want.
+
+// steps can be strung together into transactions.
+// these changes may come from a server or from the user.
+export interface ScrollerTx {
+    functor: string[]
+    parameters: any[]
+}
+type plugin = (tx: ScrollerTx) => void
+
 // these should only be on our runway. doesn't need to start at 0.
 // when we get a snapshot update we should diff the T's to see if we can reuse the dom we have created.
 //rendered_start_ = 0
@@ -140,7 +161,6 @@ interface Anchor {
 // to be wrapped by react with useEffect.
 export class Scroller {
     scroller_: HTMLElement
-    // we could set an entire array, then check a dirty flag to see if we remeasure.
     rendered_: TableRow[] = [];
     length_ = 0
     topPadding = 0
@@ -162,6 +182,13 @@ export class Scroller {
     //header!: HTMLDivElement
     headerRow!: HTMLElement
     headerHeight = 0
+
+    plugin: plugin[] = []
+
+    apply(tx: ScrollerTx) {
+        this.plugin.forEach(p => p(tx))
+
+    }
 
     // when we create a div it should be display none and absolute and a child of the scroller
     // tombstone.style.position = 'absolute'
@@ -258,6 +285,7 @@ export class Scroller {
             r.style.zIndex = '800'
             this.headerRow = r
 
+
             // should we measure the header or just truncate?
             // eventually we will want to have all these as floating divs
             // absolute? easier to animate?
@@ -279,10 +307,26 @@ export class Scroller {
         this.onResize_()
     }
 
+    /*
+                    (this.headerRow.children[i] as HTMLDivElement).style.width = c.width + 'px'
+                if (!this.headerCell[i]) {
+                    this.headerCell[i] = this.div2()
+                }
+                this.headerCell[i].style.width = c.width + 'px'
+                this.headerCell[i].innerHTML = c.header
+                this.headerCell[i].style.transform = `translate(${st}px,0)`;
+                h = Math.max(h, this.headerCell[i].offsetHeight)
+                */
+
+
     close() {
         this.scroller_.replaceChildren()
     }
 
+    update(update: GridUpdate) {
+        // this can be called on resize
+        // 
+    }
     // called when the number or rows changes, but is this necessary?
     resizeData() {
         // 50 might not be enough? 4000/24 = 166
@@ -506,12 +550,7 @@ export class Scroller {
     }
 }
 
-const Td = (props: { children?: JSXElement }) => {
-    return <td>{props.children} </td>
-}
-const Th = (props: { children?: JSXElement }) => {
-    return <td>{props.children} </td>
-}
+
 interface ResizeData {
     startX: number;
     startWidth: number;
