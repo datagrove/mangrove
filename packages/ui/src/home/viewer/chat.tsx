@@ -3,7 +3,7 @@
 // if clicking a thread in column x, default to opening in column x+1?
 // probably use vscode way of explicit splittings
 
-import { Accessor, createEffect, createResource, createSignal } from "solid-js"
+import { Accessor, createEffect, createResource, createSignal, onMount } from "solid-js"
 import { Column, Scroller, ScrollerProps, TableContext } from "../../editor/scroll"
 import { faker } from "@faker-js/faker"
 import { getDocument, readAll, usePage } from "../../core"
@@ -27,6 +27,53 @@ import { handThumbUp as reactionIcon , arrowUturnLeft as  replyIcon, hashtag as 
 // images are generall sent with a message.
 // what about grouping these in the query?
 
+// chat panels are mostly ordered, like a spreadsheet
+// chat viewers are sorted by date, like a table
+const show = [
+    {
+        "name": "Messages",
+        "path": "/en/jim.hurd",
+        "children": [
+
+            {
+                "name": "Personal",
+                "path": "/en/jim.hurd",
+                "children": [
+                    {
+                        "name": "Theme",
+                        "path": "/en/jim.hurd"
+                    }
+                ]
+            },
+
+            {
+                "name": "Group",
+                "path": "/en/jim.hurd",
+                "children": [
+                    {
+                        "name": "Login",
+                        "path": "/en/jim.hurd"
+                    },
+                    {
+                        "name": "Recover",
+                        "path": "/en/jim.hurd"
+                    },
+                    {
+                        "name": "Register",
+                        "path": "/en/jim.hurd"
+                    }
+                ]
+            }
+        ]
+    }
+]
+
+export function ChatPanel() {
+    return <div class='w-full pb-16 pt-2 px-2'>
+        <SectionNav tabs={show} />
+    </div>
+}
+
 export interface Author {
     id: number
     avatarUrl: string    
@@ -48,7 +95,8 @@ export interface MessageData {
     replyTo: number
     daten: number
 }
-// after join.
+// rollup after join. maybe this should be a chat group
+// allows bubble formatting like signal
 export interface Message extends MessageData{
     author: Author
     date: string
@@ -104,19 +152,58 @@ async function getChats(cursor: ChatQuery,x: {value:any, refetching: boolean}  )
 }
 // can we build a subscribe resource on top of this?
 
+export function watchRange<T,Q>(path: string) {
+    // should I diff here? a self mutating signal would be counter to normal practice
+    // potentially once we are done with an effect, we could advance? not clearly better.
+
+}
+
+export function watchCell(){
+    
+}
+
+function SomeCellUser() {
+    // mount a lexical editor and watch the cell
+
+}
+
+
+
+function SomeRangeUser() {
+    // the normal input signal idea might be odd for scrolling
+    // use mutate for that? if we create our own resource-like thing, how?
+    const [a,scrollTo] = watchRange({path: "somepath", offset: 0, length: 10})
+    let ed: Scroller
+    onMount(()=>{
+        // we need a call back that lets us know when the scroller wants to modify the range.
+        ed = new Scroller(el,scrollTo)
+
+    })
+    createEffect(()=>{
+        // don't call this again before you apply all the changes. Be careful to not call async in setA()
+        ed.apply(a())
+
+    })
+}
 export function watchFile(path: string) : Accessor<number> {
     const [state, setState] = createSignal(0)
 
     return state
 }
 
+// any message (message group?) can change at any time.
 // [chats, refresh] = createResource(path, getChats)
 // asking for a chat we don't have will trigger a refresh
+// what is a our data model for chat?
+// create table(gtime, message)
+// I want to subscribe to a range , the signal could give me just a version
+// or could it stream differences? or either?
 export function ChatViewer() {
     const sp = usePage()
 
     // this can return a signal that the server modifies
     const wf = watchFile(sp.path)
+
     const req = ():ChatQuery  => { 
         return {
             path: sp.path,
@@ -124,28 +211,58 @@ export function ChatViewer() {
             offset: 0,
         }
     }
+    const res = {
+        message: [],
+        offset: 0,
+        count: 0
+    }
+    const cache = {
+        built:[]  // 
+    }
     const [doc, {mutate,refetch}] = createResource(req, getChats)
     // we might have a last read from state in our user state
 
     
     let el: HTMLDivElement | null = null
     let el2: HTMLDivElement | null = null   
-    createEffect(() => {
+    let ed: Scroller
+
+    // chat's can be deleted, but cannot be inserted.
+    // should we take advantage of this though? scroller should suport insertions?
+    // insertions can only be based on position, not really on key?
+    // afterKey becomes hard if the key gets deleted? 
+    // deletions mess up the count.
+    // not all virtual scrollers necessarily have a count.
+    // only create the scroller once, even if the data changes
+    onMount(() => {
         const cm = new Map<number, Column>()
         let opts: ScrollerProps = {
             container: el!,
             row: {
                 count: req().lastRead,
             },
+            // we could cache and revoke the context.
+            // we could 
             // builder could be async? cause a refresh?
             builder: function (ctx: TableContext): void {
                 // if we don't have ctx.row then fetch and return a tombstone
                 // 
                 const o: Message = chats[ctx.row]
+                // maybe render with some kind of key, so that we can later
+                // 
                 ctx.render(<MessageWithUser message={o} />)
             }
         }
-        let ed = new Scroller(opts)
+        ed = new Scroller(opts)
+    })
+    // anything can change, we need to let the scroller know
+    // some changes can be deletions and insertions.
+    // some could be character by character, probably probably not here.
+    createEffect(() => {
+        // do some kind of diff?
+
+        // we 
+        ed.
     })
   
     const send = (html: any) => {
@@ -182,6 +299,7 @@ function MenuIcon(props: { path: IconPath, onClick: () => void }) {
 }
 import { IconPath } from "../search"
 import { Icon } from "solid-heroicons"
+import { SectionNav } from "../site_menu"
 function MessageMenu(props: { message: Message }) {
     const reply = () => {}
     const dots = () => {}
@@ -199,12 +317,12 @@ function MessageMenu(props: { message: Message }) {
 function MessageWithUser(props: { message: Message }) {
     return (
         <div class="flex py-0.5 pl-4 mt-[17px] leading-[22px] hover:bg-neutral-900 group">
-            <img class="mr-3 inline-block h-14 w-14 rounded-full" src={props.message.avatarUrl} alt=""/>
+            <img class="mr-3 inline-block h-14 w-14 rounded-full" src={props.message.author.avatarUrl} alt=""/>
             <div>
                 <div class="flex items-baseline">
                     <div class="flex-grow">
                     <span class="mr-2 font-medium text-green-400">
-                        {props.message.user}
+                        {props.message.author.display}
                     </span>
                     <span class="text-xs font-medium text-gray-400">
                         {props.message.date}

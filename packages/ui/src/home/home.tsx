@@ -7,13 +7,12 @@ import { useLn } from "../login/passkey_i18n";
 
 import { Icon, } from "solid-heroicons";
 import { signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, arrowsRightLeft as eastWest, map, plusCircle } from "solid-heroicons/solid";
-import { ChatViewer } from "./viewer";
+import { ChatPanel, ChatViewer } from "./viewer";
 import { SettingsViewer } from "./settings";
 import { DarkButton } from "../lib";
 import { createWindowSize } from "@solid-primitives/resize-observer";
 import { SearchPanel, SearchViewer } from "./search";
 import { Settings } from "./settings";
-import { Message } from "./message";
 import { Graphic, SitePage, SitePageContext, Tool, contentLeft, getUser, layout, left, login, menuToggle, mobile, online, setLayout, setLeft, showPanel, showTools, useUser, userState } from "../core";
 import { EditTool, EditViewer } from "./edit";
 import { MapTool, MapViewer } from "./map";
@@ -32,13 +31,13 @@ const builtinTools: { [key: string]: Tool } = {
   // Message component is also used for the alerts - how?
   "dm": {
     icon: () => <FloatIcon path={friend} />,
-    component: () => <Message />,
+    component: () => <ChatPanel />,
     path: 'a/b/chat',
     viewer: ChatViewer
   },
   "watch": {
     icon: () => <FloatIcon path={friend} />,
-    component: () => <Message />,
+    component: () => <ChatPanel />,
     path: 'a/b/chat',
     viewer: ChatViewer
   },
