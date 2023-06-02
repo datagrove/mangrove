@@ -4,7 +4,7 @@
 // probably use vscode way of explicit splittings
 
 import { Accessor, createEffect, createResource, createSignal, onMount } from "solid-js"
-import { Column, Scroller, ScrollerProps, TableContext } from "../../editor/scroll"
+import { Column, Scroller, ScrollerProps, TableContext, TableRow } from "../../editor/scroll"
 import { faker } from "@faker-js/faker"
 import { getDocument, readAll, usePage } from "../../core"
 import { RteProps } from "../../lexical"
@@ -21,6 +21,7 @@ import { EditorState, LexicalEditor, $getRoot, $getSelection, KEY_ENTER_COMMAND,
 import {$getHtmlContent} from '@lexical/clipboard'
 import { TextMenu } from "../../lexical/menu"
 import { handThumbUp as reactionIcon , arrowUturnLeft as  replyIcon, hashtag as threadIcon, ellipsisHorizontal as dotsIcon} from 'solid-heroicons/solid'
+import { Message } from "../../db"
 
 // multiple messages close to each should be grouped
 // date changes need a divider
@@ -80,123 +81,6 @@ export function ChatPanel() {
     </div>
 }
 
-export interface Author {
-    id: number
-    avatarUrl: string    
-    username: string
-    display: string // can change in the forum
-}
-export interface Reaction {
-    author: number
-    emoji: string
-}
-export interface Attachment {
-    type: string
-    url: string
-}
-export interface MessageData {
-    id: number
-    authorid: number
-    text: string
-    replyTo: number
-    daten: number
-}
-// rollup after join. maybe this should be a chat group
-// allows bubble formatting like signal
-export interface Message extends MessageData{
-    author: Author
-    date: string
-    reactions: Reaction[]
-    attachment: Attachment[]
-}
-
-// facets: author, channel, reactions
-
-async function author(id: number) : Promise<Author> {
-    return {
-        id: id,
-        username: faker.internet.userName(),
-        display: faker.person.fullName(),
-            avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",        
-    }
-}
-
-async function fake() : Promise<Message[]> {
-    const chats: Message[] = []
-    for (let i = 0; i < 100; i++) {
-        chats.push({
-            text: faker.lorem.paragraph(),
-            author: await author(i % 3),
-            date: faker.date.recent().toLocaleDateString(),
-            reactions: [],
-            attachment: [],
-            id: 0,
-            authorid: 0,
-            replyTo: 0,
-            daten: 0
-        })     
-    }
-    return chats
-}
-
-interface ChatQuery {
-    path: string    // should I be fetching from inode?
-    lastRead: number   // get from user state, change to current date to scroll to end
-    offset: number
-}
-interface ChatCursor {
-
-    message: Message[]
-}
-// can we return a signal that refresh is needed?
-// the returned value already is a signal of sorts
-async function getChats(cursor: ChatQuery,x: {value:any, refetching: boolean}  ) : Promise<ChatCursor> {
-    const chats = fake()
-    return {
-        message: []
-    }
-}
-// can we build a subscribe resource on top of this?
-
-// we don't need a mutator here; the local database will return right away.
-interface ScanQuery {
-    site: string    // the site can import the schema to give it versioning?
-    table: string   // schema.table
-    // one of from or two is needed.
-    from?: string | Uint8Array // needs to include the site key
-    to?: string | Uint8Array
-    limit?: number
-    offset?: number
-}
-// instead of a signal for every row, we have a diff signal for the range.
-// 
-
-// when syncing the database will send an insert for the global version and a delete for the old version
-export interface TableUpdate {
-    type: 'replace' | 'delete'
-    key: Uint8Array[]
-    version: number
-    value: Uint8Array[]  // in some cases this could be a delta too. we could invoke a blob then? maybe the (handle,length) of the bloglog changes to trigger.
-}
-
-// only one db?
-export function listen(query: ScanQuery, setO: (o: TableUpdate[]) => void) {
-
-}   
-// there is some racing here, but it can be managed by the database thread
-type UpdateListen = (query: ScanQuery) => void
-export function closeListen(query: ScanQuery) {
-
-}
-export function watchRange(query: ScanQuery) : [Accessor<TableUpdate[]> ,UpdateListen]{
-    // should I diff here? a self mutating signal would be counter to normal practice
-    // potentially once we are done with an effect, we could advance? not clearly better.
-    const [o,setO] = createSignal<TableUpdate[]>([])
-    listen(query,setO)
-    return [o, (q: ScanQuery) => {}]
-}
-
-
 // any message (message group?) can change at any time.
 // [chats, refresh] = createResource(path, getChats)
 // asking for a chat we don't have will trigger a refresh
@@ -214,6 +98,7 @@ export function watchRange(query: ScanQuery) : [Accessor<TableUpdate[]> ,UpdateL
 // not all virtual scrollers necessarily have a count.
 // only create the scroller once, even if the data changes
 
+/*
 export class RangeView<T> {
     data: T[] = []
 
@@ -221,29 +106,15 @@ export class RangeView<T> {
 
     }
 }
-
-// we need to get the last read location (shared among all one user's devices)
-interface Usage {
-    lastRead: number
-}
-export async function getUsage(path: string) : Promise<Usage> {
-    return {
-        lastRead: 0
-    }
-}
-export async function setUsage(path: string, usage: Usage) {
-
-}
+*/
 
 export function ChatViewer() {
     let el: HTMLDivElement | null = null
     let el2: HTMLDivElement | null = null   
-    const [anchor,setAnchor] = createSignal(0)
+
     let ed: Scroller
 
     const sp = usePage()
-
-        // we need to compute the from key using user lastRead.
     const [usage] = createResource(sp.path, getUsage)
 
     const q : ScanQuery = {
@@ -252,50 +123,30 @@ export function ChatViewer() {
         from: sp.path,
         limit: 1000
     }
-    const [wf, updateQuery] = watchRange(q)
-    const tr = new RangeView<Message>()
 
+    //const tr = new RangeView<Message>()
+    
     // maybe instead of a builder we should 
     onMount(() => {
         const cm = new Map<number, Column>()
         // we don't really know how many rows we will have when we mount.
         let opts: ScrollerProps = {
             container: el!,
-            onChange: setAnchor,
+            scanQuery: q,
             // we could cache and revoke the context.
             // we could 
             // builder could be async? cause a refresh?
             builder: function (ctx: TableContext): void {
                 // if we don't have ctx.row then fetch and return a tombstone
-                // 
                 const o = ctx.old.value as Message
-                // maybe render with some kind of key, so that we can later
-                // 
                 ctx.render(<MessageWithUser message={o} />)
             }
         }
-        // maybe give the scroller a signal that it can use to ask for more?
-        
         ed = new Scroller(opts)
     })
-    createEffect(() => {
-        // we need to translate the scroller anchor into a key?
-        const a = anchor()  // depends on ancho
-        if (a > (usage()?.lastRead??0)){
-            setUsage(sp.path, {
-                lastRead: a
-            })
-        }
-        // if the anchor is 
-        updateQuery(q)     
-    })
 
-    createEffect(()=>{
-        // sort the incoming keys, we will do a sort merge
-        const o =  ed.rendered_ 
 
-        //tr.apply(wf())
-    })
+
     // anything can change, we need to let the scroller know
     // some changes can be deletions and insertions.
     // some could be character by character, probably probably not here.
@@ -337,6 +188,7 @@ import { IconPath } from "../search"
 import { Icon } from "solid-heroicons"
 import { SectionNav } from "../site_menu"
 import { Db } from "../../db"
+import { ScanQuery, ScanQueryCache, getUsage, setUsage, watchRange } from "../../db/range"
 function MessageMenu(props: { message: Message }) {
     const reply = () => {}
     const dots = () => {}

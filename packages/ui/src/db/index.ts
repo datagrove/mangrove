@@ -4,6 +4,8 @@ import { Db, callbackApi } from './db'
 
 export * from './db'
 export * from './v2/cell'
+export * from './chat'
+export * from './range'
 
 // @ts-ignore
 import Shared from './shared?sharedworker'

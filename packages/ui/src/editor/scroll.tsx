@@ -1,9 +1,29 @@
 import { JSXElement } from "solid-js"
 import { render } from "solid-js/web"
+import { ScanQuery, ScanQueryCache } from "../db"
 
 // this creates each row as a div.
 // the tradeoff here compared to cell as a div is that we make it harder to position columns
 // the hypotheses is that it should make it faster to measure the height of a row.
+
+
+interface RowSource {
+    setAnchor(n: number): void
+    addListener(fn: (c: ScanQueryCache)=>void ): void
+    close(): void
+}
+
+function createRangeSource(q: ScanQuery) : RowSource {
+    return {
+        setAnchor(n: number) {
+            
+        },
+        addListener(fn: (c: ScanQueryCache)=>void ) {
+        },
+        close() {
+        }
+    }
+}
 
 
 const inf = Number.NEGATIVE_INFINITY
@@ -86,6 +106,9 @@ export interface ScrollerProps {
     // what if we replaced the builder, instead we directly manipulate the array?
     // we need be able to invalidate the array so it can be remeasured?
     builder: BuilderFn,
+
+    // if we provide a scan query then we can get our rows directly from the database.
+    scanQuery?: ScanQuery
 
     row?: RowState
     column?: ColumnState
@@ -230,6 +253,12 @@ export class Scroller {
         }
     }
 
+    setAnchorItem(n: {index: number,offset: number}) {
+        const o = this.anchorItem.index
+        this.anchorItem = n
+        if (o!=n.index) this.props.onChange?.(n.index)
+    }
+
     // put the header in 
     constructor(public props: ScrollerProps) {
         this.scroller_ = props.container
@@ -237,7 +266,7 @@ export class Scroller {
         this.length_ = props.row?.count ?? 0
         this.topPadding = props.topPadding ?? 0
 
-        this.anchorItem.index = props.row?.initial?.row ?? 0
+        this.setAnchorItem({index: props.row?.initial?.row ?? 0,offset: 0})
 
         this.scroller_.addEventListener('scroll', () => this.onScroll_());
         window.addEventListener('resize', this.onResize_.bind(this));
@@ -461,14 +490,13 @@ export class Scroller {
 
         this.anchorScrollTop = this.scroller_.scrollTop;
         if (this.scroller_.scrollTop == 0) {
-            this.anchorItem = { index: 0, offset: 0 };
+            this.setAnchorItem( { index: 0, offset: 0})
         } else {
-            this.anchorItem = this.calculateAnchoredItem(this.anchorItem, delta)
+            this.setAnchorItem (this.calculateAnchoredItem(this.anchorItem, delta))
         }
 
         const shift = this.rendered_start - oldstart
         if (shift == 0) return;
-
 
         let b, e
         if (Math.abs(shift) >= this.rendered_.length) {
@@ -509,12 +537,6 @@ export class Scroller {
     }
 }
 
-const Td = (props: { children?: JSXElement }) => {
-    return <td>{props.children} </td>
-}
-const Th = (props: { children?: JSXElement }) => {
-    return <td>{props.children} </td>
-}
 interface ResizeData {
     startX: number;
     startWidth: number;
@@ -560,10 +582,6 @@ export function enableColumnResizing(table: HTMLTableElement, watch: (x: string)
             document.addEventListener('mouseup', stopColumnResize, false);
         });
     }
-
-
-
-
 }
 
 export const enableColumnDragging = (table: HTMLTableElement, lg: (x: string) => void) => {

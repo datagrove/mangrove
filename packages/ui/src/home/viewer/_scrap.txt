@@ -1,0 +1,18 @@
+interface ChatQuery {
+    path: string    // should I be fetching from inode?
+    lastRead: number   // get from user state, change to current date to scroll to end
+    offset: number
+}
+interface ChatCursor {
+
+    message: Message[]
+}
+// // can we return a signal that refresh is needed?
+// // the returned value already is a signal of sorts
+// async function getChats(cursor: ChatQuery,x: {value:any, refetching: boolean}  ) : Promise<ChatCursor> {
+//     const chats = fake()
+//     return {
+//         message: []
+//     }
+// }
+// can we build a subscribe resource on top of this?
