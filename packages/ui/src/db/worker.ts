@@ -3,7 +3,7 @@
 
 // @ts-ignore
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
-import { encode } from 'cbor-x';
+import { decode, encode } from 'cbor-x';
 import { ScanQuery, ScanQueryCache, Tx } from './data';
 import { IntervalTree } from './itree';
 const ctx = self as any;
@@ -11,13 +11,25 @@ const ctx = self as any;
 let db: any // sqlite3 database
 
 // server|site 
-const range = new Map<string, IntervalTree<Subscription>>()
 const server = new Map<string, Server>()
 const site_ = new Map<string, Site>()
+
+// we can broadcast service status
+const bc = new BroadcastChannel('server')
+function bcSend() {
+    bc.postMessage({
+        server: [...server.keys()],
+        up: [...server.values()].filter(x => x.isConnected).map(x => x.url)
+    })
+}
+
 
 class Server {
     // there is an glsn per server, otherwise it would be hard for server to know if any are missing
     glsn = 0
+    range =  new IntervalTree<Subscription>()
+    avail = new Map<string, number>()
+
     constructor(public url: string) {
         this.connect()
     }
@@ -27,14 +39,30 @@ class Server {
     }
     connect() {
         this.ws = new WebSocket(this.url)
+        bcSend()
         this.ws.onmessage = (e) => {
+            const a = decode(e.data) as {
+                method: string
+                id?: number
+                params: any
+            }
+            switch (a.method) {
+            case "s":
+                syncdown(this, a.params)
+            }
         }
         this.ws.onerror = (e) => {
+            this.ws = undefined
             setTimeout(() => this.connect(), 1000)
+            bcSend()
         }
         this.ws.onclose = (e) => {
+            this.ws = undefined
+            setTimeout(() => this.connect(), 1000)
+            bcSend()
         }
         this.ws.onopen = (e) => {
+            bcSend()
         }
     }
 }
@@ -92,17 +120,13 @@ const sv = (url: string) => {
     return sx
 }
 
-
 function close(ts: TabState, h: number) {
     const sub = ts.cache.get(h)
     if (!sub) return
     ts.cache.delete(h)
     const s = sv(sub.query.server ?? "")
     if (!s) return
-    const tr = range.get(`${sub.query.server}|${sub.query.site}`)
-    if (tr) {
-        tr.remove(sub.query.from, sub.query.to, sub)
-    }
+    s.range.remove(sub.query.from, sub.query.to, sub)
 }
 function disconnect(ts: TabState) {
     // close all subscriptions
@@ -111,7 +135,9 @@ function disconnect(ts: TabState) {
     }
 }
 
-// we optimistically execute the query locally, and broadcast the results to listeners
+// maybe a shared array buffer would be cheaper? every tab could process in parallel their own ranges
+// unlikely; one tree should save power.
+// we optimistically execute the query locally, and multicast the results to listeners
 // server can proceed at its own pase.
 function commit(ts: TabState, tx: Tx) {
     // insert tx into our 
@@ -134,25 +160,47 @@ function commit(ts: TabState, tx: Tx) {
 
 }
 
-function scan(ts: TabState, params: ScanQuery) {
-    const s = sv(params.server)
+function scan(ts: TabState, q: ScanQuery) {
+    const s = sv(q.server)
 
+    // execte the query once. we can generate sql here to do it.
+    let sql = `select * from ${q.table} where server=`
+ 
+    const sqc : ScanQueryCache = {
+        anchor: 0,
+        key: [],
+        value: []
+    }
+
+    const sub : Subscription = {
+        ctx: ts,
+        query: q,
+        cache: sqc
+    }
+    s.range.add(q.from, q.to, sub)
 }
 
 
-// a tx is encrypted e2e
-interface SyncBatchDown {
-    ops: {
-        site: number
-        gsn: number
-        source: number
-        lsn: number
-        tx: Uint8Array //  encypted blob of Tx[]
-    }
+// maybe move authorization code to https? we need https to deliver app anyway
+// sockets could be to a different server
+function syncdown(s: Server, b: any ){
+    // this could be compressed vector os site and gsn
+    const r = b as [string[], number[]]
+    // we don't need to store the available gsn because we will get it each time we connect to the server
+
 }
 // call syncup 10x a second 
 // call settimeout to retry the websocket connection if it fails
-function syncup() {
+function syncService() {
+    interface SyncState {
+        lastRead: number[] // pairs of numbers
+    }
+    
+    // function sync(svr: Server, tx: SyncBatchDown[]) {
+    //     "update lastread set gsn = ? where server = ? and site = ?"
+    // }
+    
+
     for (const [k, v] of server) {
         const svr = sv(k)
         if (!svr || !svr.isConnected) continue
@@ -172,34 +220,12 @@ function syncup() {
     }
 
 
-    setTimeout(() => syncup(), 100)
+    setTimeout(() => syncService(), 100)
 }
-
-
-// associated with a socket connection
-
-
-
-// we need to be able to roll back our local changes in order to keep them consistent with the global order
-// we can keep the updates in a json field, then drop this field when it commits?
-
-
-
-
-
-// there is a bit in the key that identifies a blob
-// in this case the rest of the key is a blob handle
-// the value is a bloblog
+syncService()
 
 // spreadsheets do not need any special treatment over a database. They are strictly lww wins, with no special merging.
 
-interface SyncState {
-    lastRead: number[] // pairs of numbers
-}
-
-function sync(svr: Server, tx: SyncBatchDown[]) {
-    "update lastread set gsn = ? where server = ? and site = ?"
-}
 
 async function start() {
     // the first client to connect initializes the database
@@ -219,6 +245,9 @@ async function start() {
             db = new sqlite3.oo1.DB('/mydb.sqlite3', 'ct');
             log('OPFS is not available, created transient database', db.filename);
         }
+
+        // we need to benchmark sql that allows us to edit tuples with large blobs cheaply
+        // one approach is to have the crdt value reach a fixed limit, then it writes a base to disk and keeps putting tail changes into the tuple.
 
         const search = (match: string) => `SELECT highlight(doc, 2, '<b>', '</b>') FROM doc(${match})`
         const sql = [
