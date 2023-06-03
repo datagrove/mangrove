@@ -28,6 +28,7 @@ export interface QuerySchema<Key> {
     marshalKey(key: Key) : string 
     //marshalRead(key: Query) : string
     marshalRead1(key: Key) : any[]
+    marshalWrite1(key: Key) : any[]
 
     // functors are nameable operations that can be applied to a tuple and an update
     // mostly one x = y of update table. 
@@ -48,6 +49,7 @@ export const chatTable : QuerySchema<{id: number, created: number }> = {
         return s
     },
     marshalRead1: (q) => [`select * from chat where id=? and created=? `, q.id, q.created],
+    marshalWrite1: (q) => [`insert into chat (id, created) values (?,?)`, q.id, q.created],
 
     functor: {
         "set": (tuple, update) => ({ ...tuple, ...update})

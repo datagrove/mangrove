@@ -57,8 +57,8 @@ class Server {
                 params: any
             }
             switch (a.method) {
-            case "s":
-                syncdown(this, a.params)
+                case "s":
+                    syncdown(this, a.params)
             }
         }
         this.ws.onerror = (e) => {
@@ -79,7 +79,7 @@ class Server {
 
 interface Subscription {
     ctx: TabState
-    query: ScanQuery<any,any>
+    query: ScanQuery<any, any>
     cache: ScanQueryCache<any>
 }
 class TabState {
@@ -98,7 +98,7 @@ const error = (...msg: string[]) => {
     log("%c", "color: red", ...msg)
 }
 
-const sv = (url: string) : Server => {
+const sv = (url: string): Server => {
     let sx = server.get(url)
     if (!sx) {
         sx = new Server(url)
@@ -106,7 +106,7 @@ const sv = (url: string) : Server => {
     return sx
 }
 
-function getTable(server: string, site: string, table: string) : IntervalTree<Subscription> {
+function getTable(server: string, site: string, table: string): IntervalTree<Subscription> {
     let s = sv(server)
     let st = s.site[site]
     if (!st) {
@@ -141,43 +141,57 @@ function disconnect(ts: TabState) {
 
 // we could shuffle off the work to a worker of creating the crdt merges?
 // we know that these tuples are loaded in the subscription
-function merge(tbl: IntervalTree<Subscription>, table: string, upd: TableUpdate ){
+function merge(tbl: IntervalTree<Subscription>, table: string, upd: TableUpdate) {
     // to find the key in our cache we need to encode it
-    const v : QuerySchema<any> = schema.view[table]
+    const v: QuerySchema<any> = schema.view[table]
     const keystr = v.marshalKey(upd.tuple)
     const sub: Subscription[] = tbl.stab(keystr)
 
+    const updateSql = (row: unknown) => {
+        // we need to run the functors on this. how does crdt fit here
+        // it may need to write a file, so we should probably give the functor
+        // a context. it might be good to have a functor that can do the whole
+        // update in sql.
+        const updated = v.functor[upd.functor](row, upd.tuple)
+        // we need to update the database
+        const sql = v.marshalWrite1(updated)
+        db.exec({
+            sql: sql[0],
+            bind: sql.slice(1),
+        })
+        return updated
+    }
 
     if (sub.length === 0) {
         // we need to read the record from the database to do the merge
-       const r  = v.marshalRead1(upd.tuple)
+        const r = v.marshalRead1(upd.tuple)
         db.exec({
             sql: r[0],
             bind: r.slice(1),
             callback: (row: any) => {
-                // we need to run the functors on this.
-                
+                updateSql(row)
             }
         })
-            
-        
     } else {
-        // find the key in the first matching subscription, it will be the same in all of the matching
-
-
+        // find the key in the first matching subscription, it will be the same in all of the matching. here we don't need to do the read, we can just do the write.
         // update all of them
-        sub.forEach( s => {
-            const n = binarySearch(s.cache.key, keystr)
-            if (n >= 0) {
-                // found it, update and notify
-            }
-        })
+        const s = sub[0]
+        const n = binarySearch(s.cache.key, keystr)
+        if (n >= 0) {
+            // found it, update and notify
+            const upd = updateSql(s.cache.value[n])
+
+            sub.forEach(s => {
+                const n = binarySearch(s.cache.key, keystr)
+                if (n >= 0) {
+                    // 
+                }
+            })
+        }
+         
     }
     // store
-    upd.functor.forEach( (f, i) => {
-        
-        db.exec("update ? set ? = ? where key = ?")
-    })
+
 }
 // maybe a shared array buffer would be cheaper? every tab could process in parallel their own ranges
 // unlikely; one tree should save power.
@@ -199,43 +213,41 @@ function commit(ts: TabState, tx: Tx) {
     for (const [table, upd] of Object.entries(tx.table)) {
         const tbl = site[table]
         if (!tbl) continue
-        upd.forEach( (x:TableUpdate) => {
-            x.key.forEach(k => {
-                 merge(tbl, x)
-            })
+        upd.forEach((x: TableUpdate) => {
+            merge(tbl, table, x)
         })
     }
 }
 // should we smuggle the source into the worker in order to pack keys?
 // can they all be packed prior to sending?
-function updateScan(ts: TabState, q: ScanQuery<any,any>) {
+function updateScan(ts: TabState, q: ScanQuery<any, any>) {
     const x = ts.cache.get(q.handle)
     const tbl = getTable(q.server, q.site, q.table)
 }
 
-function scan(ts: TabState, q: ScanQuery<any,any>) {
+function scan(ts: TabState, q: ScanQuery<any, any>) {
     const s = sv(q.server)
 
     // execte the query once. we can generate sql here to do it.
     let sql = `select * from ${q.table} where server=`
 
     // we need a way to compute a binary key
-    const value : any[] = []
+    const value: any[] = []
     db.exec({
         sql: sql,
         rowMode: 'array', // 'array' (default), 'object', or 'stmt'
-        callback: function (row:any) {
-          value.push(row);
+        callback: function (row: any) {
+            value.push(row);
         }.bind({ counter: 0 }),
-      });
+    });
 
-    const key = value.map( x => "")
+    const key = value.map(x => "")
 
-    const sub : Subscription = {
+    const sub: Subscription = {
         ctx: ts,
         query: q,
         cache: {
-            anchor: q.offset??0,
+            anchor: q.offset ?? 0,
             key: key,
             value: value
         }
@@ -247,7 +259,7 @@ function scan(ts: TabState, q: ScanQuery<any,any>) {
 
 // maybe move authorization code to https? we need https to deliver app anyway
 // sockets could be to a different server
-function syncdown(s: Server, b: any ){
+function syncdown(s: Server, b: any) {
     // this could be compressed vector os site and gsn
     const r = b as [string[], number[]]
     // we don't need to store the available gsn because we will get it each time we connect to the server
@@ -265,24 +277,24 @@ function syncService() {
     // function sync(svr: Server, tx: SyncBatchDown[]) {
     //     "update lastread set gsn = ? where server = ? and site = ?"
     // }
-    
+
 
     for (const [k, v] of server) {
         const svr = sv(k)
         if (!svr || !svr.isConnected) continue
-       
-            // const a = encode({
-            //     method: 'syncup',
-            //     params: {
-            //         site: k,
-            //         gsn: st.lsn,
-            //         source: 0,
-            //         lsn: s.lsn,
-            //         tx: v
-            //     }
-            // })
-            //svr.ws?.send(a)
-    
+
+        // const a = encode({
+        //     method: 'syncup',
+        //     params: {
+        //         site: k,
+        //         gsn: st.lsn,
+        //         source: 0,
+        //         lsn: s.lsn,
+        //         tx: v
+        //     }
+        // })
+        //svr.ws?.send(a)
+
     }
 
 

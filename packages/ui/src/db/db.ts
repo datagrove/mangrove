@@ -18,10 +18,10 @@ import { QuerySchema } from "./schema"
 
 const dbmap = new Map<string, Db>()
 
-export function createQuery<Key,Tuple>(db: Db, t: QuerySchema<Key>, q: Partial<ScanQuery<Key,Tuple>>
-    ) : RangeSource<Key,Tuple>{
+export function createQuery<Key, Tuple>(db: Db, t: QuerySchema<Key>, q: Partial<ScanQuery<Key, Tuple>>
+): RangeSource<Key, Tuple> {
 
-        // assign q a random number? then we can broadcast the changes to that number?
+    // assign q a random number? then we can broadcast the changes to that number?
     // we need a way to diff the changes that works through a message channel.
     // hash the key -> version number, reference count?
     // the ranges would delete the key when no versions are left.
@@ -31,21 +31,20 @@ export function createQuery<Key,Tuple>(db: Db, t: QuerySchema<Key>, q: Partial<S
         method: 'scan',
         params: q
     })
-    const rs = new RangeSource<Key,Tuple>(db, q as ScanQuery<Key,Tuple>, t)
+    const rs = new RangeSource<Key, Tuple>(db, q as ScanQuery<Key, Tuple>, t)
     db.range.set(q.handle, rs)
     return rs
 }
 
-
-export function createDb (name: string) {
+export function createDb(name: string) {
     // Wrong! this needs more complexity to share across tabs.
     let db = dbmap.get(name)
     if (!db) {
-        db = new Db(createWorker(new Worker, callbackApi))
+        db = new Db()
         dbmap.set(name, db)
         db.w.send({
             method: 'init',
-            params: name 
+            params: name
         })
     }
     return db
@@ -67,16 +66,19 @@ export type FacetSelect<T> = {
 
 
 export class Db {
+    // each db corresponds to a worker
+    w: SendToWorker
     next = 0
-    range = new Map<number, RangeSource<any,any>>()
-    public constructor(public w: SendToWorker) {
+    range = new Map<number, RangeSource<any, any>>()
+    public constructor() {
+        this.w = createWorker(new Worker, callbackApi(this))
     }
     recentGroup(n: number) {
-        const group :SiteRef = {
+        const group: SiteRef = {
             name: "private",
             did: ""
-          }
-          return [group]
+        }
+        return [group]
     }
     async uploadFiles(files: FileList, path: string) {
         // this has to go to the dedicated worker
@@ -89,29 +91,41 @@ export class Db {
 // we create a dedicated worker when we become leader
 // we stay leader until this tab is closed.
 let dbw: SendToWorker | undefined
+type UpdateRangeEvent = {
+    method: 'updateRange'
+    params: {
+        handle: number
+    }
+}
 
-export const callbackApi: Api = {
-    becomeLeader: async (context: ListenerContext<any>, params: any) => {
-        console.log("becomeLeader starting worker")
-        // when we get messages back from the database worker we need to return them to the shared worker
-        const swapi = {
-            log: async (context: ListenerContext<any>, params: any) => {
-                console.log(...params)
-            },
-            unknown: async (context: ListenerContext<any>, msg: any) => {
-                sharedWorker?.send(msg)
+function callbackApi(db: Db): Api {
+    return {
+
+        update: async (context: ListenerContext<any>, params: any) => {
+
+        },
+        becomeLeader: async (context: ListenerContext<any>, params: any) => {
+            console.log("becomeLeader starting worker")
+            // when we get messages back from the database worker we need to return them to the shared worker
+            const swapi = {
+                log: async (context: ListenerContext<any>, params: any) => {
+                    console.log(...params)
+                },
+                unknown: async (context: ListenerContext<any>, msg: any) => {
+                    sharedWorker?.send(msg)
+                }
             }
-        }
-        //dbw = await createWorker(new Worker, swapi)
-    },
-    log: async (context: ListenerContext<any>, params: any) => {
-        console.log(...params)
-    },
-    unknown: async (context: ListenerContext<any>, params: any) => {
-        if (dbw) {
-            return dbw.send(params)
-        } else {
-            console.log("unknown message", params)
+            //dbw = await createWorker(new Worker, swapi)
+        },
+        log: async (context: ListenerContext<any>, params: any) => {
+            console.log(...params)
+        },
+        unknown: async (context: ListenerContext<any>, params: any) => {
+            if (dbw) {
+                return dbw.send(params)
+            } else {
+                console.log("unknown message", params)
+            }
         }
     }
 }
@@ -119,7 +133,7 @@ export const callbackApi: Api = {
 
 
 // always global, because shared worker is global
-let sharedWorker : SendToWorker | undefined
+let sharedWorker: SendToWorker | undefined
 
 
 

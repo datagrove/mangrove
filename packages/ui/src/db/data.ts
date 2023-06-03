@@ -8,7 +8,7 @@ export interface TableUpdate {
     // our functors can include the attribute name?
     // any must include the 
     tuple: unknown   // must include primary key, so to be encodable
-    functor: string[]  // lookup in schema
+    functor: string  // lookup in schema
 }
 
 /*
