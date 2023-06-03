@@ -2,7 +2,7 @@ import { For, Show, Signal, createEffect, createSignal } from "solid-js"
 import { ListTile, Modal, Text, ModalBody, ModalButton, ModalTitle, SearchProps, SelectionList, UploadButton, SearchableView } from "./dialog"
 import { arrowUp } from "solid-heroicons/solid"
 import { H2 } from "../layout/nav"
-import { FacetSelect, SiteRef, db } from "../db"
+import { FacetSelect, SiteRef } from "../db"
 import { IconPath, SearchBox } from "./search"
 import { useNavigate } from "@solidjs/router"
 import { Input } from "../lib/input"
@@ -80,7 +80,7 @@ export async function uploadFiles(fl: FileList, group: SiteRef) {
 export function DropModal() {
     const [group,setGroup] = createSignal<SiteRef>({name:"Private", did:""})
     const upload = () => {
-        db()!.uploadFiles(showDrop()![0].files!, showDrop()![0].group!.did)
+        //uploadFiles(showDrop()![0].files!, showDrop()![0].group!.did)
     }
     const fileList = () => showDrop()![0].files;
     const fileNames = () => Array.from(fileList() || []).map((file) => file.name);

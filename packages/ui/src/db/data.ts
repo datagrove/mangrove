@@ -1,3 +1,4 @@
+import { Db } from "./db"
 
 
 export interface TableUpdate {
@@ -41,24 +42,84 @@ export function toBytes(b: Buffer) {
     return new Uint8Array(b.buffer, b.byteOffset, b.byteLength / Uint8Array.BYTES_PER_ELEMENT)
 }
 
-export interface ScanQuery {
+// each table that we scan needs a way to map its keys to a Uint8Array
+export interface QuerySchema<Key> {
+    marshalKey(key: Key) : Uint8Array 
+}
+
+export class RangeSource<Key,Tuple> {
+    
+    cache: ScanQueryCache<Tuple> = {
+        anchor: 0,
+        key: [],
+        value: []
+    }
+    
+    constructor(public db: Db, public q: ScanQuery<Key,Tuple>, public schema: QuerySchema<Key>) {
+        // we have to send db thread a query
+    }
+
+    update(n: Partial<ScanQuery<Key,Tuple>>) {
+        // we have to send db thread an update query
+        this.db.w.send({
+            method: 'updateScan',
+            params: n
+        })
+    }
+
+    // instead of the cache, we might want just the updates?
+    async next() : Promise<ScanQueryCache<Tuple>>{
+        // don't return until we have a new cache.
+        return this.cache
+    }
+
+    close() {
+        
+    }
+}
+
+export function createQuery<Key,Tuple>(db: Db, t: QuerySchema<Key>, q: Partial<ScanQuery<Key,Tuple>>
+    ) : RangeSource<Key,Tuple>{
+
+        // assign q a random number? then we can broadcast the changes to that number?
+    // we need a way to diff the changes that works through a message channel.
+    // hash the key -> version number, reference count?
+    // the ranges would delete the key when no versions are left.
+    // we send more data than we need to this way?
+    q.handle = db.next++
+    db.w.send({
+        method: 'scan',
+        params: q
+    })
+    const rs = new RangeSource<Key,Tuple>(db, q as ScanQuery<Key,Tuple>, t)
+    db.range.set(q.handle, rs)
+    return rs
+}
+
+
+
+export interface ScanQuery<Key,Tuple> {
+    anchor?: number
+    from: Key
+    to: Key
+    handle: number
     server: string
     site: string    // the site can import the schema to give it versioning?
     table: string   // schema.table
     // one of from or two is needed.
-    from: Uint8Array // needs to include the site key
-    to: Uint8Array
+    from_: Uint8Array // needs to include the site key
+    to_: Uint8Array
     limit?: number
     offset?: number
 
     // these might be different because of limit. these are the actual boundary keys
     // that we read. we can use them to move the cursor forward or back (or even both ways)
-    cache?: ScanQueryCache
+    cache?: ScanQueryCache<Tuple>
 }
-export interface ScanQueryCache {
+export interface ScanQueryCache<Tuple> {
     anchor: number
     key: Uint8Array[]
-    value: Uint8Array[]
+    value: Tuple[]
 }
 
 // crdt blobs are collaborations on a single attributed string.
@@ -118,8 +179,3 @@ export interface Message extends MessageData{
     attachment: Attachment[]
 }
 
-export interface RowSource {
-    setAnchor(n: number): void
-    addListener(fn: (c: ScanQueryCache)=>void ): void
-    close(): void
-}

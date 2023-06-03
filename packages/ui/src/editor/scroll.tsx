@@ -1,6 +1,6 @@
 import { JSXElement } from "solid-js"
 import { render } from "solid-js/web"
-import { RangeSource, RowSource, createRangeSource } from "../db"
+import { RangeSource } from "../db"
 import { decode } from "cbor-x"
 import { ScanQuery, ScanQueryCache } from "../db/data"
 
@@ -94,7 +94,7 @@ export interface ScrollerProps {
     builder: BuilderFn,
 
     // if we provide a scan query then we can get our rows directly from the database.
-    scanQuery?: ScanQuery
+    rangeSource?: RangeSource<any,any>
 
     row?: RowState
     column?: ColumnState
@@ -255,10 +255,10 @@ export class Scroller {
     setAnchorItem(n: {index: number,offset: number}) {
         const o = this.anchorItem.index
         this.anchorItem = n
-        if (o!=n.index) this.rs?.setAnchor?.(n.index)
+        if (o!=n.index) this.rs?.update({ anchor: n.index })
     }
 
-    rs : RangeSource | undefined
+    rs : RangeSource<any,any> | undefined
     // put the header in 
     constructor(public props: ScrollerProps) {
         this.scroller_ = props.container
@@ -266,8 +266,8 @@ export class Scroller {
         this.length_ = props.row?.count ?? 0
         this.topPadding = props.topPadding ?? 0
 
-        if (props.scanQuery) {
-            const listen = (r:ScanQueryCache) => {
+        if (props.rangeSource) {
+            const listen = (r:ScanQueryCache<any>) => {
                 const a = this.rendered_
                 const b = r.key
 
@@ -316,8 +316,8 @@ export class Scroller {
                 // we need to relayout the visible rows. If the anchor has been deleted we need to replace it.
                 this.rs?.next().then(listen)
             }
-            this.rs = createRangeSource(props.scanQuery)
-            this.rs.next().then(listen)
+            
+            this.rs?.next().then(listen)
         }
 
         this.setAnchorItem({index: props.row?.initial?.row ?? 0,offset: 0})

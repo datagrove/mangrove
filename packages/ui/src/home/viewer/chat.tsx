@@ -21,12 +21,12 @@ import { EditorState, LexicalEditor, $getRoot, $getSelection, KEY_ENTER_COMMAND,
 import {$getHtmlContent} from '@lexical/clipboard'
 import { TextMenu } from "../../lexical/menu"
 import { handThumbUp as reactionIcon , arrowUturnLeft as  replyIcon, hashtag as threadIcon, ellipsisHorizontal as dotsIcon} from 'solid-heroicons/solid'
-import { Message, ScanQuery } from "../../db"
+import { Message, ScanQuery, QuerySchema, createDb, createQuery } from "../../db"
 import { IconPath } from "../search"
 import { Icon } from "solid-heroicons"
 import { SectionNav } from "../site_menu"
 import { Db } from "../../db"
-import { getUsage } from "../../db/range"
+//import { getUsage } from "../../db/range"
 // multiple messages close to each should be grouped
 // date changes need a divider
 // images are generall sent with a message.
@@ -115,32 +115,41 @@ export class RangeView<T> {
 // what trick should we do to url to a database connection on a another server?
 // maybe ?server=xxx
 
+const chatTable : QuerySchema<{id: number}> = {
+    marshalKey(key: {id: number}) {
+        return new Uint8Array([key.id])
+    }
+}
 export function ChatViewer() {
     let el: HTMLDivElement | null = null
     let el2: HTMLDivElement | null = null   
 
+    const db = createDb('dg')
+
     let ed: Scroller
 
     const sp = usePage()
-    const [usage] = createResource(sp.path, getUsage)
 
-    const q : ScanQuery = {
-        server: sp.server,
-        site: sp.path,
-        table: "chat",
-        from: sp.path,
-        limit: 1000
-    }
+    // const q : ScanQuery = {
+    //     server: sp.server,
+    //     site: sp.path,
+    //     table: "chat",
+    //     from: sp.path,
+    //     limit: 1000
+    // }
 
     //const tr = new RangeView<Message>()
     
     // maybe instead of a builder we should 
-    onMount(() => {
+    onMount(async () => {
+        const inode = 1; // await to get the index from the path.
+        const q = createQuery(db, chatTable, { from: {id: 1} } )
+
         const cm = new Map<number, Column>()
         // we don't really know how many rows we will have when we mount.
         let opts: ScrollerProps = {
             container: el!,
-            scanQuery: q,
+            rangeSource: q,
             // we could cache and revoke the context.
             // we could 
             // builder could be async? cause a refresh?

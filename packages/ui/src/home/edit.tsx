@@ -1,16 +1,13 @@
 import { faker } from "@faker-js/faker"
 import { getDocument, timeAgo, usePage } from "../core"
-import { QueryResult, createQuery } from "../db"
-import { RichTextEditor, TableView } from "./viewer"
-import { BuilderFn, Scroller, ScrollerProps, TableContext } from "../editor"
-import { Show, createEffect, createResource, createSignal } from "solid-js"
-import { xMark, arrowsRightLeft, document, arrowUp } from 'solid-heroicons/solid'
+import { RichTextEditor } from "./viewer"
+import { createResource } from "solid-js"
+import { xMark, document } from 'solid-heroicons/solid'
 import { Icon } from 'solid-heroicons'
 import { createStore } from "solid-js/store"
 import Sortable from "solid-sortablejs"
 import { JSX } from "solid-js";
 import { Bb } from "../layout/nav"
-import { set } from "zod"
 import { useNavigate } from "@solidjs/router"
 import { BlueButton } from "../lib/form"
 
@@ -39,19 +36,19 @@ interface FileInfo {
 // generated? or cache on first use? dx is better with cache/hot load.
 // aot faster though. no los dos? decorators?
 // maybe generator prepopulates the cache
-function queryFolder(path: string): QueryResult {
-    const qd = {
-        sql: "select type,lens(name),modified,size  from folder where path = ?",
-        // this would be generated.
-        // cells: [ // can't these all be default from the sql?
-        //     { type: "string", name: "type"},
-        //     { type: "name", name: "name"},
-        //     { type: "date", name: "modified"},
-        //     { type: "number", name: "size"},
-        // ]
-    }
-    return createQuery(qd, path)
-}
+// function queryFolder(path: string): QueryResult {
+//     const qd = {
+//         sql: "select type,lens(name),modified,size  from folder where path = ?",
+//         // this would be generated.
+//         // cells: [ // can't these all be default from the sql?
+//         //     { type: "string", name: "type"},
+//         //     { type: "name", name: "name"},
+//         //     { type: "date", name: "modified"},
+//         //     { type: "number", name: "size"},
+//         // ]
+//     }
+//     //return createQuery(qd, path)
+// }
 
 // a query view should have optional header and info boxes?
 // header in this case could show breadcrumbs?

@@ -9,19 +9,46 @@ import { Accessor, createSignal } from "solid-js"
 import { CellOptions } from "./v2/cell"
 import { Api, SendToWorker, createSharedWorker, createWorker } from '../worker/useworker'
 import { ListenerContext } from "../worker/data"
+import { ScanQueryCache, ScanQuery, RangeSource } from "./data"
+// @ts-ignore
+import Shared from './shared?sharedworker'
+// @ts-ignore
+import Worker from './worker?worker'
 
+const dbmap = new Map<string, Db>()
+
+export function createDb (name: string) {
+    // Wrong! this needs more complexity to share across tabs.
+    let db = dbmap.get(name)
+    if (!db) {
+        db = new Db(createWorker(new Worker, callbackApi))
+        dbmap.set(name, db)
+        db.w.send({
+            method: 'init',
+            params: name 
+        })
+    }
+    return db
+}
 
 export interface SiteRef {
     name: string
     did: string
 }
 
-
 export type FacetSelect<T> = {
     limit?: number
     offset?: number
 }
+// this is for the main thread, it mostly communicates with the database thread
+// can the listener be in the contstructor? 
+// in theory this should not be global, because we can start a worker for each?
+
+
+
 export class Db {
+    next = 0
+    range = new Map<number, RangeSource<any,any>>()
     public constructor(public w: SendToWorker) {
     }
     recentGroup(n: number) {
@@ -37,6 +64,7 @@ export class Db {
         // the drop files should signal client already?
     }
 }
+
 
 // we create a dedicated worker when we become leader
 // we stay leader until this tab is closed.
@@ -73,7 +101,6 @@ export const callbackApi: Api = {
 // always global, because shared worker is global
 let sharedWorker : SendToWorker | undefined
 
-let db: Db // new Db(sharedWorker)
 
 
 
@@ -109,17 +136,5 @@ export interface QueryResult {
 // filter: (pattern: string) => { },
 // rows: (start: number, end: number) => { return [] },
 
-export function closeQuery(query: QueryResult) {
 
-}
 
-export function createQuery(desc: Query, ...params: any[]): QueryResult {
-    const [size, setSize] = createSignal(0)
-    return {
-        error: "",
-        loaded: true,
-        query: desc,
-        estimatedSize: size
-    }
-
-}

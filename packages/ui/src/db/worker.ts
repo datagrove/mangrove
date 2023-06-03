@@ -24,7 +24,6 @@ function bcSend() {
     })
 }
 
-
 class Server {
     // there is an glsn per server, otherwise it would be hard for server to know if any are missing
     glsn = 0
@@ -76,8 +75,8 @@ class Server {
 
 interface Subscription {
     ctx: TabState
-    query: ScanQuery
-    cache: ScanQueryCache
+    query: ScanQuery<any,any>
+    cache: ScanQueryCache<any>
 }
 class TabState {
     constructor(public write: any) { }
@@ -89,18 +88,18 @@ class Site {
 }
 
 
-const rpcReply = (id: number, result: any) => {
-    ctx.postMessage({
-        id,
-        result
-    })
-}
-const rpcError = (id: number, error: any) => {
-    ctx.postMessage({
-        id,
-        error
-    })
-}
+// const rpcReply = (id: number, result: any) => {
+//     ctx.postMessage({
+//         id,
+//         result
+//     })
+// }
+// const rpcError = (id: number, error: any) => {
+//     ctx.postMessage({
+//         id,
+//         error
+//     })
+// }
 const log = (...args: any[]) => {
     ctx.postMessage({
         method: 'log',
@@ -143,7 +142,7 @@ function close(ts: TabState, h: number) {
 
     const tr = getTable(sub.query.server, sub.query.site, sub.query.table)
     if (tr)
-        tr.remove(sub.query.from, sub.query.to, sub)
+        tr.remove(sub.query.from_, sub.query.to_, sub)
 }
 
 function disconnect(ts: TabState) {
@@ -183,13 +182,14 @@ function commit(ts: TabState, tx: Tx) {
         })
     }
 }
-
-function updateScan(ts: TabState, q: ScanQuery) {
+// should we smuggle the source into the worker in order to pack keys?
+// can they all be packed prior to sending?
+function updateScan(ts: TabState, q: ScanQuery<any,any>) {
     const x = ts.cache.get(q.handle)
     const tbl = getTable(q.server, q.site, q.table)
 }
 
-function scan(ts: TabState, q: ScanQuery) {
+function scan(ts: TabState, q: ScanQuery<any,any>) {
     const s = sv(q.server)
 
     // execte the query once. we can generate sql here to do it.
@@ -217,7 +217,7 @@ function scan(ts: TabState, q: ScanQuery) {
         }
     }
     const tbl = getTable(q.server, q.site, q.table)
-    tbl.add(q.from, q.to, sub)
+    tbl.add(q.from_, q.to_, sub)
 }
 
 
@@ -232,7 +232,8 @@ function syncdown(s: Server, b: any ){
 // call syncup 10x a second 
 // call settimeout to retry the websocket connection if it fails
 function syncService() {
-    return
+    return;
+
     interface SyncState {
         lastRead: number[] // pairs of numbers
     }
