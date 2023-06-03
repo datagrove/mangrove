@@ -1,6 +1,7 @@
 import { Db } from "./db"
 import { QuerySchema } from "./schema"
 
+// these only live in the tab. not imported by the worker
 
 export interface TableUpdate {
     //like fuschia?
@@ -28,35 +29,14 @@ export interface Tx  {
     }
 }
 
-export interface Watch {
-    server: string
-    stream: string
-    schema: string
-    table: string
-    from: Uint8Array
-    to: Uint8Array
-    limit: number
-    offset: number
-    attr: string[]
-}
-
-export function toBytes(b: Buffer) {
-    return new Uint8Array(b.buffer, b.byteOffset, b.byteLength / Uint8Array.BYTES_PER_ELEMENT)
-}
-
-
-
 // we need to pack the keys of any new tuples or diffing won't work?
 // maybe all tuples just come packed though? the go server doesn't need this.
 // the worker needs this code to keep it up to date.
 // we could compile it into the worker for now.
 export class RangeSource<Key,Tuple> {
-    
-    
     constructor(public db: Db, public q: ScanQuery<Key,Tuple>, public schema: QuerySchema<Key>, public listener: (s: ScanDiff) => void) {
         // we have to send db thread a query
     }
-
     update(n: Partial<ScanQuery<Key,Tuple>>) {
         // we have to send db thread an update query
         this.db.w.send({
@@ -64,7 +44,6 @@ export class RangeSource<Key,Tuple> {
             params: n
         })
     }
-
     close() {
         this.db.w.send({
             method: 'close',
@@ -74,6 +53,7 @@ export class RangeSource<Key,Tuple> {
 }
 
 export interface ScanQuery<Key,Tuple> {
+    sql: string
     anchor?: number
     from: Key
     to: Key
@@ -95,71 +75,15 @@ export interface ScanQueryCache<Tuple> {
     value: Tuple[]
 }
 
-// crdt blobs are collaborations on a single attributed string.
-export interface CrdtEntry {
-    contextDevice:  number
-    contextLength: number
-    at: number[] // keep or 
-    insert: string[]
-    format: {
-        type: string
-        start: number
-        end: number
-        desc: Uint8Array
-    }[]
-}
-// these are just thrown away and not preserved in the document
-// including cursor and maybe selection
-export interface CellPresence {
-    device: DeviceId
-    format: {
-        start: number
-        end: number
-        type: string
-        desc: Uint8Array
-    }[]
-}
 
-export interface Author {
-    id: number
-    avatarUrl: string    
-    username: string
-    display: string // can change in the forum
-}
-export interface Reaction {
-    author: number
-    emoji: string
-}
-export interface Attachment {
-    type: string
-    url: string
-}
-export interface MessageData {
-    id: number
-    authorid: number
-    text: string
-    replyTo: number
-    daten: number
-}
-
-// rollup after join. maybe this should be a chat group
-// allows bubble formatting like signal
-export interface Message extends MessageData{
-    author: Author
-    date: string
-    reactions: Reaction[]
-    attachment: Attachment[]
-}
-
-
-export function binarySearch(arr: string[], target: string): number {
+export function binarySearch(arr: Keyed[], target: string): number {
     let left = 0;
     let right = arr.length - 1;
     while (left <= right) {
       const mid = Math.floor((left + right) / 2);
-      if (arr[mid] === target) {
+      if (arr[mid]._key === target) {
         return mid;
-      } else if (arr[mid] < target) {
+      } else if (arr[mid]._key < target) {
         left = mid + 1;
       } else {
         right = mid - 1;

@@ -252,29 +252,32 @@ export class Scroller {
     applyDiff(diff: ScanDiff) {
         const result: TableRow[] = [];
         const old = this.rendered_
-
         const ctx = new TableContext(this)
-        const addRow = (k: string, v: any)=> {
-            ctx.old = new TableRow(this.rowDiv())
-            ctx.old.key = k
-            ctx.old.value = decode(v)
-            this.props.builder(ctx)
-        }
 
-        let i = 0;
+        // how can we get the deleted rows to recycle them?
+        // should those be in copy command too? which =2 ?
         let j = 0;
+        let i = 0
         for (const op of diff.copy) {
           if (op.which === 0) {
             for (let k = op.start; k < op.end; k++) {
               result.push(old[k]);
             }
+            for (; i < op.start; i++) {
+                // recycle
+                this.recycle(old[i].node)
+            }
+            i = op.end
           } else {
             for (let k = op.start; k < op.end; k++) {
-              result.push(diff.tuple[j++]);
+              const v = diff.tuple[j++]
+              ctx.old = new TableRow(this.rowDiv())
+              this.props.builder(ctx)
             }
           }
         }
-        
+        this.rendered_ = result;
+
     }
 /*
             const a = this.rendered_

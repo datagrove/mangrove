@@ -7,11 +7,11 @@ import { decode, encode } from 'cbor-x';
 import { ScanQuery, ScanQueryCache, TableUpdate, Tx, binarySearch } from './data';
 import { IntervalTree } from './itree';
 import { update } from '../lib/db';
-import { QuerySchema, schema } from './schema';
+import { QuerySchema } from './schema';
+import { schema } from './editor_schema'
 const ctx = self as any;
 
 let db: any // sqlite3 database
-
 
 // server|site 
 const server = new Map<string, Server>()
@@ -172,7 +172,7 @@ function merge(tbl: IntervalTree<Subscription>, table: string, upd: TableUpdate,
         // it may need to write a file, so we should probably give the functor
         // a context. it might be good to have a functor that can do the whole
         // update in sql.
-        const updated = v.functor[upd.functor](row, upd.tuple)
+        const updated = schema.functor[upd.functor](row, upd.tuple)
         // we need to update the database
         const sql = v.marshalWrite1(updated)
         db.exec({
@@ -196,13 +196,13 @@ function merge(tbl: IntervalTree<Subscription>, table: string, upd: TableUpdate,
         // find the key in the first matching subscription, it will be the same in all of the matching. here we don't need to do the read, we can just do the write.
         // update all of them
         const s = sub[0]
-        const n = binarySearch(s.cache.key, keystr)
+        const n = binarySearch(s.cache, keystr)
         if (n >= 0) {
             // found it, update and notify
-            const upd = updateSql(s.cache.value[n])
+            const upd = updateSql(s.cache[n])
 
             sub.forEach(s => {
-                const n = binarySearch(s.cache.key, keystr)
+                const n = binarySearch(s.cache, keystr)
                 if (n >= 0) {
                     // 
                 }
@@ -250,13 +250,10 @@ function updateScan(ts: TabState, q: ScanQuery<any, any>) {
 function scan(ts: TabState, q: ScanQuery<any, any>) {
     const s = sv(q.server)
 
-    // execte the query once. we can generate sql here to do it.
-    let sql = `select * from ${q.table} where server=`
-
     // we need a way to compute a binary key
     const value: any[] = []
     db.exec({
-        sql: sql,
+        sql: q.sql,
         rowMode: 'array', // 'array' (default), 'object', or 'stmt'
         callback: function (row: any) {
             value.push(row);
@@ -268,11 +265,8 @@ function scan(ts: TabState, q: ScanQuery<any, any>) {
     const sub: Subscription = {
         ctx: ts,
         query: q,
-        cache: {
-            anchor: q.offset ?? 0,
-            key: key,
-            value: value
-        }
+        cache:  value,
+        lastSent: []
     }
     const tbl = getTable(q.server, q.site, q.table)
     tbl.add(q.from_, q.to_, sub)

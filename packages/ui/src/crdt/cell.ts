@@ -19,11 +19,38 @@ interface SparseVector {
 
 // each cell has a designated host, each host numbers the devices. use that number here.
 type DeviceId = number
-interface CellStream {
 
+
+
+// crdt blobs are collaborations on a single attributed string.
+// we have special functors to apply these to a cell
+
+// we could use a contextDevice here, but do we need to have consensus when disconnected (campfire mode). 
+export interface CrdtEntry {
+
+    contextGsn: number
+    at: number[] // keep or 
+    insert: string[]
+    format: {
+        type: string
+        start: number
+        end: number
+        desc: Uint8Array
+    }[]
 }
-interface CellText {
 
+// best effort? these are only sent peer to peer
+// clients that can't do peer to peer don't get them.
+// these are just thrown away and not preserved in the document
+// including cursor and maybe selection
+// the lobby can use an encrypted primary key to join on. what about a nonce?
+export interface CellPresence {
+    device: DeviceId
+    name: string
+    selection: {
+        blockid: number  // gsn block was created?
+        start: number
+        end: number
+        cursor: [number, number]
+    }[]
 }
-
-
