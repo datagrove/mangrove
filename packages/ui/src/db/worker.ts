@@ -7,6 +7,7 @@ import { decode, encode } from 'cbor-x';
 import { ScanQuery, ScanQueryCache, TableUpdate, Tx } from './data';
 import { IntervalTree } from './itree';
 import { update } from '../lib/db';
+import { schema } from './schema';
 const ctx = self as any;
 
 let db: any // sqlite3 database
@@ -155,7 +156,9 @@ function disconnect(ts: TabState) {
 // we could shuffle off the work to a worker of creating the crdt merges?
 // we know that these tuples are loaded in the subscription
 function merge(sub: Subscription[], upd: TableUpdate ){
-
+    // store
+    upd.functor.forEach( (f, i) => {
+    })
 }
 // maybe a shared array buffer would be cheaper? every tab could process in parallel their own ranges
 // unlikely; one tree should save power.
@@ -205,7 +208,7 @@ function scan(ts: TabState, q: ScanQuery<any,any>) {
         }.bind({ counter: 0 }),
       });
 
-    const key = value.map( x => new Uint8Array(0))
+    const key = value.map( x => "")
 
     const sub : Subscription = {
         ctx: ts,
@@ -290,28 +293,9 @@ async function start() {
         // one approach is to have the crdt value reach a fixed limit, then it writes a base to disk and keeps putting tail changes into the tuple.
 
         const search = (match: string) => `SELECT highlight(doc, 2, '<b>', '</b>') FROM doc(${match})`
-        const sql = [
-            "create table if not exists site(sid integer primary key, server, site, lastread, lastwrite)",
-            "create table if not exists log(lsn integer primary key, entry)",
-            "create table if not exists channel(id integer primary key, npath, path,content)",
-            "create index if not exists channel_path on channel(npath, path)",
-            "create table if not exists message(id integer primary key, partof, created,author, content)",
-            "create index if not exists message_partof on message(partof,id)",
-            "create table if not exists author(id integer primary key, name, email)",
-            "create table if not exists attach(id integer primary key, partof,  type,  content)",
-            "create index if not exists attach_partof on attach(partof)",
-            "CREATE VIRTUAL TABLE if not exists doc USING fts5(docid, server, site, mime, tbl, key,extracted)",
-            "create table if not exists facets(name, docid, primary key(name, docid))",
-            "create index if not exists facets_docid on facets(docid)",
-            // name is something like price
-            "create table if not exists val(name, value,docid, primary key(name,value, docid))",
-            "create index if not exists val_docid on val(docid)",
-            "create table if not exists transclude(id integer primary key, partof, relatesTo, type, content)",
-            "create index if not exists transclude_partof on transclude(partof)",
-            "create index if not exists transclude_relatesTo on transclude(relatesTo)",
-        ]
+
         log('Creating tables...');
-        sql.forEach(x => db.exec(x))
+        schema.create.forEach(x => db.exec(x))
         log('Created tables');
     } catch (err: any) {
         error(err.name, err.message)

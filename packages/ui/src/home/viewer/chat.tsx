@@ -3,29 +3,27 @@
 // if clicking a thread in column x, default to opening in column x+1?
 // probably use vscode way of explicit splittings
 
-import { Accessor, createEffect, createResource, createSignal, onMount } from "solid-js"
-import { Column, Scroller, ScrollerProps, TableContext, TableRow } from "../../editor/scroll"
-import { faker } from "@faker-js/faker"
-import { getDocument, readAll, usePage } from "../../core"
-import { RteProps } from "../../lexical"
+import { createResource, createSignal, onMount } from "solid-js"
+import { Column, Scroller, ScrollerProps, TableContext } from "../../editor/scroll"
+import { readAll, usePage } from "../../core"
 import { useNavigate } from "@solidjs/router"
 import CodeHighlightPlugin from "../../lexical/CodeHighlightPlugin"
-import { LexicalComposer, RichTextPlugin, ContentEditable, LexicalErrorBoundary, LinkPlugin, AutoFocusPlugin, OnChangePlugin, HistoryPlugin, LexicalComposerContext, useLexicalComposerContext } from "../../lexical/lexical-solid"
+import { LexicalComposer, RichTextPlugin, ContentEditable, LexicalErrorBoundary, LinkPlugin, AutoFocusPlugin, OnChangePlugin, HistoryPlugin, useLexicalComposerContext } from "../../lexical/lexical-solid"
 import { CodeNode, CodeHighlightNode } from "@lexical/code"
 import { AutoLinkNode, LinkNode } from "@lexical/link"
 import { ListNode, ListItemNode } from "@lexical/list"
 import { HeadingNode, QuoteNode } from "@lexical/rich-text"
 import { TableNode, TableCellNode, TableRowNode } from "@lexical/table"
 import RichTextTheme from "../../lexical/RichTextTheme"
-import { EditorState, LexicalEditor, $getRoot, $getSelection, KEY_ENTER_COMMAND, $createParagraphNode } from "lexical"
+import { EditorState, LexicalEditor, $getRoot, $getSelection, KEY_ENTER_COMMAND } from "lexical"
 import {$getHtmlContent} from '@lexical/clipboard'
 import { TextMenu } from "../../lexical/menu"
 import { handThumbUp as reactionIcon , arrowUturnLeft as  replyIcon, hashtag as threadIcon, ellipsisHorizontal as dotsIcon} from 'solid-heroicons/solid'
-import { Message, ScanQuery, QuerySchema, createDb, createQuery } from "../../db"
+import { Message, createDb, createQuery } from "../../db"
 import { IconPath } from "../search"
 import { Icon } from "solid-heroicons"
 import { SectionNav } from "../site_menu"
-import { Db } from "../../db"
+import { chatTable } from "../../db/schema"
 //import { getUsage } from "../../db/range"
 // multiple messages close to each should be grouped
 // date changes need a divider
@@ -115,11 +113,7 @@ export class RangeView<T> {
 // what trick should we do to url to a database connection on a another server?
 // maybe ?server=xxx
 
-const chatTable : QuerySchema<{id: number}> = {
-    marshalKey(key: {id: number}) {
-        return new Uint8Array([key.id])
-    }
-}
+
 export function ChatViewer() {
     let el: HTMLDivElement | null = null
     let el2: HTMLDivElement | null = null   
@@ -143,7 +137,8 @@ export function ChatViewer() {
     // maybe instead of a builder we should 
     onMount(async () => {
         const inode = 1; // await to get the index from the path.
-        const q = createQuery(db, chatTable, { from: {id: 1} } )
+        const lastRead = 0
+        const q = createQuery(db, chatTable, { from: {id: 1, created: lastRead} } )
 
         const cm = new Map<number, Column>()
         // we don't really know how many rows we will have when we mount.

@@ -6,8 +6,7 @@ export * from './db'
 export * from './v2/cell'
 export * from './chat'
 export * from './data'
-
-
+export * from './schema'
 
 
 

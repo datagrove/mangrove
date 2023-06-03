@@ -1,11 +1,12 @@
 import { Db } from "./db"
+import { QuerySchema } from "./schema"
 
 
 export interface TableUpdate {
     //like fuschia?
     // map attribute to a value, for a crdt
     // our functors can include the attribute name?
-    key: Uint8Array[]
+    key: any[]
     functor: [string, any]
 }
 
@@ -42,11 +43,12 @@ export function toBytes(b: Buffer) {
     return new Uint8Array(b.buffer, b.byteOffset, b.byteLength / Uint8Array.BYTES_PER_ELEMENT)
 }
 
-// each table that we scan needs a way to map its keys to a Uint8Array
-export interface QuerySchema<Key> {
-    marshalKey(key: Key) : Uint8Array 
-}
 
+
+// we need to pack the keys of any new tuples or diffing won't work?
+// maybe all tuples just come packed though? the go server doesn't need this.
+// the worker needs this code to keep it up to date.
+// we could compile it into the worker for now.
 export class RangeSource<Key,Tuple> {
     
     cache: ScanQueryCache<Tuple> = {
@@ -107,8 +109,8 @@ export interface ScanQuery<Key,Tuple> {
     site: string    // the site can import the schema to give it versioning?
     table: string   // schema.table
     // one of from or two is needed.
-    from_: Uint8Array // needs to include the site key
-    to_: Uint8Array
+    from_: string // needs to include the site key
+    to_: string
     limit?: number
     offset?: number
 
@@ -118,7 +120,7 @@ export interface ScanQuery<Key,Tuple> {
 }
 export interface ScanQueryCache<Tuple> {
     anchor: number
-    key: Uint8Array[]
+    key: string[]
     value: Tuple[]
 }
 
