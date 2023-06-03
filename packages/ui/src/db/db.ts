@@ -1,19 +1,12 @@
 
 // user settings should be a store? does the context deliver a store then?
 // is a database something related but different than a store?
-
-// some of these things we might replace with C++
-
-
-
 // there is only one database, so that's global constant
 // it acts like a store (is it a store?), views are reactive
 // views should be an array of cells, so that edits are 2 way
 
 import { Accessor, createSignal } from "solid-js"
 import { CellOptions } from "./v2/cell"
-
-
 import { Api, SendToWorker, createSharedWorker, createWorker } from '../worker/useworker'
 import { ListenerContext } from "../worker/data"
 
@@ -31,8 +24,6 @@ export type FacetSelect<T> = {
 export class Db {
     public constructor(public w: SendToWorker) {
     }
-
-
     recentGroup(n: number) {
         const group :SiteRef = {
             name: "private",

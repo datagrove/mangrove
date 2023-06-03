@@ -1,37 +1,7 @@
 import { faker } from "@faker-js/faker"
+import { Author, Message } from "./data"
 
 // special hand coding for important application.
-
-export interface Author {
-    id: number
-    avatarUrl: string    
-    username: string
-    display: string // can change in the forum
-}
-export interface Reaction {
-    author: number
-    emoji: string
-}
-export interface Attachment {
-    type: string
-    url: string
-}
-export interface MessageData {
-    id: number
-    authorid: number
-    text: string
-    replyTo: number
-    daten: number
-}
-
-// rollup after join. maybe this should be a chat group
-// allows bubble formatting like signal
-export interface Message extends MessageData{
-    author: Author
-    date: string
-    reactions: Reaction[]
-    attachment: Attachment[]
-}
 
 async function author(id: number) : Promise<Author> {
     return {

@@ -1,29 +1,15 @@
 import { JSXElement } from "solid-js"
 import { render } from "solid-js/web"
-import { ScanQuery, ScanQueryCache } from "../db"
+import { RowSource, createRangeSource } from "../db"
+import { decode } from "cbor-x"
+import { ScanQuery } from "../db/data"
 
 // this creates each row as a div.
 // the tradeoff here compared to cell as a div is that we make it harder to position columns
 // the hypotheses is that it should make it faster to measure the height of a row.
 
 
-interface RowSource {
-    setAnchor(n: number): void
-    addListener(fn: (c: ScanQueryCache)=>void ): void
-    close(): void
-}
 
-function createRangeSource(q: ScanQuery) : RowSource {
-    return {
-        setAnchor(n: number) {
-            
-        },
-        addListener(fn: (c: ScanQueryCache)=>void ) {
-        },
-        close() {
-        }
-    }
-}
 
 
 const inf = Number.NEGATIVE_INFINITY
@@ -116,7 +102,6 @@ export interface ScrollerProps {
     // render cell as html
     topPadding?: number
 
-    onChange?: (i: number)=>void
 }
 
 // interface GridUpdate {
@@ -127,10 +112,6 @@ export interface ScrollerProps {
 //     rows: [Op, number, number][]
 //     columns: [Op, number, number][]
 // }
-
-
-
-
 
 function rotate<T>(a: T[], n: number) {
     a.unshift.apply(a, a.splice(n, a.length));
@@ -143,7 +124,7 @@ function rotate<T>(a: T[], n: number) {
 // arrays are basically maps of int, so we don't need to have complete vectors
 // especially if we have uniform columns like a 2d map
 export class TableRow {
-    constructor(public node: HTMLElement) {
+    constructor(public node: HTMLDivElement) {
     }
     height = 0 // can height 0 be a dirty flag? -1 maybe?
     top = 0
@@ -156,6 +137,16 @@ interface Anchor {
     index: number
     offset: number
 }
+function compare(a: Uint8Array, b: Uint8Array): number {
+    for (let i = 0; i < Math.min(b.length,a.length); i++) {
+      if (a[i] < b[i]) {
+        return -1;
+      } else if (a[i] > b[i]) {
+        return 1;
+      }
+    }
+    return a.length - b.length;
+  }
 
 // these should only be on our runway. doesn't need to start at 0.
 // when we get a snapshot update we should diff the T's to see if we can reuse the dom we have created.
@@ -206,8 +197,16 @@ export class Scroller {
         r.style.zIndex = '51'
         return r
     }
+    reuse : HTMLDivElement[] = []
+    recycle(t: HTMLDivElement) {
+        this.reuse.push(t)
+        t.style.display = 'none'
+    }
     rowDiv(): HTMLDivElement {
-        const r = document.createElement('div')
+        let r = this.reuse.pop()
+        if (!r) {
+          r = document.createElement('div')
+        }
         this.scroller_.append(r)
         r.style.display = 'flex'
         r.style.position = 'absolute'
@@ -256,15 +255,69 @@ export class Scroller {
     setAnchorItem(n: {index: number,offset: number}) {
         const o = this.anchorItem.index
         this.anchorItem = n
-        if (o!=n.index) this.props.onChange?.(n.index)
+        if (o!=n.index) this.rs?.setAnchor?.(n.index)
     }
 
+    rs : RowSource | undefined
     // put the header in 
     constructor(public props: ScrollerProps) {
         this.scroller_ = props.container
         console.log('props', props)
         this.length_ = props.row?.count ?? 0
         this.topPadding = props.topPadding ?? 0
+
+        if (props.scanQuery) {
+            this.rs = createRangeSource(props.scanQuery)
+            this.rs.addListener((r) => {
+                const a = this.rendered_
+                const b = r.key
+
+                    let i = 0;
+                    let j = 0;
+
+                    const replace : TableRow[] = []
+                    const ctx = new TableContext(this)
+                    const addRow = (k: Uint8Array, v: Uint8Array)=> {
+                        ctx.old = new TableRow(this.rowDiv())
+                        ctx.old.key = k
+                        ctx.old.value = decode(v)
+                        this.props.builder(ctx)
+                    }
+                    
+                    const c = compare(a[i].key,b[j])
+                    while (i < a.length && j < b.length) {
+                      if (c < 0) {
+                        // a[0] has been deleted from the range, reclaim the div
+                        this.recycle(a[i].node) 
+                        i++;
+                      } else if (c > 0) {
+                        // b[0] has been added to the range
+                        addRow(b[j], r.value[j])
+                        j++;
+                      } else {
+                        replace.push(a[i])
+                        // the value might be different, if so we need to invalidate the height
+                        if (r.value[j]!=a[i].value) {
+                            a[i].value = decode(r.value[j])
+                            a[i].height = 0
+                        }
+                        i++;
+                        j++;
+                      }
+                    }
+                  
+                    while (i < a.length) {
+                      this.recycle(a[i].node);
+                      i++;
+                    }
+                    while (j < b.length) {
+                        addRow(b[j], r.value[j])
+                        j++
+                    }
+                // we need to relayout the visible rows. If the anchor has been deleted we need to replace it.
+
+            })
+        }
 
         this.setAnchorItem({index: props.row?.initial?.row ?? 0,offset: 0})
 
@@ -311,6 +364,7 @@ export class Scroller {
 
     close() {
         this.scroller_.replaceChildren()
+        if (this.rs) this.rs.close()
     }
 
     // called when the number or rows changes, but is this necessary?

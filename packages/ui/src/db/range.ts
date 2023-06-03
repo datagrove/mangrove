@@ -3,6 +3,7 @@
 // facets: author, channel, reactions
 
 import { Accessor, createSignal } from "solid-js"
+import { ScanQuery, ScanQueryCache } from "./data"
 
 
 // we need to get the last read location (shared among all one user's devices)
@@ -25,24 +26,7 @@ export async function setUsage(path: string, usage: Usage) {
 // so try to use lastRead as timestamp
 // select * from chat where key > lastRead limit 1000
 // we can update the
-export interface ScanQuery {
-    site: string    // the site can import the schema to give it versioning?
-    table: string   // schema.table
-    // one of from or two is needed.
-    from?: string | Uint8Array // needs to include the site key
-    to?: string | Uint8Array
-    limit?: number
-    offset?: number
 
-    // these might be different because of limit. these are the actual boundary keys
-    // that we read. we can use them to move the cursor forward or back (or even both ways)
-    cache?: ScanQueryCache
-}
-export interface ScanQueryCache {
-    anchor: number
-    key: Uint8Array[]
-    value: Uint8Array[]
-}
 // instead of a signal for every row, we have a diff signal for the range.
 // 
 
@@ -72,3 +56,26 @@ export function watchRange(query: ScanQuery) : [Accessor<TableUpdate[]> ,UpdateS
     return [o, (anchor: number) => {},()=>closeListen(query)]
 }
 
+export interface RowSource {
+    setAnchor(n: number): void
+    addListener(fn: (c: ScanQueryCache)=>void ): void
+    close(): void
+}
+
+// this is for the main thread, it mostly communicates with the database thread
+export function createRangeSource(q: ScanQuery) : RowSource {
+    return {
+        setAnchor(n: number) {
+            
+        },
+        addListener(fn: (c: ScanQueryCache)=>void ) {
+        },
+        close() {
+        }
+    }
+}
+
+// we need a log to update the shared data; we read the log from cloud storage, then update the listeners
+
+// each server assigns a 64 bit integer to each site.
+// each client can assign a 64 bit integer to each server

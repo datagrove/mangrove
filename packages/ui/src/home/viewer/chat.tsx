@@ -21,8 +21,12 @@ import { EditorState, LexicalEditor, $getRoot, $getSelection, KEY_ENTER_COMMAND,
 import {$getHtmlContent} from '@lexical/clipboard'
 import { TextMenu } from "../../lexical/menu"
 import { handThumbUp as reactionIcon , arrowUturnLeft as  replyIcon, hashtag as threadIcon, ellipsisHorizontal as dotsIcon} from 'solid-heroicons/solid'
-import { Message } from "../../db"
-
+import { Message, ScanQuery } from "../../db"
+import { IconPath } from "../search"
+import { Icon } from "solid-heroicons"
+import { SectionNav } from "../site_menu"
+import { Db } from "../../db"
+import { getUsage, setUsage, watchRange } from "../../db/range"
 // multiple messages close to each should be grouped
 // date changes need a divider
 // images are generall sent with a message.
@@ -108,6 +112,9 @@ export class RangeView<T> {
 }
 */
 
+// what trick should we do to url to a database connection on a another server?
+// maybe ?server=xxx
+
 export function ChatViewer() {
     let el: HTMLDivElement | null = null
     let el2: HTMLDivElement | null = null   
@@ -118,6 +125,7 @@ export function ChatViewer() {
     const [usage] = createResource(sp.path, getUsage)
 
     const q : ScanQuery = {
+        server: sp.server,
         site: sp.path,
         table: "chat",
         from: sp.path,
@@ -137,7 +145,6 @@ export function ChatViewer() {
             // we could 
             // builder could be async? cause a refresh?
             builder: function (ctx: TableContext): void {
-                // if we don't have ctx.row then fetch and return a tombstone
                 const o = ctx.old.value as Message
                 ctx.render(<MessageWithUser message={o} />)
             }
@@ -184,11 +191,7 @@ function Reactions(props: { message: Message }) {
 function MenuIcon(props: { path: IconPath, onClick: () => void }) {
     return <div class='hover:bg-neutral-800'><button onClick={props.onClick}><Icon class='h-5 w-5' path={props.path} /></button></div>
 }
-import { IconPath } from "../search"
-import { Icon } from "solid-heroicons"
-import { SectionNav } from "../site_menu"
-import { Db } from "../../db"
-import { ScanQuery, ScanQueryCache, getUsage, setUsage, watchRange } from "../../db/range"
+
 function MessageMenu(props: { message: Message }) {
     const reply = () => {}
     const dots = () => {}
@@ -232,13 +235,7 @@ export type MessageProps = {
     }
 }
 
-function Message({ message }: MessageProps) {
-    return (
-        <div class="py-0.5 pr-16 pl-4 leading-[22px] hover:bg-gray-950/[.07]">
-            <p class="pl-14 text-gray-100">{message.text}</p>
-        </div>
-    )
-}
+
 
 const editorConfig = {
     // The editor theme

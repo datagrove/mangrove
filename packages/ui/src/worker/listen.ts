@@ -1,6 +1,7 @@
 import { ListenerContext, ServiceFn } from "./data";
 
 export function createListener<T>(api: ServiceFn<T>, init: T) {
+    
     const ctx = self as any;
     const state = { ...init }
     const context = new ListenerContext((x: any) => ctx.postMessage(x), state)

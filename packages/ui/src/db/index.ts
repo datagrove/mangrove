@@ -6,6 +6,7 @@ export * from './db'
 export * from './v2/cell'
 export * from './chat'
 export * from './range'
+export * from './data'
 
 // @ts-ignore
 import Shared from './shared?sharedworker'

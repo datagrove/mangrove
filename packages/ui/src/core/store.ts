@@ -154,7 +154,8 @@ export type Viewer = {
 
 
 export interface SitePage {
-  path: string
+  server: string,    // we want this to be in url so it can be linked, but not necessarily host for the page
+  path: string,
   tool: Tool,
   toolname: string,
 }
