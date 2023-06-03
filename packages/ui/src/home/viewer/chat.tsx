@@ -26,7 +26,7 @@ import { IconPath } from "../search"
 import { Icon } from "solid-heroicons"
 import { SectionNav } from "../site_menu"
 import { Db } from "../../db"
-import { getUsage, setUsage, watchRange } from "../../db/range"
+import { getUsage } from "../../db/range"
 // multiple messages close to each should be grouped
 // date changes need a divider
 // images are generall sent with a message.

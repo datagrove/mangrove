@@ -1,8 +1,8 @@
 import { JSXElement } from "solid-js"
 import { render } from "solid-js/web"
-import { RowSource, createRangeSource } from "../db"
+import { RangeSource, RowSource, createRangeSource } from "../db"
 import { decode } from "cbor-x"
-import { ScanQuery } from "../db/data"
+import { ScanQuery, ScanQueryCache } from "../db/data"
 
 // this creates each row as a div.
 // the tradeoff here compared to cell as a div is that we make it harder to position columns
@@ -258,7 +258,7 @@ export class Scroller {
         if (o!=n.index) this.rs?.setAnchor?.(n.index)
     }
 
-    rs : RowSource | undefined
+    rs : RangeSource | undefined
     // put the header in 
     constructor(public props: ScrollerProps) {
         this.scroller_ = props.container
@@ -267,8 +267,7 @@ export class Scroller {
         this.topPadding = props.topPadding ?? 0
 
         if (props.scanQuery) {
-            this.rs = createRangeSource(props.scanQuery)
-            this.rs.addListener((r) => {
+            const listen = (r:ScanQueryCache) => {
                 const a = this.rendered_
                 const b = r.key
 
@@ -315,8 +314,10 @@ export class Scroller {
                         j++
                     }
                 // we need to relayout the visible rows. If the anchor has been deleted we need to replace it.
-
-            })
+                this.rs?.next().then(listen)
+            }
+            this.rs = createRangeSource(props.scanQuery)
+            this.rs.next().then(listen)
         }
 
         this.setAnchorItem({index: props.row?.initial?.row ?? 0,offset: 0})

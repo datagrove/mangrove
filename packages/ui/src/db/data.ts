@@ -1,19 +1,28 @@
-interface TableEntry {
-    table: number   // defined by the site in its schema. 53 bit hash like fuschia?
+
+
+export interface TableUpdate {
+    //like fuschia?
     // map attribute to a value, for a crdt
-    functor: [string, Uint8Array, [number, any][]][]
-}
-// cbor a batch of these
-interface SyncTx {
-    // maybe site and table should just be prefix compression onto the key?
-    table?: TableEntry[]
+    // our functors can include the attribute name?
+    key: Uint8Array[]
+    functor: [string, any]
 }
 
+/*
+export interface TableUpdate {
+    type: 'replace' | 'delete'
+    key: Uint8Array[]
+    version: number
+    value: Uint8Array[]  // in some cases this could be a delta too. we could invoke a blob then? maybe the (handle,length) of the bloglog changes to trigger.
+} */
+
 // server://org.site.whatever/path/to/whatever
-export interface Tx extends SyncTx {
+export interface Tx  {
     server: string
     site: string
-    tx: SyncTx
+    table: {
+        [table: string]: TableUpdate[]
+    }
 }
 
 export interface Watch {
@@ -107,4 +116,10 @@ export interface Message extends MessageData{
     date: string
     reactions: Reaction[]
     attachment: Attachment[]
+}
+
+export interface RowSource {
+    setAnchor(n: number): void
+    addListener(fn: (c: ScanQueryCache)=>void ): void
+    close(): void
 }

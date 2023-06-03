@@ -3,7 +3,7 @@
 // facets: author, channel, reactions
 
 import { Accessor, createSignal } from "solid-js"
-import { ScanQuery, ScanQueryCache } from "./data"
+import { ScanQuery, ScanQueryCache, TableUpdate } from "./data"
 
 
 // we need to get the last read location (shared among all one user's devices)
@@ -31,12 +31,6 @@ export async function setUsage(path: string, usage: Usage) {
 // 
 
 // when syncing the database will send an insert for the global version and a delete for the old version
-export interface TableUpdate {
-    type: 'replace' | 'delete'
-    key: Uint8Array[]
-    version: number
-    value: Uint8Array[]  // in some cases this could be a delta too. we could invoke a blob then? maybe the (handle,length) of the bloglog changes to trigger.
-}
 
 // only one db?
 export function listen(query: ScanQuery, setO: (o: TableUpdate[]) => void) {
@@ -48,7 +42,7 @@ export function closeListen(query: ScanQuery) {
 
 }
 
-export function watchRange(query: ScanQuery) : [Accessor<TableUpdate[]> ,UpdateScanQuery, () => void]{
+ function watchRange(query: ScanQuery) : [Accessor<TableUpdate[]> ,UpdateScanQuery, () => void]{
     // should I diff here? a self mutating signal would be counter to normal practice
     // potentially once we are done with an effect, we could advance? not clearly better.
     const [o,setO] = createSignal<TableUpdate[]>([])
@@ -56,24 +50,8 @@ export function watchRange(query: ScanQuery) : [Accessor<TableUpdate[]> ,UpdateS
     return [o, (anchor: number) => {},()=>closeListen(query)]
 }
 
-export interface RowSource {
-    setAnchor(n: number): void
-    addListener(fn: (c: ScanQueryCache)=>void ): void
-    close(): void
-}
 
-// this is for the main thread, it mostly communicates with the database thread
-export function createRangeSource(q: ScanQuery) : RowSource {
-    return {
-        setAnchor(n: number) {
-            
-        },
-        addListener(fn: (c: ScanQueryCache)=>void ) {
-        },
-        close() {
-        }
-    }
-}
+
 
 // we need a log to update the shared data; we read the log from cloud storage, then update the listeners
 

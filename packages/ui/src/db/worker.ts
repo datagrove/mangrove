@@ -4,8 +4,9 @@
 // @ts-ignore
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { decode, encode } from 'cbor-x';
-import { ScanQuery, ScanQueryCache, Tx } from './data';
+import { ScanQuery, ScanQueryCache, TableUpdate, Tx } from './data';
 import { IntervalTree } from './itree';
+import { update } from '../lib/db';
 const ctx = self as any;
 
 let db: any // sqlite3 database
@@ -14,7 +15,7 @@ let db: any // sqlite3 database
 const server = new Map<string, Server>()
 const site_ = new Map<string, Site>()
 
-// we can broadcast service status
+// we can broadcast service status and range versions
 const bc = new BroadcastChannel('server')
 function bcSend() {
     bc.postMessage({
@@ -27,7 +28,13 @@ function bcSend() {
 class Server {
     // there is an glsn per server, otherwise it would be hard for server to know if any are missing
     glsn = 0
-    range =  new IntervalTree<Subscription>()
+    // we have a tree per table, this lets us cache/hash the top cheaply.
+    site: {
+        [site: string]: {
+            [table: string]: IntervalTree<Subscription>
+        }
+    } = {}
+
     avail = new Map<string, number>()
 
     constructor(public url: string) {
@@ -80,14 +87,6 @@ class TabState {
 class Site {
     constructor(public lsn: number) { }
 }
-function getSite(server: string, site: string) {
-    const s = site_.get(`${server}|${site}`)
-    if (s) return s
-    // really here we should restore the lsn from disk not start from 0
-    const st = new Site(0)
-    site_.set(`${server}|${site}`, st)
-    return st
-}
 
 
 const rpcReply = (id: number, result: any) => {
@@ -112,7 +111,7 @@ const error = (...msg: string[]) => {
     log("%c", "color: red", ...msg)
 }
 
-const sv = (url: string) => {
+const sv = (url: string) : Server => {
     let sx = server.get(url)
     if (!sx) {
         sx = new Server(url)
@@ -120,14 +119,33 @@ const sv = (url: string) => {
     return sx
 }
 
+
+function getTable(server: string, site: string, table: string) : IntervalTree<Subscription> {
+    let s = sv(server)
+    let st = s.site[site]
+    if (!st) {
+        st = {}
+        s.site[site] = st
+    }
+    let t = st[table]
+    if (!t) {
+        // we need to create the table
+        t = new IntervalTree<Subscription>()
+    }
+    return t
+}
+
 function close(ts: TabState, h: number) {
+    // delete the record from the tabstate, we keep this list for cleanup when tab disconnects, it may be unnecessary? unclear if tab will be allowed to notify and send us this list.
     const sub = ts.cache.get(h)
     if (!sub) return
     ts.cache.delete(h)
-    const s = sv(sub.query.server ?? "")
-    if (!s) return
-    s.range.remove(sub.query.from, sub.query.to, sub)
+
+    const tr = getTable(sub.query.server, sub.query.site, sub.query.table)
+    if (tr)
+        tr.remove(sub.query.from, sub.query.to, sub)
 }
+
 function disconnect(ts: TabState) {
     // close all subscriptions
     for (const s of ts.cache.keys()) {
@@ -135,6 +153,11 @@ function disconnect(ts: TabState) {
     }
 }
 
+// we could shuffle off the work to a worker of creating the crdt merges?
+// we know that these tuples are loaded in the subscription
+function merge(sub: Subscription[], upd: TableUpdate ){
+
+}
 // maybe a shared array buffer would be cheaper? every tab could process in parallel their own ranges
 // unlikely; one tree should save power.
 // we optimistically execute the query locally, and multicast the results to listeners
@@ -144,20 +167,26 @@ function commit(ts: TabState, tx: Tx) {
     const svr = sv(tx.server)
     if (!svr) return
 
-    "insert into log(server, lsn, entry) values (?,?,?)"
+    "insert into log(server, entry) values (?,?,?)"
 
-   
+    // stab with all the keys, then broadcast all the updated ranges.
+    const site = svr.site[tx.site]
+    if (!site) return
 
+    for (const [table, upd] of Object.entries(tx.table)) {
+        const tbl = site[table]
+        if (!tbl) continue
+        upd.forEach( (x:TableUpdate) => {
+            x.key.forEach(k => {
+                 merge(tbl.stab(k), x)
+            })
+        })
+    }
+}
 
-
-    // different sites are queued separately since they need to be encrypted with different keys
-
-    // writing to a local log is a way to do exactly once;
-    // we can write these directly to opfs?
-
-
-    "insert into lastwrite(server, site, lsn) values (?,?,?)"
-
+function updateScan(ts: TabState, q: ScanQuery) {
+    const x = ts.cache.get(q.handle)
+    const tbl = getTable(q.server, q.site, q.table)
 }
 
 function scan(ts: TabState, q: ScanQuery) {
@@ -165,19 +194,30 @@ function scan(ts: TabState, q: ScanQuery) {
 
     // execte the query once. we can generate sql here to do it.
     let sql = `select * from ${q.table} where server=`
- 
-    const sqc : ScanQueryCache = {
-        anchor: 0,
-        key: [],
-        value: []
-    }
+
+    // we need a way to compute a binary key
+    const value : any[] = []
+    db.exec({
+        sql: sql,
+        rowMode: 'array', // 'array' (default), 'object', or 'stmt'
+        callback: function (row:any) {
+          value.push(row);
+        }.bind({ counter: 0 }),
+      });
+
+    const key = value.map( x => new Uint8Array(0))
 
     const sub : Subscription = {
         ctx: ts,
         query: q,
-        cache: sqc
+        cache: {
+            anchor: q.offset??0,
+            key: key,
+            value: value
+        }
     }
-    s.range.add(q.from, q.to, sub)
+    const tbl = getTable(q.server, q.site, q.table)
+    tbl.add(q.from, q.to, sub)
 }
 
 
@@ -192,10 +232,11 @@ function syncdown(s: Server, b: any ){
 // call syncup 10x a second 
 // call settimeout to retry the websocket connection if it fails
 function syncService() {
+    return
     interface SyncState {
         lastRead: number[] // pairs of numbers
     }
-    
+    "insert into lastwrite(server, site, lsn) values (?,?,?)"
     // function sync(svr: Server, tx: SyncBatchDown[]) {
     //     "update lastread set gsn = ? where server = ? and site = ?"
     // }
@@ -223,8 +264,6 @@ function syncService() {
     setTimeout(() => syncService(), 100)
 }
 syncService()
-
-// spreadsheets do not need any special treatment over a database. They are strictly lww wins, with no special merging.
 
 
 async function start() {
@@ -299,6 +338,9 @@ async function start() {
                 case 'scan':
                     scan(lc, params)
                     break
+                case 'updateScan':
+                    updateScan(lc, params)
+                    break;
                 case 'close':
                     close(lc, params.handle)
                     break
