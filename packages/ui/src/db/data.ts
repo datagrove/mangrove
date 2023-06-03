@@ -52,13 +52,8 @@ export function toBytes(b: Buffer) {
 // we could compile it into the worker for now.
 export class RangeSource<Key,Tuple> {
     
-    cache: ScanQueryCache<Tuple> = {
-        anchor: 0,
-        key: [],
-        value: []
-    }
     
-    constructor(public db: Db, public q: ScanQuery<Key,Tuple>, public schema: QuerySchema<Key>) {
+    constructor(public db: Db, public q: ScanQuery<Key,Tuple>, public schema: QuerySchema<Key>, public listener: (s: ScanDiff) => void) {
         // we have to send db thread a query
     }
 
@@ -70,18 +65,13 @@ export class RangeSource<Key,Tuple> {
         })
     }
 
-    // instead of the cache, we might want just the updates?
-    async next() : Promise<ScanQueryCache<Tuple>>{
-        // don't return until we have a new cache.
-        return this.cache
-    }
-
     close() {
-        
+        this.db.w.send({
+            method: 'close',
+            params: this.q.handle
+        })
     }
 }
-
-
 
 export interface ScanQuery<Key,Tuple> {
     anchor?: number
@@ -102,8 +92,6 @@ export interface ScanQuery<Key,Tuple> {
     cache?: ScanQueryCache<Tuple>
 }
 export interface ScanQueryCache<Tuple> {
-    anchor: number
-    key: string[]
     value: Tuple[]
 }
 
@@ -179,3 +167,55 @@ export function binarySearch(arr: string[], target: string): number {
     }
     return -1;
   }
+interface DiffCopy 
+    {which: 0|1, start: number, end: number}
+
+interface ScanDiff {
+    tuple: any[]
+    copy: DiffCopy[]   // triples: [whichvector, from, to]
+    size: number     // redundant
+}
+
+function computeDiff(old: any[], newer: any[], compare: (a:any,b:any)=>number) : ScanDiff {   
+    let d: ScanDiff = {
+        tuple: [],
+        copy: [],
+        size: 0
+    }
+    let i = 0
+    let j = 0
+    while (i<old.length && j<newer.length) {
+        const c = compare(old[i], newer[j])
+        if (c<0) {
+            const k = i++
+            while (i<old.length && compare(old[i], newer[j])<0) 
+                i++
+            d.copy.push({which: 0, start: k, end: i})
+        } else if (c>0) {
+            const k = i++
+            let st = d.tuple.length
+            while (j<newer.length && compare(old[i], newer[j])>0) {
+                d.tuple.push(newer[j++])
+                d.copy.push({which: 1, start: j, end: j+1})
+            }
+            d.copy.push({which: 1, start: j, end: i})
+        } else {
+            d.copy.push({which: 1, start: j, end: j+1})
+            d.tuple.push(newer[j++])
+            i++
+        }
+    }
+ 
+    return d
+}
+function applyDiff(old: string[], diff: ScanDiff) : any[] {
+    let n = new Array<any>(diff.size)
+    let j = 0
+    diff.copy.forEach((c: DiffCopy) => {
+        const src = c.which?diff.tuple:old
+        for (let i=c.start; i<c.end; i++) {
+            n[j++] = src[i]
+        }
+    })
+    return n
+}

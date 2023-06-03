@@ -138,13 +138,12 @@ export function ChatViewer() {
     onMount(async () => {
         const inode = 1; // await to get the index from the path.
         const lastRead = 0
-        const q = createQuery(db, chatTable, { from: {id: 1, created: lastRead} } )
+
 
         const cm = new Map<number, Column>()
         // we don't really know how many rows we will have when we mount.
         let opts: ScrollerProps = {
             container: el!,
-            rangeSource: q,
             // we could cache and revoke the context.
             // we could 
             // builder could be async? cause a refresh?
@@ -154,6 +153,13 @@ export function ChatViewer() {
             }
         }
         ed = new Scroller(opts)
+        const diff = (x: ScanDiff) => {
+            ed.applyDiff(x)
+        }
+        const q = createQuery(db, chatTable, { from: {id: 1, created: lastRead} } ,diff)
+        ed.addListener((pos: number) => {
+            q.update(pos)
+        }
     })
 
 

@@ -145,6 +145,11 @@ interface Anchor {
 // wraps around a dom element; portrays a Snapshot stream.
 // to be wrapped by react with useEffect.
 export class Scroller {
+    scrollListener: ((n: number)=> void) | undefined = undefined
+    listener(pos: (n: number)=>void )  {
+        this.scrollListener = pos
+    }
+
     scroller_: HTMLElement
     // we could set an entire array, then check a dirty flag to see if we remeasure.
     rendered_: TableRow[] = [];
@@ -243,13 +248,92 @@ export class Scroller {
         }
     }
 
+    // 
+    applyDiff(diff: ScanDiff) {
+        const result: TableRow[] = [];
+        const old = this.rendered_
+
+        const ctx = new TableContext(this)
+        const addRow = (k: string, v: any)=> {
+            ctx.old = new TableRow(this.rowDiv())
+            ctx.old.key = k
+            ctx.old.value = decode(v)
+            this.props.builder(ctx)
+        }
+
+        let i = 0;
+        let j = 0;
+        for (const op of diff.copy) {
+          if (op.which === 0) {
+            for (let k = op.start; k < op.end; k++) {
+              result.push(old[k]);
+            }
+          } else {
+            for (let k = op.start; k < op.end; k++) {
+              result.push(diff.tuple[j++]);
+            }
+          }
+        }
+        
+    }
+/*
+            const a = this.rendered_
+            const b = r
+
+                let i = 0;
+                let j = 0;
+
+                const replace : TableRow[] = []
+                const ctx = new TableContext(this)
+                const addRow = (k: string, v: any)=> {
+                    ctx.old = new TableRow(this.rowDiv())
+                    ctx.old.key = k
+                    ctx.old.value = decode(v)
+                    this.props.builder(ctx)
+                }
+                
+            
+                while (i < a.length && j < b.length) {
+                  if ( a[i].key < b[j] ) {
+                    // a[0] has been deleted from the range, reclaim the div
+                    this.recycle(a[i].node) 
+                    i++;
+                  } else if ( a[i].key > b[j] ) {
+                    // b[0] has been added to the range
+                    addRow(b[j], r.value[j])
+                    j++;
+                  } else {
+                    replace.push(a[i])
+                    // the value might be different, if so we need to invalidate the height
+                    if (r.value[j]!=a[i].value) {
+                        a[i].value = decode(r.value[j])
+                        a[i].height = 0
+                    }
+                    i++;
+                    j++;
+                  }
+                }
+              
+                while (i < a.length) {
+                  this.recycle(a[i].node);
+                  i++;
+                }
+                while (j < b.length) {
+                    addRow(b[j], r.value[j])
+                    j++
+                }
+            // we need to relayout the visible rows. If the anchor has been deleted we need to replace it.
+    }*/
+
+
     setAnchorItem(n: {index: number,offset: number}) {
         const o = this.anchorItem.index
         this.anchorItem = n
-        if (o!=n.index) this.rs?.update({ anchor: n.index })
+        if (o!=n.index) {
+            this.scrollListener?.(n.index)
+        }
     }
 
-    rs : RangeSource<any,any> | undefined
     // put the header in 
     constructor(public props: ScrollerProps) {
         this.scroller_ = props.container
@@ -257,59 +341,6 @@ export class Scroller {
         this.length_ = props.row?.count ?? 0
         this.topPadding = props.topPadding ?? 0
 
-        if (props.rangeSource) {
-            const listen = (r:ScanQueryCache<any>) => {
-                const a = this.rendered_
-                const b = r.key
-
-                    let i = 0;
-                    let j = 0;
-
-                    const replace : TableRow[] = []
-                    const ctx = new TableContext(this)
-                    const addRow = (k: string, v: any)=> {
-                        ctx.old = new TableRow(this.rowDiv())
-                        ctx.old.key = k
-                        ctx.old.value = decode(v)
-                        this.props.builder(ctx)
-                    }
-                    
-                
-                    while (i < a.length && j < b.length) {
-                      if ( a[i].key < b[j] ) {
-                        // a[0] has been deleted from the range, reclaim the div
-                        this.recycle(a[i].node) 
-                        i++;
-                      } else if ( a[i].key > b[j] ) {
-                        // b[0] has been added to the range
-                        addRow(b[j], r.value[j])
-                        j++;
-                      } else {
-                        replace.push(a[i])
-                        // the value might be different, if so we need to invalidate the height
-                        if (r.value[j]!=a[i].value) {
-                            a[i].value = decode(r.value[j])
-                            a[i].height = 0
-                        }
-                        i++;
-                        j++;
-                      }
-                    }
-                  
-                    while (i < a.length) {
-                      this.recycle(a[i].node);
-                      i++;
-                    }
-                    while (j < b.length) {
-                        addRow(b[j], r.value[j])
-                        j++
-                    }
-                // we need to relayout the visible rows. If the anchor has been deleted we need to replace it.
-                this.rs?.next().then(listen)
-            }
-            
-            this.rs?.next().then(listen)
-        }
 
         this.setAnchorItem({index: props.row?.initial?.row ?? 0,offset: 0})
 
@@ -356,7 +387,7 @@ export class Scroller {
 
     close() {
         this.scroller_.replaceChildren()
-        if (this.rs) this.rs.close()
+        
     }
 
     // called when the number or rows changes, but is this necessary?

@@ -12,6 +12,7 @@ const ctx = self as any;
 
 let db: any // sqlite3 database
 
+
 // server|site 
 const server = new Map<string, Server>()
 // const site_ = new Map<string, Site>()
@@ -80,8 +81,24 @@ class Server {
 interface Subscription {
     ctx: TabState
     query: ScanQuery<any, any>
-    cache: ScanQueryCache<any>
+    cache: Keyed[]
+    lastSent: Keyed[] // use this for diff,
 }
+// I can rate limit this; send no more than 10fps. combine the diffs
+function updateSubscription(subs: Set<Subscription>)  {
+    for (const sub of subs) {
+        const diff = computeDiff(sub.lastSent, sub.cache)
+        sub.lastSent = applyDiff(sub.lastSent, diff)
+        sub.ctx.write({
+            method: 'update',
+            params: {
+                query: sub.query.handle,
+                diff
+            }
+        })
+    }
+}
+
 class TabState {
     constructor(public write: any) { }
     cache = new Map<number, Subscription>()
@@ -141,11 +158,14 @@ function disconnect(ts: TabState) {
 
 // we could shuffle off the work to a worker of creating the crdt merges?
 // we know that these tuples are loaded in the subscription
-function merge(tbl: IntervalTree<Subscription>, table: string, upd: TableUpdate) {
+function merge(tbl: IntervalTree<Subscription>, table: string, upd: TableUpdate, dirty: Set<Subscription>) {
     // to find the key in our cache we need to encode it
     const v: QuerySchema<any> = schema.view[table]
     const keystr = v.marshalKey(upd.tuple)
+
+    // we need collect the subscriptions, update all at once.
     const sub: Subscription[] = tbl.stab(keystr)
+    sub.forEach(s => dirty.add(s))
 
     const updateSql = (row: unknown) => {
         // we need to run the functors on this. how does crdt fit here
@@ -210,13 +230,15 @@ function commit(ts: TabState, tx: Tx) {
     const site = svr.site[tx.site]
     if (!site) return
 
+    const dirty = new Set<Subscription>()
     for (const [table, upd] of Object.entries(tx.table)) {
         const tbl = site[table]
         if (!tbl) continue
         upd.forEach((x: TableUpdate) => {
-            merge(tbl, table, x)
+            merge(tbl, table, x, dirty)
         })
     }
+    
 }
 // should we smuggle the source into the worker in order to pack keys?
 // can they all be packed prior to sending?

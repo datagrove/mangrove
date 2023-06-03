@@ -18,8 +18,11 @@ import { QuerySchema } from "./schema"
 
 const dbmap = new Map<string, Db>()
 
-export function createQuery<Key, Tuple>(db: Db, t: QuerySchema<Key>, q: Partial<ScanQuery<Key, Tuple>>
-): RangeSource<Key, Tuple> {
+export function createQuery<Key, Tuple>(
+    db: Db, 
+    t: QuerySchema<Key>, 
+    q: Partial<ScanQuery<Key, Tuple>>, 
+    listener: (s: ScanDiff)=> void) : RangeSource<Key, Tuple> {
 
     // assign q a random number? then we can broadcast the changes to that number?
     // we need a way to diff the changes that works through a message channel.
@@ -31,7 +34,7 @@ export function createQuery<Key, Tuple>(db: Db, t: QuerySchema<Key>, q: Partial<
         method: 'scan',
         params: q
     })
-    const rs = new RangeSource<Key, Tuple>(db, q as ScanQuery<Key, Tuple>, t)
+    const rs = new RangeSource<Key, Tuple>(db, q as ScanQuery<Key, Tuple>, t,listener)
     db.range.set(q.handle, rs)
     return rs
 }
@@ -102,7 +105,11 @@ function callbackApi(db: Db): Api {
     return {
 
         update: async (context: ListenerContext<any>, params: any) => {
-
+            const { handle, diff } = params
+            const rs = db.range.get(handle)
+            if (rs) {
+                rs.listener(diff)
+            }
         },
         becomeLeader: async (context: ListenerContext<any>, params: any) => {
             console.log("becomeLeader starting worker")
