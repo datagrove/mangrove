@@ -20,13 +20,24 @@ const sql = [
     "create index if not exists transclude_partof on transclude(partof)",
     "create index if not exists transclude_relatesTo on transclude(relatesTo)",
 ]
+
+// the schema needs to be in the worker and in the tab
+// the name here must be unique and 
 export interface QuerySchema<Key> {
     name: string
     marshalKey(key: Key) : string 
+    //marshalRead(key: Query) : string
+    marshalRead1(key: Key) : any[]
+
+    // functors are nameable operations that can be applied to a tuple and an update
+    // mostly one x = y of update table. 
+    functor: {
+        [name: string]: (tuple: any, update: any) => any
+    }
+
 }
 
 const encodeNumber = (n: number) => n.toString(16).padStart(15, '0')
-
 
 
 export const chatTable : QuerySchema<{id: number, created: number }> = {
@@ -35,7 +46,17 @@ export const chatTable : QuerySchema<{id: number, created: number }> = {
         let s =  encodeNumber(key.id)
         s += encodeNumber(key.created)
         return s
+    },
+    marshalRead1: (q) => [`select * from chat where id=? and created=? `, q.id, q.created],
+
+    functor: {
+        "set": (tuple, update) => ({ ...tuple, ...update})
     }
+}
+
+// it's not clear we can get the type back after passing to the worker
+export function readSql(q: QuerySchema<any>, tuple: any) {
+
 }
 
 export interface Schema {
@@ -45,10 +66,10 @@ export interface Schema {
     }
 }
 
-export const schema =  {
+export const schema : Schema =  {
     create: sql,
 
     view: {
-        chat: chatTable
-    }
+        "chat": chatTable
+    } 
 }

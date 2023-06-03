@@ -4,17 +4,20 @@
 // @ts-ignore
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { decode, encode } from 'cbor-x';
-import { ScanQuery, ScanQueryCache, TableUpdate, Tx } from './data';
+import { ScanQuery, ScanQueryCache, TableUpdate, Tx, binarySearch } from './data';
 import { IntervalTree } from './itree';
 import { update } from '../lib/db';
-import { schema } from './schema';
+import { QuerySchema, schema } from './schema';
 const ctx = self as any;
 
 let db: any // sqlite3 database
 
 // server|site 
 const server = new Map<string, Server>()
-const site_ = new Map<string, Site>()
+// const site_ = new Map<string, Site>()
+// class Site {
+//     constructor(public lsn: number) { }
+// }
 
 // we can broadcast service status and range versions
 const bc = new BroadcastChannel('server')
@@ -84,23 +87,7 @@ class TabState {
     cache = new Map<number, Subscription>()
 }
 
-class Site {
-    constructor(public lsn: number) { }
-}
 
-
-// const rpcReply = (id: number, result: any) => {
-//     ctx.postMessage({
-//         id,
-//         result
-//     })
-// }
-// const rpcError = (id: number, error: any) => {
-//     ctx.postMessage({
-//         id,
-//         error
-//     })
-// }
 const log = (...args: any[]) => {
     ctx.postMessage({
         method: 'log',
@@ -118,7 +105,6 @@ const sv = (url: string) : Server => {
     }
     return sx
 }
-
 
 function getTable(server: string, site: string, table: string) : IntervalTree<Subscription> {
     let s = sv(server)
@@ -155,9 +141,42 @@ function disconnect(ts: TabState) {
 
 // we could shuffle off the work to a worker of creating the crdt merges?
 // we know that these tuples are loaded in the subscription
-function merge(sub: Subscription[], upd: TableUpdate ){
+function merge(tbl: IntervalTree<Subscription>, table: string, upd: TableUpdate ){
+    // to find the key in our cache we need to encode it
+    const v : QuerySchema<any> = schema.view[table]
+    const keystr = v.marshalKey(upd.tuple)
+    const sub: Subscription[] = tbl.stab(keystr)
+
+
+    if (sub.length === 0) {
+        // we need to read the record from the database to do the merge
+       const r  = v.marshalRead1(upd.tuple)
+        db.exec({
+            sql: r[0],
+            bind: r.slice(1),
+            callback: (row: any) => {
+                // we need to run the functors on this.
+                
+            }
+        })
+            
+        
+    } else {
+        // find the key in the first matching subscription, it will be the same in all of the matching
+
+
+        // update all of them
+        sub.forEach( s => {
+            const n = binarySearch(s.cache.key, keystr)
+            if (n >= 0) {
+                // found it, update and notify
+            }
+        })
+    }
     // store
     upd.functor.forEach( (f, i) => {
+        
+        db.exec("update ? set ? = ? where key = ?")
     })
 }
 // maybe a shared array buffer would be cheaper? every tab could process in parallel their own ranges
@@ -169,7 +188,9 @@ function commit(ts: TabState, tx: Tx) {
     const svr = sv(tx.server)
     if (!svr) return
 
-    "insert into log(server, entry) values (?,?,?)"
+    db.exec("insert into log(server, entry) values (?,?)",
+        [tx.server, encode(tx)])
+
 
     // stab with all the keys, then broadcast all the updated ranges.
     const site = svr.site[tx.site]
@@ -180,7 +201,7 @@ function commit(ts: TabState, tx: Tx) {
         if (!tbl) continue
         upd.forEach( (x:TableUpdate) => {
             x.key.forEach(k => {
-                 merge(tbl.stab(k), x)
+                 merge(tbl, x)
             })
         })
     }

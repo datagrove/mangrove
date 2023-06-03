@@ -6,8 +6,9 @@ export interface TableUpdate {
     //like fuschia?
     // map attribute to a value, for a crdt
     // our functors can include the attribute name?
-    key: any[]
-    functor: [string, any]
+    // any must include the 
+    tuple: unknown   // must include primary key, so to be encodable
+    functor: string[]  // lookup in schema
 }
 
 /*
@@ -80,24 +81,6 @@ export class RangeSource<Key,Tuple> {
     }
 }
 
-export function createQuery<Key,Tuple>(db: Db, t: QuerySchema<Key>, q: Partial<ScanQuery<Key,Tuple>>
-    ) : RangeSource<Key,Tuple>{
-
-        // assign q a random number? then we can broadcast the changes to that number?
-    // we need a way to diff the changes that works through a message channel.
-    // hash the key -> version number, reference count?
-    // the ranges would delete the key when no versions are left.
-    // we send more data than we need to this way?
-    q.handle = db.next++
-    db.w.send({
-        method: 'scan',
-        params: q
-    })
-    const rs = new RangeSource<Key,Tuple>(db, q as ScanQuery<Key,Tuple>, t)
-    db.range.set(q.handle, rs)
-    return rs
-}
-
 
 
 export interface ScanQuery<Key,Tuple> {
@@ -149,7 +132,6 @@ export interface CellPresence {
     }[]
 }
 
-
 export interface Author {
     id: number
     avatarUrl: string    
@@ -181,3 +163,19 @@ export interface Message extends MessageData{
     attachment: Attachment[]
 }
 
+
+export function binarySearch(arr: string[], target: string): number {
+    let left = 0;
+    let right = arr.length - 1;
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+      if (arr[mid] === target) {
+        return mid;
+      } else if (arr[mid] < target) {
+        left = mid + 1;
+      } else {
+        right = mid - 1;
+      }
+    }
+    return -1;
+  }

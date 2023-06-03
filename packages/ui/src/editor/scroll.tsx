@@ -137,16 +137,7 @@ interface Anchor {
     index: number
     offset: number
 }
-function compare(a: Uint8Array, b: Uint8Array): number {
-    for (let i = 0; i < Math.min(b.length,a.length); i++) {
-      if (a[i] < b[i]) {
-        return -1;
-      } else if (a[i] > b[i]) {
-        return 1;
-      }
-    }
-    return a.length - b.length;
-  }
+
 
 // these should only be on our runway. doesn't need to start at 0.
 // when we get a snapshot update we should diff the T's to see if we can reuse the dom we have created.
@@ -276,20 +267,20 @@ export class Scroller {
 
                     const replace : TableRow[] = []
                     const ctx = new TableContext(this)
-                    const addRow = (k: Uint8Array, v: Uint8Array)=> {
+                    const addRow = (k: string, v: any)=> {
                         ctx.old = new TableRow(this.rowDiv())
                         ctx.old.key = k
                         ctx.old.value = decode(v)
                         this.props.builder(ctx)
                     }
                     
-                    const c = compare(a[i].key,b[j])
+                
                     while (i < a.length && j < b.length) {
-                      if (c < 0) {
+                      if ( a[i].key < b[j] ) {
                         // a[0] has been deleted from the range, reclaim the div
                         this.recycle(a[i].node) 
                         i++;
-                      } else if (c > 0) {
+                      } else if ( a[i].key > b[j] ) {
                         // b[0] has been added to the range
                         addRow(b[j], r.value[j])
                         j++;

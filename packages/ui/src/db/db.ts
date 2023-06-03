@@ -14,8 +14,28 @@ import { ScanQueryCache, ScanQuery, RangeSource } from "./data"
 import Shared from './shared?sharedworker'
 // @ts-ignore
 import Worker from './worker?worker'
+import { QuerySchema } from "./schema"
 
 const dbmap = new Map<string, Db>()
+
+export function createQuery<Key,Tuple>(db: Db, t: QuerySchema<Key>, q: Partial<ScanQuery<Key,Tuple>>
+    ) : RangeSource<Key,Tuple>{
+
+        // assign q a random number? then we can broadcast the changes to that number?
+    // we need a way to diff the changes that works through a message channel.
+    // hash the key -> version number, reference count?
+    // the ranges would delete the key when no versions are left.
+    // we send more data than we need to this way?
+    q.handle = db.next++
+    db.w.send({
+        method: 'scan',
+        params: q
+    })
+    const rs = new RangeSource<Key,Tuple>(db, q as ScanQuery<Key,Tuple>, t)
+    db.range.set(q.handle, rs)
+    return rs
+}
+
 
 export function createDb (name: string) {
     // Wrong! this needs more complexity to share across tabs.
