@@ -17,3 +17,5 @@ overlays can be anchored to list cells.
 
 
 
+Table cells can be formatted to "spill" into neighboring cells and have z-order.
+

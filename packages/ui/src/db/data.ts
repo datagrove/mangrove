@@ -1,4 +1,20 @@
+interface TableEntry {
+    table: number   // defined by the site in its schema. 53 bit hash like fuschia?
+    // map attribute to a value, for a crdt
+    functor: [string, Uint8Array, [number, any][]][]
+}
+// cbor a batch of these
+interface SyncTx {
+    // maybe site and table should just be prefix compression onto the key?
+    table?: TableEntry[]
+}
 
+// server://org.site.whatever/path/to/whatever
+export interface Tx extends SyncTx {
+    server: string
+    site: string
+    tx: SyncTx
+}
 
 export interface Watch {
     server: string

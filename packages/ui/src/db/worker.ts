@@ -1,11 +1,67 @@
 // all tabs share a single worker that is elected. sharedworker cannot use opfs
+// no exports from here!
 
 // @ts-ignore
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { encode } from 'cbor-x';
-import { ScanQuery, ScanQueryCache } from './data';
+import { ScanQuery, ScanQueryCache, Tx } from './data';
 import { IntervalTree } from './itree';
 const ctx = self as any;
+
+let db: any // sqlite3 database
+
+// server|site 
+const range = new Map<string, IntervalTree<Subscription>>()
+const server = new Map<string, Server>()
+const site_ = new Map<string, Site>()
+
+class Server {
+    // there is an glsn per server, otherwise it would be hard for server to know if any are missing
+    glsn = 0
+    constructor(public url: string) {
+        this.connect()
+    }
+    ws?: WebSocket
+    get isConnected() {
+        return this.ws?.readyState === WebSocket.OPEN
+    }
+    connect() {
+        this.ws = new WebSocket(this.url)
+        this.ws.onmessage = (e) => {
+        }
+        this.ws.onerror = (e) => {
+            setTimeout(() => this.connect(), 1000)
+        }
+        this.ws.onclose = (e) => {
+        }
+        this.ws.onopen = (e) => {
+        }
+    }
+}
+
+interface Subscription {
+    ctx: TabState
+    query: ScanQuery
+    cache: ScanQueryCache
+}
+class TabState {
+    constructor(public write: any) { }
+    cache = new Map<number, Subscription>()
+}
+
+class Site {
+    constructor(public lsn: number) { }
+}
+function getSite(server: string, site: string) {
+    const s = site_.get(`${server}|${site}`)
+    if (s) return s
+    // really here we should restore the lsn from disk not start from 0
+    const st = new Site(0)
+    site_.set(`${server}|${site}`, st)
+    return st
+}
+
+
 const rpcReply = (id: number, result: any) => {
     ctx.postMessage({
         id,
@@ -28,24 +84,6 @@ const error = (...msg: string[]) => {
     log("%c", "color: red", ...msg)
 }
 
-
-
-// single threaded
-// possibly restore a snapshot in one go here?
-// a full sqlite file? a zip file?
-// in some ways sqlite is closer to what we want?
-// opens up search possibilities?
-
-// most of the api's are defined here.
-// 
-// we can keep information about a client so we can back it out if they disconnect
-// how can we clean up when a tab closes, especially if it is the leader?
-
-// can we use the first client to initialize the database?
-// then return log messages to that client?
-let db: any // sqlite3 database
-
-const server = new Map<string, Server>()
 const sv = (url: string) => {
     let sx = server.get(url)
     if (!sx) {
@@ -53,137 +91,101 @@ const sv = (url: string) => {
     }
     return sx
 }
-class TabState {
-    constructor(public write: any) { }
-    cache = new Map<number, Subscription>()
-}
 
 
 function close(ts: TabState, h: number) {
-    const sub = this.cache.get(h)
+    const sub = ts.cache.get(h)
     if (!sub) return
     ts.cache.delete(h)
     const s = sv(sub.query.server ?? "")
     if (!s) return
-    range.remove(sub.query.from, sub.query.to, sub)
-}
-function disconnect() {
-    // close all subscriptions
-    for (const s of this.cache.keys()) {
-        this.close(s)
+    const tr = range.get(`${sub.query.server}|${sub.query.site}`)
+    if (tr) {
+        tr.remove(sub.query.from, sub.query.to, sub)
     }
 }
-function commit(tx: Tx) {
+function disconnect(ts: TabState) {
+    // close all subscriptions
+    for (const s of ts.cache.keys()) {
+        close(ts, s)
+    }
+}
+
+// we optimistically execute the query locally, and broadcast the results to listeners
+// server can proceed at its own pase.
+function commit(ts: TabState, tx: Tx) {
     // insert tx into our 
-    const s = sv(tx.server)
-    if (!s) return
+    const svr = sv(tx.server)
+    if (!svr) return
+
+    "insert into log(server, lsn, entry) values (?,?,?)"
+
+   
+
+
+
     // different sites are queued separately since they need to be encrypted with different keys
 
-    tosend.get(tx.site)?.push(tx)
+    // writing to a local log is a way to do exactly once;
+    // we can write these directly to opfs?
+
+
+    "insert into lastwrite(server, site, lsn) values (?,?,?)"
+
 }
-function scan(params: ScanQuery) {
+
+function scan(ts: TabState, params: ScanQuery) {
     const s = sv(params.server)
 
 }
 
 
-interface Subscription {
-    ctx: TabState
-    query: ScanQuery
-    cache: ScanQueryCache
-}
-class Site {
-    constructor(public lsn: number) {
-
+// a tx is encrypted e2e
+interface SyncBatchDown {
+    ops: {
+        site: number
+        gsn: number
+        source: number
+        lsn: number
+        tx: Uint8Array //  encypted blob of Tx[]
     }
 }
-
-const range = new Map<string, IntervalTree<Subscription>>()
-const tosend = new Map<string, SyncBatchUp>()
-function getSite(server: string, site: string) {
-    return new Site(0)
-}
-
-function commit(tx: Tx) {
-    // writing to a local log is a way to do exactly once;
-    // we can write these directly to opfs?
-
-    "insert into log(server, lsn, entry) values (?,?,?)"
-    "insert into lastwrite(server, site, lsn) values (?,?,?)"
-
-    let st = getSite(tx.server, tx.site)
-    let s = tosend.get(tx.site)
-    if (!s) {
-        s = new SyncBatchUp(st.lsn)
-    }
-    s.tx.push(tx)
-}
-
-// call syncup when we get a commit, 
+// call syncup 10x a second 
 // call settimeout to retry the websocket connection if it fails
 function syncup() {
-    const a = encode({
-        method: 'syncup',
-        params: this.tosend
-    })
-    this.ws?.send(a)
-    //this.sent.push(...this.tosend)
+    for (const [k, v] of server) {
+        const svr = sv(k)
+        if (!svr || !svr.isConnected) continue
+       
+            // const a = encode({
+            //     method: 'syncup',
+            //     params: {
+            //         site: k,
+            //         gsn: st.lsn,
+            //         source: 0,
+            //         lsn: s.lsn,
+            //         tx: v
+            //     }
+            // })
+            //svr.ws?.send(a)
+    
+    }
+
+
+    setTimeout(() => syncup(), 100)
 }
 
 
 // associated with a socket connection
-class Server {
-    constructor(public url: string) {
-        this.connect()
-    }
-    ws?: WebSocket
-    connect() {
-        this.ws = new WebSocket(this.url)
-        this.ws.onmessage = (e) => {
-        }
-        this.ws.onerror = (e) => {
-            setTimeout(() => this.connect(), 1000)
-        }
-        this.ws.onclose = (e) => {
-        }
-        this.ws.onopen = (e) => {
-        }
-    }
-}
+
 
 
 // we need to be able to roll back our local changes in order to keep them consistent with the global order
 // we can keep the updates in a json field, then drop this field when it commits?
-interface TableEntry {
-    table: number   // defined by the site in its schema. 53 bit hash like fuschia?
-    // map attribute to a value, for a crdt
-    functor: [string, Uint8Array, [number, any][]][]
-}
-// cbor a batch of these
-interface SyncTx {
-    // maybe site and table should just be prefix compression onto the key?
-    table?: TableEntry[]
-}
 
-// server://org.site.whatever/path/to/whatever
-export interface Tx extends SyncTx {
-    server: string
-    site: string
-    tx: SyncTx
-}
 
-// a tx is encrypted e2e
-export interface SyncBatchDown {
-    site: number
-    gsn: number
-    source: number
-    lsn: number
-    tx: Uint8Array //  encypted blob of Tx[]
-}
-class SyncBatchUp {
-    constructor(lsn: number) { }    // prevent duplicates, we could allow the duplicates and fix on the client though?
-    tx: Tx[] = []// encrypted blob
-}
+
+
 
 // there is a bit in the key that identifies a blob
 // in this case the rest of the key is a blob handle
@@ -191,19 +193,12 @@ class SyncBatchUp {
 
 // spreadsheets do not need any special treatment over a database. They are strictly lww wins, with no special merging.
 
-export interface SyncState {
+interface SyncState {
     lastRead: number[] // pairs of numbers
 }
 
-export function sync(svr: Server, tx: SyncBatchDown[]) {
+function sync(svr: Server, tx: SyncBatchDown[]) {
     "update lastread set gsn = ? where server = ? and site = ?"
-}
-// local transactions; these are also reflected into the watched ranges
-// keep sqlite up to date
-export function commit(tx: Tx) {
-
-
-    // 
 }
 
 async function start() {
@@ -270,13 +265,13 @@ async function start() {
                 case 'disconnect':
                     disconnect(lc)
                 case 'commit':
-                    commit(lc,params)
+                    commit(lc, params)
                     break
                 case 'scan':
-                    scan(lc,params)
+                    scan(lc, params)
                     break
                 case 'close':
-                    close(lc,params.handle)
+                    close(lc, params.handle)
                     break
                 default:
                     ctx.postMessage({ id: id, error: `no method ${method}` })
