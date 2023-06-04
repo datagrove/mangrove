@@ -14,6 +14,16 @@ export interface QuerySchema<Key> {
 
 }
 
+export interface Query<Params, FileTuple> {
+    sql: string
+}
+const q1: Query<{id: number}, {id: number}> = {
+    sql: ''
+}
+function exec<Params,Tuple>(db: Database, q: Query<Params,Tuple>, params: Params) : Tuple[]{
+    return []
+}
+
 export const encodeNumber = (n: number) => n.toString(16).padStart(15, '0')
 
 type FunctorMap =  {
@@ -40,3 +50,12 @@ export const standardFunctors : FunctorMap = {
 export interface Transaction {
     
 }
+
+export function npath(path: string) : number {
+    return path.split('/').length
+}
+
+export interface Database {
+    
+}
+

@@ -381,6 +381,17 @@ async function start() {
             switch (method) {
                 case 'disconnect':
                     disconnect(lc)
+                    break
+                case 'query':
+                    db.exec({
+                        sql: params.sql,
+                        bind: params.bind,
+                        rowMode: 'array', // 'array' (default), 'object', or 'stmt'
+                        callback: function (row: any) {
+                            write.postMessage({ id: id, result: row })
+                        }.bind({ counter: 0 }),
+                    });
+                    break;
                 case 'commit':
                     commit(lc, params)
                     break

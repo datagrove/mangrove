@@ -2,23 +2,24 @@
 
 // build a file system on db
 
-import { createDb } from "./db";
-import { insert_file } from "./editor_schema";
-import { Transaction } from "./schema";
+import { Db, createDb, exec } from "./db";
+import { FileTuple, insert_file, select_file, select_file_recursive } from "./editor_schema";
+import { Transaction, npath } from "./schema";
 
 // files are just channels?
 // we need to figure out the type of the file to do this correctly?
 // what might they be?
 
 
+export async function select_files(db: Db, path: string) : Promise<FileTuple[]> {
+    return exec(db,select_file, {npath: npath(path), path: path})
+}
+export async function select_files_recursive(db: Db, path: string) : Promise<FileTuple[]> {
+    return exec(db,select_file_recursive, { path: path+'%'})
+}
 
 // 
-export function npath(path: string) : number {
-    return path.split('/').length
-}
-export function writeFile(tx: Transaction, path: string, data: ArrayBuffer) {
 
-}
 interface AsyncIterable {
     [Symbol.asyncIterator]() : AsyncIterator;
   }
@@ -29,19 +30,7 @@ interface AsyncIterable {
     value: any;
     done: boolean;
   }
-export async function listFiles(path: string) {
-    const db = createDb('dg')
-    const q = db.query(`select * from files where npath=?`, npath(path))
-    const files = await q.all()
-    return files
-}
-export async function walkFiles( path: string) {
-    const db = createDb('dg')
-    const tx = db.begin()
-    const q = tx.query(`select * from files where path like ?`, path + '%')
-    const files = await q.all()
-    return files
-}
+
 
 export async function uploadFiles(files: FileList, path: string) {
     const db = createDb('dg')
@@ -56,7 +45,7 @@ export async function uploadFiles(files: FileList, path: string) {
                 const data = reader.result
                 path = path + '/' + file.name
                 insert_file(tx, {
-                    id: 0,
+                    id: 0,  // id's only unique locally
                     npath: npath(path),
                     path: path,
                     type: file.type,

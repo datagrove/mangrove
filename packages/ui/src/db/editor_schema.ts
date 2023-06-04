@@ -1,4 +1,4 @@
-import {QuerySchema, Schema, Transaction, encodeNumber, standardFunctors} from './schema'
+import {Query, QuerySchema, Schema, Transaction, encodeNumber, standardFunctors} from './schema'
 
 // lots of inefficiency convert to utf16.
 const sql = [
@@ -52,6 +52,13 @@ export const schema : Schema =  {
 
 export interface SqlApi {
 }
+export type FileKey = {
+    id: number
+}
+export type FileByPath = {
+    npath: number
+    path: string
+}
 export type FileTuple = {
     id: number
     npath: number
@@ -62,11 +69,19 @@ export type FileTuple = {
     ctime: number
     summary?: string
 }
+export const select_file : Query< FileByPath ,FileTuple> = {
+    sql: 'select * from file where npath=? and path=?'
+}
+export const select_file_recursive : Query< {path:string} ,FileTuple> = {
+    sql: 'select * from file where  path=like ?'
+}
 
 export function insert_file(tx: Transaction,f: FileTuple){
 
 
 }
+
+
 
 export interface Author {
     id: number

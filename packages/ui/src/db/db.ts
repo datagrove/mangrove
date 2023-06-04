@@ -14,16 +14,16 @@ import { ScanQueryCache, ScanQuery, RangeSource } from "./data"
 import Shared from './shared?sharedworker'
 // @ts-ignore
 import Worker from './worker?worker'
-import { QuerySchema, Transaction } from "./schema"
+import { QuerySchema, Transaction, Query } from "./schema"
 
 const dbmap = new Map<string, Db>()
 
 
 export function createQuery<Key, Tuple>(
-    db: Db, 
-    t: QuerySchema<Key>, 
-    q: Partial<ScanQuery<Key, Tuple>>, 
-    listener: (s: ScanDiff)=> void) : RangeSource<Key, Tuple> {
+    db: Db,
+    t: QuerySchema<Key>,
+    q: Partial<ScanQuery<Key, Tuple>>,
+    listener: (s: ScanDiff) => void): RangeSource<Key, Tuple> {
 
     // assign q a random number? then we can broadcast the changes to that number?
     // we need a way to diff the changes that works through a message channel.
@@ -35,7 +35,7 @@ export function createQuery<Key, Tuple>(
         method: 'scan',
         params: q
     })
-    const rs = new RangeSource<Key, Tuple>(db, q as ScanQuery<Key, Tuple>, t,listener)
+    const rs = new RangeSource<Key, Tuple>(db, q as ScanQuery<Key, Tuple>, t, listener)
     db.range.set(q.handle, rs)
     return rs
 }
@@ -75,6 +75,13 @@ export class DbTransaction implements Transaction {
 
     }
 }
+export async function exec<A,T>(db: Db, q: Query<A,T>, params: A): Promise<T[]> {
+    return db.w.rpc('query', {
+        sql: q.sql,
+        params: params
+    }
+    )
+}
 
 export class Db {
     // each db corresponds to a worker
@@ -94,6 +101,7 @@ export class Db {
     begin() {
         return new DbTransaction(this)
     }
+
 
 
 }
@@ -157,7 +165,7 @@ let sharedWorker: SendToWorker | undefined
 // we could have a query return cellTempate[]? more like it takes that as argument
 
 // queries return lenses? select lens(name) 
-export interface Query {
+export interface Queryx {
     sql: string
     cells?: CellOptions[]
 }
@@ -170,7 +178,7 @@ export interface Query {
 export interface QueryResult {
     error: string
     loaded: boolean
-    query: Query
+    query: Queryx
     estimatedSize: Accessor<number>
 }
 
