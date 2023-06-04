@@ -19,11 +19,12 @@ import { EditorState, LexicalEditor, $getRoot, $getSelection, KEY_ENTER_COMMAND 
 import {$getHtmlContent} from '@lexical/clipboard'
 import { TextMenu } from "../../lexical/menu"
 import { handThumbUp as reactionIcon , arrowUturnLeft as  replyIcon, hashtag as threadIcon, ellipsisHorizontal as dotsIcon} from 'solid-heroicons/solid'
-import { Message, createDb, createQuery } from "../../db"
+import { createDb, createQuery } from "../../db"
 import { IconPath } from "../search"
 import { Icon } from "solid-heroicons"
 import { SectionNav } from "../site_menu"
-import { chatTable } from "../../db/schema"
+import { Message, chatTable } from "../../db/editor_schema"
+
 //import { getUsage } from "../../db/range"
 // multiple messages close to each should be grouped
 // date changes need a divider
@@ -157,9 +158,9 @@ export function ChatViewer() {
             ed.applyDiff(x)
         }
         const q = createQuery(db, chatTable, { from: {id: 1, created: lastRead} } ,diff)
-        ed.addListener((pos: number) => {
-            q.update(pos)
-        }
+        // ed.addListener((pos: number) => {
+        //     q.update(pos)
+        // })
     })
 
 

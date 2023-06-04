@@ -1,6 +1,6 @@
 
 
-import { For, JSXElement, Match, Show, Suspense, Switch, createEffect, createMemo, createSignal } from "solid-js";
+import { For, JSXElement, Match, Show, Suspense, Switch, createContext, createEffect, createMemo, createResource, createSignal, useContext } from "solid-js";
 import { createWs } from "../core/socket";
 import { A, useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
@@ -17,8 +17,9 @@ import { Graphic, SitePage, SitePageContext, Tool, contentLeft, getUser, layout,
 import { EditTool, EditViewer } from "./edit";
 import { MapTool, MapViewer } from "./map";
 import { DropModal, NewModal, PickGroupModal, pickNewFile, setShowNew, uploadFiles } from "./new";
-import { db } from "../db";
+
 import { Database } from "../lib/db";
+import { Db, createDb } from "../db";
 
 const builtinTools: { [key: string]: Tool } = {
   "edit": {
@@ -78,6 +79,10 @@ export function PinnedTool() {
   </span>
 }
 
+const DbContext = createContext<Db>();
+export function useDb() {
+  return useContext(DbContext)
+}
 
 // const userState: UserState = {
 //   settings: anon,
@@ -92,11 +97,18 @@ export function XX() {
 // take flyout out of url? the argument for it in, is that we can bookmark it, send a link to it,. Out will leave as at the actual page though, and is more conventional.
     // owner / ln / branch / db  / viewpath  
 
+
 export function LoggedIn() {
+  let [db] = createResource('dg', createDb)
   // pause here until we have a database
-  return <Show when={!db.loading} fallback={<div>Loading...</div>}><LoggedIn2 /></Show>
+  return <Show when={!db.loading} fallback={<div>Loading...</div>}>
+    <DbContext.Provider value={db()}>
+    <LoggedIn2 />
+    </DbContext.Provider>
+    </Show>
 }
 export function LoggedIn2() {
+  const db = useDb()!
   const ws = createWs()
   const loc = useLocation()
   const ln = useLn()
@@ -105,7 +117,7 @@ export function LoggedIn2() {
 
   createEffect(async () => {
     // this will happen after mounting, but not necessarily before the database is ready.
-    if (db()) {
+    if (db) {
       el.addEventListener('dragover', (event) => {
         event.preventDefault();
       });
@@ -116,7 +128,7 @@ export function LoggedIn2() {
         if (files) {
           // Handle dropped files here
           // start the new dialog, with files alread prepped.
-          const group = db()!.recentGroup(1)
+          const group = db!.recentGroup(1)
           uploadFiles(files,group[0])
         }
       });
@@ -130,6 +142,7 @@ export function LoggedIn2() {
       const name = p[2]??"search"
       let ft = tools()[name]??tools()["search"]
       const r: SitePage =   {
+        server: '', // default server, need a syntax for different ones, including webrtc ones.
         tool: ft,
         path: p.slice(3).join("/"),
         toolname: name

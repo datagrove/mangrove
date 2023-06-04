@@ -3,8 +3,6 @@ import { Route, Routes, useNavigate } from "../../../packages/ui/src/core/dg"
 import { Show, createEffect } from "solid-js"
 import { createResource } from "solid-js";
 import { getUser, login } from "../../../packages/ui/src/core"
-import { createDatabase } from "../../../packages/ui/src/db"
-
 
 const LoginRoutes = () => {
     const nav = useNavigate()
@@ -23,7 +21,7 @@ const LoginRoutes = () => {
 
 export function App() {
     const nav = useNavigate()
-    const [db] = createResource("1", createDatabase)
+
     createEffect(() => {
         if (!login()) {
             nav("/en/login")
