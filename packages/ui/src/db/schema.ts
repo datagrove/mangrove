@@ -37,3 +37,6 @@ export const standardFunctors : FunctorMap = {
 
     }
 }
+export interface Transaction {
+    
+}

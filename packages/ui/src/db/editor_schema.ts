@@ -1,10 +1,10 @@
-import {QuerySchema, Schema, encodeNumber, standardFunctors} from './schema'
+import {QuerySchema, Schema, Transaction, encodeNumber, standardFunctors} from './schema'
 
 // lots of inefficiency convert to utf16.
 const sql = [
     "create table if not exists site(sid integer primary key, server, site, lastread, lastwrite)",
     "create table if not exists log(lsn integer primary key, entry)",
-    "create table if not exists file(id integer primary key, npath, path,type,length, mtime, ctime, summary)",
+    "create table if not exists file(id integer primary key, npath, path,type,size, mtime, ctime, summary)",
     "create table if not exists toast(id integer primary key, offset, content)",
     "create index if not exists file_path on channel(npath, path)",
     "create table if not exists message(id integer primary key, partof, created,author, content)",
@@ -48,6 +48,24 @@ export const schema : Schema =  {
         "chat": chatTable
     } ,
     functor: standardFunctors
+}
+
+export interface SqlApi {
+}
+export type FileTuple = {
+    id: number
+    npath: number
+    path: string
+    type: string
+    size: number
+    mtime: number
+    ctime: number
+    summary?: string
+}
+
+export function insert_file(tx: Transaction,f: FileTuple){
+
+
 }
 
 export interface Author {

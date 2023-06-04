@@ -66,7 +66,7 @@ export type FacetSelect<T> = {
 // can the listener be in the contstructor? 
 // in theory this should not be global, because we can start a worker for each?
 
-export class Transaction {
+export class DbTransaction implements Transaction {
     constructor(public db: Db) {
 
     }
