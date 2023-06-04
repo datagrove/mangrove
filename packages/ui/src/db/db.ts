@@ -14,9 +14,10 @@ import { ScanQueryCache, ScanQuery, RangeSource } from "./data"
 import Shared from './shared?sharedworker'
 // @ts-ignore
 import Worker from './worker?worker'
-import { QuerySchema } from "./schema"
+import { QuerySchema, Transaction } from "./schema"
 
 const dbmap = new Map<string, Db>()
+
 
 export function createQuery<Key, Tuple>(
     db: Db, 
@@ -71,7 +72,7 @@ export class DbTransaction implements Transaction {
 
     }
     commit() {
-        
+
     }
 }
 
@@ -91,9 +92,10 @@ export class Db {
         return [group]
     }
     begin() {
-        return new Transaction(this)
+        return new DbTransaction(this)
     }
-    
+
+
 }
 
 

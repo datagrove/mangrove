@@ -10,6 +10,8 @@ import { Transaction } from "./schema";
 // we need to figure out the type of the file to do this correctly?
 // what might they be?
 
+
+
 // 
 export function npath(path: string) : number {
     return path.split('/').length
@@ -29,8 +31,7 @@ interface AsyncIterable {
   }
 export async function listFiles(path: string) {
     const db = createDb('dg')
-    const tx = db.begin()
-    const q = tx.query(`select * from files where npath=?`, npath(path))
+    const q = db.query(`select * from files where npath=?`, npath(path))
     const files = await q.all()
     return files
 }

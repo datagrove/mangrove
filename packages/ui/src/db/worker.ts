@@ -9,10 +9,23 @@ import { IntervalTree } from './itree';
 import { update } from '../lib/db';
 import { QuerySchema } from './schema';
 import { schema } from './editor_schema'
+import IndexWorker from './worker_index?worker'
 const ctx = self as any;
+
+// global, each worker has a single database
+
+// when we start a worker we should give a message channel that allows it to access the main console log? un
 
 let db: any // sqlite3 database
 
+export function indexFiles( ){
+
+}
+
+export function reindex(){
+
+    
+}
 // server|site 
 const server = new Map<string, Server>()
 // const site_ = new Map<string, Site>()
@@ -321,6 +334,7 @@ syncService()
 
 async function start() {
     // the first client to connect initializes the database
+    // create an index worker 
 
 
     let sqlite3 = await sqlite3InitModule({
@@ -350,6 +364,7 @@ async function start() {
         error(err.name, err.message)
     }
 
+    // this has a ways to go, we want a way that we can wire up a MessageChannel from any tab to the database worker in the leader.
     const connect = (read: any, write: any) => {
         const lc = new TabState(write)
 
