@@ -1,0 +1,118 @@
+class Node<K,T> {
+    from: K;
+    to: K;
+    max: K;
+    value: T;
+    left: Node<K,T> | null;
+    right: Node<K,T> | null;
+  
+    constructor(from: K, to: K, listener: T) {
+      this.from = from;
+      this.to = to;
+      this.max = to;
+      this.value = listener;
+      this.left = null;
+      this.right = null;
+    }
+  }
+  
+  export class IntervalTree<K,T> {
+    private root: Node<K,T> | null;
+  
+    constructor() {
+      this.root = null;
+    }
+  
+    add(from: K, to: K, listener: T) {
+      this.root = insert(this.root, from, to, listener);
+    }
+  
+    remove(from: K, to: K, listener: T) {
+      this.root = remove(this.root, from, to, listener);
+    }
+  
+    stab(key: K): T[] {
+      const result: T[] = [];
+      stabHelper(this.root, key, result);
+      return result;
+    }
+  }
+  
+  function insert<K,T>(root: Node<K,T> | null, from: K, to: K, listener: T): Node<K,T> {
+    if (!root) {
+      return new Node(from, to, listener);
+    }
+    if (from < root.from) {
+      root.left = insert(root.left, from, to, listener);
+    } else {
+      root.right = insert(root.right, from, to, listener);
+    }
+    if (root) {
+      root.max = max(root.to, max(getMax(root.left), getMax(root.right)));
+    }
+    return root;
+  }
+  
+  function remove<K,T>(root: Node<K,T> | null, from: K, to: K, listener: T): Node<K,T> | null {
+    if (!root) {
+      return null;
+    }
+    if (from < root.from) {
+      root.left = remove(root.left, from, to, listener);
+    } else if (from > root.from) {
+      root.right = remove(root.right, from, to, listener);
+    } else if (to < root.to) {
+      root.left = remove(root.left, from, to, listener);
+    } else if (to > root.to) {
+      root.right = remove(root.right, from, to, listener);
+    } else if (root.value !== listener) {
+      root.left = remove(root.left, from, to, listener);
+      root.right = remove(root.right, from, to, listener);
+    } else {
+      if (!root.left) {
+        return root.right;
+      }
+      if (!root.right) {
+        return root.left;
+      }
+      const min = findMin(root.right);
+      root.from = min.from;
+      root.to = min.to;
+      root.value = min.value;
+      root.right = remove(root.right, min.from, min.to, min.value);
+    }
+    if (root) {
+      root.max = max(root.to, max(getMax(root.left), getMax(root.right)));
+    }
+    return root;
+  }
+  
+  function stabHelper<K,T>(root: Node<K,T> | null, key: K, result: T[]) {
+    if (!root) {
+      return;
+    }
+    if (root.from <= key && key <= root.to) {
+      result.push(root.value);
+    }
+    if (root.left && root.left.max >= key) {
+      stabHelper(root.left, key, result);
+    }
+    if (root.right && root.right.from <= key) {
+      stabHelper(root.right, key, result);
+    }
+  }
+  
+  function findMin<K,T>(root: Node<K,T>): Node<K,T> {
+    while (root.left) {
+      root = root.left;
+    }
+    return root;
+  }
+  
+  function getMax<K,T>(root: Node<K,T> | null): K {
+    return root ? root.max : "";
+  }
+  
+  function max<K>(a: K, b: K): K {
+    return a > b ? a : b;
+  }
