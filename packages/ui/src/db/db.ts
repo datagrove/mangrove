@@ -66,7 +66,14 @@ export type FacetSelect<T> = {
 // can the listener be in the contstructor? 
 // in theory this should not be global, because we can start a worker for each?
 
+export class Transaction {
+    constructor(public db: Db) {
 
+    }
+    commit() {
+        
+    }
+}
 
 export class Db {
     // each db corresponds to a worker
@@ -83,7 +90,10 @@ export class Db {
         }
         return [group]
     }
-
+    begin() {
+        return new Transaction(this)
+    }
+    
 }
 
 
