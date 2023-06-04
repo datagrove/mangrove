@@ -83,11 +83,7 @@ export class Db {
         }
         return [group]
     }
-    async uploadFiles(files: FileList, path: string) {
-        // this has to go to the dedicated worker
-        await this.w.rpc('dropFiles', { dropFiles: [...files] })
-        // the drop files should signal client already?
-    }
+
 }
 
 

@@ -4,8 +4,9 @@ import {QuerySchema, Schema, encodeNumber, standardFunctors} from './schema'
 const sql = [
     "create table if not exists site(sid integer primary key, server, site, lastread, lastwrite)",
     "create table if not exists log(lsn integer primary key, entry)",
-    "create table if not exists channel(id integer primary key, npath, path,content)",
-    "create index if not exists channel_path on channel(npath, path)",
+    "create table if not exists file(id integer primary key, npath, path,type,length, mtime, ctime, summary)",
+    "create table if not exists toast(id integer primary key, offset, content)",
+    "create index if not exists file_path on channel(npath, path)",
     "create table if not exists message(id integer primary key, partof, created,author, content)",
     "create index if not exists message_partof on message(partof,id)",
     "create table if not exists author(id integer primary key, name, email)",
