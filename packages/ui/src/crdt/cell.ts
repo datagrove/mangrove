@@ -1,9 +1,7 @@
 
 
-// a crdt that matches up with our database capabilities
-// we are interested in ordered things that don't naturally fit in sql
 
-// we don't 
+
 
 // most things are operations on a monotonically growing interval tree
 // the 

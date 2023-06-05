@@ -1,4 +1,9 @@
-1. make it as easy as possible for readers
+1. make it as easy as possible for readers, hard as necessary for writers
+2. utilize the site host to take record locks; fail the transaction if the tx does  not match the current value. Lock increases by 1 with each successful transaction.
+
+insert needs a lock; it prevents double insertion. upsert doesn't get us much since our alternate keys will still fail
+delete also needs a lock; an out of step delete + insert can give different answers?
+
 
 readers 
 1. get an update, apply it to the shadow copy, diff it to the editor copy. each node has a key, get the node, apply the diff

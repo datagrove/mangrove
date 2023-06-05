@@ -180,6 +180,7 @@ function execOps(tbl: IntervalTree<Subscription>, table: string, upd: TableUpdat
     const sub: Subscription[] = tbl.stab(keystr)
     sub.forEach(s => dirty.add(s))
 
+
     switch (upd.op) {
         case 'insert':
             break;
@@ -187,12 +188,9 @@ function execOps(tbl: IntervalTree<Subscription>, table: string, upd: TableUpdat
             break;
         case 'update':
             break;
-        case 'crdt':
-            // we need to keep enough information to diff and recover
-            // we write the tuple as the user has written it, but we need a shadow copy
-            break;
     }
 
+    // update is read-modify-write
     const updateSql = (row: unknown) => {
         // we need to run the functors on this. how does crdt fit here
         // it may need to write a file, so we should probably give the functor
@@ -248,6 +246,7 @@ function commit(ts: TabState, tx: Tx) {
     const svr = sv(tx.server)
     if (!svr) return
 
+    // how do we rebase if we fail?
     log("commit", tx)
     db.exec("insert into log(server, entry) values (?,?)",
         [tx.server, encode(tx)])
