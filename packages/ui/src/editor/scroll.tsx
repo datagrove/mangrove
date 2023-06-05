@@ -310,17 +310,18 @@ export class Scroller {
         if (this.props.column) {
             this.parent_.appendChild(this.header_);
             // this probably needs to be a property.
-            this.header_.className = 'overflow-hidden  bg-neutral-900'
+            this.header_.className = 'overflow-hidden p-2 w-full flex bg-neutral-900'
             this.header_.style.zIndex = '900' // must be above the scroller
-            this.header_.style.height = '56px'
+
 
             // do I need support for wrapped headers, or single row only?
             // are pinned/frozen rows a different type of thing?
             const v = this.props.column.header
             for (let i = 0; i < v.length; i++) {
                     const c = document.createElement('div') as HTMLElement
-                    c.style.display = 'inline-block'
                     c.style.width = v[i].width + 'px'
+                    c.style.flexGrow='0'
+                    c.style.flexShrink='0'
                     this.header_.appendChild(c)
             }
 
