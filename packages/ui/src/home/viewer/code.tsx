@@ -71,23 +71,7 @@ export function DatabaseViewer() {
         </>
 }
 
-export function DatabaseViewer2() {
-    const [split,setSplit] = createSignal(300)
-    return <>
-        <div
-              class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden w-full left-0 top-0 '
-              style={{
-                height: split()+'px'
-              }}
-            >
-        <CodeViewer />
-        </div>
-        <VSplitterButton style={{
-            top: split()+"px"
-        }} class='w-full h-4 absolute hover:bg-blue-700 hover:opacity-100 opacity-100 cursor-ns-resize' value={split} setValue={setSplit}/>
 
-        </>
-}
 export function DatabaseTool() {
     return <div>Database tool</div>
 }

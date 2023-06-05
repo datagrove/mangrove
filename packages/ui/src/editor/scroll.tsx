@@ -168,7 +168,6 @@ export class Scroller {
     //wideWay_: HTMLElement
     //headerCell?: HTMLElement[]
     //header!: HTMLDivElement
-    headerRow!: HTMLElement
     headerHeight = 0
 
     // when we create a div it should be display none and absolute and a child of the scroller
@@ -204,6 +203,8 @@ export class Scroller {
         r.style.display = 'flex'
         r.style.position = 'absolute'
 
+        // if this has more than on column then we create a div for each column
+        // and set the width. there is one overall div for the row. this makes column resizing harder, but easier to layout each row.
         if (this.props.column) {
             const v = this.props.column.header
             for (let i = 0; i < v.length; i++) {
@@ -223,6 +224,8 @@ export class Scroller {
     }
 
     get rows() { return this.props.row?.count || 0 }
+
+    // wrapper around the injected builder
     builder(ctx: TableContext, row: number) {
         ctx.row = row
         //console.log("build", ctx, row)
@@ -230,19 +233,24 @@ export class Scroller {
             // cache this? get from callback?
             ctx.old.node.style.display = 'none'
             console.log("hide", row, this.rows, ctx)
-        } else {
-            ctx.old.node.style.display = 'flex'
-            if (this.props.column) {
-                const v = this.props.column.header
-                for (let i = 0; i < v.length; i++) {
-                    ctx.column = v[i]
-                    ctx.offset = i
-                    this.props.builder(ctx)
-                }
-            } else {
+            return
+        } 
+        
+        // flex here makes sure its visible.
+        ctx.old.node.style.display = 'flex'
+        if (this.props.column) {
+            const v = this.props.column.header
+            // calling the builder for each cell
+            // it's not clearly a win since don't we always need every cell to compute a height?
+            for (let i = 0; i < v.length; i++) {
+                ctx.column = v[i]
+                ctx.offset = i
                 this.props.builder(ctx)
             }
+        } else {
+            this.props.builder(ctx)
         }
+        
     }
 
     // 
@@ -276,55 +284,6 @@ export class Scroller {
         this.rendered_ = result;
 
     }
-/*
-            const a = this.rendered_
-            const b = r
-
-                let i = 0;
-                let j = 0;
-
-                const replace : TableRow[] = []
-                const ctx = new TableContext(this)
-                const addRow = (k: string, v: any)=> {
-                    ctx.old = new TableRow(this.rowDiv())
-                    ctx.old.key = k
-                    ctx.old.value = decode(v)
-                    this.props.builder(ctx)
-                }
-                
-            
-                while (i < a.length && j < b.length) {
-                  if ( a[i].key < b[j] ) {
-                    // a[0] has been deleted from the range, reclaim the div
-                    this.recycle(a[i].node) 
-                    i++;
-                  } else if ( a[i].key > b[j] ) {
-                    // b[0] has been added to the range
-                    addRow(b[j], r.value[j])
-                    j++;
-                  } else {
-                    replace.push(a[i])
-                    // the value might be different, if so we need to invalidate the height
-                    if (r.value[j]!=a[i].value) {
-                        a[i].value = decode(r.value[j])
-                        a[i].height = 0
-                    }
-                    i++;
-                    j++;
-                  }
-                }
-              
-                while (i < a.length) {
-                  this.recycle(a[i].node);
-                  i++;
-                }
-                while (j < b.length) {
-                    addRow(b[j], r.value[j])
-                    j++
-                }
-            // we need to relayout the visible rows. If the anchor has been deleted we need to replace it.
-    }*/
-
 
     setAnchorItem(n: {index: number,offset: number}) {
         const o = this.anchorItem.index
@@ -334,9 +293,57 @@ export class Scroller {
         }
     }
 
-    // put the header in 
+    parent_: HTMLElement
+    header_: HTMLElement
+    // eventually we would like to be able to take children and use as prolog
+    // the prolog would scroll off the screen with the tab headers sticking to the top. there could also be a postlog. unclear to me how to do this in solid exactly, but a component generates dom, so should be possible.
+
     constructor(public props: ScrollerProps) {
-        this.scroller_ = props.container
+        // we need two divs to do this. one for the header and one for the body.
+        // currently we use the 
+        this.parent_ = props.container
+       
+        // eventually this will scroll up until it hits the top then stick, maybe with some animation that squeezes it down.
+                // set up headers if desired  
+        this.scroller_ = document.createElement('div');
+        this.header_ = document.createElement('div');
+        if (this.props.column) {
+            this.parent_.appendChild(this.header_);
+            // this probably needs to be a property.
+            this.header_.className = 'overflow-hidden  bg-neutral-900'
+            this.header_.style.zIndex = '900' // must be above the scroller
+            this.header_.style.height = '56px'
+
+            // do I need support for wrapped headers, or single row only?
+            // are pinned/frozen rows a different type of thing?
+            const v = this.props.column.header
+            for (let i = 0; i < v.length; i++) {
+                    const c = document.createElement('div') as HTMLElement
+                    c.style.display = 'inline-block'
+                    c.style.width = v[i].width + 'px'
+                    this.header_.appendChild(c)
+            }
+
+            // should we measure the header or just truncate?
+            // eventually we will want to have all these as floating divs
+            // absolute? easier to animate?
+            let h = 0
+            for (let i in this.props.column.header) {
+                let v = this.props.column.header[i]
+                const nd = this.header_.children[i] as HTMLDivElement
+                nd.style.width = v.width + 'px'
+                nd.innerHTML = v.html
+            }
+            this.headerHeight = this.header_.offsetHeight
+        }
+
+
+        // the scroller takes up the entire space still, but now it needs to have some margin at the top to allow for the header (and prolog eventually)
+
+        this.scroller_.className = 'right-0  bottom-0 left-0 absolute overflow-auto '
+        this.scroller_.style.top = this.headerHeight + 'px'
+        this.parent_.appendChild(this.scroller_);
+
         console.log('props', props)
         this.length_ = props.row?.count ?? 0
         this.topPadding = props.topPadding ?? 0
@@ -347,6 +354,7 @@ export class Scroller {
         this.scroller_.addEventListener('scroll', () => this.onScroll_());
         window.addEventListener('resize', this.onResize_.bind(this));
 
+        // create the runway.
         const d = document.createElement('div');
         d.textContent = ' ';
         d.style.position = 'absolute';
@@ -354,32 +362,9 @@ export class Scroller {
         d.style.width = '1px';
         d.style.transition = 'transform 0.2s';
         this.scroller_.appendChild(d);
-
         this.scrollRunway_ = d
-        if (this.props.column) {
-            const r = this.rowDiv()
-            r.style.position = 'absolute'
-            r.style.top = '0px'
-            r.style.backgroundColor = 'black'
-            r.style.zIndex = '800'
-            this.headerRow = r
-
-            // should we measure the header or just truncate?
-            // eventually we will want to have all these as floating divs
-            // absolute? easier to animate?
-            let h = 0
-            for (let i in this.props.column.header) {
-                let v = this.props.column.header[i]
-                const nd = this.headerRow.children[i] as HTMLDivElement
-                nd.style.width = v.width + 'px'
-                nd.style.position = 'static' // static for measurement.
-                nd.innerHTML = v.html
-            }
-            this.headerHeight = this.headerRow.offsetHeight
-        } else {
 
 
-        }
 
         this.resizeData()
         this.onResize_()
@@ -453,20 +438,8 @@ export class Scroller {
     }
 
     position(o: TableRow) {
-        const y = o.top + this.headerHeight + this.topPadding
+        const y = o.top  + this.topPadding
         o.node.style.transform = `translate(0,${y}px)`
-
-        // if (this.props.column) {
-        //     for (const [key, value] of o.node) {
-
-        //         const col = this.props.column?.columns.get(key)
-        //         const tr = `translate(${col!.start}px,${o.top + this.headerHeight + this.topPadding}px)`
-        //         //console.log('pos', tr)
-        //         value.style.transform = tr
-        //     }
-        // } else {
-        //     o.node.style.transform = `translate(0,${o.top + this.headerHeight + this.topPadding}px)`
-        // }
     }
     measure(item: TableRow) {
         if (item.height > 0){
@@ -564,6 +537,10 @@ export class Scroller {
         //     oldindex,
         //     delta,
         // }, { ...this.anchorItem, top: this.scroller_.scrollTop, st: this.rendered_start, h: this.estHeight_ })
+
+        const l =  this.scroller_.scrollLeft 
+        this.header_.scrollLeft = l
+        
 
         this.anchorScrollTop = this.scroller_.scrollTop;
         if (this.scroller_.scrollTop == 0) {

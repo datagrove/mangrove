@@ -29,7 +29,7 @@ export function TableViewer() {
     const N = 100
     const c : Column[] = []
     for (let i = 0; i < N; i++) {
-        c.push({ tag: i, width: 96, html: "<div class='p-4'>col" + i + "</div>" })
+        c.push({ tag: i, width: 96, html: "col" + i  })
     }
 
     onMount(() => {
@@ -59,22 +59,11 @@ export function TableViewer() {
             height: est,
         }
         const s = new Scroller(props)
-        const r = () => {
-            // we should be able to adjust grid options here.
-            // maybe just use update?
-            s.onResize_()
-
-        }
-        window.addEventListener('resize', r);
-        onCleanup(() => {
-            // any value to explicit destruction here?
-            window.removeEventListener('resize', r);
-        })
     })
 
 
     return <>
-        <div class={'right-0  top-0 bottom-0 left-0 absolute overflow-auto ' + clearFrame} ref={el!}></div>
+        <div class={'h-full w-full absolute ' + clearFrame} ref={el!}></div>
         <p ref={tombstone!}>&nbsp;</p>
     </>
 
