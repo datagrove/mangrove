@@ -101,9 +101,12 @@ export class Db {
     begin() {
         return new DbTransaction(this)
     }
-
-
-
+    query(sql: string , params?: any) {
+        return this.w.rpc('query', {
+            sql: sql,
+            params: params
+        })
+    }
 }
 
 
