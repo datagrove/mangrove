@@ -171,7 +171,7 @@ function disconnect(ts: TabState) {
 
 // we could shuffle off the work to a worker of creating the crdt merges?
 // we know that these tuples are loaded in the subscription
-function merge(tbl: IntervalTree<Subscription>, table: string, upd: TableUpdate, dirty: Set<Subscription>) {
+function execOps(tbl: IntervalTree<Subscription>, table: string, upd: TableUpdate, dirty: Set<Subscription>) {
     // to find the key in our cache we need to encode it
     const v: QuerySchema<any> = schema.view[table]
     const keystr = v.marshalKey(upd.tuple)
@@ -180,12 +180,25 @@ function merge(tbl: IntervalTree<Subscription>, table: string, upd: TableUpdate,
     const sub: Subscription[] = tbl.stab(keystr)
     sub.forEach(s => dirty.add(s))
 
+    switch (upd.op) {
+        case 'insert':
+            break;
+        case 'delete':
+            break;
+        case 'update':
+            break;
+        case 'crdt':
+            // we need to keep enough information to diff and recover
+            // we write the tuple as the user has written it, but we need a shadow copy
+            break;
+    }
+
     const updateSql = (row: unknown) => {
         // we need to run the functors on this. how does crdt fit here
         // it may need to write a file, so we should probably give the functor
         // a context. it might be good to have a functor that can do the whole
         // update in sql.
-        const updated = schema.functor[upd.functor](row, upd.tuple)
+        const updated = schema.functor[upd.op](row, upd.tuple)
         // we need to update the database
         const sql = v.marshalWrite1(updated)
         db.exec({
@@ -235,20 +248,24 @@ function commit(ts: TabState, tx: Tx) {
     const svr = sv(tx.server)
     if (!svr) return
 
+    log("commit", tx)
     db.exec("insert into log(server, entry) values (?,?)",
         [tx.server, encode(tx)])
 
 
     // stab with all the keys, then broadcast all the updated ranges.
     const site = svr.site[tx.site]
-    if (!site) return
+    if (!site) {
+        error("site not found", tx.site)
+        return
+    }
 
     const dirty = new Set<Subscription>()
     for (const [table, upd] of Object.entries(tx.table)) {
         const tbl = site[table]
         if (!tbl) continue
         upd.forEach((x: TableUpdate) => {
-            merge(tbl, table, x, dirty)
+            execOps(tbl, table, x, dirty)
         })
     }
     
@@ -343,7 +360,6 @@ async function start() {
     })
     try {
         log('Running SQLite3 version', sqlite3.version.libVersion);
-        let db: any;
         if ('opfs' in sqlite3) {
             db = new sqlite3.oo1.OpfsDb('/mydb.sqlite3');
             log('OPFS is available, created persisted database at', db.filename);
@@ -377,6 +393,7 @@ async function start() {
                 id: number
                 params: any
             }
+            log('rpc', e.data )
             let sx: Server | undefined
             switch (method) {
                 case 'disconnect':

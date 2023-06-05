@@ -2,7 +2,10 @@
 import { ListenerContext, NotifyHandler } from "./data"
 
 export  function createWorker(w: Worker, api?: Api): SendToWorker {
-    const r = new SendToWorker((data: any) => w.postMessage(data), api)
+    const r = new SendToWorker((data: any) => {
+        console.log("send to worker", data)
+        w.postMessage(data)
+    },api)
     console.log("%c worker started", "color: green")
     w.onmessage = async (e: MessageEvent) => {
         r.recv(e)

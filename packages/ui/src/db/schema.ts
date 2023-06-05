@@ -1,6 +1,9 @@
 
 
 // the schema needs to be in the worker and in the tab
+
+import { TableUpdate, Tx } from "./data"
+
 // the name here must be unique and 
 export interface QuerySchema<Key> {
     name: string
@@ -47,8 +50,17 @@ export const standardFunctors : FunctorMap = {
 
     }
 }
-export interface Transaction {
+
+export abstract class Transaction {
+     tx  = {} as {
+        [table: string]: TableUpdate[]
+    }
     
+    insert(table: string, tuple: any) {
+        this.tx[table] = this.tx[table] || []
+        this.tx[table].push({op: 'insert', tuple})
+    }
+    abstract commit() : void
 }
 
 export function npath(path: string) : number {

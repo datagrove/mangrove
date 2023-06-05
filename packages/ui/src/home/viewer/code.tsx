@@ -49,6 +49,7 @@ import { StringifyOptions } from 'querystring'
 // ai would be ideal, is there a way to support though?
 // cursor-col-resize
 
+// i need a better system of creating messagechannels to the database worker
 
 export function DatabaseViewer() {
     const db = useDb()
@@ -60,8 +61,9 @@ export function DatabaseViewer() {
     })
     const run = () => {
         let src = cm.ev?.state.doc.toString()
-       
-        console.log(src,  db?.query(src) )
+        if (!src) return
+        const a = db?.query(src)
+        console.log(src,  a )
     }
 
     return <>

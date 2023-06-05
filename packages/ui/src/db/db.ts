@@ -15,6 +15,7 @@ import Shared from './shared?sharedworker'
 // @ts-ignore
 import Worker from './worker?worker'
 import { QuerySchema, Transaction, Query } from "./schema"
+import { update } from "../lib/db"
 
 const dbmap = new Map<string, Db>()
 
@@ -67,11 +68,20 @@ export type FacetSelect<T> = {
 // can the listener be in the contstructor? 
 // in theory this should not be global, because we can start a worker for each?
 
-export class DbTransaction implements Transaction {
-    constructor(public db: Db) {
 
+export class DbTransaction extends Transaction {
+    constructor(public db: Db,public server: string, public site: string) {
+        super()
     }
     commit() {
+        this.db.w.send({
+            method: 'commit',
+            params: {
+                server: this.server,
+                site: this.site,
+                updates: this.tx
+            }
+        })
 
     }
 }
@@ -98,8 +108,12 @@ export class Db {
         }
         return [group]
     }
-    begin() {
-        return new DbTransaction(this)
+    // we will get the server and the site from the url
+    // might use other options as well? like readonly?
+    // maybe server and site should be optional and default the home server and user database? awkward that all the tuples need to work around this
+    // maybe this needs to be $server and $site, so we can substitute.
+    begin(server: string, site: string) {
+        return new DbTransaction(this,server,site)
     }
     query(sql: string , params?: any) {
         return this.w.rpc('query', {
