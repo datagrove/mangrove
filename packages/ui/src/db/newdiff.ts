@@ -37,6 +37,7 @@ interface PinnedTuple {
 class TupleEditor {
     // we might local numbers are negative.
     pinned: Map<number, PinnedTuple> = new Map() 
+    site: Map<string, Map<string, 
 
 }
 
@@ -76,6 +77,9 @@ async function reconcile(te: TupleEditor, db: Db, ) {
 
 // some transactions should be mergeable, but maybe not all. merging transactions that have different key sets can backfire, since some tx may fail that wouldn't otherwise. only merge consecutive updates to the same key (typing)
 // the 
+async function siteCommit(){
+    return [true, 100]
+}
 async function reconcile1(te: TupleEditor, db: Db, server: string, site: string) {
     // if we have new local nodes, we first get a global  id for them
     // get a list of dirty tuples for this server. If any new insertions, get ids for them.
@@ -91,7 +95,7 @@ async function reconcile1(te: TupleEditor, db: Db, server: string, site: string)
     // we can send a windo, but transactions after a failed transactions are ignored. it seems somewhat easier to reason about
     // if we only apply the transactions in order.
     for () {
-        const ok = await serverSync()
+        const [ok,siteVersion] = await siteCommit()
         if (!ok) {
             // a failure may advance our version of the site.
             // before starting again we need to wait until reconcile down 
