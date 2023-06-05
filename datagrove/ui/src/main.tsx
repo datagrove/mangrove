@@ -64,9 +64,9 @@ async function testSwr() {
     const t = await r.text()
     console.log("%c test fetch "+t, "color: red")
 }
-window.addEventListener('beforeunload', (event) => {
-    event.returnValue = `Are you sure you want to leave?`;
-  });
+// window.addEventListener('beforeunload', (event) => {
+//     event.returnValue = `Are you sure you want to leave?`;
+//   });
 
 let s = `ws://${window.location.host}/wss`
 s = `ws://localhost:3000/wss`

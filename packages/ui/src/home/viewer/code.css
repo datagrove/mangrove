@@ -3,3 +3,13 @@
     width: 100%;
     color: white;
   }
+.cm-gutter {
+  color: white;
+  background-color: black;
+}
+.cm-linenumbers {
+  color: white;
+}
+.ͼ2 .cm-activeLineGutter {
+  background-color: #333;
+}

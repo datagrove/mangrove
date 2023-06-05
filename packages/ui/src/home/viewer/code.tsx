@@ -1,9 +1,10 @@
 
-import { createEffect, onMount } from 'solid-js'
+import { createEffect, createSignal, onMount } from 'solid-js'
 import { EditorState } from "@codemirror/state"
 import { EditorView, keymap } from "@codemirror/view"
 import { defaultKeymap } from "@codemirror/commands"
 import { json } from "@codemirror/lang-json"
+import { sql } from "@codemirror/lang-sql"
 import {
     highlightSpecialChars, drawSelection, highlightActiveLine, dropCursor,
     rectangularSelection, crosshairCursor,
@@ -19,6 +20,10 @@ import { searchKeymap, highlightSelectionMatches } from "@codemirror/search"
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete"
 import { lintKeymap } from "@codemirror/lint"
 import './code.css'
+import { VSplitterButton } from './splitter'
+import { left } from '../../core'
+import { SheetViewer } from './sheet'
+import { TableViewer } from './table'
 
 // this should a scroller concept to operate on very large files
 // use database ideas we should be able insert lines into terabyte files!
@@ -35,6 +40,57 @@ import './code.css'
 //     return <div ref={editorRef} />;
 // };
 
+// it would be nice to support downloading sqlite files in addition to accessing ours; 
+
+// horizontal split is customary, but doesn't lend it self to mobile
+// ai would be ideal, is there a way to support though?
+// cursor-col-resize
+
+
+export function DatabaseViewer() {
+    const [split,setSplit] = createSignal(300)
+    return <>
+            <div
+              class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden w-full left-0 top-0 '
+              style={{
+                height: split()+'px'
+              }}
+            >
+        <CodeViewer />
+        </div>
+        <VSplitterButton style={{
+            "z-index": 10000,
+            top: split()+"px"
+        }} class='w-full h-1.5 absolute hover:bg-blue-500 hover:opacity-100 bg-blue-700 opacity-0 cursor-ns-resize' value={split} setValue={setSplit}/>
+        <div class='w-full absolute bottom-0 ' 
+            style={{
+                top: split()+'px'
+            }}>
+            <TableViewer/>
+        </div>
+        </>
+}
+
+export function DatabaseViewer2() {
+    const [split,setSplit] = createSignal(300)
+    return <>
+        <div
+              class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden w-full left-0 top-0 '
+              style={{
+                height: split()+'px'
+              }}
+            >
+        <CodeViewer />
+        </div>
+        <VSplitterButton style={{
+            top: split()+"px"
+        }} class='w-full h-4 absolute hover:bg-blue-700 hover:opacity-100 opacity-100 cursor-ns-resize' value={split} setValue={setSplit}/>
+
+        </>
+}
+export function DatabaseTool() {
+    return <div>Database tool</div>
+}
 
 
 export const basicSetup: Extension = (() => [
@@ -56,6 +112,7 @@ export const basicSetup: Extension = (() => [
     highlightActiveLine(),
     highlightSelectionMatches(),
     json(),
+    sql(),
     keymap.of([
         ...closeBracketsKeymap,
         ...defaultKeymap,
@@ -95,7 +152,7 @@ export function useCodeMirror(div: HTMLDivElement, value: string): CodeMirror {
 export function CodeViewer() {
     let el: HTMLDivElement
     createEffect(() => {
-        useCodeMirror(el, "console.log('hello world!')")
+        useCodeMirror(el, "select * from file")
     })
     return <div class='h-full w-full' ref={el!} />
 }

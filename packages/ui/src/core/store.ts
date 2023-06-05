@@ -82,6 +82,7 @@ export async function getUser(id: string) {
       "dm",
       "watch",  // alerts can be any path, not just a folder with conversations
       "map",
+      "db",
       "account", // setting is similar to home database
       //"folder",
     ],

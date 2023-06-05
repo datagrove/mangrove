@@ -9,9 +9,6 @@ import { ScanQuery, ScanQueryCache } from "../db/data"
 // the hypotheses is that it should make it faster to measure the height of a row.
 
 
-
-
-
 const inf = Number.NEGATIVE_INFINITY
 
 export interface Selection {
@@ -361,7 +358,7 @@ export class Scroller {
         this.scrollRunway_ = d
         if (this.props.column) {
             const r = this.rowDiv()
-            r.style.position = 'fixed'
+            r.style.position = 'absolute'
             r.style.top = '0px'
             r.style.backgroundColor = 'black'
             r.style.zIndex = '800'

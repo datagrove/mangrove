@@ -6,8 +6,8 @@ import { A, useLocation, useNavigate } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
 import { Icon, } from "solid-heroicons";
-import { signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, arrowsRightLeft as eastWest, map, plusCircle } from "solid-heroicons/solid";
-import { ChatPanel, ChatViewer } from "./viewer";
+import { signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, arrowsRightLeft as eastWest, map, plusCircle , circleStack} from "solid-heroicons/solid";
+import { ChatPanel, ChatViewer, DatabaseTool, DatabaseViewer } from "./viewer";
 import { SettingsViewer } from "./settings";
 import { DarkButton } from "../lib";
 import { createWindowSize } from "@solid-primitives/resize-observer";
@@ -20,6 +20,7 @@ import { DropModal, NewModal, PickGroupModal, pickNewFile, setShowNew, uploadFil
 
 import { Database } from "../lib/db";
 import { Db, createDb } from "../db";
+import { HSplitterButton } from "./viewer/splitter";
 
 const builtinTools: { [key: string]: Tool } = {
   "edit": {
@@ -60,7 +61,12 @@ const builtinTools: { [key: string]: Tool } = {
     path: 'a/b/text',
     viewer: MapViewer
   },
- 
+  "db": {
+    icon: () => <FloatIcon path={circleStack} />,
+    component: DatabaseTool,
+    path: 'a/b/text',
+    viewer: DatabaseViewer
+  },
 }
 
 // change when we install new tools? or when we change the active tool?
@@ -235,26 +241,26 @@ export function LoggedIn2() {
     </div>
   }
 
-  const HSplitterButton = () => {
-    const mousedown = (e: MouseEvent) => {
-      e.preventDefault()
-      const start = e.clientX - left()
-      const move = (e: MouseEvent) => {
-        setLeft(e.clientX - start)
-      }
-      const up = (e: MouseEvent) => {
-        window.removeEventListener("mousemove", move)
-        window.removeEventListener("mouseup", up)
-      }
-      window.addEventListener("mousemove", move)
-      window.addEventListener("mouseup", up)
-    }
-    return <div class={`fixed p-2  bg-neutral-900 rounded-tr-full rounded-br-full bottom-4 w-10 cursor-col-resize`} style={{
-      left: left()-56 + "px",
-      "z-index": '900'
-    }} onMouseDown={mousedown}>
-      <Icon path={eastWest} class='h-6 w-6 text-neutral-500' /></div>
-  }
+  // const HSplitterButton = () => {
+  //   const mousedown = (e: MouseEvent) => {
+  //     e.preventDefault()
+  //     const start = e.clientX - left()
+  //     const move = (e: MouseEvent) => {
+  //       setLeft(e.clientX - start)
+  //     }
+  //     const up = (e: MouseEvent) => {
+  //       window.removeEventListener("mousemove", move)
+  //       window.removeEventListener("mouseup", up)
+  //     }
+  //     window.addEventListener("mousemove", move)
+  //     window.addEventListener("mouseup", up)
+  //   }
+  //   return <div class={`fixed p-2  bg-neutral-900 rounded-tr-full rounded-br-full bottom-4 w-10 cursor-col-resize`} style={{
+  //     left: left()-56 + "px",
+  //     "z-index": '900'
+  //   }} onMouseDown={mousedown}>
+  //     <Icon path={eastWest} class='h-6 w-6 text-neutral-500' /></div>
+  // }
   // how this is shown may depend on the tool
   const MobileSearchButton = () => {
     // we can have our status buttons here too, jump directly to new messages
@@ -276,7 +282,11 @@ export function LoggedIn2() {
             <Toolicons />
           </Show>
           <Show when={showPanel()}>
-            <HSplitterButton />
+          <HSplitterButton style={{
+            "z-index": 10000,
+            left: left()+"px"
+        }} class='h-full w-1.5 absolute hover:bg-blue-500 hover:opacity-100 bg-blue-700 opacity-0 cursor-ns-resize' value={left} setValue={setLeft}/>
+
             <div
               class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden top-0 bottom-0'
               style={{
