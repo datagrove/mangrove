@@ -23,7 +23,10 @@ import './code.css'
 import { VSplitterButton } from './splitter'
 import { left } from '../../core'
 import { SheetViewer } from './sheet'
-import { TableViewer } from './table'
+import { BuilderFn, Column, EstimatorFn, Scroller, ScrollerProps, TableContext } from '../../editor'
+import { RoundIcon, useDb } from '../home'
+import { BlueButton } from '../../lib/form'
+import { StringifyOptions } from 'querystring'
 
 // this should a scroller concept to operate on very large files
 // use database ideas we should be able insert lines into terabyte files!
@@ -48,27 +51,95 @@ import { TableViewer } from './table'
 
 
 export function DatabaseViewer() {
-    const [split,setSplit] = createSignal(300)
+    const db = useDb()
+    const [split, setSplit] = createSignal(300)
+    let el: HTMLDivElement
+    let cm: CodeMirror
+    createEffect(() => {
+        cm = useCodeMirror(el, "select * from file")
+    })
+    const run = () => {
+        let src = cm.ev?.state.doc.toString()
+       
+        console.log(src,  db?.query(src) )
+    }
+
     return <>
-            <div
-              class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden w-full left-0 top-0 '
-              style={{
-                height: split()+'px'
-              }}
-            >
-        <CodeViewer />
+        <div class='absolute right-2' style={{
+            "z-index": 11000,
+            top: split() - 36 + 'px'
+        }}><BlueButton onClick={run}>Run</BlueButton></div>
+
+        <div
+            class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden w-full left-0 top-0 '
+            style={{
+                height: split() + 'px'
+            }}
+        >
+            <CodeViewer />
         </div>
         <VSplitterButton style={{
             "z-index": 10000,
-            top: split()+"px"
-        }} class='w-full h-1.5 absolute hover:bg-blue-500 hover:opacity-100 bg-blue-700 opacity-0 cursor-ns-resize' value={split} setValue={setSplit}/>
-        <div class='w-full absolute bottom-0 ' 
+            top: split() + "px"
+        }} class='w-full h-1.5 absolute hover:bg-blue-500 hover:opacity-100 bg-blue-700 opacity-0 cursor-ns-resize' value={split} setValue={setSplit} />
+        <div class='w-full absolute bottom-0 '
             style={{
-                top: split()+'px'
+                top: split() + 'px'
             }}>
-            <TableViewer/>
+            <TableViewer />
         </div>
-        </>
+    </>
+}
+
+
+// tables need a header
+// all pages need an info box.
+// we probably need terminal to work
+export function TableViewer() {
+    let el: HTMLDivElement
+    let tombstone: HTMLDivElement
+
+    const N = 100
+    const c: Column[] = []
+    for (let i = 0; i < N; i++) {
+        c.push({ tag: i, width: 96, html: "col" + i })
+    }
+
+    onMount(() => {
+        let tombstoneHeight_ = tombstone.offsetHeight
+        tombstone.style.display = 'none'
+
+        const est: EstimatorFn = (start: number, end: number) => {
+            const r = (end - start) * 24
+            //console.log("est", start, end, tombstoneHeight_, r)
+            return r
+        }
+
+        const bld: BuilderFn = (ctx: TableContext) => {
+            const f = <p class='p-4'>{ctx.row},{ctx.column.tag}</p>
+            ctx.render(f)
+        }
+
+        const props: ScrollerProps = {
+            container: el!,
+            row: {
+                count: N
+            },
+            column: {
+                header: c,
+            },
+            builder: bld,
+            height: est,
+        }
+        const s = new Scroller(props)
+    })
+
+
+    return <>
+        <div class={'h-full w-full absolute '} ref={el!}></div>
+        <p ref={tombstone!}>&nbsp;</p>
+    </>
+
 }
 
 
