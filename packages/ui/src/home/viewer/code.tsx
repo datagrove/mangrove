@@ -1,5 +1,5 @@
 
-import { createEffect, createSignal, onMount } from 'solid-js'
+import { Accessor, createEffect, createResource, createSignal, onMount } from 'solid-js'
 import { EditorState } from "@codemirror/state"
 import { EditorView, keymap } from "@codemirror/view"
 import { defaultKeymap } from "@codemirror/commands"
@@ -21,12 +21,14 @@ import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } 
 import { lintKeymap } from "@codemirror/lint"
 import './code.css'
 import { VSplitterButton } from './splitter'
-import { left } from '../../core'
+import { SitePage, left, usePage } from '../../core'
 import { SheetViewer } from './sheet'
 import { BuilderFn, Column, EstimatorFn, Scroller, ScrollerProps, TableContext } from '../../editor'
 import { RoundIcon, useDb } from '../home'
 import { BlueButton } from '../../lib/form'
 import { StringifyOptions } from 'querystring'
+import { HtmlDiff } from '../../crdt/dgot'
+import { HtmlLens, TextLens } from '../../db'
 
 // this should a scroller concept to operate on very large files
 // use database ideas we should be able insert lines into terabyte files!
@@ -50,6 +52,47 @@ import { StringifyOptions } from 'querystring'
 // cursor-col-resize
 
 // i need a better system of creating messagechannels to the database worker
+
+
+// seems like signals don't need this because render functions execute synchronously?
+// export function IncrSignal<Type,Diff>(t: Type) {
+//     const diffs : Diff[] = []
+//     const [get,set]= createSignal<[Type,Diff[]]>([t,[]])
+//     const trim = (i: number) {
+//         set(diffs)
+//     }
+//     return [ get, ]
+// }
+export function HtmlEditor(props: {value: HtmlLens|undefined}){
+    if (!props.value) {
+        return <>Loading</>
+    }
+    createEffect(()=>{
+        // registers a dependency on this
+        props.value!.change()
+        // sync the editor.
+    })
+    return <div/>
+}
+export function TextEditor(props: {value: TextLens|undefined}) {
+    return <div/>
+}
+// how do we mount a lexical editor in a div inside a scroller row?
+// how does it function?
+
+
+export function CodeEditor() {
+    // from the url I need to figure out the query parameters, but I can't execute a query here 
+    const p = usePage()
+    const db = useDb()
+    const [e] = createResource(p, async (s: SitePage) => { return db?.htmlLens('table', 0) } )
+    const [f] = createResource(p, async (s: SitePage)=> { return  db?.textLens('table',0) })
+    return <div>
+        <HtmlEditor value={e()} />
+        <TextEditor value={f()} />
+        </div>
+
+}
 
 export function DatabaseViewer() {
     const db = useDb()

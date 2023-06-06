@@ -4,6 +4,7 @@ import {Query, QuerySchema, Schema, Transaction, encodeNumber, npath, standardFu
 const sql = [
     "create table if not exists site(sid integer primary key, server, site, lastread, lastwrite)",
     "create table if not exists log(lsn integer primary key, entry)",
+    // note: path must include server and site.
     "create table if not exists file(id integer primary key, npath, path,type,size, mtime, ctime, summary)",
     "create table if not exists toast(id integer primary key, offset, content)",
     "create index if not exists file_path on file(npath, path)",

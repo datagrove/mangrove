@@ -4,7 +4,7 @@
 // @ts-ignore
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { decode, encode } from 'cbor-x';
-import { ScanQuery, ScanQueryCache, TableUpdate, Tx, binarySearch } from './data';
+import { ScanQuery, ScanQueryCache, TableUpdate,  binarySearch } from './data';
 import { IntervalTree } from './itree';
 import { update } from '../lib/db';
 import { QuerySchema } from './schema';
@@ -49,6 +49,11 @@ function bcSend() {
 //     site: Map<string, Map<string, 
 
 // }
+interface PinnedTuple {
+    server: Tuple
+    editor: Tuple
+}
+
 class Server {
     // there is an glsn per server, otherwise it would be hard for server to know if any are missing
     glsn = 0
@@ -57,6 +62,9 @@ class Server {
         [site: string]: {
             [table: string]: {
                 pinned: IntervalTree<Subscription>
+                dirty: {
+                    [key: number]: PinnedTuple
+                }
             }
         }
     } = {}
@@ -155,9 +163,9 @@ function getTable(server: string, site: string, table: string): IntervalTree<Sub
     let t = st[table]
     if (!t) {
         // we need to create the table
-        t = new IntervalTree<Subscription>()
+        st[table].pinned = new IntervalTree<Subscription>()
     }
-    return t
+    return t.pinned
 }
 
 function close(ts: TabState, h: number) {
@@ -273,7 +281,7 @@ function commit(ts: TabState, tx: Tx) {
         const tbl = site[table]
         if (!tbl) continue
         upd.forEach((x: TableUpdate) => {
-            execOps(tbl, table, x, dirty)
+            execOps(tbl.pinned, table, x, dirty)
         })
     }
     
@@ -468,13 +476,6 @@ interface Tuple {
 // if we get an update to 
 
 // before we sync any tuple to the host, we first get a uuid from the host the uuid is used when syncing with the host.
-interface PinnedTuple {
-    server: Tuple
-    editor: Tuple
-
-
-    
-}
 
 
 
@@ -509,7 +510,7 @@ async function reconcile(te: Server, db: Db, ) {
 
     for (let s of servers) {
 
-        syncUp(te, s, site)
+        //syncUp(te, s, site)
     }
     await Promise.all(pr)
 }
@@ -536,7 +537,7 @@ async function synchUp(te: Server,  server: string, site: string) {
 
     // we can send a windo, but transactions after a failed transactions are ignored. it seems somewhat easier to reason about
     // if we only apply the transactions in order.
-    for () {
+    for (let i=0; i<10; i++) {
         const [ok,siteVersion] = await siteCommit()
         if (!ok) {
             // a failure may advance our version of the site.

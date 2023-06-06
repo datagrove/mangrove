@@ -16,6 +16,7 @@ import Shared from './shared?sharedworker'
 import Worker from './worker?worker'
 import { QuerySchema, Transaction, Query } from "./schema"
 import { update } from "../lib/db"
+import { Changefn, HtmlDiff } from "../crdt/dgot"
 
 const dbmap = new Map<string, Db>()
 
@@ -121,8 +122,48 @@ export class Db {
             params: params
         })
     }
+    // not right? maybe pass it a query function?
+    // 
+    htmlLens(table: string, id: number) {
+        const r : HtmlLens = {
+            update: function (x: HtmlDiff): HtmlDiff {
+                throw new Error("Function not implemented.")
+            },
+            change: function (): void {
+                throw new Error("Function not implemented.")
+            }
+        }
+        return r
+    }
+    textLens(table: string, id: number) {
+        const r : HtmlLens = {
+            update: function (x: HtmlDiff): HtmlDiff {
+                throw new Error("Function not implemented.")
+            },
+            change: function (): void {
+                throw new Error("Function not implemented.")
+            }
+        }
+        return r
+    }
+
+}
+export type HtmlLens = {
+    update: (x: HtmlDiff) => HtmlDiff
+    change: Accessor<void>
+}
+export type TextLens = {
+    update: (x: HtmlDiff) => HtmlDiff
+    change: Accessor<void>  
 }
 
+// signal will be called when 
+export function createConsensus(signal: ()=>void, query: Promise<[string,number]>) : Changefn {
+    return (e: HtmlDiff) => {
+
+        return e
+    }
+}
 
 // we create a dedicated worker when we become leader
 // we stay leader until this tab is closed.

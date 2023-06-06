@@ -75,7 +75,6 @@ const fake = () => {
 export const [items, setItems] = createStore<FileInfo[]>(fake())
 
 
-
 // this is a list of open files. Should it be just a simple list? how long could it be?
 // or should we keep it standard and use fast list?
 export function EditTool() {

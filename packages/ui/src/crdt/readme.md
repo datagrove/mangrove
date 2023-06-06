@@ -1,6 +1,19 @@
 1. make it as easy as possible for readers, hard as necessary for writers
 2. utilize the site host to take record locks; fail the transaction if the tx does  not match the current value. Lock increases by 1 with each successful transaction.
 
+#2 allows 1; because we never fall behind by more than 1 step this allows us to ensure that no bad overlapping segments are produced. It also allows us to use inserted codes where the reader only really cares about the first level div ranges; it can then render everything in that div.
+
+locally concurrent operations drop operations that would break the semantic model. These dropped operations must be synced back to the editor though. 
+
+diffing is more general, would work with more editors?
+1. update the serialization, create the delta.
+2. if no intervening changes, this is guanteed to work
+3. if when we retry, the changes are broken, we must drop format instructions (is determinstic a problem here?)
+4. Now our serialization does not match the editor; we must reset the editor in an appropriate range.
+5. We can wait until their are no active edits by noting the invalid range markers as inactive. 
+
+The worker doesn't have this problem, it tells the tabs to drop the range markers; this forces them to reset the editor in the dirty range.
+
 
 in order to efficiently diff large blobs, we need to keep them as constituent nodes and track the dirty nodes
 
