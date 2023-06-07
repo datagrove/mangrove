@@ -1,16 +1,18 @@
 import { createContext, useContext } from "solid-js"
-
+import { LocalStateClient } from "./localstate"
 // most of the work is done in the tabstate because the parsed document lives here.
 
 class CollabEditorViewset extends  Set<CollabEditorView> {
 	// eventually this might allow a more clever editor to share its state better?
 	// how would this work then?
 }
-export const TabStateContext = createContext()
+export const TabStateContext = createContext<TabState>()
 export const useTabState = () => useContext(TabStateContext)
 
 export type LengthListener = (x: number) => void
 
+interface TabStateConfig {
+}
 export class TabState {
 	open_ = new Map<string,CollabEditorViewset>()
 	pending = new Map<number, Promise<any>>()
@@ -38,14 +40,9 @@ export class TabState {
 		wc.connect(mc)
 	}
 
-	read(path: string, start: number, end: number) {
-		return keeper.read(path, start, end)
-	}
-	write(path: string, ops: Op[]) {
-		counter.write(path, ops)
-	}
 
-	constructor(config?: any) {}
+
+	constructor(public LocalStateClient, config?: TabStateConfig) {}
 	open(path: string, onChange: ()=>void) {
 		const r =  new CollabEditorView(this, path, onChange);
 		let s = this.open_.get(path)

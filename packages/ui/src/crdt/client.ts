@@ -1,20 +1,18 @@
 import { z } from "zod";
-import { BaseClient } from "./cloud";
+import {  Channel, Peer } from "./cloud";
 import {  Op } from "./crdt";
 import { JsonPatch } from "../lexical/sync";
+import { createContext, useContext } from "solid-js";
+import { LocalState } from "./localstate";
 
 
 // maybe we should do all the reconciliation in localstate and send back json patches?
 // 
-export interface LocalStateClient {
-    subscribe(path: string) : {
-        handle: number,
-        doc: any
-    }
-    publish(handle: number, patch: JsonPatch) : JsonPatch
-}
 
-export class KeeperClient extends BaseClient {
+
+
+
+export class KeeperClient extends Peer {
 
     async read(path: string, start: number, end: number) : Promise<any[]> {
         return await this.rpc( "read", [start,end]) as any[]
@@ -22,24 +20,27 @@ export class KeeperClient extends BaseClient {
     }
 }
 
-export class KeeperOwner extends BaseClient {
+export class KeeperOwner extends Peer {
 
     write(id: string, a: any) {
         this.rpc("write", [id,a])
     }
 }
 
-export class HostClient extends BaseClient {
+export class HostClient extends Peer {
     
 }
 
 
-// interface used for the host to connect with the editor
-export class EditorClient extends BaseClient {
-    
+
+
+
+export function connect<To,From>(f: From) : To {
+    return {} as To
 }
-
-
+export function accept<Client>(ch: Channel) : Client {
+    return {} as Client
+}
 
 // const Form = z.object({
 //     name: z.string(),

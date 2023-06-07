@@ -1,9 +1,9 @@
-import { ConnectablePeer, Connector } from "./cloud"
+import { ConnectablePeer, Cloud } from "./cloud"
 
 
 // use connector to connect to keepers
 interface HostConfig {
-    cloud: Connector
+    cloud: Cloud
     keepers: string[]
 }
 
