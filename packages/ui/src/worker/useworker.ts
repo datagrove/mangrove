@@ -1,4 +1,5 @@
 
+import { Message } from "postcss"
 import { ListenerContext, NotifyHandler } from "./data"
 
 export  function createWorker(w: Worker, api?: Api): SendToWorker {
@@ -11,6 +12,14 @@ export  function createWorker(w: Worker, api?: Api): SendToWorker {
         r.recv(e)
     }
     return r
+}
+// create a worker in the same thread, support multiple message channels 
+export function createWorkerTest( api?: Api): [SendToWorker, MessageChannel] {
+    const mc = new MessageChannel()
+    const r = new SendToWorker((data: any) => {
+        mc.port1.postMessage(data)
+    },api)
+    return [r, mc]
 }
 type ApiFn = (context: ListenerContext<{}>, params: any) => Promise<any>
 export type Api = {
