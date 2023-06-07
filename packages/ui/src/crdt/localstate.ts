@@ -2,12 +2,13 @@ import { capability } from "@ucans/ucans"
 import { SendToWorker } from "../worker/useworker"
 import { Setter, Signal } from "solid-js"
 import {  Op } from "./crdt"
-import { Channel, Peer, Rpc } from "./cloud"
+import { Channel, ConnectablePeer, Peer, Rpc } from "./cloud"
 import { accept } from './client'
 import { TabState } from "./tabstate"
 import { LocalStateClient, TabStateClient } from "./localstate_shared"
 
 import { JsonPatch } from "../lexical/sync"
+import { Connect } from "vite"
 
 
 // sharedworker to share all the localstate.
@@ -20,10 +21,11 @@ import { JsonPatch } from "../lexical/sync"
 // for testing it would be nice to have it not in a shared worker, what will that take?
 
 class Client {
-    peer: Peer<TabStateClient>
+    
+    constructor(peer: Peer) {
+
+    }
 }
-
-
 
 export class LocalState {
    
@@ -36,40 +38,39 @@ export class LocalState {
 	tab = new Set<Client>()
 
 	connect(mc: Channel)  {
-        this.tab.add(accept<TabStateClient>(mc))
-
-        // connector will use this interface. we could also return a zod parser here.
-        // there is an asymmetry, how do we handle signals across the channel?
-
-        return {
-            subscribe(props: Subscribe ){
-                const p = props.params 
+        // seems like this has to cost something? how clever is the javascript engine?
+        const api = {
+            async subscribe(p: {path: string} ){
                 if (p.path[0] !== '/') {
-                    props.error(400, 'path must start with /')
+                    throw new Error('path must start with /')
                     return
                 }
-                props.reply( {
+                return {
                     handle: 0,
-                    doc: {},
-                })
+                    doc: {}
+                }
             },
-            publish(props: Publish){
-                return props.params.patch
+            publish(p: {handle: number, patch: JsonPatch}){
+                return p.patch
             }
         }
-	}
-    disconnect(mc: Channel) {
-
+        this.tab.add(new Client(new Peer(mc,api))) 
     }
 
+    // connector will use this interface. we could also return a zod parser here.
+    // there is an asymmetry, how do we handle signals across the channel?
 
 
-    // this can just queue and reply when the worker comes back
-    onrpr(ch: Channel, method: string, id: number, params: any){
-
+    disconnect(mc: Channel) {
+        this.tab.delete(mc)
     }
 
 }
+
+
+
+
+
 
 // we need to register LocalState with the cloud, let 
 

@@ -30,7 +30,7 @@ export interface ConnectablePeer {
 type Statusfn = (x: string) => void
 type Recv = (x: any) => void
 // maybe make a url that works with all of these?
-class WorkerChannel implements Channel {
+export class WorkerChannel implements Channel {
     constructor(public port: MessagePort,
         public status: Statusfn,
         public recv: Recv
@@ -49,7 +49,7 @@ class WorkerChannel implements Channel {
     }
 }
 
-class WsChannel implements Channel {
+export class WsChannel implements Channel {
     constructor(public ws: WebSocket, public status: (x: string) => void, public recv?: (d: any) => void) {
         status("connecting")
         this.ws.onclose = () => this.status("closed")
@@ -135,7 +135,7 @@ export class Peer {
     nextId = 1
     reply_ = new Map<number, [(data: any) => void, (data: any) => void]>()
 
-    constructor(public ch: Channel, public api: ApiSet) {
+    constructor(public ch: Channel, public api?: ApiSet) {
         ch.listen((d: any) => {
             this.recv(d)
         })
@@ -151,7 +151,7 @@ export class Peer {
     }
 
     async recv(data: any) {
-        if (data.method) {
+        if (data.method && this.api) {
             const api = this.api[data.method]
             try {
                 const result = await api(data.params)
