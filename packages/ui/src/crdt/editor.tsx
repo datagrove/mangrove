@@ -1,3 +1,4 @@
+import { useCloud } from "./cloud_context";
 
 
 export function Editor(props: { path: string }) {
@@ -10,11 +11,12 @@ export function Editor(props: { path: string }) {
 }
 
 
-
-
 export function DoubleEditor() {
+	
+	// this only works if LocalState is an interface, not a class.
+	const  lc1 = connect<LocalStateClient>(cloud)
 	let wc = [
-		new LocalState(),
+		s
 		new LocalState()
 	  ]  // shared for now
 

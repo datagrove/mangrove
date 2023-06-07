@@ -1,14 +1,17 @@
 import { z } from "zod";
 import { BaseClient } from "./cloud";
 import {  Op } from "./crdt";
+import { JsonPatch } from "../lexical/sync";
 
 
-
-export class LocalStateClient extends BaseClient {
-    async publish(path: string, ops: Op[])  {
-
-
+// maybe we should do all the reconciliation in localstate and send back json patches?
+// 
+export interface LocalStateClient {
+    subscribe(path: string) : {
+        handle: number,
+        doc: any
     }
+    publish(handle: number, patch: JsonPatch) : JsonPatch
 }
 
 export class KeeperClient extends BaseClient {
@@ -36,58 +39,6 @@ export class EditorClient extends BaseClient {
     
 }
 
-type ZodAny =  typeof z.ZodObject<any>
-type Service = {
-    [key: string]: |  ZodAny | [ZodAny, ZodAny]
-}
-
-const z1 : ZodAny = z.object({})
-
-export const HostService = {
-    "sub": z.object({
-        "path": z.string(),
-        "start": z.number(),
-    }),
-    "unsub": z.object({
-        "path": z.string(),
-    }),
-}
-
-export const TabService = {
-    "update": z.object({
-        "path": z.string(),
-        "ops": z.array(z.object({
-            "op": z.any(),
-        }))
-    }),
-}
-
-// when first subscribing we might want a more efficient thing than every op
-export const LocalStateService : Service= {
-    "sub": z.object({
-        "path": z.string(),
-    })
-
-
-}
-
-export const KeeperService = {
-    "read": [z.object({
-        "path": z.string(),
-        "start": z.number(),
-        "end": z.number(),
-    }), ]
-}
-export const KeeperHostService = {
-
-    // async service, does 
-    "write": z.object({
-        "path": z.string(),
-        "at": z.number(),
-        "a": z.any(),
-    })
-
-}
 
 
 // const Form = z.object({

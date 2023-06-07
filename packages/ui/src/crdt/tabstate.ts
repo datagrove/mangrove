@@ -1,5 +1,6 @@
 import { createContext, useContext } from "solid-js"
 
+// most of the work is done in the tabstate because the parsed document lives here.
 
 class CollabEditorViewset extends  Set<CollabEditorView> {
 	// eventually this might allow a more clever editor to share its state better?
