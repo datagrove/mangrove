@@ -1,157 +1,201 @@
-import {  Cloud, ConnectablePeer, Peer } from "./crdt"
+import { decode } from "cbor-x"
+import { createContext, createSignal, useContext } from "solid-js"
 
 
-export let cloud: Cloud
+export interface Channel {
+    postMessage(data: any): void
+    listen(fn: (d: any) => void): void
+    close(): void
+}
 
-// we have the actual host, then we also need to connect to it.
+export type RpcReply = {
+    id: number
+    result?: any
+    error?: any
+}
+export type Rpc = {
+    method: string
+    params: any
+    id: number
+}
 
 
 
+export interface ConnectablePeer {
+    connect(ch: Channel):void
+    disconnect(ch: Channel):void
+}
 
 
-//  there can be more than one host, the path distinguishes the correct host
-//  each host can have multiple keepers, clients can read two and the first available one cancels the other
-// clouds do not share sites, each client must connect to the correct host 
-class Keeper implements ConnectablePeer {
-    constructor(config: any) {
-    }
-    connect(peer: Peer) {
-        // connectionless
-        const p : Peer {
-
+type Statusfn = (x: string)=>void
+type Recv = (x: any) =>void
+// maybe make a url that works with all of these?
+class WorkerChannel implements Channel {
+    constructor(public port: MessagePort,
+        public status: Statusfn,
+        public recv: Recv
+        ) { 
+            port.onmessage = recv
+            status("")
         }
-        return p
+    postMessage(data: any): void {
+        this.port.postMessage(data)
     }
-    rpc()
-
-    disconnect(peer: Peer): void {
-        throw new Error("Method not implemented.")
+    listen(fn: (d: any) => void): void {
+        this.port.onmessage = fn
     }
-	store = new Map<string, any[]>()
-	async read(id: string, start: number, end: number) {
-		return this.store.get(id)?.slice(start, end)
-	}
-	async write(id: string, at: number, a: any) {
-		let st = this.store.get(id)
-		if (!st) {
-			st = []
-			this.store.set(id, st)
-		}
-		st.push(a)
-		console.log('keeper', st)
-	}
-}
-
-interface HostConfig {
-    cloud: Cloud
-    keepers: string[]
-}
-
-
-export class KeeperOwner {
-    constructor(public peer: Peer){
-
-    }
-    write(id: string, a: any) {
-        this.peer.post({type: "write", id, a})
+    close() {
+        this.port.close()
     }
 }
 
-// there can be multiple keepers, but only one conceptual counter.
-class Host implements ConnectablePeer {
-	length_ = new Map<string, number>()
-    listener = new Map<string, Set<Peer>>()
-    keeper : Keeper[] = []
-
-    // unclear why we need this?
-    connected = new Set<Peer>()
-
-
-    constructor(public config: HostConfig) {
-        this.keeper = config.keepers.map((k) => config.cloud.connect(k) as KeeperOwner)
-	}
-
-	length(id: string) {
-		return this.length_.get(id) ?? 0
-	}
-
-    connect(): Promise<Peer> {
-        throw new Error("Method not implemented.")
+class WsChannel implements Channel {
+    constructor(public ws: WebSocket, public status: (x: string)=>void, public recv?: (d: any) => void) { 
+        status("connecting")
+        this.ws.onclose = () => this.status("closed")
+        this.ws.onerror = () => this.status("error")
+        this.ws.onopen = () => this.status("")
+        this.ws.onmessage = async (e: MessageEvent)=> {
+        if (typeof e.data === "string") {
+            const txt = await e.data
+            recv?.(JSON.parse(txt))
+        } else {
+            recv?.(decode(e.data))
+        }
+     }
     }
-    disconnect(peer: Peer): void {
-        throw new Error("Method not implemented.")
+    listen(fn: (d: any) => void): void {
+        this.recv = fn
     }
+    postMessage(data: any): void {
+        this.ws.send(data)
+    }
+    close() {
+        this.ws.close()
+    }
+}
 
-	write(id: string, a: any) {
-		const ln = this.length(id) + 1
-		let pr: Promise<any>[] = []
-		for (let k of this.keeper) {
-			pr.push(k.write(id, ln, a))
-		}
-		// really should wait for quorum
-		//Promise.all(pr)
+class WebRTC implements Channel {
+    constructor(public pc: RTCDataChannel, public listen: (d:any)=>void, fn: (d:any)=>void) {
 
-		this.length_.set(id, ln)
+    }
+    postMessage(data: any): void {
+        this.pc.send(data)
+    }
+    close() {
+        this.pc.close()
+    }
+}
 
-		for (let o of this.listener.get(id) ?? new Set<LengthListener>()) {
-			//console.log("sending", o, ln)
-			o(ln)
-		}
-	}
-	addListener(id: string, l: LengthListener) {
-		let ls = this.listener.get(id)
-		if (!ls) {
-			ls = new Set<LengthListener>()
-			this.listener.set(id, ls)
-		}
-		ls.add(l)
-		//console.log("listen", this.listener)
-		l(this.length(id))
-	}
-	removeListener(id: string, l: LengthListener) {
-		this.listener.get(id)?.delete(l)
-	}
-    recv(msg: any) {
+export class Connector {
+    local = new Map<string, (a: MessagePort) => void >()
+  
+    async open(url: string, status: (x: string)=>void, recv: (a: any)=>void ) : Promise<Channel> {
+        const u = new URL(url)
+        switch (u.protocol) {
+            case "ws:":
+            case "wss:":
+                return new WsChannel(new WebSocket(url), status,recv)
+            case "webrtc:":
+                break;
+            case "worker:":
+                // this should be the url of a shared worker
+                // we potentially have protocol for accessing dedicator works too.
+                break;
+            case "local:":
+                const obj = this.local.get(url)
+                if (!obj) throw  new Error("bad url " + url)
+                const mc = new MessageChannel()
+                obj(mc.port2)
+                return new WorkerChannel(mc.port1, status, recv)
+
+                break
+        }
+
+        throw new Error(`bad url ${url}`)
     }
 }
 
 
+export interface Peer {
+    rpc: (message: Rpc) => Promise<RpcReply>
+    notify: (message: Rpc) => void
+    reply: (message: RpcReply) => void 
+    // this can have any number of replies, some result c
+    close(): void
+} 
 
-// CLIENT INTERFACE ///////////////////////////////////////////////////////////
-
-// clients wrap around peers to provide type safety
-
-export class KeeperClient{
-    constructor(public peer: Peer){
-
+export class BaseClient {
+    channel?: Channel
+    status: ()=>string
+    setOnline: (x: string)=>void
+    constructor(public cn: Connector, public url: string ) {
+        const [online,setOnline] = createSignal("connecting")
+        this.status = online
+        this.setOnline = setOnline
     }
 
+    async connect()  {
+        this.channel = await this.cn.open(this.url,
+            this.setOnline,
+            (a: any)=> {
+                this.recv(a)
+            })
+    }
 
-export class HostClient{
-   constructor(peer: Peer){
+    // typeface interfaces, retry
+    nextId = 1
+    reply = new Map<number, [(data: any) => void, (data: any) => void]>()
+    // onmessage_ = new Map<string, NotifyHandler>()
+     async onrpc(method: string , id: number, params: any) : Promise<RpcReply> {
+        console.log("unknown", method, params)
+        return {
+            id,
+            error: "unknown"
+        }
+     }
 
-   }
+    async recv(data: any) {
+        if (data.method) {
+            return this.onrpc(data.method, data.id, data.params)
+        }
+        // listening uses id < 0
+        if (data.id) {
+            const r = this.reply.get(data.id)
+            if (!r) {
+                this.channel?.postMessage({
+                    id: data.id,
+                    error: "unknown id " + data.id
+                })
+            }
+            if (r) {
+                this.reply.delete(data.id)
+                if (data.result) {
+                    console.log("resolved", data.result)
+                    r[0](data.result)
+                } else {
+                    console.log("error", data.error)
+                    r[1](data.error)
+                }
+                return
+            } else {
+                
+                return {
+                    
+                }
+            }
+            //}
+        } // if no method and no id, ignore.
+    }
+
+    async rpc<T>(method: string, params?: any): Promise<T> {
+        console.log("send", method, params)
+        const id = this.nextId++
+        this.channel?.postMessage(structuredClone({ method, params, id: id }))
+        return new Promise<T>((resolve, reject) => {
+            this.reply.set(id, [resolve, reject])
+        })
+    }
+
 }
 
-
-
-// TEST CLOUD //////////////////////////////////////////////////////////////////
-
-class TestCloud implements Cloud {
-    connect(url: string): Promise<Peer> {
-        return this.net[url].connect()
-    }
-    disconnect(peer: Peer): void {
-    }
-    constructor(public net: {
-        [key: string]: ConnectablePeer
-    }){}
-}
-
-
-export const testCloud = new TestCloud({
-    "host1":  new Host({}),
-    "host2":  new Host({}),
-    "keeper1":  new Keeper({}),
-    "keeper2":  new Keeper({}),
-})
