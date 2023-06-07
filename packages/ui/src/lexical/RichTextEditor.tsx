@@ -34,11 +34,13 @@ import { SiteDocument, readAll, useDocument, usePage } from "../core";
 import { UNDO_COMMAND, REDO_COMMAND } from 'lexical';
 import { useLexicalComposerContext } from './lexical-solid/LexicalComposerContext';
 import { debounce } from "../core/rpc";
-import { HtmlDiff as JsonDiff, VOID, sync } from "./sync";
+import {  JsonPatch, VOID, sync } from "./sync";
 
 
 export function Sync() {
-  sync((h: JsonDiff) => console.log(h))
+  sync((h: JsonPatch[]) => {
+    if (h.length) console.log("patch", h)
+  })
   return <></>
 }
 
@@ -143,7 +145,7 @@ export function RichTextEditor(props: RteProps) {
 
           <AutoFocusPlugin />
           <CodeHighlightPlugin />
-          
+          <Sync/>
         </div>
         <Bottom />
       </div>

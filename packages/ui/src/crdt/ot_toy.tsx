@@ -1,18 +1,7 @@
-// Copyright 2016 Google Inc. All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// based on google/raph levien's toy ot under apache license
 
-// A testbed for operational transformation ideas.
+import { createEffect, createSignal } from "solid-js";
+
 interface Tree {
     left: Tree | null;
     right: Tree | null;
@@ -236,7 +225,7 @@ class DocState {
     }
 }
 
-class Peer {
+export class Peer {
     rev: number;
     context: Set<number>;
 	constructor() {
@@ -291,8 +280,178 @@ class Peer {
 	}
 }
 
-// Export as a module for node, but don't bother namespacing for browser
-if (typeof exports !== 'undefined') {
-    exports.DocState = DocState;
-    exports.Peer = Peer;
+
+var pri = Math.floor(Math.random() * 0x1000000);
+var ser = 0;
+function getid() {
+	return (pri * 0x100000) + ser++;
+}
+function diffToOps(diff: any[], docState: DocState) {
+	var start = diff[0];
+	var end = diff[1];
+	var newstr = diff[2];
+	var result = [];
+	for (var i = start; i < end; i++) {
+		result.push({pri: pri, ty: 'del', ix: docState.xform_ix(i), id: getid()});
+	}
+	var ix = docState.xform_ix(end);
+	for (let i = 0; i < newstr.length; i++) {
+		result.push({pri: pri, ty: 'ins', ix: ix + i, id: getid(), ch: newstr.charAt(i)});
+	}
+	return result;
+}
+function getDiff(oldText: string, newText: string, cursor: number) {
+	var delta = newText.length - oldText.length;
+	var limit = Math.max(0, cursor - delta);
+	var end = oldText.length;
+	while (end > limit && oldText.charAt(end - 1) == newText.charAt(end + delta - 1)) {
+		end -= 1;
+	}
+	var start = 0;
+	var startLimit = cursor - Math.max(0, delta);
+	while (start < startLimit && oldText.charAt(start) == newText.charAt(start)) {
+		start += 1;
+	}
+	return [start, end, newText.slice(start, end + delta)];
+}
+
+type LengthListener =  (x:number)=>void 
+
+class Keeper {
+	store = new Map<string, any[]>()
+	async read(id: string, start: number, end: number) {
+		return this.store.get(id)?.slice(start, end)
+	}
+	async write(id: string, at: number, a: any){
+		let st = this.store.get(id)
+		if (!st) {
+			st = []
+			this.store.set(id, st)
+		}
+		st.push(a)
+		console.log('keeper',st)
+	}
+}
+
+
+// there can be multiple keepers, but only one conceptual counter.
+class Counter {
+	length_ = new Map<string, number>()
+	length(id: string) {
+		return this.length_.get(id)??0
+	}
+	constructor(public keeper: Keeper[]){
+	}
+	listener = new Map<string,Set<LengthListener>>()
+	write(id: string, a: any){
+		const ln = this.length(id)+1
+		let pr : Promise<any>[] = []
+		for (let k of this.keeper) {
+			pr.push(k.write(id,ln, a))
+		}
+		// really should wait for quorum
+		//Promise.all(pr)
+
+		this.length_.set(id, ln)
+
+		for (let o of this.listener.get(id)?? new Set<LengthListener>()) {
+			//console.log("sending", o, ln)
+			o(ln)
+		}
+	}
+	addListener(id: string, l: LengthListener){
+		let ls =this.listener.get(id)
+		if (!ls) {
+			ls = new Set<LengthListener>()
+			this.listener.set(id,ls)
+		}
+		ls.add(l)
+		//console.log("listen", this.listener)
+		l(this.length(id))
+	}
+	removeListener(id: string,l: LengthListener){
+		this.listener.get(id)?.delete(l)
+	}
+}
+// this could be picked from set of keepers. keepers could elect the counter
+const keeper = new Keeper
+const counter = new Counter([keeper])
+
+
+// this will wrap a message channel to a quasi-shared worker, that worker will manage device state and talk to the global counter
+
+// this will be a context shared by entire tab, or maybe just a local wrapper that itself will use a context to get to the worker. eithe way it will be making rpc calls not direct calls
+class TabCounter  {
+	constructor(config?: any) {
+		
+	}
+	addListener(id: string, x: LengthListener)  {
+		counter.addListener(id, x)
+	}
+	removeListener(id: string,x: LengthListener){
+		counter.removeListener(id,x)
+	}
+	read(id: string,start: number, end: number) { 
+		return keeper.read(id,start,end)
+	}
+	write(id: string, ops: Op[]){
+		counter.write(id, ops)
+	}
+}
+
+export function Editor(props: {ctx: TabCounter,onChange: (e:string)=>void, path: string}) {
+	const lc = props.ctx // should be useOt?
+	let n = 0; // length we know about.
+	lc.addListener(props.path, async (nx: number)=>{
+		console.log("length", nx)
+		if (nx <= n) return
+		const ops : Op[]= await lc.read(props.path, n, nx) as Op[]
+		n = nx
+		console.log('from server:' + JSON.stringify(ops));
+		docState.points = [el.selectionStart, el.selectionEnd];
+		var rev = docState.ops.length;
+		for (var i = 0; i < ops.length; i++) {
+			peer.merge_op(docState, ops[i]);
+		}
+		if (rev < docState.ops.length) {
+			lc.write(props.path, docState.ops.slice(rev))
+		}
+		el.value = docState.get_str();
+		oldText = el.value;
+		el.selectionStart = docState.points[0];
+		el.selectionEnd = docState.points[1];
+	})
+	var textElement = document.getElementById("text");
+	var oldText = "";
+
+	var docState = new DocState();
+	var peer = new Peer();
+
+	let el:HTMLTextAreaElement
+
+	const upd = () => {
+		var diff = getDiff(oldText, el.value, el.selectionEnd);
+		var ops = diffToOps(diff, docState);
+		// apply ops locally
+		for (var i = 0; i < ops.length; i++) {
+			docState.add(ops[i]);
+		}
+		lc.write(props.path, ops);
+		console.log('ops:' + JSON.stringify(ops));
+		console.log('docstate: ' + docState.get_str());
+		oldText = el.value;
+	}
+	return <div>
+		  <textarea onInput={upd} class='bg-neutral-900' ref={el!} cols="80" rows="9" ></textarea>
+	</div>
+}
+
+export function DoubleEditor() {
+	const lc = [1,2,3].map(e => new TabCounter)
+	const upd = (e: any)=> {}
+	return <>
+		<Editor ctx={lc[0]} path={"0"} onChange={upd}/>
+		<Editor ctx={lc[1]} path={"0"} onChange={upd}/>
+		<Editor ctx={lc[2]} path={"0"} onChange={upd}/>
+	</>
 }

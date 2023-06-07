@@ -1,8 +1,5 @@
-import { LexicalNode, EditorState, $getNodeByKey } from "lexical"
+import { LexicalNode, EditorState, $getNodeByKey, TextNode } from "lexical"
 import { useLexicalComposerContext } from "./lexical-solid"
-
-
-
 // there a two types of patches: "/node" and "/node/prop"
 
 // JsonPatchable is the model we are assuming It is a tree of nodes, each node has a type and a set of properties.
@@ -14,9 +11,9 @@ export interface JsonNode {
   type: string
   prev?: string
   text?: string
-  [key: string]: string | number | object | Array<string | number | object> | undefined
+  [key: string]: any
 }
-type JsonPatch = {
+export type JsonPatch = {
   op: "add" | "remove" | "replace"
   path: string
   value?: any
@@ -29,43 +26,30 @@ export function registerNodeType(type: string, f: (n: LexicalNode) => JsonNode) 
 }
 
 export const VOID = null as any as void
-// export type HtmlDiff = {
-//   add: JsonNode[]
-//   update: PropDiff[]
-//   remove: string[]
-// }
 
-
-//
-export type PropDiff = {
-  key: string  // key of the node we are changing
-  add: [string, string | number | object | Array<string | number | object>][]
-  remove: string[]
-  // before?: any  // for debugging
-  // now?: any
-}
-
-function propDiff(n: string, prev: JsonNode, now: JsonNode) {
-  // modify
-  let o: PropDiff = {
-    key: n,
-    add: [],
-    remove: [],
-    // before: prev,
-    // now: now,
-  }
+function propDiff(n: string, prev: JsonNode, now: JsonNode) : JsonPatch[]{
+  const o : JsonPatch[] = []
   const nowx = now as any
   const prevx = prev as any
+
   for (let k of Object.keys(now)) {
     if (nowx[k] != prevx[k]) {
-      o.add.push([k, nowx[k]])
+      o.push({
+        op: "replace",
+        path: `${n}/${k}`,
+        value: nowx[k]
+      })
     }
   }
   for (let k of Object.keys(prev)) {
-    if (!nowx[k]) {
-      o.remove.push(k)
+    if (nowx[k]!=prevx[k] && !nowx[k]) {
+      o.push({
+        op: "remove",
+        path: `${n}/${k}`
+      })
     }
   }
+  //console.log("propdiff", n, prev, now,o)
   return o
 }
 
@@ -73,50 +57,43 @@ function fromLexical(a: LexicalNode | null) {
   if (!a) return a
   const r: JsonNode = {
     type: a.getType(),
-    text: a.getTextContent(),
     parent: a.getParent()?.getKey(),
     prev: a.getPreviousSibling()?.getKey(),
+  }
+  
+  if (a instanceof TextNode) {
+      r.text = a.__text
+      r.format = a.__format
+      r.mode = a.__mode
+      r.style = a.__style
   }
   return r
 }
 
-const diffStates = (k: string, prevx: EditorState, nowx: EditorState, h: HtmlDiff) => {
-  const now = fromLexical($getNodeByKey(k, nowx))
-  const prev = fromLexical($getNodeByKey(k, prevx))
-  console.log("wtf", k, now, prev)
-  if (!prev && now) {
-    // insert
-    h.add.push(now)
-  } else if (prev && !now) {
-    // delete
-    h.remove.push(k)
-  } else if (now && prev) {
-    let o = propDiff(k, prev, now)
-    if (o.add.length + o.remove.length)
-      h.update.push(o)
-  }
-}
-
-function diff(prev: Map<string, JsonNode>, now: Map<string, JsonNode>) {
+function diff(prev: Map<string, JsonNode>, now: Map<string, JsonNode>) : JsonPatch[]{
+  const o : JsonPatch[] = []
   for (let [k, now1] of now) {
-    const h: HtmlDiff = {
-      add: [],
-      update: [],
-      remove: []
-    }
     let prev1 = prev.get(k)
+    //console.log("diff", k, prev1, now1)
     if (!prev1 && now1) {
       // insert
-      h.add.push(now1)
-    } else if (prev1 && !now1) {
+      o.push({
+        op: "add",
+        path: k,
+        value: now1,
+      })
+    } else if (prev1 && !now1 ) {
       // delete
-      h.remove.push(k)
+      o.push({
+        op: "remove",
+        path: k,
+        value: now1,
+      })
     } else if (now1 && prev1) {
-      let o = propDiff(k, prev1, now1)
-      if (o.add.length + o.remove.length)
-        h.update.push(o)
+      o.push(...propDiff(k, prev1, now1))
     }
   }
+  return o
 }
 
 export function $getDirty(
@@ -138,10 +115,11 @@ export function $getDirty(
       if (a) prev.set(k, a)
     }
   })
+
   return { now, prev }
 }
 
-export function sync(onChange: (diff: HtmlDiff) => void) {
+export function sync(onChange: (diff: JsonPatch[]) => void) {
   const [editor] = useLexicalComposerContext();
 
   editor.registerUpdateListener(
@@ -150,7 +128,7 @@ export function sync(onChange: (diff: HtmlDiff) => void) {
 
       const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
       const { now, prev } = $getDirty(dirty, editorState, prevEditorState)
-      return diff(prev, now)
+      onChange(diff(prev, now)) 
     })
 
 }

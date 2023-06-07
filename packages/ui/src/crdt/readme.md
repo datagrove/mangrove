@@ -1,3 +1,13 @@
+
+new plan: deterministically invalidate tag pairs that intersect (fww).
+
+assume we have a shadow copy that mirrors the lexical editor.
+we can apply the json patch to it, because they are equivalent
+we have server patches, some that need to come before existing patches. some of the proposed patches will be invalidated.
+
+
+
+
 1. make it as easy as possible for readers, hard as necessary for writers
 2. utilize the site host to take record locks; fail the transaction if the tx does  not match the current value. Lock increases by 1 with each successful transaction.
 

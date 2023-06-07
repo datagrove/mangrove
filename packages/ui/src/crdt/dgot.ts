@@ -1,9 +1,87 @@
 
 
-// not truly ot or a crdt. one step, like prosemirror. ranges are added, but can be deleted if found to contradict
-// we need to build an editor or ?
+//  ranges are added, but can be deleted if found to contradict
+// transform each arriving patch, but discard if its invalid. (text is always valid, but maybe sus if its inserted into a deleted range, so alert)
+// elements are treated as a decorator before its first child and after it's last child.
+// 
+
+
+import { JsonPatch } from "../lexical/sync"
+import { IntervalTree } from "./itree"
 
 export type Changefn = (e: HtmlDiff) => HtmlDiff
+
+
+type Otnode = {
+    // we need to update this when updating the interval tree.
+    pos: number 
+    property: {
+        [key: string]: any
+    }
+}
+class Otmodel {
+    tags = new IntervalTree()
+    id = new Map<string, Otnode>()
+
+
+}
+
+// editors like lexical may aggressively replace entire sections of the document when we might prefer that it make two insertions <b>  </b>, it will generally rewrite the entire section between the tags. 
+
+// another issue is that the map of dirty nodes is not offered as trees, so we may need to sort topographically? 
+
+// we want to treat all the leaf nodes specifically as a sequence, and the elements as two insertions. 
+interface Topn {
+    patch: JsonPatch
+
+}
+function topsort(patch: JsonPatch[]) : JsonPatch[] {
+    const m = new Map<string, JsonPatch>()
+    const g = new Map<JsonPatch, Set<JsonPatch>>()
+    for (let v of patch){
+        m.set(v.path, v)
+    }
+    for (let v of patch) {
+
+    }
+}
+
+export function addPatch(m: Otmodel, patch: JsonPatch[]) : JsonPatch[]{
+    // we can process all the updates and deletes
+    var ad : JsonPatch[] = []
+    for (let o of patch) {
+        switch (o.op) {
+            case "add":
+                ad.push(o)
+                break
+            case "remove":
+                
+                break
+            case "replace":
+                break
+        }
+    }
+    // to topologically sort, we need to first map the match
+
+    for (let o of patch) {
+        const pth = o.path.split("/")
+        if (pth.length>1) {
+
+        } else {
+            switch (o.op) {
+                case "add":
+                    break
+                case "remove":
+                    break
+                case "replace":
+                    break
+            }
+        }
+    }
+    return []
+}
+
+
 
 // when you format <b>text</b> in lexical you must create a new text node.
 export type HtmlDiff = {
@@ -11,7 +89,7 @@ export type HtmlDiff = {
         parent?: string
         after?: string
         tag?: string  // a
-        text?: string 
+        text?: string
         attr?: object
     }
     deleteNode: string[]
@@ -29,7 +107,7 @@ interface OtDoc {
 
 // may not overlap, and positions refer to index at beginning of step.
 interface OtopInsert {
-    o: 0   
+    o: 0
     i: string
     p: number
 }
@@ -48,12 +126,12 @@ interface OpArray {
     v: number
 }
 
-function rebase(op: OpArray) : OtDoc|undefined {
+function rebase(op: OpArray): OtDoc | undefined {
 
-     return undefined
+    return undefined
 }
 
-export interface  Tuple {
+export interface Tuple {
     stable: OtDoc
     proposed: OtDoc
     editorDoc: any
