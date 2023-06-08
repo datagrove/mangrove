@@ -1,17 +1,58 @@
-import { For } from "solid-js";
+import { For, createEffect } from "solid-js";
 import { useCloud } from "./cloud_context";
-import { TabState, TabStateContext, useTabState } from "./tabstate";
+import { TabState, TabStateContext, createEditor, useTabState } from "./tabstate";
 import { cloud } from "solid-heroicons/solid";
-
 import { LocalState } from "./localstate";
+import { LocalStateContext, createLocalStateFake } from "./localstate_client";
+import { JsonPatch } from "../lexical/sync";
+import { Selection } from "./tabstate"
+
+function simpleDiff(oldText: string, newText: string, cursor: number) {
+	var delta = newText.length - oldText.length;
+	var limit = Math.max(0, cursor - delta);
+	var end = oldText.length;
+	while (end > limit && oldText.charAt(end - 1) == newText.charAt(end + delta - 1)) {
+		end -= 1;
+	}
+	var start = 0;
+	var startLimit = cursor - Math.max(0, delta);
+	while (start < startLimit && oldText.charAt(start) == newText.charAt(start)) {
+		start += 1;
+	}
+	return [start, end, newText.slice(start, end + delta)];
+}
 
 
 export function Editor(props: { path: string }) {
 	let el: HTMLTextAreaElement
 
+	const patch = (j: [JsonPatch[], Selection]) => {
+		const [p, sel] = j
+		el.value = p[0].value
+		el.selectionStart = sel.start
+		el.selectionEnd = sel.end
+	}
+	const ed = createEditor(props.path)
+	const change = (_: any) => {
+		let r: JsonPatch[] = [
+			{
+				op: "replace",
+				path: "",
+				value: el.value
+			}
+		]
+
+		patch(ed.sync(r, {
+			start: el.selectionStart,
+			end: el.selectionEnd
+		}))
+	}
+
+	createEffect(() => change(ed.ver()))
+
 	let n = 0; // length we know about.
 	return <div>
-		<textarea onInput={()=>props.ds.upd(el.value, el.selectionEnd)} class='bg-neutral-900' ref={el!} cols="80" rows="6" ></textarea>
+		<textarea onInput={change} class='bg-neutral-900' ref={el!} cols="80" rows="6" ></textarea>
 	</div>
 }
 
@@ -21,17 +62,8 @@ export function Editor(props: { path: string }) {
 export function DoubleEditor() {
 	// normally there is one tabstate context
 	// here we want three for testing.
-
-	// we should have a way to make a tabstate that with differen localstates.
-
-	// each tabstate needs a client to the LocalState
-	const cloud = useCloud()
-	if (!cloud) throw new Error("no cloud")
-
-
-
-	const u1 = connect<LocalStateClient,TabStateClient>(cloud, "1")
-	const u2 = connect<LocalStateClient,TabStateClient>(cloud, "2")
+	const u1 = createLocalStateFake()
+	const u2 = createLocalStateFake()
 
 	const tab = [
 		new TabState(u1),
@@ -44,17 +76,17 @@ export function DoubleEditor() {
 
 	return <>
 		<LocalStateContext.Provider value={u1}>
-		<TabStateContext.Provider value={tab[0]}>
-				<Editor path={"0"}  />
-				<Editor path={"0"}  />
-				</TabStateContext.Provider>
+			<TabStateContext.Provider value={tab[0]}>
+				<Editor path={"0"} />
+				<Editor path={"0"} />
+			</TabStateContext.Provider>
 		</LocalStateContext.Provider>
-		
+
 		<LocalStateContext.Provider value={u2}>
-				<TabStateContext.Provider value={tab[0]}>
-				<Editor path={"0"}  />
-				<Editor path={"0"}  />
-				</TabStateContext.Provider>
+			<TabStateContext.Provider value={tab[0]}>
+				<Editor path={"0"} />
+				<Editor path={"0"} />
+			</TabStateContext.Provider>
 		</LocalStateContext.Provider>
 	</>
 }
