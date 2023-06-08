@@ -1,7 +1,8 @@
 import { ApiSet, Channel } from "./rpc"
-import { Err, HostClient, KeeperClient, LocalStateClient, Stat, TabStateClient, TabStateClientApi } from "./localstate_shared"
+import { Err, HostClient, KeeperClient, LocalStateClient, Scan, Stat, TabStateClient, TabStateClientApi } from "./localstate_shared"
 
 import { JsonPatch } from "../lexical/sync"
+import { Tx } from "../db"
 
 
 // sharedworker to share all the localstate.
@@ -51,22 +52,16 @@ export class LocalState {
 	connect(mc: Channel) : ApiSet {
         // seems like this has to cost something? how clever is the javascript engine?
         const api : LocalStateClient = {
-            read: function (path: string, start: number, end: number): Promise<Err | Uint8Array> {
+            scan: function <T = any>(scan: Scan<any>): Promise<string | T[]> {
                 throw new Error("Function not implemented.")
             },
-            open: function (path: string): Promise<Err | Stat> {
+            query: function <T = any>(sql: string, params?: any): Promise<string | T[]> {
                 throw new Error("Function not implemented.")
             },
-            subscribe: function (handle: number, from: number): Promise<Err | number> {
+            lens: function (table: string, id: number): Promise<string | number> {
                 throw new Error("Function not implemented.")
             },
-            publish: function (handle: number, patch: Uint8Array): Promise<Err> {
-                throw new Error("Function not implemented.")
-            },
-            close: function (handle: number): Promise<void> {
-                throw new Error("Function not implemented.")
-            },
-            write: function (handle: number,  a: Uint8Array): Promise<number|Err> {
+            commit: function (tx: Tx): Promise<string | undefined> {
                 throw new Error("Function not implemented.")
             }
         }

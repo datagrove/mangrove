@@ -2,6 +2,7 @@ import { Setter } from "solid-js"
 import { JsonPatch } from "../lexical/sync"
 import { ApiSet, Channel, Peer } from "./rpc"
 import { LocalState } from "./localstate"
+import { TableUpdate, Tx } from "../db"
 
 
 // we create api's from channels
@@ -50,16 +51,29 @@ export type Err = string
 
 // subscription here is a site, not a tuple.
 // 
-
+export interface Scan<T> {
+    table: string, 
+    start: T, 
+    end: T,
+    limit: number,
+    offset: number,
+}
 // LocalStateClient used by the tab
 export interface LocalStateClient extends ApiSet{
-    read(path: string, start: number, end: number) : Promise<Uint8Array|Err>
-    open(path: string) : Promise<Stat|Err>
-    subscribe(handle: number, from: number) : Promise<number|Err>
-    publish(handle: number, patch: Uint8Array) : Promise<undefined|Err>,
-    close(handle: number): Promise<void>
-    write(handle: number, a: Uint8Array) : Promise<number|Err>
+    // read(path: string, start: number, end: number) : Promise<Uint8Array|Err>
+    // open(path: string) : Promise<Stat|Err>
+    // subscribe(handle: number, from: number) : Promise<number|Err>
+    //   publish(handle: number, patch: Uint8Array) : Promise<undefined|Err>,
+    // close(handle: number): Promise<void>
+    // write(handle: number, a: Uint8Array) : Promise<number|Err>
+
+    // database api.
+    scan<T=any>(scan: Scan<any>) : Promise<T[]|Err>
+    query<T=any>(sql: string, params?: any) : Promise<T[]|Err>
+    lens(table: string, id: number): Promise<number|Err>
+    commit(tx: Tx) : Promise<Err|undefined>
 }
+
 export function LocalStateClientApi(mc: Channel) {
     return apiSet<LocalStateClient>(mc,"read","open","subscribe","publish","close","write")
 }
