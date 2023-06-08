@@ -1,7 +1,6 @@
-import { ApiSet, ConnectablePeer, Peer, Rpc, WorkerChannel } from "./rpc";
+import { ApiSet, ConnectablePeer, Peer, Rpc, WorkerChannel, WsChannel } from "./rpc";
 import { LocalState } from "./localstate";
 
-const ls = new LocalState()
 
 let ctx: any = self as any
 
@@ -41,4 +40,10 @@ export function createSharedListener<T>(peer: ConnectablePeer) {
 
     }
 }
+const status = (x: string)=> {
+    console.log("status",x)
+}
+const ls = new LocalState({
+    cloud: (url: string) => new WsChannel(url,status)
+})
 createSharedListener(ls)

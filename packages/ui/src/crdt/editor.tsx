@@ -3,9 +3,10 @@ import { useCloud } from "./cloud_context";
 import { TabState, TabStateContext, createEditor, useTabState } from "./tabstate";
 import { cloud } from "solid-heroicons/solid";
 import { LocalState } from "./localstate";
-import { LocalStateContext, createLocalStateFake } from "./localstate_client";
+import { LocalStateContext } from "./localstate_client";
 import { JsonPatch } from "../lexical/sync";
 import { Selection } from "./tabstate"
+import { createLocalStateFake } from "./localstate_test";
 
 function simpleDiff(oldText: string, newText: string, cursor: number) {
 	var delta = newText.length - oldText.length;

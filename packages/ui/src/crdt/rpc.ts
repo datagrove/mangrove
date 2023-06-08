@@ -43,7 +43,9 @@ export class WorkerChannel implements Channel {
 }
 
 export class WsChannel implements Channel {
-    constructor(public ws: WebSocket, public status: (x: string) => void, public recv?: (d: any) => void) {
+    ws: WebSocket
+    constructor(public url: string, public status: (x: string) => void, public recv?: (d: any) => void) {
+        this.ws = new WebSocket(url)
         status("connecting")
         this.ws.onclose = () => this.status("closed")
         this.ws.onerror = () => this.status("error")
