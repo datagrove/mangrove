@@ -20,20 +20,32 @@ export function apiSet<T>(mc: Channel, ...rpc: string[]): T {
 // this is used from worker and implemented by the tab
 export interface TabStateClient extends ApiSet  {
    becomeLeader() : Promise<boolean>
-   update(handle: number) : Promise<void>
+   update(handle: number, length: number) : Promise<void>
 }
 
 export function TabStateClientApi(mc: Channel)  {
     return apiSet<TabStateClient>(mc,"becomeLeader", "update") 
 }
 
-export interface LocalStateClient {
-    subscribe(path: string,onchange: ()=>void) : Promise<{
-        handle: number,
-        doc: any
-    }>
-    publish(handle: number, patch: JsonPatch) : Promise<void>,
+export interface Stat {
+    length: number
+    // last good snapshot
+    snapBegin: number
+    snapEnd: number
+}
+export interface Snapshot {
+    next: number // next snapshot.
 
+    author: number
+    begin: number
+    end: number 
+}
+export interface LocalStateClient extends ApiSet{
+    read(path: string, start: number, end: number) : Promise<Uint8Array>
+    stat(path: string) : Promise<Stat>
+    subscribe(path: string, from: number) : Promise<number>
+    publish(handle: number, patch: any) : Promise<void>,
+    close(handle: number): Promise<void>
 }
 export function LocalStateClientApi(mc: Channel) {
     return apiSet<LocalStateClient>(mc,"becomeLeader", "update") 

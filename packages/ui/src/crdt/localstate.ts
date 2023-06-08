@@ -1,15 +1,7 @@
-import { capability } from "@ucans/ucans"
-import { SendToWorker } from "../worker/useworker"
-import { Setter, Signal } from "solid-js"
-import {  Op } from "./crdt"
-import { ApiSet, Channel, ConnectablePeer, Peer, Rpc } from "./rpc"
-import { HostClient, KeeperClient, accept } from './client'
-import { TabState } from "./tabstate"
-import { LocalStateClient, LocalStateClientApi, TabStateClient, TabStateClientApi } from "./localstate_shared"
+import { ApiSet, Channel } from "./rpc"
+import { LocalStateClient, TabStateClient, TabStateClientApi } from "./localstate_shared"
 
 import { JsonPatch } from "../lexical/sync"
-import { Connect } from "vite"
-import { apiSet } from "./localstate_client"
 
 
 // sharedworker to share all the localstate.
@@ -35,7 +27,9 @@ class Client {
     }
   
 }
-
+class Site {
+   sub = new Set<Client>
+}
 // LocalState requires a Keeper Client and a Host Client
 
 export interface LocalStateConfig {
@@ -46,7 +40,9 @@ export class LocalState {
 	constructor(config: LocalStateConfig) {
 	}
 	// each tab will have a message channel 
-	tab = new Set<Client>()
+	tab = new Map<Channel, Client>()
+    handle = new Map<string, Site>()
+    nextHandle : number = 42
 
     // connect returns an server-side api from a channel
     // if the client side has an api, it is created here as well 
@@ -58,16 +54,15 @@ export class LocalState {
                     throw new Error('path must start with /')
                 }
                 return {
-                    handle: 0,
                     doc: {}
                 }
             },
-            async publish(handle: number, patch: JsonPatch){
+            async publish(path: string, patch: any){
          
             }
         }
         
-        this.tab.add(new Client(TabStateClientApi(mc))) 
+        this.tab.set(mc, new Client(TabStateClientApi(mc))) 
         return api
     }
 
