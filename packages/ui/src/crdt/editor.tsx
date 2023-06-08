@@ -8,20 +8,7 @@ import { JsonPatch } from "../lexical/sync";
 import { Selection } from "./tabstate"
 import { createLocalStateFake } from "./localstate_test";
 
-function simpleDiff(oldText: string, newText: string, cursor: number) {
-	var delta = newText.length - oldText.length;
-	var limit = Math.max(0, cursor - delta);
-	var end = oldText.length;
-	while (end > limit && oldText.charAt(end - 1) == newText.charAt(end + delta - 1)) {
-		end -= 1;
-	}
-	var start = 0;
-	var startLimit = cursor - Math.max(0, delta);
-	while (start < startLimit && oldText.charAt(start) == newText.charAt(start)) {
-		start += 1;
-	}
-	return [start, end, newText.slice(start, end + delta)];
-}
+
 
 
 export function Editor(props: { path: string }) {
@@ -43,10 +30,10 @@ export function Editor(props: { path: string }) {
 			}
 		]
 
-		patch(ed.sync(r, {
+		ed.syncUp(r, {
 			start: el.selectionStart,
 			end: el.selectionEnd
-		}))
+		})
 	}
 
 	createEffect(() => change(ed.ver()))
