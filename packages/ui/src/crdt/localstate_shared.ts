@@ -68,13 +68,13 @@ export function LocalStateClientApi(mc: Channel) {
 // the keeper client can be locally hosted, and use R2
 // a keeper server can aggressively shed data to R2, and respond "r2"
 export interface KeeperClient extends ApiSet {
-   read(site: number, start: number, end: number) : Promise<Uint8Array[]|Err> 
+   read(site: number, start: number, end: number) : Promise<Uint32Array|Err> 
    // clients can write directly to their own log by first getting a permission from the host. this is complex though? r2 does allow files to be appended, so it must be chunked, and tail file must be replaced
-   write(path: string, a: any): Promise<Err>
-   append(site: number, a: Uint8Array) : Promise<Err>
+   write(site: number, at: number,  a: Uint32Array): Promise<Err|undefined>
+   append(site: number,at: number, a: Uint32Array) : Promise<Err|undefined>
 }
 export function KeeperClientApi(mc: Channel) {
-    return apiSet<LocalStateFromHost>(mc, "read", "write") 
+    return apiSet<KeeperClient>(mc, "read", "write") 
 }
 
 // add authorization apis etc.
@@ -93,7 +93,7 @@ export interface HostClient extends ApiSet {
     authorize(site: number, length: number) : Promise<string[]|Err>,
 }
 export function HostClientApi(mc: Channel) {
-    return apiSet<LocalStateFromHost>(mc, "publish", "authorize") 
+    return apiSet<HostClient>(mc, "publish", "authorize") 
 }
 
 

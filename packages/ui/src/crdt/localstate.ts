@@ -1,5 +1,5 @@
 import { ApiSet, Channel } from "./rpc"
-import { Err, LocalStateClient, Stat, TabStateClient, TabStateClientApi } from "./localstate_shared"
+import { Err, HostClient, KeeperClient, LocalStateClient, Stat, TabStateClient, TabStateClientApi } from "./localstate_shared"
 
 import { JsonPatch } from "../lexical/sync"
 
@@ -33,7 +33,9 @@ class Site {
 // LocalState requires a Keeper Client and a Host Client
 
 export interface LocalStateConfig {
-    cloud: (url: string) => Channel
+    cloud?: (url: string) => Channel
+    host?: HostClient,
+    keeper?: KeeperClient
 }
 
 export class LocalState {

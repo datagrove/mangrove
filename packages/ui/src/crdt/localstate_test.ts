@@ -1,4 +1,5 @@
-import { KeeperClient, LocalStateClient, apiSet, HostClient, Stat, LocalStateFromHost, LocalStateFromHostApi, Err } from "./localstate_shared"
+import { LocalState, LocalStateConfig } from "./localstate"
+import { KeeperClient, LocalStateClient, apiSet, HostClient, Stat, LocalStateFromHost, LocalStateFromHostApi, Err, KeeperClientApi, LocalStateClientApi, HostClientApi } from "./localstate_shared"
 import { ApiSet, ConnectablePeer, Peer, WorkerChannel } from "./rpc"
 import { Channel } from "./rpc"
 
@@ -11,7 +12,7 @@ import { Channel } from "./rpc"
 
 // clouds do not share sites, each client must connect to the correct host 
 export class Keeper implements ConnectablePeer {
-	store = new Map<string, any[]>()
+	store = new Map<number, Uint32Array>()
 	constructor(config?: any) {
 	}
 
@@ -19,12 +20,20 @@ export class Keeper implements ConnectablePeer {
 
 	}
 	connect(ch: Channel) {
+		
 		// connectionless
 		const r: KeeperClient = {
-			read: function (path: string, start: number, end: number): Promise<string | Uint8Array[]> {
-				throw new Error("Function not implemented.")
+			read:  async (site: number, start: number, end: number): Promise<string | Uint32Array> => {
+				const s= this.store.get(site)
+				if (!s) return "no site"
+				return s.slice(start,end)
 			},
-			write: function (path: string, a: any): Promise<string> {
+			write: async (site: number, at: number, a: Uint32Array): Promise<string|undefined> => {
+				const s= this.store.get(site)
+				if (!s) return "no site"
+				this.store.set(site, new Uint32Array([...s,...a]))		
+			},
+			append: function (site: number, at: number, a: Uint32Array): Promise<string> {
 				throw new Error("Function not implemented.")
 			}
 		}
@@ -100,7 +109,7 @@ class Host implements ConnectablePeer {
 					}
 					const buf = new Uint32Array([cid, length[i]])
 					s.length += 8
-					await me.keeper.write(site[i], buf)
+					await me.keeper.write(site[i],s.length, buf)
 				}
 				return
 			},
@@ -120,23 +129,42 @@ class Host implements ConnectablePeer {
 }
 
 
-function createHostKeeper() {
+function createHostKeeper()  : [HostClient, KeeperClient]{
 	// create a keeper/host pair for the fake user state. 
 	const keeper = new Keeper()
 	const ch1 = new MessageChannel()
 	keeper.connect(new WorkerChannel(ch1.port2))
+	let api = KeeperClientApi(new WorkerChannel(ch1.port1))
+	const config : HostConfig = { 
+		keeper: api 
+	}
 
+	const ch2 = new MessageChannel()
+	const host = new Host(config)
+	host.connect(new WorkerChannel(ch2.port2))
+	let api2 = HostClientApi(new WorkerChannel(ch2.port1))
 
+	const ch3 = new MessageChannel()
+	keeper.connect(new WorkerChannel(ch2.port2))
+	let api3 = KeeperClientApi(new WorkerChannel(ch2.port1))
 
-	const host = new Host({ keeper: KeeperClient })
-
-	const chh = new MessageChannel()
+	return [api2,api3]
 
 }
 
 
 export function createLocalStateFake(): LocalStateClient {
 
+	let [host,keeper] = createHostKeeper()
+
+	const m = new MessageChannel()
+	
+	const c : LocalStateConfig = {
+		host: host,
+		keeper: keeper
+	}
+	const u = new LocalState(c)
+	u.connect(new WorkerChannel(m.port2))
 	//apiSet<LocalStateClient>(peer, "publish", "subscribe") as LocalStateClient
 
 	// const config : LocalStateConfig = {
@@ -145,5 +173,5 @@ export function createLocalStateFake(): LocalStateClient {
 	// }
 	// const u = new LocalState()
 
-
+	return LocalStateClientApi(new WorkerChannel(m.port1))
 }
