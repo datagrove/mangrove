@@ -1,4 +1,4 @@
-import { KeeperClient, LocalStateClient, apiSet } from "./localstate_shared"
+import { KeeperClient, LocalStateClient, apiSet, HostClient, Stat, LocalStateFromHost, LocalStateFromHostApi, Err } from "./localstate_shared"
 import { ApiSet, ConnectablePeer, Peer, WorkerChannel } from "./rpc"
 import { Channel } from "./rpc"
 
@@ -12,135 +12,133 @@ import { Channel } from "./rpc"
 // clouds do not share sites, each client must connect to the correct host 
 export class Keeper implements ConnectablePeer {
 	store = new Map<string, any[]>()
-    constructor(config?: any) {
-    }
+	constructor(config?: any) {
+	}
 
-    disconnect(ch: Channel): void {
-       
-    }
-    connect(ch: Channel) {
-        // connectionless
-        const r: KeeperClient = {
+	disconnect(ch: Channel): void {
+
+	}
+	connect(ch: Channel) {
+		// connectionless
+		const r: KeeperClient = {
 			read: function (path: string, start: number, end: number): Promise<string | Uint8Array[]> {
 				throw new Error("Function not implemented.")
 			},
 			write: function (path: string, a: any): Promise<string> {
 				throw new Error("Function not implemented.")
 			}
-		} 
+		}
 		return r
-    }
+	}
 }
-			// read: async (id: string, start: number, end: number) => {
-			// 	return this.store.get(id)?.slice(start, end)
-			// },
-			// write: async(id: string, at: number, a: any) => {
-			// 	let st = this.store.get(id)
-			// 	if (!st) {
-			// 		st = []
-			// 		this.store.set(id, st)
-			// 	}
-			// 	st.push(a)
-			// 	console.log('keeper', st)
-			// }
-interface LocalStateUpdate{
+// read: async (id: string, start: number, end: number) => {
+// 	return this.store.get(id)?.slice(start, end)
+// },
+// write: async(id: string, at: number, a: any) => {
+// 	let st = this.store.get(id)
+// 	if (!st) {
+// 		st = []
+// 		this.store.set(id, st)
+// 	}
+// 	st.push(a)
+// 	console.log('keeper', st)
+// }
+interface LocalStateUpdate {
 	path: string[],
 	length: number,
 }
-interface LocalStateHostClient {
-	update(u: LocalStateUpdate) : void
-}
-interface KeeperOwner {
-	write(id: string, at: number, a: any): Promise<any>
-}
+
 
 class Client {
-    constructor(peer: LocalStateHostClient){
 
+	open = new Map<string, number>()
+	local: LocalStateFromHost
+	constructor(ch: Channel, public  cid: number) {
+		this.local = LocalStateFromHostApi(ch)
 	}
+}
+
+// sites grow slowly, probably not worth writing r2 repeatedly
+// but we could write to a keeper service - does this help or hurt resiliency?
+class Site {
+	sub = new Set<Client>()
+	length = 0
 }
 
 // use connector to connect to keepers
 interface HostConfig {
-	keeper: KeeperOwner
+	keeper: KeeperClient
 }
 type LengthListener = (length: number) => void
 // there can be multiple keepers, but only one conceptual counter.
 class Host implements ConnectablePeer {
-	length_ = new Map<string, number>()
-    listener = new Map<string, Set<Client>>()
-    keeper : KeeperOwner
+	site_ = new Map<number, Site>()
+	client_ = new Map<Channel, Client>()
+	path_ = new Map<string, number>()
+	cid = 42
+	inode = 42
 
-    constructor(public config: HostConfig) {
-        this.keeper = config.keeper
+	keeper: KeeperClient
+
+	constructor(public config: HostConfig) {
+		this.keeper = config.keeper
 	}
 
-	connect(ch: Channel) : ApiSet {
-		// we need to create an api object from the channel
-		
-		return {
-			write: async (id: string, a: any) => {
-				const ln = this.length(id) + 1
-				await this.keeper.write(id, ln, a)
 
-				// really should wait for quorum
-				//Promise.all(pr)
-		
-				this.length_.set(id, ln)
-		
-				for (let o of this.listener.get(id) ?? new Set<LengthListener>()) {
-					//console.log("sending", o, ln)
-					o(ln)
+	connect(ch: Channel): ApiSet {
+		// we need to create an api object from the channel
+		const cid = this.cid++
+		this.client_.set(ch, new Client(ch,this.cid++))
+		const me = this
+		const r: HostClient = {
+			publish: async function (site: number[], length: number[]): Promise<Err | undefined> {
+				for (let i = 0; i < site.length; i++) {
+					let s = me.site_.get(site[i])
+					if (!s) {
+						s = new Site()
+						me.site_.set(site[i], s)
+					}
+					const buf = new Uint32Array([cid, length[i]])
+					s.length += 8
+					await me.keeper.write(site[i], buf)
 				}
+				return
+			},
+			authorize: async function (site: number, length: number): Promise<string | string[]> {
+				return [""] // accepted by our test keeper.
+			},
+			create: async function (path: string): Promise<string | number> {
+				return me.inode++
 			}
-		}		
+		}
+		return r
 	}
 
 	disconnect(ch: Channel): void {
-		
+		this.client_.delete(ch)
 	}
-
-	length(id: string) {
-		return this.length_.get(id) ?? 0
-	}
-
-	addListener(id: string, l: LengthListener) {
-		let ls = this.listener.get(id)
-		if (!ls) {
-			ls = new Set<LengthListener>()
-			this.listener.set(id, ls)
-		}
-		ls.add(l)
-		//console.log("listen", this.listener)
-		l(this.length(id))
-	}
-	removeListener(id: string, l: LengthListener) {
-		this.listener.get(id)?.delete(l)
-	}
-    recv(msg: any) {
-    }
 }
 
 
 function createHostKeeper() {
-		// create a keeper/host pair for the fake user state. 
-		const keeper = new Keeper()
-		const ch1 = new MessageChannel()
-		keeper.connect(new WorkerChannel(ch1.port2))
+	// create a keeper/host pair for the fake user state. 
+	const keeper = new Keeper()
+	const ch1 = new MessageChannel()
+	keeper.connect(new WorkerChannel(ch1.port2))
 
 
-	
-		const host = new Host({keeper: KeeperClient})
-	
-		const chh = new MessageChannel()
+
+	const host = new Host({ keeper: KeeperClient })
+
+	const chh = new MessageChannel()
 
 }
 
 
 export function createLocalStateFake(): LocalStateClient {
 
-	 //apiSet<LocalStateClient>(peer, "publish", "subscribe") as LocalStateClient
-	
+	//apiSet<LocalStateClient>(peer, "publish", "subscribe") as LocalStateClient
+
 	// const config : LocalStateConfig = {
 	// 	cloud: (url: string) => {
 	// 	}

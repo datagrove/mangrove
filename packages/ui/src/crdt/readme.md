@@ -119,3 +119,9 @@ use the steps to transform our failed steps, then try again
 eventually this succeeds. 
 
 if you have succeeded with al the steps you currently have from the user, then diff back to the user document.
+
+
+what if the entire tuple is a consensus value, and then we have no locks.
+the tuple id is (device, counter), potentially as uint8array varint.
+
+what if instead of a simple log each device writes a btree? does that help anything? seems like just using pointers is fastest, but a btree potentially supports trimming. could be both though. (russian hat check?)
