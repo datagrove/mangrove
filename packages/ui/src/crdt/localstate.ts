@@ -1,5 +1,5 @@
 import { ApiSet, Channel } from "./rpc"
-import { LocalStateClient, TabStateClient, TabStateClientApi } from "./localstate_shared"
+import { Err, LocalStateClient, Stat, TabStateClient, TabStateClientApi } from "./localstate_shared"
 
 import { JsonPatch } from "../lexical/sync"
 
@@ -49,16 +49,23 @@ export class LocalState {
 	connect(mc: Channel) : ApiSet {
         // seems like this has to cost something? how clever is the javascript engine?
         const api : LocalStateClient = {
-            async subscribe(path: string ){
-                if (path[0] !== '/') {
-                    throw new Error('path must start with /')
-                }
-                return {
-                    doc: {}
-                }
+            read: function (path: string, start: number, end: number): Promise<Err | Uint8Array> {
+                throw new Error("Function not implemented.")
             },
-            async publish(path: string, patch: any){
-         
+            open: function (path: string): Promise<Err | Stat> {
+                throw new Error("Function not implemented.")
+            },
+            subscribe: function (handle: number, from: number): Promise<Err | number> {
+                throw new Error("Function not implemented.")
+            },
+            publish: function (handle: number, patch: Uint8Array): Promise<Err> {
+                throw new Error("Function not implemented.")
+            },
+            close: function (handle: number): Promise<void> {
+                throw new Error("Function not implemented.")
+            },
+            write: function (handle: number,  a: Uint8Array): Promise<number|Err> {
+                throw new Error("Function not implemented.")
             }
         }
         

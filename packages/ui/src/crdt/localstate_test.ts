@@ -1,4 +1,4 @@
-import { LocalStateClient, apiSet } from "./localstate_shared"
+import { KeeperClient, LocalStateClient, apiSet } from "./localstate_shared"
 import { ApiSet, ConnectablePeer, Peer, WorkerChannel } from "./rpc"
 import { Channel } from "./rpc"
 
@@ -20,23 +20,29 @@ export class Keeper implements ConnectablePeer {
     }
     connect(ch: Channel) {
         // connectionless
-        return {
-			read: async (id: string, start: number, end: number) => {
-				return this.store.get(id)?.slice(start, end)
+        const r: KeeperClient = {
+			read: function (path: string, start: number, end: number): Promise<string | Uint8Array[]> {
+				throw new Error("Function not implemented.")
 			},
-			write: async(id: string, at: number, a: any) => {
-				let st = this.store.get(id)
-				if (!st) {
-					st = []
-					this.store.set(id, st)
-				}
-				st.push(a)
-				console.log('keeper', st)
+			write: function (path: string, a: any): Promise<string> {
+				throw new Error("Function not implemented.")
 			}
-		} : KeeperClient
+		} 
+		return r
     }
 }
-
+			// read: async (id: string, start: number, end: number) => {
+			// 	return this.store.get(id)?.slice(start, end)
+			// },
+			// write: async(id: string, at: number, a: any) => {
+			// 	let st = this.store.get(id)
+			// 	if (!st) {
+			// 		st = []
+			// 		this.store.set(id, st)
+			// 	}
+			// 	st.push(a)
+			// 	console.log('keeper', st)
+			// }
 interface LocalStateUpdate{
 	path: string[],
 	length: number,

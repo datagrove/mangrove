@@ -1,6 +1,7 @@
 import { Setter } from "solid-js"
 import { JsonPatch } from "../lexical/sync"
 import { ApiSet, Channel, Peer } from "./rpc"
+import { LocalState } from "./localstate"
 
 
 // we create api's from channels
@@ -28,6 +29,7 @@ export function TabStateClientApi(mc: Channel)  {
 }
 
 export interface Stat {
+    writable: boolean  
     length: number
     // last good snapshot
     snapBegin: number
@@ -40,35 +42,33 @@ export interface Snapshot {
     begin: number
     end: number 
 }
+export type Err = string
+// path here is referring to a cell location?
+// we want to be able to overflow to a external dictionary of logs
+// the log dictionary is written by individual devices, but tabs coordinate to use the same log
+// when we query the table, we want to show a summary of, opening to full doc
 export interface LocalStateClient extends ApiSet{
-    read(path: string, start: number, end: number) : Promise<Uint8Array>
-    stat(path: string) : Promise<Stat>
-    subscribe(path: string, from: number) : Promise<number>
-    publish(handle: number, patch: any) : Promise<void>,
+    read(path: string, start: number, end: number) : Promise<Uint8Array|Err>
+    open(path: string) : Promise<Stat|Err>
+    subscribe(handle: number, from: number) : Promise<number|Err>
+    publish(handle: number, patch: Uint8Array) : Promise<Err>,
     close(handle: number): Promise<void>
+    write(handle: number, a: Uint8Array) : Promise<number|Err>
 }
 export function LocalStateClientApi(mc: Channel) {
     return apiSet<LocalStateClient>(mc,"becomeLeader", "update") 
 }
 
 
-export class KeeperClient extends Peer {
-
-    async read(path: string, start: number, end: number) : Promise<any[]> {
-        return await this.rpc( "read", [start,end]) as any[]
-
-    }
+export interface KeeperClient extends ApiSet {
+   read(path: string, start: number, end: number) : Promise<Uint8Array[]|Err> 
+   // clients can write directly to their own log by first getting a permission from the host. this is complex though? r2 does allow files to be appended, so it must be chunked, and tail file must be replaced
+   write(path: string, a: any): Promise<Err>
 }
 
-export class KeeperOwner extends Peer {
+// add authorization apis etc.
+export interface HostClient extends LocalStateClient {
 
-    write(id: string, a: any) {
-        this.rpc("write", [id,a])
-    }
-}
-
-export class HostClient extends Peer {
-    
 }
 
 
