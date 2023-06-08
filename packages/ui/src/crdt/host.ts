@@ -1,4 +1,4 @@
-import { ConnectablePeer, Cloud } from "./cloud"
+import { ConnectablePeer, Cloud } from "./rpc"
 
 
 // use connector to connect to keepers

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import {  Channel, Peer } from "./cloud";
+import {  Channel, Peer } from "./rpc";
 import {  Op } from "./crdt";
 import { JsonPatch } from "../lexical/sync";
 import { createContext, useContext } from "solid-js";

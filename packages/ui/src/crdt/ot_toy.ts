@@ -177,7 +177,7 @@ function transform_ins(op1: Op, ix: number, pri: number) {
 	}
 }
 
-class DocState {
+export class DocState {
 	ops: Op[];
 	dels: Tree | null;
 	str: string;
@@ -223,7 +223,7 @@ class DocState {
 	}
 }
 
-export class Peer {
+export class OtPeer {
 	rev: number;
 	context: Set<number>;
 	constructor() {

@@ -35,16 +35,7 @@ interface Topn {
     patch: JsonPatch
 
 }
-function topsort(patch: JsonPatch[]) : JsonPatch[] {
-    const m = new Map<string, JsonPatch>()
-    const g = new Map<JsonPatch, Set<JsonPatch>>()
-    for (let v of patch){
-        m.set(v.path, v)
-    }
-    for (let v of patch) {
 
-    }
-}
 
 export function addPatch(m: Otmodel, patch: JsonPatch[]) : JsonPatch[]{
     // we can process all the updates and deletes
@@ -55,7 +46,7 @@ export function addPatch(m: Otmodel, patch: JsonPatch[]) : JsonPatch[]{
                 ad.push(o)
                 break
             case "remove":
-                
+
                 break
             case "replace":
                 break

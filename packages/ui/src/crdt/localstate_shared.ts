@@ -1,8 +1,9 @@
 import { Setter } from "solid-js"
 import { JsonPatch } from "../lexical/sync"
+import { ApiSet } from "./rpc"
 
 // this is used from worker and implemented by the tab
-export interface TabStateClient  {
+export interface TabStateClient extends ApiSet  {
    becomeLeader() : Promise<boolean>
 }
 

@@ -1,0 +1,29 @@
+export class Cloud {
+    local = new Map<string, (a: MessagePort) => void>()
+
+    async open(url: string, status: (x: string) => void, recv: (a: any) => void): Promise<Channel> {
+        const u = new URL(url)
+        switch (u.protocol) {
+            case "ws:":
+            case "wss:":
+                return new WsChannel(new WebSocket(url), status, recv)
+            case "webrtc:":
+                break;
+            case "worker:":
+                // this should be the url of a shared worker
+                // we potentially have protocol for accessing dedicator works too.
+                break;
+            case "local:":
+                const obj = this.local.get(url)
+                if (!obj) throw new Error("bad url " + url)
+                const mc = new MessageChannel()
+                obj(mc.port2)
+                status("")
+                return new WorkerChannel(mc.port1,  recv)
+
+                break
+        }
+
+        throw new Error(`bad url ${url}`)
+    }
+}

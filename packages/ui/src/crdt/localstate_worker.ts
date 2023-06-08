@@ -1,4 +1,4 @@
-import { ConnectablePeer, Peer, WorkerChannel } from "./cloud";
+import { ApiSet, ConnectablePeer, Peer, Rpc, WorkerChannel } from "./rpc";
 import { LocalState } from "./localstate";
 
 const ls = new LocalState()
@@ -6,32 +6,35 @@ const ls = new LocalState()
 let ctx: any = self as any
 
 export function createSharedListener<T>(peer: ConnectablePeer) {
-    ctx.onconnect = (e: any) => {
+    ctx.onconnect = async (e: any) => {
 
         // create a channel and connect it to the p
         const port = e.ports[0];
+        const ch = new WorkerChannel(port)
+        const a: ApiSet = peer.connect(ch)
 
-        port.addEventListener("message", (e: any) => {
-            const rpc = e.data as {
-                method: string
-                id: number
-                params: any
-            }
-            const ch = new WorkerChannel(port)
-            peer.connect( )
-
-            // const o = api[rpc.method] ?? unknown
-            // o(context, rpc.params).then((r: any) => {
-            //     port.postMessage({
-            //         id: rpc.id,
-            //         result: r
-            //     })
-            // }).catch((e: any) => {
-            //     port.postMessage({
-            //         id: rpc.id,
-            //         error: e
-            //     })
-            // })
+        port.addEventListener("message", async (e: MessageEvent) => {
+            const x: Rpc<any> = e.data
+            const fn = a[x.method]
+            if (!fn) {
+                port.postMessage({
+                    id: x.id,
+                    error: "unknown " + x.method
+                })
+            } else {
+                try {
+                    const a = await fn(x.params)
+                    port.postMessage({
+                        id: x.id,
+                        result: a
+                    })                    
+                }catch(e: any){
+                    port.postMessage({
+                        id: x.id,
+                        error: e.toString()
+                    })
+                }
+            }   
         })
 
         port.start(); // Required when using addEventListener. Otherwise called 

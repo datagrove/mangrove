@@ -19,10 +19,8 @@ export type Rpc<T> = {
     id: number
 }
 
-
-
 export interface ConnectablePeer {
-    connect(ch: Channel): void
+    connect(ch: Channel): ApiSet
     disconnect(ch: Channel): void
 }
 
@@ -31,12 +29,7 @@ type Statusfn = (x: string) => void
 type Recv = (x: any) => void
 // maybe make a url that works with all of these?
 export class WorkerChannel implements Channel {
-    constructor(public port: MessagePort,
-        public status: Statusfn,
-        public recv: Recv
-    ) {
-        port.onmessage = recv
-        status("")
+    constructor(public port: MessagePort) {
     }
     postMessage(data: any): void {
         this.port.postMessage(data)
@@ -75,7 +68,7 @@ export class WsChannel implements Channel {
     }
 }
 
-class WebRTC implements Channel {
+export class WebRTC implements Channel {
     constructor(public pc: RTCDataChannel, public listen: (d: any) => void, fn: (d: any) => void) {
 
     }
@@ -89,34 +82,7 @@ class WebRTC implements Channel {
 
 // imported into every worker? how do we register in every worker?
 // we might need 
-export class Cloud {
-    local = new Map<string, (a: MessagePort) => void>()
 
-    async open(url: string, status: (x: string) => void, recv: (a: any) => void): Promise<Channel> {
-        const u = new URL(url)
-        switch (u.protocol) {
-            case "ws:":
-            case "wss:":
-                return new WsChannel(new WebSocket(url), status, recv)
-            case "webrtc:":
-                break;
-            case "worker:":
-                // this should be the url of a shared worker
-                // we potentially have protocol for accessing dedicator works too.
-                break;
-            case "local:":
-                const obj = this.local.get(url)
-                if (!obj) throw new Error("bad url " + url)
-                const mc = new MessageChannel()
-                obj(mc.port2)
-                return new WorkerChannel(mc.port1, status, recv)
-
-                break
-        }
-
-        throw new Error(`bad url ${url}`)
-    }
-}
 
 
 // export interface Peer {
@@ -127,8 +93,8 @@ export class Cloud {
 //     close(): void
 // } 
 
-export interface ApiSet {
-    [key: string]: (a: any) => any
+export type  ApiSet =  {
+    [key: string]: ((...a: any[]) => Promise<any>)
 }
 
 export class Peer {

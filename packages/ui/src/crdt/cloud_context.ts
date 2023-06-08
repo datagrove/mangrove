@@ -1,5 +1,5 @@
 import { createContext, useContext } from "solid-js"
-import { Cloud } from "./cloud"
+import { Cloud } from "./rpc"
 
 // we have the actual host, then we also need to connect to it.
 export const CloudContext = createContext<Cloud>()

@@ -7,8 +7,8 @@ import { read, write } from "fs"
 import { disconnect } from "process"
 import { start } from "repl"
 import { string, number, any } from "zod"
-import { Channel, ConnectablePeer } from "./cloud"
-import { Peer } from "./ot_toy"
+import { Channel, ConnectablePeer } from "./rpc"
+import { OtPeer } from "./ot_toy"
 
 // can we use zod for this? to describe the entire api?
 

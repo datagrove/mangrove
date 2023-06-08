@@ -2,7 +2,7 @@ import { capability } from "@ucans/ucans"
 import { SendToWorker } from "../worker/useworker"
 import { Setter, Signal } from "solid-js"
 import {  Op } from "./crdt"
-import { Channel, ConnectablePeer, Peer, Rpc } from "./cloud"
+import { ApiSet, Channel, ConnectablePeer, Peer, Rpc } from "./rpc"
 import { accept } from './client'
 import { TabState } from "./tabstate"
 import { LocalStateClient, TabStateClient } from "./localstate_shared"
@@ -37,24 +37,24 @@ export class LocalState {
 	// each tab will have a message channel 
 	tab = new Set<Client>()
 
-	connect(mc: Channel)  {
+	connect(mc: Channel) : ApiSet {
         // seems like this has to cost something? how clever is the javascript engine?
         const api = {
             async subscribe(p: {path: string} ){
                 if (p.path[0] !== '/') {
                     throw new Error('path must start with /')
-                    return
                 }
                 return {
                     handle: 0,
                     doc: {}
                 }
             },
-            publish(p: {handle: number, patch: JsonPatch}){
+            async publish(p: {handle: number, patch: JsonPatch}){
                 return p.patch
             }
         }
-        this.tab.add(new Client(new Peer(mc,api))) 
+        this.tab.add(new Client(new Peer(mc))) 
+        return api
     }
 
     // connector will use this interface. we could also return a zod parser here.
@@ -66,36 +66,5 @@ export class LocalState {
     }
 
 }
-
-
-
-
-
-
-// we need to register LocalState with the cloud, let 
-
-
-
-
-// each similulated tab will create a shared worker, but
-// in a simulated domain. builds a peer around message channel
-
-
-
-
-
-/*
-mc.port2.onmessage = (e) => {
-    const { method, params , id} = e.data
-    switch (method) {
-        case 'write':
-            break
-        case 'open':
-            break
-        case 'close':
-            break
-    }
-}
-*/
 
 
