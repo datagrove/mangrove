@@ -42,6 +42,7 @@ export class TabState {
 
 
 // typically here at least the column and the table are fixed, so we should probably follow solid's pattern in allow non-reactive values to be passed in.
+// the editor is rooted in one tuple with ranges that are related to that root tuple.
 export function createSheetEditor(table: ()=>string, rowid: ()=>number, column: ()=>string, setVer: (x:Version)=>void ): SheetState {
     const ctx = useTabState()!
     const r = new SheetState(ctx, setVer)
