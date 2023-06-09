@@ -92,3 +92,19 @@ shadow site can simply be snapshots made with tags allowed.
 // another odd thing is reddit style pages where it is rearranged by votes
 // replies are handled differently in these situations
 // pins / sticky
+
+
+1. Each format may enclose { tags }, it may not enclose {tags_not}
+2. For given range [start,end] compute the count(start,t[j]), count(stop,t[j])
+3. if count(start, t[j]) > 0 for some tag, drop the formt
+4. if count(stop)<>count(start) for some tag, drop the format
+
+Rebasing selection
+Rebasing text.
+
+this is not an interval tree, just aggregation.
+we can aggregate all kinds of tags together: start, stop and then or a type mask together. 
+
+to proceed:
+1. start with dirty nodes
+
