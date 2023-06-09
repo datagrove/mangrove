@@ -10,10 +10,17 @@ export interface TableUpdate {
     tuple: unknown   // must include primary key, so to be encodable
     op: string  // lookup in schema
 }
+
+// note that siteid is not specified here because it is determined by the rowid
+// otoh, transactions cannot always know the rowid, since the transaction may be inserting a new row. If all the table updates are existing rows, there is no need for a siteid in the transaction, but if there are inserts, then the transaction needs to know the siteid of the new row.
+export interface LensRef {
+	table: string
+	rowid: number
+	column: string
+}
 // server://org.site.whatever/path/to/whatever
 export interface Tx  {
-    server: string
-    site: string
+    siteid: number // determines the server and the site, this is a local rowid from the $site table. This is only used for inserts. The rowid for an insert is used to return a map to the committed rowid if the app cares to await it.
     table: {
         [table: string]: TableUpdate[]
     }

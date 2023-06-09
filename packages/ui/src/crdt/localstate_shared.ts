@@ -1,5 +1,5 @@
 import { ApiSet, Channel, apiSet } from "../abc/rpc"
-import { Schema, TableUpdate, Tx , Keyed} from "../dblite/schema"
+import { Schema, TableUpdate, Tx , Keyed, LensRef} from "../dblite/schema"
 
 // this is used from worker and implemented by the tab
 export interface TabStateClient   {
@@ -43,7 +43,7 @@ export interface Scan<T> {
     offset: number,
 }
 // LocalStateClient used by the tab
-export interface LocalStateClient extends ApiSet{
+export interface LocalStateClient{
     // read(path: string, start: number, end: number) : Promise<Uint8Array|Err>
     // open(path: string) : Promise<Stat|Err>
     // subscribe(handle: number, from: number) : Promise<number|Err>
@@ -52,10 +52,15 @@ export interface LocalStateClient extends ApiSet{
     // write(handle: number, a: Uint8Array) : Promise<number|Err>
 
     // database api.
-    scan<T=any>(scan: Scan<any>) : Promise<T[]|Err>
-    query<T=any>(sql: string, params?: any) : Promise<T[]|Err>
-    lens(table: string, rowid: number): Promise<number|Err>
+    tuple(lens: LensRef) : Promise<number|Err>
+    scan<T=any>(scan: ScanQuery<any,any>) : Promise<number|Err>
+    updateScan<T=any>(handle: number, scan: Partial<ScanQuery<any,any>>) : Promise<undefined|Err>
+    closeScan(handle: number) : Promise<void>
+    exec<T=any>(sql: string, params?: any) : Promise<T[]|Err>
     commit(tx: Tx) : Promise<Err|undefined>
+
+    // try to call before disconnecting a tab. This still disrupts other tabs if this is the leader
+    unload() : Promise<void>
 }
 
 export function LocalStateClientApi(mc: Channel) {
@@ -65,7 +70,7 @@ export function LocalStateClientApi(mc: Channel) {
 
 // the keeper client can be locally hosted, and use R2
 // a keeper server can aggressively shed data to R2, and respond "r2"
-export interface KeeperClient extends ApiSet {
+export interface KeeperClient  {
    read(site: number, start: number, end: number) : Promise<Uint32Array|Err> 
    // clients can write directly to their own log by first getting a permission from the host. this is complex though? r2 does allow files to be appended, so it must be chunked, and tail file must be replaced
    write(site: number, at: number,  a: Uint32Array): Promise<Err|undefined>
@@ -76,7 +81,7 @@ export function KeeperClientApi(mc: Channel) {
 }
 
 // add authorization apis etc.
-export interface HostClient extends ApiSet {
+export interface HostClient  {
     // we can't query this (like localstate), because it can't decrypt the data.
     // we don't read it because go straight to the keeper for that.
     // publish here is sequencing of device.log pairs.
@@ -95,7 +100,7 @@ export function HostClientApi(mc: Channel) {
 }
 
 
-export interface LocalStateFromHost extends ApiSet {
+export interface LocalStateFromHost  {
     // vbyte encode this? cbor gives us free compression, but vbyte probably better 2.0
     update(site: number[], length: number[]) : Promise<void>
 }
