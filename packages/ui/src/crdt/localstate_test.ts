@@ -1,7 +1,11 @@
 import { LocalState, LocalStateConfig } from "./localstate"
-import { KeeperClient, LocalStateClient, apiSet, HostClient, Stat, LocalStateFromHost, LocalStateFromHostApi, Err, KeeperClientApi, LocalStateClientApi, HostClientApi } from "./localstate_shared"
-import { ApiSet, ConnectablePeer, Peer, WorkerChannel } from "./rpc"
-import { Channel } from "./rpc"
+import { KeeperClient, LocalStateClient,  HostClient, Stat, LocalStateFromHost, LocalStateFromHostApi, Err, KeeperClientApi, LocalStateClientApi, HostClientApi } from "./localstate_shared"
+import { ApiSet, ConnectablePeer, Peer, WorkerChannel } from "../abc/rpc"
+import { Channel } from "../abc/rpc"
+import { DbLiteClientApi } from "../dblite/api"
+import { DbLite } from "../dblite/dblite"
+import { editor_schema } from "./editor_schema"
+
 
 // These are for testing. deploy the go version
 
@@ -157,13 +161,20 @@ export function createLocalStateFake(): LocalStateClient {
 
 	let [host,keeper] = createHostKeeper()
 
-	const m = new MessageChannel()
+	const m2 = new MessageChannel()
+	const api = DbLiteClientApi(new WorkerChannel(m2.port1))
+
+	const svr = new DbLite(editor_schema)
+	svr.connect(new WorkerChannel(m2.port2))
 	
 	const c : LocalStateConfig = {
 		host: host,
-		keeper: keeper
+		keeper: keeper,
+		db: api
 	}
 	const u = new LocalState(c)
+
+	const m = new MessageChannel()
 	u.connect(new WorkerChannel(m.port2))
 	//apiSet<LocalStateClient>(peer, "publish", "subscribe") as LocalStateClient
 

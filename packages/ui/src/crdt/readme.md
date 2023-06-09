@@ -125,3 +125,30 @@ what if the entire tuple is a consensus value, and then we have no locks.
 the tuple id is (device, counter), potentially as uint8array varint.
 
 what if instead of a simple log each device writes a btree? does that help anything? seems like just using pointers is fastest, but a btree potentially supports trimming. could be both though. (russian hat check?)
+
+everyone starts a shared worker and sends it a random id.
+the shared worker broadcasts the id of the leader.
+
+
+// we need to pack the keys of any new tuples or diffing won't work?
+// maybe all tuples just come packed though? the go server doesn't need this.
+// the worker needs this code to keep it up to date.
+// we could compile it into the worker for now.
+export class RangeSource<Key,Tuple> {
+    constructor(public db: TabState, public q: ScanQuery<Key,Tuple>, public schema: QuerySchema<Key>, public listener: (s: ScanDiff) => void) {
+        // we have to send db thread a query
+    }
+    update(n: Partial<ScanQuery<Key,Tuple>>) {
+        // we have to send db thread an update query
+        this.db.w.send({
+            method: 'updateScan',
+            params: n
+        })
+    }
+    close() {
+        this.db.w.send({
+            method: 'close',
+            params: this.q.handle
+        })
+    }
+}

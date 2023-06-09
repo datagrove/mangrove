@@ -2,8 +2,8 @@
 import { createContext, useContext } from "solid-js"
 // @ts-ignore
 import LocalStateWorker from "./localstate?sharedworker"
-import { LocalStateClient, TabStateClient, apiSet } from "./localstate_shared"
-import { Peer, WorkerChannel } from "./rpc"
+import { LocalStateClient, TabStateClient } from "./localstate_shared"
+import { Peer, WorkerChannel, apiSet } from "../abc/rpc"
 
 
 // context for the tab to connect to localstate
@@ -19,7 +19,7 @@ export function createLocalState(): LocalStateClient {
 
 export function connectLocalState(p: MessagePort) {
     const api: TabStateClient = {
-        becomeLeader: async function (): Promise<boolean> {
+        getDb: async function (): Promise<MessagePort> {
             throw new Error("Function not implemented.")
         },
         update: async function (handle: number): Promise<void> {
