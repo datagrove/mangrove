@@ -81,10 +81,14 @@ localstate has
    use converged local to trivially generate new proposal
 
 
-
 3. reject from server
-   a) adopt converged local to new proposal
-   b) generate a new proposal
+   a) merge converged local to new proposal
+   b) generate a new proposal (transform based on new inserts)
+
+Deletions are formats
+Formats don't occupy space (the are sorted by their length)
+Formats have an "invalid" property that nullifys them.
+After transform, invalidate formats that don't nest. (this could be more complex to account for div/p b/i etc. seems unnecessary though and not clearly better; easier to say "command conflict" then "command broken into pieces"
 
 
 

@@ -19,8 +19,8 @@ export type Rpc<T> = {
     id: number
 }
 
-export interface ConnectablePeer {
-    connect(ch: Channel): ApiSet
+export interface Service {
+    connect(ch: Channel): object // return api set. not sure how to type this yet.
     disconnect(ch: Channel): void
 }
 

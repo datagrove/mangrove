@@ -2,7 +2,7 @@
 // @ts-ignore
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { Schema } from './schema';
-import { ApiSet, Channel, ConnectablePeer } from '../abc/rpc';
+import { ApiSet, Channel, Service } from '../abc/rpc';
 import { DbLiteClient } from './api';
 const ctx = self as any;
 
@@ -65,7 +65,7 @@ async function start(schema: Schema) {
     connect(ctx, ctx)
 }
 
-export class DbLite implements ConnectablePeer {
+export class DbLite implements Service {
     constructor(s: Schema) {
         start(s)
     }

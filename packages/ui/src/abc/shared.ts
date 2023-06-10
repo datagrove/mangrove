@@ -1,6 +1,6 @@
-import { ApiSet, ConnectablePeer, Rpc, WorkerChannel } from "./rpc";
+import { ApiSet, Service, Rpc, WorkerChannel } from "./rpc";
 let ctx = self as any
-export function createSharedListener<T>(peer: ConnectablePeer) {
+export function createSharedListener<T>(peer: Service) {
     ctx.onconnect = async (e: any) => {
 
         // create a channel and connect it to the p

@@ -1,4 +1,4 @@
-import { ApiSet, ConnectablePeer, Peer, Rpc, WorkerChannel, WsChannel } from "../abc/rpc";
+import { ApiSet, Service, Peer, Rpc, WorkerChannel, WsChannel } from "../abc/rpc";
 import { createSharedListener } from "../abc/shared";
 import { LocalState } from "./localstate";
 

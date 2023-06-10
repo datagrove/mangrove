@@ -1,6 +1,6 @@
 import { LocalState, LocalStateConfig } from "./localstate"
 import { KeeperClient, LocalStateClient,  HostClient, Stat, LocalStateFromHost, LocalStateFromHostApi, Err, KeeperClientApi, LocalStateClientApi, HostClientApi } from "./localstate_shared"
-import { ApiSet, ConnectablePeer, Peer, WorkerChannel } from "../abc/rpc"
+import { ApiSet, Service, Peer, WorkerChannel } from "../abc/rpc"
 import { Channel } from "../abc/rpc"
 import { DbLiteClientApi } from "../dblite/api"
 import { DbLite } from "../dblite/dblite"
@@ -15,7 +15,7 @@ import { editor_schema } from "./editor_schema"
 
 
 // clouds do not share sites, each client must connect to the correct host 
-export class Keeper implements ConnectablePeer {
+export class Keeper implements Service {
 	store = new Map<number, Uint32Array>()
 	constructor(config?: any) {
 	}
@@ -84,7 +84,7 @@ interface HostConfig {
 }
 type LengthListener = (length: number) => void
 // there can be multiple keepers, but only one conceptual counter.
-class Host implements ConnectablePeer {
+class Host implements Service {
 	site_ = new Map<number, Site>()
 	client_ = new Map<Channel, Client>()
 	path_ = new Map<string, number>()
