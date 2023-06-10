@@ -147,6 +147,7 @@ class TabDoc {
 class TabState implements ListenerApi {
     ls!: LocalStateApi
     doc = new Map<string,TabDoc >()
+    next = 0
 
     constructor(sharedWorker?: SharedWorker) {
         if (!sharedWorker) {
@@ -157,6 +158,19 @@ class TabState implements ListenerApi {
         } else {
 
         }
+    }
+    propose(op: Op[], version: number): Promise<boolean> {
+        throw new Error("Method not implemented.")
+    }
+    updated(buffer: number, op: JsonPatch[], version: number[]): Promise<void> {
+        throw new Error("Method not implemented.")
+    }
+
+    globalUpdate(op: Op[], version: number): Promise<void> {
+        throw new Error("Method not implemented.")
+    }
+    transformed(key: string, buffer: number, op: JsonPatch[], sel: Selection): Promise<void> {
+        throw new Error("Method not implemented.")
     }
     getDoc(key: string): TabDoc {
         let doc = this.doc.get(key)
@@ -178,7 +192,7 @@ class TabState implements ListenerApi {
     }
 
     // called by localstate
-    async update(key: string, version: number): Promise<void> {
+    async update(key: string, version: number, length: number): Promise<void> {
         const d = this.getDoc(key)
         const op = await this.ls.read(key, d.length)
         await d.api.globalUpdate(op,version)
@@ -201,37 +215,73 @@ type DocState = {
 }
 
 // Document is going to live in a worker; it will take ops from the server and json patches from the editor.
-interface DocApi {
-    globalUpdate(op: Op[], version: number): Promise<void>
-    update(op: JsonPatch[],sel: Selection): Promise<[JsonPatch[],Selection]>
-}
+
+// tabstate should be the doc client.
+
 interface Selection {
     start: number
     end: number
 }
+
+// we need a way for the document worker to send updates to the tabstate
+// so the tabstate can alert the buffers.
+// there's no great way a shared work to manage workers of its own. we could try using a leader, for now just duplicate the work
+
+interface DocClientApi {
+    propose(op: Op[], version: number): Promise<boolean>
+
+    // update should be ignored if there have been intervening changes to editor (including selection); instead, call update again with the new changes. there is a select for each update though.
+    // maybe we should patch the position map and let the editor do its own selection if it accepts the updates.
+    updated(buffer: number, op: JsonPatch[],version: number[]): Promise<void>
+}
+interface DocApi {
+    globalUpdate(op: Op[], version: number): Promise<void>
+    // buffer is painful but neither lexical or prosemirror support sharing two views of the same document.
+    // as such each can be on a sligly different version.
+    update(buffer: number, op: JsonPatch[],sel: Selection): Promise<void> //Promise<[JsonPatch[],Selection]>
+}
+// we can use the listener api to send updates to tabstate from the Doc worker
+// maybe should give the document a message port to the localstate?
+// potentially give it a message port to each buffer?
 class Doc implements DocApi {
     key: string = ""
     proposal: Op[] = []
     nextProposal: Op[] = []
     global?: DocState
-    local : DocState = {
-        version: 0,
-        length: 0,
-        tag: {},
-        delete: {},
-        text: ""
-    }
+    buffer = new Map<number,DocState>()
 
-    // these can't fail.
+    // these can't fail or be invalid.
     async globalUpdate(op: Op[], version: number) {
-
+        for (let o of op) {
+            switch(o.type) {
+                case "insert":
+                    break;
+                case "tag":
+                    break;
+                case "remove":
+                    break;
+            }
+        }
     }
 
     // turn the patches into ops, and then mergeup
     // this gets call on either localstate changes or editor changes
     // these don't fail, but we need to be able invalidate tags and then patch the document to reflect that.
-    async update(op: JsonPatch[], sel: Selection): Promise<[JsonPatch[],Selection]> {
-        return [[],sel]
+    async update(buffer: number, op: JsonPatch[], sel: Selection): Promise<void> {
+        let doc = this.buffer.get(buffer)
+        if (!doc) {
+            doc = {
+                version: 0,
+                length: 0,
+                tag: {},
+                delete: {},
+                text: "",
+            }
+            this.buffer.set(buffer, doc)
+        }
+
+
+        return
     }
 
 }
