@@ -69,28 +69,66 @@ type DocState = {
 // so the tabstate can alert the buffers.
 // there's no great way a shared work to manage workers of its own. we could try using a leader, for now just duplicate the work
 
+// we need to track the state of the buffer so we can send it accurate patches.
+// each buffer will have a different selection and could have different versions of the document 
+// maybe this is just a set of dirty nodes that we clean when the patch is accepted? we can't expect that the node ids are even related. so maybe the idea  of a buffer is just whack.
 class Buffer {
-    // we need to track the state of the buffer so we can send it accurate patches.
-    // each buffer will have a different selection and could have different versions of the document 
-    // maybe this is just a set of dirty nodes that we clean when the patch is accepted?
+    // note that the strings here are node ids that are only meaningful to this single buffer.
     dirty = new Set<string>()
+    old = new Map<string, object>() // editor's view of the document.
+    current = new Map<string, object>() // editor's view of the document.
+    version = 0 // we need to be able to build an accurate position map based on the last reconciled version in order to transform the selection. maybe this should be a vector? or a tree root? we nee
+
+    // this updates the editor's current view of the document
+    async updateCurrent(op: JsonPatch[]): Promise<void> {
+        // if there is a proposal, we can just merge the patch into nextProposal
+        // if there is no proposal then convert it to ops and propose it.
+        // try to update the 
+        for (let o of op) {
+            this.dirty.add(o.path)
+            switch(o.op) {
+                case "add":
+                    this.current.set(o.path, o.value)
+                    break;
+                case "remove":
+                    this.current.delete(o.path)
+                    break;
+                case "replace":
+                    this.current.set(o.path, o.value)
+            }
+        }
+
+        return
+    }
+
+    // the editor calls this when it has no changes of its own, but it wants to accept server changes. it gets a signal each time there are server changes, then it needs to call this to accept them.
+    async reconcile(sel: EditorSelection) : Promise<[JsonPatch[], EditorSelection]> {
+        this.dirty.clear()
+        // should we patch old, or just copy current?
+        this.old = {...this.current}
+        return [[],sel]
+    }
 }
+
 // we can use the listener api to send updates to tabstate from the Doc worker
 // maybe should give the document a message port to the localstate?
 // potentially give it a message port to each buffer?
 export class Doc implements DocApi {
+    buffer = new Map<number,Buffer>()
     sessionId: number = Math.random()
     ls!: LocalStateApi
     key: string = ""
     proposal?: Op[]
     nextProposal: Op[] = []
     global?: DocState
-    buffer = new Map<number,Buffer>()
+
     rope = new Rope()
     version = 0
-    copy = new Map<string, object>() // editor's view of the document.
-    dirty = new Set<string>()
-    old = new Map<string, object>() // editor's view of the document.
+
+
+    update(buffer: number, op: JsonPatch[], sel: EditorSelection): Promise<void> {
+        return this.buffer.get(buffer)!.update(op, sel)
+    }
 
     // the main rule for lexical is that element nodes can't go inside text or decorator nodes.
     // decorators can't have length, so there is no inside.
@@ -98,7 +136,11 @@ export class Doc implements DocApi {
 
     // these can't fail or be invalid, we can invalidate later if they conflict with a local tag (lww)
     // maybe two apis, one for success, one for failure?
+    // each buffer has a different sessionId? is it practical to combine them?
+    // maybe the buffer number is the sessionId?
     async globalUpdate(op: Op[], sessionId: number,  version: number) {
+
+        // update our model
         for (let o of op) {
             switch(o.type) {
                 case "insert":
@@ -111,6 +153,10 @@ export class Doc implements DocApi {
                     break;
             }
         }
+
+        // every buffer that's not sessionId now needs to be notified of the change
+        // they will ignore the change if they have outstanding changes that the version doesn't include
+
 
         // why not use length in bytes or ops as the version instead of tracking both?
         this.version = version
@@ -141,28 +187,6 @@ export class Doc implements DocApi {
     // this gets call on either localstate changes or editor changes
     // these don't fail, but we need to be able invalidate tags and then patch the document to reflect that.
     
-    async update(buffer: number, op: JsonPatch[], sel: EditorSelection): Promise<void> {
-        // if there is a proposal, we can just merge the patch into nextProposal
-        // if there is no proposal then convert it to ops and propose it.
-        // try to update the 
-        for (let o of op) {
-            this.dirty.add(o.path)
-            switch(o.op) {
-                case "add":
-                    this.copy.set(o.path, o.value)
-                    break;
-                case "remove":
-                    this.copy.delete(o.path)
-                    break;
-                case "replace":
-                    this.copy.set(o.path, o.value)
-            }
-        }
-        if (!this.proposal){
-            this.sendProposal()
-        }
 
-        return
-    }
 
 }
