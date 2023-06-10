@@ -7,6 +7,9 @@ export interface ListenerApi {
     update(key: string, version: number, length: number): void
 }
 
+export type ValueRef = [string,string,string]  // table string, key, attribute
+export type Uref = [string, number, string, string, string]
+
 export interface GlobalApi {
     // these are not exactly what we are looking for, instead we should only listen to the database, and the database should be able to tell us when a key changes.
     // site 0 can the shared subscription database. This database will change whenever a site that the user subscribes to changes.
@@ -16,13 +19,11 @@ export function globalApi(ch: Channel): GlobalApi {
     return apiSet(ch, "write", "read")
 }
 
-export 
-interface Op {
-    type: "insert" | "tag" | "remove"
-    pos: number
-    length: number
-    text: string
-}
+
+type Insert = { type: "insert", start: number, text: string }
+type Tag = { type: "tag", start: number, attr: object, end: number }
+type Remove = { type: "remove", start: number, end: number }
+export type Op = Insert | Tag | Remove
 
 export type VersionSignal = (n: number) => void
 
@@ -34,7 +35,7 @@ export interface DocClientApi {
     updated(buffer: number, op: JsonPatch[],version: number[]): Promise<void>
 }
 export interface DocApi {
-    globalUpdate(op: Op[], version: number): Promise<void>
+    globalUpdate(op: Op[], sessionid: number, version: number): Promise<void>
     // buffer is painful but neither lexical or prosemirror support sharing two views of the same document.
     // as such each can be on a sligly different version.
     update(buffer: number, op: JsonPatch[],sel: EditorSelection): Promise<void> //Promise<[JsonPatch[],Selection]>
@@ -47,9 +48,11 @@ export function listenerApi(ch: Channel): ListenerApi {
 
 export type Err = string
 export interface LocalStateApi {
-    open(key: string): Promise<undefined | Err>
-    close(key: string): Promise<void>
-    read(key: string, start: number): Promise<Op[]>
+    open(path: string): Promise<number | Err>
+    close(path: string): Promise<void> // reference count?
+    // value is return by read; this seems more resilient
+    propose(path: string, op: Op[], version: number, sessionId: number): Promise<void>
+    read(path: string, start: number): Promise<Op[]>
 }
 export function localStateApi(ch: Channel): LocalStateApi {
     return apiSet(ch, "open", "close", "read")
@@ -58,4 +61,8 @@ export function localStateApi(ch: Channel): LocalStateApi {
 export interface EditorSelection {
     start: number
     end: number
+}
+
+export interface KeeperApi {
+    read(file: string, start: number, end: number): Promise<Uint8Array>
 }
