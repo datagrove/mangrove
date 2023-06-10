@@ -59,7 +59,7 @@ export function localStateApi(ch: Channel): LocalStateApi {
 }
 
 export interface EditorSelection {
-    start: number
+    begin: number
     end: number
 }
 

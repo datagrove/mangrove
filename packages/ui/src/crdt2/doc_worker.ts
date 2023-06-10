@@ -52,9 +52,6 @@ class TagTree {
 
 }
 
-
-
-
 // there will be a buffer for each editor.
 // it could have its own worker for integrating changes and making suggestions.
 // each buffer maintains a doc, the local state has one. global state is just encrypted log and version
@@ -82,13 +79,15 @@ type DocState = {
 // each buffer will have a different selection and could have different versions of the document 
 // maybe this is just a set of dirty nodes that we clean when the patch is accepted? we can't expect that the node ids are even related. so maybe the idea  of a buffer is just whack.
 class Buffer {
-    // note that the strings here are node ids that are only meaningful to this single buffer.
+    // note that the strings here are node ids that are only meaningful to this single buffer. creating our own editor would require these to be unique, but they could be unique by -sessionid saving time and space
     dirtyGid = new Set<string>() // all the dgid's that have changed since last reconcilliation.
     mapGid = new Map<string, string>() // map gid to node id
     dirty = new Set<string>()
-    old = new Map<string, object>() // editor's view of the document.
     current = new Map<string, object>() // editor's view of the document.
-    version = 0 // we need to be able to build an accurate position map based on the last reconciled version in order to transform the selection. maybe this should be a vector? or a tree root? we nee
+
+    // to start the position map is empty, each time we accumulate some changes we need to update it, then clear it when we reconcile.
+    position = new RebaseMap()
+    // we need to be able to build an accurate position map based on the last reconciled version in order to transform the selection. maybe this should be a vector? or a tree root? we nee
 
     // this updates the editor's current view of the document
     async updateCurrent(op: JsonPatch[]): Promise<void> {
@@ -119,11 +118,10 @@ class Buffer {
         // in the normal case, there is nothing changed here at all? should we even signal then?
 
         let changes: JsonPatch[] = []
-
         for (let dgid of this.dirtyGid) {
             let node = doc.getNode(dgid)
             changes.push({
-                op: "replace",
+                op: node?"replace":"remove",
                 path: this.mapGid.get(dgid)??"", // what happens when the node doesn't have an id? can we just make one?
                 value: node
             })
@@ -131,9 +129,10 @@ class Buffer {
 
         this.dirty.clear()
         this.dirtyGid.clear()
-        // should we patch old, or just copy current?
-        this.old = { ...this.current }
-        return [[], sel]
+        this.position = new RebaseMap()
+        sel.begin = this.position.mapin(sel.begin)
+        sel.end = this.position.mapin(sel.end)
+        return [changes, sel]
     }
 }
 
@@ -165,7 +164,7 @@ export class Doc implements DocApi {
         }
         b.updateCurrent(op)
         if (!this.proposal) {
-            this.sendProposal()
+            this.buildProposal()
         }
     }
 
@@ -178,15 +177,20 @@ export class Doc implements DocApi {
     // each buffer has a different sessionId? is it practical to combine them?
     // maybe the buffer number is the sessionId?
     // maybe if there is a proposal and its not accepted, we don't want to notify any
+
+    // the strategy is to not to notify any buffers until all the changes are integrated. this makes easy to swap nodes.
     async globalUpdate(op: Op[], sessionId: number, version: number) {
         // note all the nodes that are changed by this update
         let dirty = new Set<string>()
-        // update our model
+        let rm = new RebaseMap() 
+        // update our model. nothing here should fail because these changes have already been vetted by the server and the version lock. They may cause our rebase to require changes, especially to leaf nodes. It's not clear how to best change the leaf nodes into ops in the first place?
         for (let o of op) {
             switch (o.type) {
                 case "insert":
+                    // we can insert text into the rope, how do we find the node that it replaces in lexical? what if each text node is given a start position and we can transform it?
                     break;
                 case "tag":
+                    // this is two insertions in our model, but replaces the entire node in lexical's model. in our model it requires slicing all proposed text ranges.
                     this.rope.insertTag(o.attr, o.start, o.end)
                     break;
                 case "remove":
@@ -194,6 +198,8 @@ export class Doc implements DocApi {
                     break;
             }
         }
+
+        // If there are any conflicts, then we will generate a new proposal which will delay notification of the buffers. Only notify the buffers when there is no proposal.
 
         // every buffer that's not sessionId now needs to be notified of the change
         // they will ignore the change if they have outstanding changes that the version doesn't include
@@ -203,30 +209,30 @@ export class Doc implements DocApi {
 
         }
         this.tabstate?.update(this.key, this.version, this.version)
-        this.sendProposal()
+        this.buildProposal()
 
         // why not use length in bytes or ops as the version instead of tracking both?
         this.version = version
-        if (sessionId != this.sessionId) {
-            // proposal failed. we need to rebase the proposal
-            this.sendProposal()
-        } else {
-            // our proposal was accepted, we need to build a new proposal if there is one.
-            this.proposal = undefined
-            if (this.dirty.size > 0) {
-                this.sendProposal()
-            }
-        }
+
     }
 
-    async sendProposal(rebase?: boolean) {
+    async buildProposal(rebase?: boolean) {
         this.proposal = this.nextProposal
         if (this.proposal.length > 0) {
             this.nextProposal = []
             // send the proposal to the server
             this.ls.propose(this.key, this.proposal, this.version, this.sessionId)
         }
-
+        // if (sessionId != this.sessionId) {
+        //     // proposal failed. we need to rebase the proposal
+        //     this.buildProposal()
+        // } else {
+        //     // our proposal was accepted, we need to build a new proposal if there is one.
+        //     this.proposal = undefined
+        //     if (this.dirty.size > 0) {
+        //         this.buildProposal()
+        //     }
+        // }
         // two kinds of dirty? not right with editor, not in a proposal?
         
     }
