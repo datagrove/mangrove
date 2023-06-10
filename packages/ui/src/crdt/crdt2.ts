@@ -137,9 +137,16 @@ type DeleteTree = {
 }
 
 type VersionSignal = (n: number) => void
+
+class TabDoc {
+   listen = new Set<VersionSignal>
+   length = 0
+   constructor(public api: DocApi){}
+}
+// tab state shares documents between buffers
 class TabState implements ListenerApi {
     ls!: LocalStateApi
-    doc = new Map<string, Set<VersionSignal>>()
+    doc = new Map<string,TabDoc >()
 
     constructor(sharedWorker?: SharedWorker) {
         if (!sharedWorker) {
@@ -151,15 +158,32 @@ class TabState implements ListenerApi {
 
         }
     }
-
+    getDoc(key: string): TabDoc {
+        let doc = this.doc.get(key)
+        if (!doc) {
+            const api : DocApi = new Doc()
+            doc = new TabDoc(api)
+            this.doc.set(key, doc)
+        }
+        return doc
+    }
     connect(key: string, fn: () => void) {
-        this.doc.get(key)?.add(fn)
+        let doc = this.getDoc(key)
+        doc.listen.add(fn)
+
     }
     disconnect(key: string, fn: VersionSignal) {
-        this.doc.get(key)?.delete(fn)
+        const d  = this.getDoc(key) 
+        d .listen.delete(fn)
     }
-    update(key: string, version: number): void {
-        this.doc.get(key)?.forEach(fn => fn(version))
+
+    // called by localstate
+    async update(key: string, version: number): Promise<void> {
+        const d = this.getDoc(key)
+        const op = await this.ls.read(key, d.length)
+        await d.api.globalUpdate(op,version)
+        this.getDoc(key).listen.forEach(fn => fn(version))
+        return
     }
 }
 const TabContext = createContext<TabState>()
@@ -176,8 +200,16 @@ type DocState = {
     text: string
 }
 
-// buffer is going to live in a worker; it will take ops from the server and json patches from the editor.
-class Buffer {
+// Document is going to live in a worker; it will take ops from the server and json patches from the editor.
+interface DocApi {
+    globalUpdate(op: Op[], version: number): Promise<void>
+    update(op: JsonPatch[],sel: Selection): Promise<[JsonPatch[],Selection]>
+}
+interface Selection {
+    start: number
+    end: number
+}
+class Doc implements DocApi {
     key: string = ""
     proposal: Op[] = []
     nextProposal: Op[] = []
@@ -190,21 +222,16 @@ class Buffer {
         text: ""
     }
 
-    async globalUpdate(op: Op[]) {
+    // these can't fail.
+    async globalUpdate(op: Op[], version: number) {
 
     }
 
     // turn the patches into ops, and then mergeup
     // this gets call on either localstate changes or editor changes
-    async update(op: JsonPatch[]): Promise<JsonPatch[]> {
-        if (op.length == 0) {
-            // integrate server changes
-            let ops = await this.tab.ls.read(this.key, this.local.length)
-        } else {
-            // integrate local changes
-            // optionally use worker?
-        }
-        return []
+    // these don't fail, but we need to be able invalidate tags and then patch the document to reflect that.
+    async update(op: JsonPatch[], sel: Selection): Promise<[JsonPatch[],Selection]> {
+        return [[],sel]
     }
 
 }
@@ -223,7 +250,7 @@ export function createBuffer(key: (string | (() => string))) {
         }
         st.key = key
     }
-    const b = new Buffer()
+    const b = new Doc()
 
     if (typeof key == "function") {
         const keyf = key as () => string
@@ -240,19 +267,4 @@ export function createBuffer(key: (string | (() => string))) {
 
 
 
-async function buffer_mergeup(doc: Doc, op: Op[], version: number): Promise<boolean> {
-    if (version != doc.local.version + 1) {
-        return false
-    }
-    if (doc.proposal.length > 0) {
-        doc.nextProposal.push(...op)
-    } else {
-        doc.proposal = op
-        doc.mergeup(doc.proposal, doc.global.version + 1)
-    }
-    return true
-}
-function mergedown(doc: Doc, op: Op[]): Doc {
-    return doc
-}
 
