@@ -1,5 +1,7 @@
 import { LexicalNode, EditorState, $getNodeByKey, TextNode } from "lexical"
 import { useLexicalComposerContext } from "./lexical-solid"
+import { useLexical } from "./RichTextEditor"
+import { onMount } from "solid-js"
 // there a two types of patches: "/node" and "/node/prop"
 
 // JsonPatchable is the model we are assuming It is a tree of nodes, each node has a type and a set of properties.
@@ -122,14 +124,30 @@ export function $getDirty(
 export function sync(onChange: (diff: JsonPatch[]) => void) {
   const [editor] = useLexicalComposerContext();
 
-  editor.registerUpdateListener(
-    ({ editorState, dirtyElements, dirtyLeaves, prevEditorState }) => {
-
-
-      const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
-      const { now, prev } = $getDirty(dirty, editorState, prevEditorState)
-      onChange(diff(prev, now)) 
-    })
 
 }
 
+export function Sync(props: { path?: string }) {
+  const prov = useLexical()!
+  const [editor] = useLexicalComposerContext()
+  onMount(async () => {
+    if (props.path) {
+      const data = await prov.open(props.path)
+      console.log("data", data)
+      editor.update(()=>{
+        const editorState = editor.parseEditorState(data)
+        editor.setEditorState(editorState);
+      })
+    }
+    
+  })
+  editor.registerUpdateListener(
+    ({ editorState, dirtyElements, dirtyLeaves, prevEditorState }) => {
+      const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
+      const { now, prev } = $getDirty(dirty, editorState, prevEditorState)
+      // broadcast the diff to all the buffers
+    })
+
+
+  return <></>
+}

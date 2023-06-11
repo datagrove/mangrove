@@ -38,7 +38,7 @@ export interface DocApi {
     globalUpdate(op: Op[], sessionid: number, version: number): Promise<void>
     // buffer is painful but neither lexical or prosemirror support sharing two views of the same document.
     // as such each can be on a sligly different version.
-    update(buffer: number, op: JsonPatch[],sel: EditorSelection): Promise<void> //Promise<[JsonPatch[],Selection]>
+    update(buffer: Channel, op: JsonPatch[]): Promise<void> //Promise<[JsonPatch[],Selection]>
 }
 
 export function listenerApi(ch: Channel): ListenerApi {
@@ -65,4 +65,11 @@ export interface EditorSelection {
 
 export interface KeeperApi {
     read(file: string, start: number, end: number): Promise<Uint8Array>
+}
+
+export interface LexDiff {
+    gid: string
+    version: number // don't do anything if this is not the current version; +1 the version if successful
+
+    value: JsonPatch  // update to get to newest version of the node.
 }

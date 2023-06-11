@@ -24,7 +24,7 @@ import { sparkles, ellipsisHorizontal as menu, check, arrowUturnLeft as undo, ar
 //import { EmojiNode } from "./nodes/EmojiNode";
 //import EmoticonPlugin from "./plugins/EmoticonPlugin";
 
-import { createEffect, createResource } from "solid-js";
+import { createContext, createEffect, createResource, onMount, useContext } from "solid-js";
 
 
 import { pencil } from "solid-heroicons/solid";
@@ -34,15 +34,11 @@ import { SiteDocument, readAll, useDocument, usePage } from "../core";
 import { UNDO_COMMAND, REDO_COMMAND } from 'lexical';
 import { useLexicalComposerContext } from './lexical-solid/LexicalComposerContext';
 import { debounce } from "../core/rpc";
-import {  JsonPatch, VOID, sync } from "./sync";
+import {  JsonPatch, Sync, VOID, sync } from "./sync";
+import { HashtagPlugin } from "./lexical-solid/LexicalHashTagPlugin";
 
 
-export function Sync() {
-  sync((h: JsonPatch[]) => {
-    if (h.length) console.log("patch", h)
-  })
-  return <></>
-}
+
 
 // When the editor changes, you can get notified via the
 // LexicalOnChangePlugin!
@@ -84,6 +80,12 @@ const editorConfig = {
   ] as any,
 };
 
+export interface LexicalProvider {
+  open(path: string): Promise<string> 
+}
+export const LexicalContext = createContext<LexicalProvider>()
+export function  useLexical () { return useContext(LexicalContext) }
+
 
 function Bottom() {
   return <div class='w-full h-8 dark:bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
@@ -98,17 +100,11 @@ function Bottom() {
   </div>
 }
 export interface RteProps {
-
-
+  path?: string
+  placeholder?: string
 }
 export function RichTextEditor(props: RteProps) {
-  const nav = useNavigate()
-  const doc = usePage()
-  const [h] = createResource(doc.path, readAll)
-
-  const onedit = () => {
-    nav('')
-  }
+  const prov = useLexical()!
 
   const Menu = () => {
     const [editor] = useLexicalComposerContext();
@@ -123,6 +119,8 @@ export function RichTextEditor(props: RteProps) {
         <Icon class='h-6 w-6' path={menu} /></div>
     </div>
   }
+  
+
 
   return (
     <LexicalComposer initialConfig={editorConfig}>
@@ -133,21 +131,19 @@ export function RichTextEditor(props: RteProps) {
         <div class="editor-inner w-full h-full">
 
           <RichTextPlugin
-
             contentEditable={<ContentEditable class="editor-input" ></ContentEditable>}
-            placeholder={<div class='absolute hidden top-4 left-4 text-neutral-500'>Enter some plain text...</div>}
+            placeholder={<div class='absolute hidden top-4 left-4 text-neutral-500'>{props.placeholder}</div>}
             errorBoundary={LexicalErrorBoundary}
           />
           <LinkPlugin />
           <AutoFocusPlugin />
           <OnChangePlugin onChange={onChange} />
           <HistoryPlugin />
-
           <AutoFocusPlugin />
           <CodeHighlightPlugin />
-          <Sync/>
+          <Sync path={props.path}/>
         </div>
-        <Bottom />
+       
       </div>
     </LexicalComposer>
   );

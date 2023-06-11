@@ -3,68 +3,21 @@ import { Channel, Service, WorkerChannel, apiSet } from "../abc/rpc"
 import { JsonPatch } from "../lexical/sync"
 import { DocApi, EditorSelection, ListenerApi, LocalStateApi, Op } from "./data"
 
-// as we operate on the document we need to know how to remap the positions in ch
-class RebaseMap {
-    add(pos: number, length: number) {
-        // deletions are added in the dense domain.
-    }
-    mapin(pos: number): number {
-        return pos
-    }
-    mapout(pos: number): number {
-        return pos
-    }
-}
-class Context {
-    positionMap = new RebaseMap()
-    dirty = new Set<string>() // all the dgid's that have changed.
-}
-class Node {
-    children: Node[] = []
-}
-class Rope {
-
-
-    // just adjusts the tag location 
-    insertText(text: string, pos: number, length: number) {
-        // tags are added in the sparse domain
-    }
-    // inserting a tag can cause other tags to be invalidated
-    insertTag(tag: object, pos: number, length: number): number[] {
-        // tags are added in the sparse domain
-        return []
-    }
-    remove(pos: number, length: number) {
-        // remove a start or end tag causes the other to be invalidated
-    }
-}
-// use to find tags to invalidate, mostly we care about nesting: starts and stops
-// the tree is a sparse tree in the sparse domain, we don't delete, only invalidate.
-class TagTree {
-
-    // just adjusts the tag location 
-    insertText(pos: number, length: number) {
-        // tags are added in the sparse domain
-    }
-    insertTag(tag: object, pos: number, length: number) {
-        // tags are added in the sparse domain
-    }
-
-}
-
-// there will be a buffer for each editor.
-// it could have its own worker for integrating changes and making suggestions.
-// each buffer maintains a doc, the local state has one. global state is just encrypted log and version
-type DocState = {
-    version: number
-    length: number
-    rope: Rope
-    rebase: RebaseMap
-}
+// the strategy is to diff the LCA; potentially this is root in which case we diff the entire document.
 
 // Document is going to live in a worker; it will take ops from the server and json patches from the editor.
 
 // tabstate should be the doc client.
+
+// presumably lexical does not trigger the listener if we do the updates?
+// so then we need to update the other buffers ourselves?
+// is there a simplification in locking a buffer and moving the lock around?
+// maybe we should flip a phase where we sync down and sync up iteratively.
+// don't sync up until we are sure all the buffers are in agreement.
+// or maybe we should just forget the buffer thing completely and let localstate handle it.
+// in fact why would't move all the processing to localstate? but it does just move the spot.
+
+// 
 
 
 // we need a way for the document worker to send updates to the tabstate
@@ -74,73 +27,41 @@ type DocState = {
 // each object that we start tracking needs a unique id shared among all the buffers.
 // we can send this in patches, starting with the first. when the editor introduces a new object we need to create a new id.
 
+export interface BufferApi {
+    update(patch: JsonPatch[]) : Promise<void>
+}
+export function bufferApi(ch: Channel): BufferApi {
+    return apiSet(ch, "update")
+}
 
 // we need to track the state of the buffer so we can send it accurate patches.
 // each buffer will have a different selection and could have different versions of the document 
 // maybe this is just a set of dirty nodes that we clean when the patch is accepted? we can't expect that the node ids are even related. so maybe the idea  of a buffer is just whack.
 class Buffer {
     // note that the strings here are node ids that are only meaningful to this single buffer. creating our own editor would require these to be unique, but they could be unique by -sessionid saving time and space
-    dirtyGid = new Set<string>() // all the dgid's that have changed since last reconcilliation.
+    
+    constructor(public api: BufferApi) {}
+
     mapGid = new Map<string, string>() // map gid to node id
     dirty = new Set<string>()
-    current = new Map<string, object>() // editor's view of the document.
+
 
     // to start the position map is empty, each time we accumulate some changes we need to update it, then clear it when we reconcile.
-    position = new RebaseMap()
+
     // we need to be able to build an accurate position map based on the last reconciled version in order to transform the selection. maybe this should be a vector? or a tree root? we nee
 
-    // this updates the editor's current view of the document
-    async updateCurrent(op: JsonPatch[]): Promise<void> {
-        // if there is a proposal, we can just merge the patch into nextProposal
-        // if there is no proposal then convert it to ops and propose it.
-        // try to update the 
-        for (let o of op) {
-            this.dirty.add(o.path)
-            switch (o.op) {
-                case "add":
-                    this.current.set(o.path, o.value)
-                    break;
-                case "remove":
-                    this.current.delete(o.path)
-                    break;
-                case "replace":
-                    this.current.set(o.path, o.value)
-            }
-        }
-        return
-    }
+    // from lexical update listener, send changes here. we keep a copy of the document that's in the buffer.
+
 
     // the editor calls this when it has no changes of its own, but it wants to accept server changes. it gets a signal each time there are server changes, then it needs to call this to accept them.
-    async getChanges(doc: Doc, sel: EditorSelection): Promise<[JsonPatch[], EditorSelection]> {
-        // does lexical let us create our own node id? do we need it?
-        // when one buffer adds a node, we can assign it a dgid and add it to all the buffers.
-        // here we are mostly interested in nodes that have changed in the document.
-        // in the normal case, there is nothing changed here at all? should we even signal then?
 
-        let changes: JsonPatch[] = []
-        for (let dgid of this.dirtyGid) {
-            let node = doc.getNode(dgid)
-            changes.push({
-                op: node?"replace":"remove",
-                path: this.mapGid.get(dgid)??"", // what happens when the node doesn't have an id? can we just make one?
-                value: node
-            })
-        }
-
-        this.dirty.clear()
-        this.dirtyGid.clear()
-        this.position = new RebaseMap()
-        sel.begin = this.position.mapin(sel.begin)
-        sel.end = this.position.mapin(sel.end)
-        return [changes, sel]
-    }
 }
 
 // we can use the listener api to send updates to tabstate from the Doc worker
 // maybe should give the document a message port to the localstate?
 // potentially give it a message port to each buffer?
 export class Doc implements DocApi {
-    buffer = new Map<number, Buffer>()
+    buffer = new Map<Channel, Buffer>()
     sessionId: number = Math.random()
     tabstate?: ListenerApi
     ls!: LocalStateApi
@@ -149,6 +70,9 @@ export class Doc implements DocApi {
     nextProposal: Op[] = []
     global?: DocState
 
+    current = new Map<string, object>() // editor's view of the document.
+    dirtyGid = new Set<string>() // all the dgid's that have changed since last 
+
     rope = new Rope()
     version = 0
 
@@ -156,16 +80,51 @@ export class Doc implements DocApi {
         return new Node()
     }
 
-    async update(buffer: number, op: JsonPatch[], sel: EditorSelection): Promise<void> {
-        let b = this.buffer.get(buffer)
-        if (!b) {
-            b = new Buffer()
-            this.buffer.set(buffer, b)
+    connectBuffer(channel: Channel) {
+        let b = this
+        let api = bufferApi(channel)
+        let buffer = new Buffer(api)
+        this.buffer.set(channel, buffer)
+    }
+    disconnectBuffer(channel: Channel) {
+        this.buffer.delete(channel)
+    }
+
+    // when getting an update, immediately force the change into any other buffers.
+    // this is unlikely to fail, there's only one keyboard.
+    // the editor can keep its own gid map.
+    async update(buffer: Channel, op: JsonPatch[]): Promise<void> {
+        let b = this
+
+        // if there is a proposal, we can just merge the patch into nextProposal
+        // if there is no proposal then convert it to ops and propose it.
+        // try to update the 
+        for (let o of op) {
+            b.dirtyGid.add(o.path)
+            switch (o.op) {
+                case "add":
+                    b.current.set(o.path, o.value)
+                    break;
+                case "remove":
+                    b.current.delete(o.path)
+                    break;
+                case "replace":
+                    b.current.set(o.path, o.value)
+            }
+        } 
+
+        // force this change into all the other buffers. 
+        for (let b2 of this.buffer.keys()) {
+            if (b2 != buffer) {
+                const b3 = this.buffer.get(b2)
+                await b3?.api.update(op)
+            }
         }
-        b.updateCurrent(op)
-        if (!this.proposal) {
-            this.buildProposal()
-        }
+       
+        // at this point we could attempt a proposal.
+        // if (!this.proposal) {
+        //     this.buildProposal()
+        // }
     }
 
     // the main rule for lexical is that element nodes can't go inside text or decorator nodes.
@@ -179,6 +138,8 @@ export class Doc implements DocApi {
     // maybe if there is a proposal and its not accepted, we don't want to notify any
 
     // the strategy is to not to notify any buffers until all the changes are integrated. this makes easy to swap nodes.
+
+
     async globalUpdate(op: Op[], sessionId: number, version: number) {
         // note all the nodes that are changed by this update
         let dirty = new Set<string>()

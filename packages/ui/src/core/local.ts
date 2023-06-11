@@ -2,7 +2,7 @@
 import { createContext, useContext } from "solid-js"
 // @ts-ignore
 import LocalStateWorker from "./localstate?sharedworker"
-import { LocalStateClient, TabStateClient } from "./localstate_shared"
+import { LocalStateClient, TabStateClient } from "./data"
 import { Peer, WorkerChannel, apiSet } from "../abc/rpc"
 
 
