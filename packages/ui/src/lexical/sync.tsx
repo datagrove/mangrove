@@ -131,27 +131,35 @@ export function Sync(props: { path?: string }) {
   const prov = useLexical()!
   const [editor] = useLexicalComposerContext()
 
+  const update = (diff: JsonPatch[]) => {
+    editor.update(() => {
+      for (let o of diff) {
+
+      }
+    })
+  }
+
   onMount(async () => {
     if (props.path) {
       // this should register us; maybe return a channel? an api?
       // we can send the the updates through the channel and watch the channel for updates.
       // we don't even need channels because this is always messagechannels
       // api is pretty limited so not worth dragging in that?
-      const data = await prov.open(props.path)
-      console.log("data", data)
+      const [data,upd] = await prov.open(props.path, update)
       editor.update(()=>{
         const editorState = editor.parseEditorState(data)
         editor.setEditorState(editorState);
+      })   
+      editor.registerUpdateListener(
+      ({ editorState, dirtyElements, dirtyLeaves, prevEditorState }) => {
+        const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
+        const { now, prev } = $getDirty(dirty, editorState, prevEditorState)
+        upd(diff(prev, now))
       })
     }
-    
+ 
   })
-  editor.registerUpdateListener(
-    ({ editorState, dirtyElements, dirtyLeaves, prevEditorState }) => {
-      const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
-      const { now, prev } = $getDirty(dirty, editorState, prevEditorState)
-      prov.update()
-    })
+
 
 
   return <></>
