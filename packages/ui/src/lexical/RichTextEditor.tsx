@@ -35,8 +35,10 @@ import { UNDO_COMMAND, REDO_COMMAND } from 'lexical';
 import { useLexicalComposerContext } from './lexical-solid/LexicalComposerContext';
 import { debounce } from "../core/rpc";
 import {  JsonPatch, Sync, VOID, sync } from "./sync";
-import { HashtagPlugin } from "./lexical-solid/LexicalHashTagPlugin";
 
+export interface LexicalProvider {
+  open(path: string,onChange: (p: JsonPatch[])=>void): Promise<[string,(p:JsonPatch[])=>void]>
+}
 
 
 
@@ -80,9 +82,7 @@ const editorConfig = {
   ] as any,
 };
 
-export interface LexicalProvider {
-  open(path: string): Promise<string> 
-}
+
 export const LexicalContext = createContext<LexicalProvider>()
 export function  useLexical () { return useContext(LexicalContext) }
 
