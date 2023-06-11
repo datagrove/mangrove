@@ -4,7 +4,20 @@
 // mapPosToNodeid(pos,ver) -> node
 // mapPosToPath(pos,ver) -> Lexicalnode?
 
+import { JsonPatch } from "../lexical/sync"
+
 // acceptChanges()
+
+// for lexical we need to access the vector of tokens as a node tree.
+
+interface OtUpdate {
+
+}
+class OtHtml {
+    patchFrom(version: number) : JsonPatch[] {
+        return []
+    }
+}
 
 // as we operate on the document we need to know how to remap the positions in ch
 class RebaseMap {
