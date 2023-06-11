@@ -130,8 +130,13 @@ export function sync(onChange: (diff: JsonPatch[]) => void) {
 export function Sync(props: { path?: string }) {
   const prov = useLexical()!
   const [editor] = useLexicalComposerContext()
+
   onMount(async () => {
     if (props.path) {
+      // this should register us; maybe return a channel? an api?
+      // we can send the the updates through the channel and watch the channel for updates.
+      // we don't even need channels because this is always messagechannels
+      // api is pretty limited so not worth dragging in that?
       const data = await prov.open(props.path)
       console.log("data", data)
       editor.update(()=>{
@@ -145,7 +150,7 @@ export function Sync(props: { path?: string }) {
     ({ editorState, dirtyElements, dirtyLeaves, prevEditorState }) => {
       const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
       const { now, prev } = $getDirty(dirty, editorState, prevEditorState)
-      // broadcast the diff to all the buffers
+      prov.update()
     })
 
 
