@@ -6,7 +6,15 @@
 
 import { createContext, createEffect, createSignal, useContext } from "solid-js"
 import { Channel } from "../abc/rpc"
+import { useLexicalComposerContext } from "../lexical/lexical-solid"
+import { create } from "sortablejs"
 
+interface GlobalApi {
+    propose (key: string, author: number, start: number, length: number, version: number) : Promise<[boolean, number]>
+}
+interface KeeperApi {
+
+}
 
 // a document can admit paths
 
@@ -16,6 +24,7 @@ class DocVersion {
 
 }
 class DocSt {
+    constructor(public key: string){}
     global?: DocVersion
     local?: DocVersion
     channel = new Set<Channel>()
@@ -24,30 +33,35 @@ class DocSt {
 export interface DocApi {
     propose (grove: TreeUpdate[], version: number) : Promise<boolean>
     // I could just start another promise after accepting one?
-    accept ( version: number) : Promise< TreeUpdate[]>
+    accept ( ) : Promise< TreeUpdate[]>
     close(): void
     setPath(path: string): void
 }
 class LocalState {
     doc = new Map<string, DocSt>()
     buffer = new Map<Channel, string>()
+    global: GlobalApi
 
     globalUpdate(path: string, grove: TreeUpdate[]){
 
     }
  
-    getDoc(ch: Channel): DocSt {
+    async getDoc(path: string): Promise<DocSt> {
         let st = this.doc.get(path)
         if (!st) {
-            st = new DocSt()
+            st = new DocSt(path)
             this.doc.set(path, st)
         }
         return st
     }
 
     localUpdate(doc: DocSt, grove: TreeUpdate[]) {
-
-        // signal all the channels that the document has changed by resolving their promise.
+        // signal listeners
+        for (let o in doc.channel) {
+        
+        }
+        // create a proposal for the global state
+        global.propose(doc.key,1, ).
     }
 
     // a buffer could allow the path to be changed? 
@@ -63,7 +77,7 @@ class LocalState {
                 return false
             },
 
-            accept: async (version: number): Promise<TreeUpdate[]> => {
+            accept: async (): Promise<TreeUpdate[]> => {
                 const doc = this.getDoc(ch)
                 return []
             },
@@ -93,18 +107,13 @@ interface TreeUpdate {
     value: any
 }
 
+type GroveUpdate = (tr: TreeUpdate[]) => void
 
 // Maybe this should be the basis of a provider?
-function docBuffer( api: DocApi) {
-
+function createBuffer( upd: GroveUpdate) : DocApi{
+    let api: DocApi
     const [version, setVersion] = createSignal(0)
 
-    createEffect(() => {
-        const s= version()
-        // should try to accept the changes here.
-        api.accept(s)
-    })
-    
     // can force lexical into an update so that we know we have all the changes?
     // should we wait for idle
 
@@ -112,11 +121,24 @@ function docBuffer( api: DocApi) {
     const propose = (grove: TreeUpdate[], version: number) => {
 
     }
-   
+    return undefined as any as DocApi
     // return something or other.
 }
 
+function LikeSync(props: { path: ()=>string}) {
+    const [editor] = useLexicalComposerContext()
+    const upd = (tr: TreeUpdate[]) => {
+    }
+    const buffer = createBuffer(upd)
+    createEffect( () => {
+        buffer.setPath(props.path())
+    })
 
+    editor.registerUpdateListener( () =>{
+        let upd: TreeUpdate[] = []
+        buffer.propose(upd,0)
+    })
+}
 
 
 /*
