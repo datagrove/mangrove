@@ -4,6 +4,13 @@ import { useLexical } from "./RichTextEditor"
 import { onCleanup, onMount } from "solid-js"
 // there a two types of patches: "/node" and "/node/prop"
 
+// json patch works, but rebasing could be a challenge
+// seems like we need to keep a offsetview on each device.
+// when we accept a patch we need to create a position map we can use to update our selections
+// localState accepts a patch, but then it
+
+// assume we get rid of buffers completely. 
+
 // JsonPatchable is the model we are assuming It is a tree of nodes, each node has a type and a set of properties.
 export interface JsonPatchable {
   [key: string]: JsonNode
@@ -129,27 +136,39 @@ export function sync(onChange: (diff: JsonPatch[]) => void) {
 
 // this seems awkward, but apparently we need to replace all the nodes?
 
+// not a true json patch? maybe make every reference symbolic? or do we want to follow paths?
+// if we follow paths, we don't need gid at all; just start at the root.
+//
+function pathOf(editor: LexicalEditor, p: string) {
+  const a =  p.split("/").map(decodeURIComponent)
 
+
+}
 export function Sync(props: { path?: string }) {
   const prov = useLexical()!
   const [editor] = useLexicalComposerContext()
 
   // lexical needs node ids, but we also need a globally unique id for nodes shared among buffers.
-  const m = new Map<string, string>()
+  const m = new Map<string, LexicalNode>()
+  const m2 = new Map<LexicalNode, string>()
 
   const update = (diff: JsonPatch[]) => {
     // we might need to rescue our selection; if an anchor node is deleted, we need to find the next node. We could potentially make the instigator recover all the selections?
     // we could create a position map as we update, then use this plus an offset view.
+    // can we force the editor to start an update cycle so we know we have all the latest states?
+    // is this a good idea?
 
     editor.update(() => {
       const registeredNodes = editor._nodes; 
       for (let o of diff) {
         switch(o.op) {
           case "add":
+            cont p = pathOf(o.path)
             const n = o.value as SerializedLexicalNode
             // I doubt it has a node id here? how would we get it then?
             const ln = $parseSerializedNode(n)
-            
+           
+            this.m2.set()
             break
           case "remove":
             editor.deleteNode(m.get(o.path)!)

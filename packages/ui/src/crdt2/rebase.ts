@@ -1,3 +1,11 @@
+
+// basic idea is to find an ancestor and diff
+// at each lexical step we are going to be doing some whole cloth node replacements, we need to be able to keep the position map  mapNodeidToPos(node,ver) -> pos
+// mapPosToNodeid(pos,ver) -> node
+// mapPosToPath(pos,ver) -> Lexicalnode?
+
+// acceptChanges()
+
 // as we operate on the document we need to know how to remap the positions in ch
 class RebaseMap {
     add(pos: number, length: number) {
