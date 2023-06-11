@@ -35,9 +35,13 @@ import { UNDO_COMMAND, REDO_COMMAND } from 'lexical';
 import { useLexicalComposerContext } from './lexical-solid/LexicalComposerContext';
 import { debounce } from "../core/rpc";
 import {  JsonPatch, Sync, VOID, sync } from "./sync";
+import { Listener } from "lexical/LexicalEditor";
+
+type PatchListener = (p:JsonPatch[])=>void
 
 export interface LexicalProvider {
-  open(path: string,onChange: (p: JsonPatch[])=>void): Promise<[string,(p:JsonPatch[])=>void]>
+  open(path: string,onChange: PatchListener): Promise<[string,PatchListener]>
+  close(l: PatchListener): void
 }
 
 

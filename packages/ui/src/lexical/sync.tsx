@@ -1,7 +1,7 @@
-import { LexicalNode, EditorState, $getNodeByKey, TextNode } from "lexical"
+import { LexicalNode, EditorState, $getNodeByKey, TextNode, $createParagraphNode, SerializedLexicalNode, $parseSerializedNode } from "lexical"
 import { useLexicalComposerContext } from "./lexical-solid"
 import { useLexical } from "./RichTextEditor"
-import { onMount } from "solid-js"
+import { onCleanup, onMount } from "solid-js"
 // there a two types of patches: "/node" and "/node/prop"
 
 // JsonPatchable is the model we are assuming It is a tree of nodes, each node has a type and a set of properties.
@@ -127,14 +127,39 @@ export function sync(onChange: (diff: JsonPatch[]) => void) {
 
 }
 
+// this seems awkward, but apparently we need to replace all the nodes?
+
+
 export function Sync(props: { path?: string }) {
   const prov = useLexical()!
   const [editor] = useLexicalComposerContext()
 
-  const update = (diff: JsonPatch[]) => {
-    editor.update(() => {
-      for (let o of diff) {
+  // lexical needs node ids, but we also need a globally unique id for nodes shared among buffers.
+  const m = new Map<string, string>()
 
+  const update = (diff: JsonPatch[]) => {
+    // we might need to rescue our selection; if an anchor node is deleted, we need to find the next node. We could potentially make the instigator recover all the selections?
+    // we could create a position map as we update, then use this plus an offset view.
+
+    editor.update(() => {
+      const registeredNodes = editor._nodes; 
+      for (let o of diff) {
+        switch(o.op) {
+          case "add":
+            const n = o.value as SerializedLexicalNode
+            // I doubt it has a node id here? how would we get it then?
+            const ln = $parseSerializedNode(n)
+            
+            break
+          case "remove":
+            editor.deleteNode(m.get(o.path)!)
+            break
+          case "replace":
+            const [n2,prop] = o.path.split("/")
+            const n3 = editor.getNodeByKey(m.get(n2)!)
+            n3[prop] = o.value
+            break
+        }
       }
     })
   }
@@ -157,6 +182,10 @@ export function Sync(props: { path?: string }) {
         upd(diff(prev, now))
       })
     }
+
+    onCleanup(()=>{
+      prov.close(update)
+    })
  
   })
 
