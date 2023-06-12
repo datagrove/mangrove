@@ -5,27 +5,35 @@ import { BufferApi, JsonPatch, PositionMapPatch } from "./sync_shared"
 // rfc patch doesn't diff strings, which seems limiting. peritext?
 
 // chunks should be fine.
+// op, type, content, mark
+
+type Attr = undefined|(string|string[])[]
+enum Op {
+    insertString = 0,
+    retain = 1,
+    delete = 2,
+    insertObject = 3,
+    insertInlineObject = 4,
+    insertBreak = 5
+}
+type Chunk = [string, Attr ] | [1, number,Attr ] | [2, number] | [3|4, string, any] | [5, Attr]
+type QuillDoc = Chunk[]
+type QuillDelta = Chunk[]
+
+// provide log(n) operations
+class QuillTree  {
+    apply(p: QuillDelta) {
+
+    }
+}
+
 
 interface Text {
     type: "text"
     content: string
     mark: string[][]
 }
-interface Decoration {
 
-}
-interface Sp {
-    type: "p" | "span" 
-    attr: { [key: string]: string }
-    children: Sp[]
-}
-const gdoc : Sp = {
-    type: "p",
-    attr: {},
-    children: [
-
-    ]
-}
 
 // convert to interval tree? or maybe create minimal span set?
 
@@ -104,16 +112,20 @@ class LexicalBufferState implements EditorBuffer{
     
 }
 
+
 class BufferSet {
+    
     // global doc will need to be some type that works with multiple editors, lexical for now.
-    globalDoc : any = {}
-    proposalDoc : any = {}
+    globalDoc = new QuillTree()
+    proposalDoc = new QuillTree()
+    proposalDelta?: QuillDelta
     version = 0
     buffer = new Map<any, EditorBuffer>()
 
-    applyGlobalPatch(p: JsonPatch[]) {
+    applyGlobalPatch(p: QuillDelta) {
         // apply the patch to the global doc
-        // diff the proposal doc, to create an update for the 
+        // we'll wait 
+        this.globalDoc.apply(p)
     }
     applyProposalPatch(b: EditorBuffer, p: JsonPatch[]) {
         // 
