@@ -1,10 +1,34 @@
 import { LexicalNode, EditorState, $getNodeByKey, TextNode, $createParagraphNode, SerializedLexicalNode, $parseSerializedNode } from "lexical"
 import { useLexicalComposerContext } from "./lexical-solid"
-import { createContext, onCleanup, onMount, useContext } from "solid-js"
+import { JSXElement, Show, createContext, createEffect, createSignal, onCleanup, onMount, useContext } from "solid-js"
+import { Position } from "postcss"
+
+/*
+   <SyncProvider>  // tab level state, starts shared worker
+     <SyncPath path={ } fallback={loading}> // support suspense
+        <Editor>  // editor level state
+           <Sync>
+        </Editor>
+      </SyncPath>
+    </SyncProvider>
+*/
+
+
 // there a two types of patches: "/node" and "/node/prop"
 
-type PatchListener = (p:JsonPatch[], version: number, pos: PositionMapPatch)=>void
+// do I need tab level state? how expensive is it to create a shared worker?
+
+type PatchListener = (p:JsonPatch[]|string, version: number, pos: PositionMapPatch)=>void
 type PositionMapPatch = {
+}
+class PositionMap {
+
+  update(p: PositionMapPatch) {
+    return this
+  }
+  transform(p: number[]) : number[]{
+    return p
+  }
 }
 
 export type BufferApi = {
@@ -13,12 +37,12 @@ export type BufferApi = {
 }
 
 export interface SyncProvider {
-  open(onChange: PatchListener): PatchListener
-  close(l: PatchListener): void
+  open(onChange: PatchListener): BufferApi
+  close(l: BufferApi): void
 }
 
-export const LexicalContext = createContext<SyncProvider>()
-export function  useLexical () { return useContext(LexicalContext) }
+export const SyncContext = createContext<SyncProvider>()
+export function  useSync () { return useContext(SyncContext) }
 
 // json patch works, but rebasing could be a challenge
 // seems like we need to keep a offsetview on each device.
@@ -159,81 +183,136 @@ export function sync(onChange: (diff: JsonPatch[]) => void) {
 // get a sloppy diff of the editor state and send it to a worker
 // the worker will async merge it however it wants, then send back a diff
 // if more changes happen, this diff is ignored. otherwise it is applied.
-
-type InputString = string | (()=>string)
-export function Sync(props: { path?: InputString }) {
-  if (!props.path) return null 
-
-  const prov = useLexical()!
-  const [editor] = useLexicalComposerContext()
-
-  // lexical needs node ids, but we also need a globally unique id for nodes shared among buffers.
-  const version = 0
-  const listen : PatchListener = (p:JsonPatch[], version: number, pos: PositionMapPatch) => {
-
-  }
-  const port = prov.open(listen)
-  if (typeof props.path == "string") {
-
-
-  // 
-  const update = (diff: JsonPatch[]) => {
+    // we need to map the children somehow to move them back and forth to the worker.
+  // try sending the entire top level child;
     // we might need to rescue our selection; if an anchor node is deleted, we need to find the next node. We could potentially make the instigator recover all the selections?
     // we could create a position map as we update, then use this plus an offset view.
     // can we force the editor to start an update cycle so we know we have all the latest states?
     // is this a good idea?
 
-    editor.update(() => {
-      const registeredNodes = editor._nodes; 
-      for (let o of diff) {
-        switch(o.op) {
-          case "add":
-            
-            const n = o.value as SerializedLexicalNode
-            // I doubt it has a node id here? how would we get it then?
-            const ln = $parseSerializedNode(n)
-           
-           
-            break
-          case "remove":
-            editor.deleteNode(m.get(o.path)!)
-            break
-          case "replace":
-            const [n2,prop] = o.path.split("/")
-            const n3 = editor.getNodeByKey(m.get(n2)!)
-            n3[prop] = o.value
-            break
-        }
-      }
-    })
+// we might need to break this into another provider component so we can support suspense correctly. each time the path changes we need to trigger suspense.
+
+class SyncPort {
+  version = createSignal(0)
+  listen = new Set<PatchListener>()
+  constructor(public api: BufferApi){
+
   }
 
-  onMount(async () => {
-    if (props.path) {
-      // this should register us; maybe return a channel? an api?
-      // we can send the the updates through the channel and watch the channel for updates.
-      // we don't even need channels because this is always messagechannels
-      // api is pretty limited so not worth dragging in that?
-      const [data,upd] = await prov.open(props.path, update)
-      editor.update(()=>{
-        const editorState = editor.parseEditorState(data)
-        editor.setEditorState(editorState);
-      })   
-      editor.registerUpdateListener(
-      ({ editorState, dirtyElements, dirtyLeaves, prevEditorState }) => {
-        const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
-        const { now, prev } = $getDirty(dirty, editorState, prevEditorState)
-        upd(diff(prev, now))
-      })
-    }
+  // it's not clear we can or want to support multiple editors here, so addListener may be misleading. Potentially other things could listen, but each editor has its own unique node ids, so two editors won't simply work. To support this case create another provider on the same path. The main reason we even have this wrapper is to support suspense.
+  addListener(p: PatchListener) {
+    this.listen.add(p)
+  }
+  removeListener(p: PatchListener) {
+    this.listen.delete(p)
+  }
+}
+const PathProvider = createContext<SyncPort>()
+export function useSyncPort () {
+  return useContext(PathProvider)
+}
+type InputString = string | (()=>string)
+function SyncPath(props: {path: InputString, fallback: JSXElement, children: JSXElement}) {
+  const prov = useSync()!
 
-    onCleanup(()=>{
-      prov.close(update)
-    })
- 
+  //const [myversion, setMyVersion] = createSignal(0)
+
+
+  // every time the path changes we need to go back to the loading state.
+  let port: SyncPort
+  const listen = (diff: JsonPatch[]|string, version: number, pm: PositionMapPatch) => {
+    port.version[1](version)
+    for (let p of port.listen) {
+      p(diff, version, pm)
+    }
+  }
+  const api = prov.open(listen)
+ port = new SyncPort(api)
+
+  onCleanup(() => {
+    prov.close(port.api)
   })
 
+  const mypath = ""
+  if (typeof props.path == "string") {
+    port.api.setPath(props.path)
+  } else {
+    createEffect(() =>{
+      const pth = (props.path as ()=>string)()
+      if (pth != mypath) {
+        port.api.setPath((props.path as ()=>string)())
+        port.version[1](0)
+      }     
+    })
+  }
+  return <PathProvider.Provider value={port}>
+    <Show fallback={props.fallback} when={port.version[0]()!=0}>{props.children}</Show>
+    </PathProvider.Provider>
+}
 
+export function Sync() {
+  const port = useSyncPort()
+  if (!port) return null  // deactivate if not in Sync context
+
+  const pm = new PositionMap()
+  const [editor] = useLexicalComposerContext()
+
+  const listen = (diff: JsonPatch[]|string, version: number, pm: PositionMapPatch) => {
+    if (version == 0){
+      return
+    }
+    if (version==1) {
+      editor.update(()=>{       
+        const editorState = editor.parseEditorState(diff as string)
+        editor.setEditorState(editorState);
+      }) 
+    } else {
+      // there will be another version along shortly, so we can ignore this one.
+
+      if (version != port.version[0]()) {
+        return
+      }
+      editor.update(() => {
+        const registeredNodes = editor._nodes; 
+        for (let o of diff) {
+          switch(o) {
+            case "add":
+              
+              const n = o.value as SerializedLexicalNode
+              // I doubt it has a node id here? how would we get it then?
+              const ln = $parseSerializedNode(n)
+              
+              
+              break
+            case "remove":
+              
+              break
+            case "replace":
+              const [n2,prop] = o.path.split("/")
+              const n1 = $getNodeByKey(o.path)
+  
+              
+              break
+          }
+        }
+      })      
+    }
+  }
+  port.addListener(listen)
+
+  onMount(async () => {
+
+     // every update will increase the version, we ignore versions greater than 1 that are less than the current version number. 
+      editor.registerUpdateListener(
+      ({ editorState, dirtyElements, dirtyLeaves, prevEditorState }) => {
+
+        const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
+        const { now, prev } = $getDirty(dirty, editorState, prevEditorState)
+        port.api.propose(diff(prev, now), port.version[0]())
+
+      })
+    
+  })
 
   return <></>
 }
