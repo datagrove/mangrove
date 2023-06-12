@@ -1,4 +1,4 @@
-import { LexicalNode, EditorState, $getNodeByKey, TextNode, $createParagraphNode, SerializedLexicalNode, $parseSerializedNode } from "lexical"
+import { LexicalNode, EditorState, $getNodeByKey, TextNode, $createParagraphNode, SerializedLexicalNode, $parseSerializedNode, $getRoot, ElementNode } from "lexical"
 import { useLexicalComposerContext } from "./lexical-solid"
 import { JSXElement, Show, createContext, createEffect, createSignal, onCleanup, onMount, useContext } from "solid-js"
 import { Position } from "postcss"
@@ -259,39 +259,32 @@ export function Sync() {
 
   const listen = (diff: JsonPatch[]|string, version: number, pm: PositionMapPatch) => {
     if (version == 0){
-      return
-    }
-    if (version==1) {
       editor.update(()=>{       
         const editorState = editor.parseEditorState(diff as string)
         editor.setEditorState(editorState);
       }) 
     } else {
       // there will be another version along shortly, so we can ignore this one.
-
       if (version != port.version[0]()) {
         return
       }
       editor.update(() => {
         const registeredNodes = editor._nodes; 
-        for (let o of diff) {
-          switch(o) {
+        for (let o of diff as JsonPatch[]) {
+          switch(o.op) {
             case "add":
               
               const n = o.value as SerializedLexicalNode
               // I doubt it has a node id here? how would we get it then?
               const ln = $parseSerializedNode(n)
-              
-              
+              const r : ElementNode = $getRoot()
+              r.insertChild(ln, o.path)
               break
             case "remove":
-              
+                $getNodeByKey(o.path)?.remove()
               break
             case "replace":
-              const [n2,prop] = o.path.split("/")
-              const n1 = $getNodeByKey(o.path)
-  
-              
+              $getNodeByKey(o.path)?.replace(o.value)
               break
           }
         }
@@ -308,7 +301,9 @@ export function Sync() {
 
         const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
         const { now, prev } = $getDirty(dirty, editorState, prevEditorState)
-        port.api.propose(diff(prev, now), port.version[0]())
+        const v = port.version[0]()+1
+        port.version[1](v)
+        port.api.propose(diff(prev, now), v)
 
       })
     
