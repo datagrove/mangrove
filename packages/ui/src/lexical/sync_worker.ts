@@ -15,6 +15,10 @@ import { BufferApi, JsonPatch, PositionMapPatch } from "./sync_shared"
 // maybe here in the worker we should only work with positions
 // we can't just push patches from one buffer to another then? it will lose the ids.
 
+// selections are trouble. The anchors are easy to delete.
+// 1. we could treat selection change as a change, but this will create a lot of extra work?
+// 2. we could provide an api that allows us to query the selection.
+
 
 interface BufferListener {
    update (p:JsonPatch[]|string, version: number, pos: PositionMapPatch):void 
@@ -28,6 +32,7 @@ interface EditorBuffer extends BufferApi {
 
 class LexicalBufferState implements EditorBuffer{
     editor = new RootNode()
+    version = 0
 
     constructor(public bs: BufferSet,public bw: BufferWorker, public api: BufferListener){
 
@@ -42,7 +47,12 @@ class LexicalBufferState implements EditorBuffer{
     }
     // not really a json patch, more of a paragraph list.
     async propose(p: JsonPatch[], version: number) {
-        // update our own list. We need to calculate our 
+        this.version = version
+        //this.bs.applyProposalPatch(this, p)
+        // update our own list. 
+
+        // 3-way merge: old buffer state, new buffer state, old buffer set proposal -> new buffer set proposal
+
 
         // as long as we only have local editors we could simply broadcast this patch to the others in the buffer set. If we have a global document or other editors, then we need to create a finer grained patch.
     }
@@ -58,9 +68,10 @@ class BufferSet {
 
     applyGlobalPatch(p: JsonPatch[]) {
         // apply the patch to the global doc
-        // apply the patch to the proposal doc
-        // increment the version
-        // broadcast the patch to all the buffers
+        // diff the proposal doc, to create an update for the 
+    }
+    applyProposalPatch(b: EditorBuffer, p: JsonPatch[]) {
+        // 
     }
 }
 

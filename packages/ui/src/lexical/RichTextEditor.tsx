@@ -34,7 +34,7 @@ import { SiteDocument, readAll, useDocument, usePage } from "../core";
 import { UNDO_COMMAND, REDO_COMMAND } from 'lexical';
 import { useLexicalComposerContext } from './lexical-solid/LexicalComposerContext';
 import { debounce } from "../core/rpc";
-import {  JsonPatch, Sync, VOID, sync } from "./sync";
+import { Sync } from "./sync";
 import { Listener } from "lexical/LexicalEditor";
 
 
@@ -107,8 +107,8 @@ export function RichTextEditor(props: RteProps) {
       <Icon class='h-6 w-6' path={check} />
       <div class='flex-1 '></div>
       <div class='space-x-4 flex mr-2'>
-        <Icon class='h-6 w-6' path={undo} onClick={() => editor.dispatchCommand(UNDO_COMMAND,VOID)} />
-        <Icon class='h-6 w-6' path={redo} onClick={() => editor.dispatchCommand(REDO_COMMAND,VOID)} />
+        <Icon class='h-6 w-6' path={undo} onClick={() => editor.dispatchCommand(UNDO_COMMAND)} />
+        <Icon class='h-6 w-6' path={redo} onClick={() => editor.dispatchCommand(REDO_COMMAND)} />
         <Icon class='h-6 w-6' path={plus} />
         <Icon class='h-6 w-6' path={sparkles} />
         <Icon class='h-6 w-6' path={menu} /></div>
@@ -136,7 +136,7 @@ export function RichTextEditor(props: RteProps) {
           <HistoryPlugin />
           <AutoFocusPlugin />
           <CodeHighlightPlugin />
-          <Sync path={props.path}/>
+          <Sync/>
         </div>
        
       </div>

@@ -2,7 +2,7 @@ import { LexicalNode, EditorState, $getNodeByKey, TextNode, $createParagraphNode
 import { useLexicalComposerContext } from "./lexical-solid"
 import { JSXElement, Show, createContext, createEffect, createSignal, onCleanup, onMount, useContext } from "solid-js"
 import { Position } from "postcss"
-import { JsonPatch } from "./sync_shared"
+import { BufferApi, JsonPatch, PositionMap, PositionMapPatch } from "./sync_shared"
 
 /*
    <SyncProvider>  // tab level state, starts shared worker
