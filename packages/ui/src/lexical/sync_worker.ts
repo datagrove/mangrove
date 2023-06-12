@@ -7,6 +7,19 @@ import { BufferApi, JsonPatch, PositionMapPatch } from "./sync_shared"
 // chunks should be fine.
 // op, type, content, mark
 
+interface ValueRef {
+    site: number,   // this is a local id that allows us to look up the server and its site id.
+    table: string,
+    key: string,
+}
+export function valueUrl(v: ValueRef) {
+    return `/api/${v.site}/${v.table}/${v.key}`
+}
+export function parseUrl(url: string): ValueRef {
+    let [_, site, table, key] = url.split("/")
+    return { site: parseInt(site), table, key }
+}
+
 type Attr = undefined|(string|string[])[]
 enum Op {
     insertString = 0,
@@ -19,6 +32,10 @@ enum Op {
 type Chunk = [string, Attr ] | [1, number,Attr ] | [2, number] | [3|4, string, any] | [5, Attr]
 type QuillDoc = Chunk[]
 type QuillDelta = Chunk[]
+
+function squash(q: QuillDelta[]) : QuillDelta {
+    return q[0]
+}
 
 // provide log(n) operations
 class QuillTree  {
@@ -71,7 +88,7 @@ class LexicalBufferState implements EditorBuffer{
     prev: Element[] = []
     version = 0
 
-    constructor(public bs: BufferSet,public bw: BufferWorker, public api: BufferListener){
+    constructor(public bs: ValueManager,public bw: BufferWorker, public api: BufferListener){
 
     }
     async setPath(path: string) {
@@ -112,15 +129,35 @@ class LexicalBufferState implements EditorBuffer{
     
 }
 
+interface GlobalApi {
 
-class BufferSet {
-    
+    // provide the length you last saw a {key} write, and the bytes you want write. returns the length of the site if you are behind or 0 if the write is accepted.
+    commit(site: number,  
+        key: Uint8Array, 
+        at: number, 
+        data: Uint8Array) :  Promise<number>
+    // acknowledge reading the sync log.
+    trim(device: number, length: number) : Promise<void>
+}
+interface GlobalListener {
+    sync(length: number) : Promise<void>
+}
+
+
+class ValueManager {
+    constructor(public bw: BufferWorker, public ref: string){
+
+    }
+
     // global doc will need to be some type that works with multiple editors, lexical for now.
     globalDoc = new QuillTree()
     proposalDoc = new QuillTree()
-    proposalDelta?: QuillDelta
+    // squash as we go? we might need to read a list from the database?
+    proposalDelta: QuillDelta[] = []
     version = 0
     buffer = new Map<any, EditorBuffer>()
+
+
 
     applyGlobalPatch(p: QuillDelta) {
         // apply the patch to the global doc
@@ -133,25 +170,49 @@ class BufferSet {
 }
 
 export const editors : {
-    [key: string]: ( bs: BufferSet, bw: BufferWorker, api: BufferListener) => EditorBuffer
+    [key: string]: ( bs: ValueManager, bw: BufferWorker, api: BufferListener) => EditorBuffer
 } =  {
-    lexical: ( bs: BufferSet, bw: BufferWorker, api: BufferListener) => new LexicalBufferState(bs,bw,api)
+    lexical: ( bs: ValueManager, bw: BufferWorker, api: BufferListener) => new LexicalBufferState(bs,bw,api)
 }
 
+// we need a network manager that alerts us to global api's going up and down.
+// we need a storage manager that keeps our local data 
 class BufferWorker {
-    path = new Map<string, BufferSet>()
+    path = new Map<string, ValueManager>()
     buffer = new Map<MessagePort, BufferApi>()
+    server =  new Map<string, GlobalApi>()
+
+
+    // sort the keys and split them by server, we can try to sync in parallel
+    async attemptPush(key: string[]){
+        // in general we can be ahead and behind here, we need to do a merge before a push (but we merge as we read)
+        // we also want to rate limit our writing, batching changes, so probably call this from a timer. we would like to tweak the counter if we are actively collaborating
+        for (let k of key){
+            let api: GlobalApi
+            // squash any outstanding commits
+            let v : ValueManager 
+            v.proposalDelta = [squash(v.proposalDelta)]
+
+            const r = parseUrl(key)
+
+            const need = api.commit(0, key, 0, v.proposalDelta[0].toBytes())
+        }
+
+    }
 
     openBuffer(path: string, editor: string, mp: MessagePort): BufferApi {
         let bs = this.path.get(path)
         if (!bs) {
-            bs = new BufferSet()
+            bs = new ValueManager(this,path)
             this.path.set(path, bs)
         }
         const ed = editors[editor]
 
         let api: BufferListener = {
             update: function (p: string | JsonPatch[], version: number, pos: PositionMapPatch): void {
+                throw new Error("Function not implemented.")
+            },
+            getSelection: function (): Promise<[number, number]> {
                 throw new Error("Function not implemented.")
             }
         }
@@ -167,8 +228,8 @@ class BufferWorker {
         this.buffer.delete(mp)
     }
 
-    get(path: string): BufferSet {
-        return new BufferSet()
+    get(path: string): ValueManager {
+        return new ValueManager()
     }
 
 }
