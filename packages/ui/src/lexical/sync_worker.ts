@@ -1,6 +1,33 @@
 import { RootNode } from "lexical"
 import { BufferApi, JsonPatch, PositionMapPatch } from "./sync_shared"
 
+// what are the limitations of using json patch? quill delta? prosemirror steps? diff patch? git delta even?
+// rfc patch doesn't diff strings, which seems limiting. peritext?
+
+// chunks should be fine.
+
+interface Text {
+    type: "text"
+    content: string
+    mark: string[][]
+}
+interface Decoration {
+
+}
+interface Sp {
+    type: "p" | "span" 
+    attr: { [key: string]: string }
+    children: Sp[]
+}
+const gdoc : Sp = {
+    type: "p",
+    attr: {},
+    children: [
+
+    ]
+}
+
+// convert to interval tree? or maybe create minimal span set?
 
 // 1. Get the positional selection in the old edit state
 // 2. Transform the selection into the new edit state 
@@ -17,7 +44,7 @@ import { BufferApi, JsonPatch, PositionMapPatch } from "./sync_shared"
 
 // selections are trouble. The anchors are easy to delete.
 // 1. we could treat selection change as a change, but this will create a lot of extra work?
-// 2. we could provide an api that allows us to query the selection.
+// 2. we could provide an api that allows us to query te selection.
 
 
 interface BufferListener {
@@ -47,14 +74,21 @@ class LexicalBufferState implements EditorBuffer{
              this.api.update(JSON.stringify(bs.globalDoc), 0, [])
         }
     }
+
+    merge(old: any, now: any, target: any) {
+
+    }
     // not really a json patch, more of a paragraph list.
     async propose(p: JsonPatch[], version: number) {
         this.version = version
         //this.bs.applyProposalPatch(this, p)
         // update our own list. 
 
+        let dirty : number[] = []
         this.prev = [...this.current]
-        for (let o of )
+        for (let o of p){
+
+        }
 
         // 3-way merge: old buffer state, new buffer state, old buffer set proposal -> new buffer set proposal
 
