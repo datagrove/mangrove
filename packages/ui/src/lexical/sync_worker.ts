@@ -22,6 +22,7 @@ import { BufferApi, JsonPatch, PositionMapPatch } from "./sync_shared"
 
 interface BufferListener {
    update (p:JsonPatch[]|string, version: number, pos: PositionMapPatch):void 
+   getSelection(): Promise<[number,number]>
 }
 
 // future prosemirror, etc support
@@ -31,7 +32,8 @@ interface EditorBuffer extends BufferApi {
 
 
 class LexicalBufferState implements EditorBuffer{
-    editor = new RootNode()
+    current : Element[] = []
+    prev: Element[] = []
     version = 0
 
     constructor(public bs: BufferSet,public bw: BufferWorker, public api: BufferListener){
@@ -51,7 +53,16 @@ class LexicalBufferState implements EditorBuffer{
         //this.bs.applyProposalPatch(this, p)
         // update our own list. 
 
+        this.prev = [...this.current]
+        for (let o of )
+
         // 3-way merge: old buffer state, new buffer state, old buffer set proposal -> new buffer set proposal
+
+
+        // request the selection from each buffer and transform it into the a new selection using offsets. We'll send the offsets back, the editor will first need to assign ids to the nodes, then it can recover the selection from the position.
+
+
+    
 
 
         // as long as we only have local editors we could simply broadcast this patch to the others in the buffer set. If we have a global document or other editors, then we need to create a finer grained patch.
