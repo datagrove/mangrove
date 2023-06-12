@@ -2,6 +2,7 @@ import { LexicalNode, EditorState, $getNodeByKey, TextNode, $createParagraphNode
 import { useLexicalComposerContext } from "./lexical-solid"
 import { JSXElement, Show, createContext, createEffect, createSignal, onCleanup, onMount, useContext } from "solid-js"
 import { Position } from "postcss"
+import { JsonPatch } from "./sync_shared"
 
 /*
    <SyncProvider>  // tab level state, starts shared worker
@@ -19,22 +20,8 @@ import { Position } from "postcss"
 // do I need tab level state? how expensive is it to create a shared worker?
 
 type PatchListener = (p:JsonPatch[]|string, version: number, pos: PositionMapPatch)=>void
-type PositionMapPatch = {
-}
-class PositionMap {
 
-  update(p: PositionMapPatch) {
-    return this
-  }
-  transform(p: number[]) : number[]{
-    return p
-  }
-}
 
-export type BufferApi = {
-  setPath(path: string): void
-  propose(p: JsonPatch[], version: number): void
-}
 
 export interface SyncProvider {
   open(onChange: PatchListener): BufferApi
@@ -52,9 +39,7 @@ export function  useSync () { return useContext(SyncContext) }
 // assume we get rid of buffers completely. 
 
 // JsonPatchable is the model we are assuming It is a tree of nodes, each node has a type and a set of properties.
-export interface JsonPatchable {
-  [key: string]: JsonNode
-}
+
 export interface JsonNode {
   parent?: string
   type: string
@@ -62,11 +47,7 @@ export interface JsonNode {
   text?: string
   [key: string]: any
 }
-export type JsonPatch = {
-  op: "add" | "remove" | "replace"
-  path: string
-  value?: any
-}
+
 
 // not all properties should be synced. we should allow registering a node type and a way to sync it.
 const registry = new Map<string, (n: LexicalNode) => JsonNode>()
