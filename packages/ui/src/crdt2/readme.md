@@ -17,3 +17,20 @@ Receiving changes requires mapping points. We must diff the changed elements to 
 Lexical does some of this for us?
 
 If a proposal fails, then we need to rediff that node.
+
+what if our proposal records the diff range (start/stop), then if we need to retry we can transform the range and try again.
+
+applying the patch is trivial, transforming the unaccepted steps is the hard part.
+
+xml_tree.apply(pos_patch) -> jsonpatch
+
+verson from ls can be (x,y) where x is the buffer version and y is the ls version.
+
+if x > offered then we should be able to apply the patch to the editor.
+
+break the source into pieces with a rolling hash
+link the pieces. 
+replace the pieces 
+
+can we view a document as set of functions? would this merge better?
+

@@ -37,12 +37,6 @@ import { debounce } from "../core/rpc";
 import {  JsonPatch, Sync, VOID, sync } from "./sync";
 import { Listener } from "lexical/LexicalEditor";
 
-type PatchListener = (p:JsonPatch[])=>void
-
-export interface LexicalProvider {
-  open(path: string,onChange: PatchListener): Promise<[string,PatchListener]>
-  close(l: PatchListener): void
-}
 
 
 
@@ -87,9 +81,6 @@ const editorConfig = {
 };
 
 
-export const LexicalContext = createContext<LexicalProvider>()
-export function  useLexical () { return useContext(LexicalContext) }
-
 
 function Bottom() {
   return <div class='w-full h-8 dark:bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
@@ -108,7 +99,7 @@ export interface RteProps {
   placeholder?: string
 }
 export function RichTextEditor(props: RteProps) {
-  const prov = useLexical()!
+  
 
   const Menu = () => {
     const [editor] = useLexicalComposerContext();

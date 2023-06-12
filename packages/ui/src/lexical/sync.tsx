@@ -1,8 +1,24 @@
 import { LexicalNode, EditorState, $getNodeByKey, TextNode, $createParagraphNode, SerializedLexicalNode, $parseSerializedNode } from "lexical"
 import { useLexicalComposerContext } from "./lexical-solid"
-import { useLexical } from "./RichTextEditor"
-import { onCleanup, onMount } from "solid-js"
+import { createContext, onCleanup, onMount, useContext } from "solid-js"
 // there a two types of patches: "/node" and "/node/prop"
+
+type PatchListener = (p:JsonPatch[], version: number, pos: PositionMapPatch)=>void
+type PositionMapPatch = {
+}
+
+export type BufferApi = {
+  setPath(path: string): void
+  propose(p: JsonPatch[], version: number): void
+}
+
+export interface SyncProvider {
+  open(onChange: PatchListener): PatchListener
+  close(l: PatchListener): void
+}
+
+export const LexicalContext = createContext<SyncProvider>()
+export function  useLexical () { return useContext(LexicalContext) }
 
 // json patch works, but rebasing could be a challenge
 // seems like we need to keep a offsetview on each device.
@@ -139,19 +155,28 @@ export function sync(onChange: (diff: JsonPatch[]) => void) {
 // not a true json patch? maybe make every reference symbolic? or do we want to follow paths?
 // if we follow paths, we don't need gid at all; just start at the root.
 //
-function pathOf(editor: LexicalEditor, p: string) {
-  const a =  p.split("/").map(decodeURIComponent)
 
+// get a sloppy diff of the editor state and send it to a worker
+// the worker will async merge it however it wants, then send back a diff
+// if more changes happen, this diff is ignored. otherwise it is applied.
 
-}
-export function Sync(props: { path?: string }) {
+type InputString = string | (()=>string)
+export function Sync(props: { path?: InputString }) {
+  if (!props.path) return null 
+
   const prov = useLexical()!
   const [editor] = useLexicalComposerContext()
 
   // lexical needs node ids, but we also need a globally unique id for nodes shared among buffers.
-  const m = new Map<string, LexicalNode>()
-  const m2 = new Map<LexicalNode, string>()
+  const version = 0
+  const listen : PatchListener = (p:JsonPatch[], version: number, pos: PositionMapPatch) => {
 
+  }
+  const port = prov.open(listen)
+  if (typeof props.path == "string") {
+
+
+  // 
   const update = (diff: JsonPatch[]) => {
     // we might need to rescue our selection; if an anchor node is deleted, we need to find the next node. We could potentially make the instigator recover all the selections?
     // we could create a position map as we update, then use this plus an offset view.
@@ -163,12 +188,12 @@ export function Sync(props: { path?: string }) {
       for (let o of diff) {
         switch(o.op) {
           case "add":
-            cont p = pathOf(o.path)
+            
             const n = o.value as SerializedLexicalNode
             // I doubt it has a node id here? how would we get it then?
             const ln = $parseSerializedNode(n)
            
-            this.m2.set()
+           
             break
           case "remove":
             editor.deleteNode(m.get(o.path)!)

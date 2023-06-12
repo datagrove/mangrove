@@ -9,13 +9,38 @@ import { JsonPatch } from "../lexical/sync"
 // acceptChanges()
 
 // for lexical we need to access the vector of tokens as a node tree.
+// we need to diff if the update is complex enough. only ot patch simple things?
 
-interface OtUpdate {
+// these are fragile updates, they must be applied at a version in order.
+interface OtSplice {
+   start: number
+   delete: number
+   insert: string|any
 
 }
-class OtHtml {
-    patchFrom(version: number) : JsonPatch[] {
-        return []
+// this must be cautiously rebased. Check the area around the patch and see if we need to do a broader diff.
+interface Proposal {
+    upd: OtSplice
+    before: any[]
+    after: any[]
+}
+// buffers need to both the local and global state. It will keep an editor state for both, when the global state changes we need to rebuild proposals that had already been accepted into the local state tentatively.s
+export class OtHtml {
+    proposals: Proposal[] = []
+
+
+
+    rebase() {
+        // we need to check the letters around the patch to see if it still holds.
+        // we need to check if the nesting of the the element tags is still valid.
+        // we need to potentially reslice marks to fit inside new tags.
+    }
+
+    // we need a patch that brings us up to date.
+    // we can keep the old editor state and built a patch forward.
+    patchFrom(mainVersion: number, proposalVersion: number, upd: OtSplice[]) : [JsonPatch[],number[]]{
+
+        return [[],[]]
     }
 }
 
