@@ -162,28 +162,28 @@ function tree_toy() {
 export interface Op {
 	ty: string;
 	ix: number;
-	pri?: number; // priority is a tiebreaker for ins operations, session id.
-	keys?: string[];
+	//pri?: number; // priority is a tiebreaker for ins operations, session id.
+	ch: string;
 	id: number;
 }
 
 // Note: mutating in place is appealing, to avoid allocations.
 function transform(op1: Op, op2: Op): Op {
 	if (op2.ty != 'ins') { return op1; }
-	return transform_ins(op1, op2.ix, op2.pri ?? 0);
+	return transform_ins(op1, op2.ix, op2.ch) //, op2.pri ?? 0);
 }
 
-function transform_ins(op1: Op, ix: number, pri: number) {
+function transform_ins(op1: Op, ix: number, pri: string) : Op{
 	if (op1.ty == 'ins') {
-		if (op1.ix < ix || (op1.ix == ix && (op1.pri ?? 0 < pri))) {
+		if (op1.ix < ix || (op1.ix == ix && (op1.ch  < pri))) {
 			return op1;
 		}
-		return { ty: op1.ty, ix: op1.ix + 1, ch: op1.keys, pri: op1.pri, id: op1.id };
+		return { ty: op1.ty, ix: op1.ix + 1, ch: op1.ch,  id: op1.id };
 	} else { // op1.ty is del
 		if (op1.ix < ix) {
 			return op1;
 		}
-		return { ty: op1.ty, ix: op1.ix + 1, id: op1.id };
+		return { ty: op1.ty, ix: op1.ix + 1, id: op1.id, ch: "" };
 	}
 }
 
@@ -215,7 +215,7 @@ export class DocState {
 		} else if (op.ty == 'ins') {
 			this.dels = xi_one(this.dels, op.ix);
 			var ix = xi_inv(this.dels, op.ix);
-			this.str = this.str.slice(0, ix) + op.keys + this.str.slice(ix);
+			this.str = this.str.slice(0, ix) + op.ch + this.str.slice(ix);
 			for (var i = 0; i < this.points.length; i++) {
 				if (this.points[i] > ix) {
 					this.points[i] += 1;
@@ -261,7 +261,7 @@ export class OtPeer {
 			}
 		}
 		// we don't have it, need to merge
-		var ins_list: [number, number][] = [];
+		var ins_list: [number, string][] = [];
 		var S = null;
 		var T = null;
 		for (var ix = ops.length - 1; ix >= this.rev; ix--) {
@@ -269,7 +269,7 @@ export class OtPeer {
 			if (my_op.ty == 'ins') {
 				var i = xi(S, my_op.ix);
 				if (!this.context.has(my_op.id)) {
-					ins_list.push([xi_inv(T, i), my_op.pri ?? 0]);
+					ins_list.push([xi_inv(T, i), my_op.ch]);
 					T = union_one(T, i);
 				}
 				S = union_one(S, i);
