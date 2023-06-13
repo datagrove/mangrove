@@ -6,7 +6,7 @@ export function createSharedListener<T>(peer: Service) {
         // create a channel and connect it to the p
         const port = e.ports[0];
         const ch = new WorkerChannel(port)
-        const a: ApiSet = peer.connect(ch)
+        const a:any = peer.connect(ch)
 
         port.addEventListener("message", async (e: MessageEvent) => {
             const x: Rpc<any> = e.data

@@ -218,14 +218,9 @@ export class DocState {
 	}
 }
 
-import { ConnectablePeer } from '../abc/rpc';
-class PeerServer extends ConnectablePeer {
-
-
-}
 
 // peer per connection, docstate per key
-	class Peer {
+	export class Peer {
 		rev = 0 //  number;
 		context = new Set<number>();   // this tracks all our peers.
 
