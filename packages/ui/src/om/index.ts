@@ -190,12 +190,18 @@ function transform_ins(op1: Op, ix: number, pri: string) : Op{
 export class DocState {
 	ops: Op[];
 	dels: Tree | null;
-	str: string;
+	str: string[];
 	points: number[];  // in user-visible string coordinates
+
+    rev: number;
+	context: Set<number>;
 	constructor() {
+        this.rev = 0;
+		this.context = new Set();
+
 		this.ops = [];
 		this.dels = null;
-		this.str = "";
+		this.str = [];
 		this.points = [];  // in user-visible string coordinates
 	}
 
@@ -205,7 +211,7 @@ export class DocState {
 			if (!contains(this.dels, op.ix)) {
 				var ix = xi_inv(this.dels, op.ix);
 				this.dels = union_one(this.dels, op.ix);
-				this.str = this.str.slice(0, ix) + this.str.slice(ix + 1);
+				this.str = this.str.slice(0, ix).concat(this.str.slice(ix + 1))
 				for (var i = 0; i < this.points.length; i++) {
 					if (this.points[i] > ix) {
 						this.points[i] -= 1;
@@ -215,7 +221,7 @@ export class DocState {
 		} else if (op.ty == 'ins') {
 			this.dels = xi_one(this.dels, op.ix);
 			var ix = xi_inv(this.dels, op.ix);
-			this.str = this.str.slice(0, ix) + op.ch + this.str.slice(ix);
+			this.str = this.str.slice(0, ix).concat([ op.ch!,... this.str.slice(ix)])
 			for (var i = 0; i < this.points.length; i++) {
 				if (this.points[i] > ix) {
 					this.points[i] += 1;
@@ -231,17 +237,10 @@ export class DocState {
 	get_str() {
 		return this.str;
 	}
-}
 
-export class OtPeer {
-	rev: number;
-	context: Set<number>;
-	constructor() {
-		this.rev = 0;
-		this.context = new Set();
-	}
 
-	merge_op(doc_state: DocState, op: Op) {
+	merge_op( op: Op) {
+        const doc_state = this;
 		var id = op.id;
 		var ops = doc_state.ops;
 		if (this.rev < ops.length && ops[this.rev].id == id) {
