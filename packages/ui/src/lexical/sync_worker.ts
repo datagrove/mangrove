@@ -12,37 +12,17 @@ interface ValueRef {
     table: string,
     key: string,
 }
-export function valueUrl(v: ValueRef) {
+export function urlKey(v: ValueRef) {
     return `/api/${v.site}/${v.table}/${v.key}`
+}
+export function urlKeyCompact(v: ValueRef) {
+    return new Uint8Array()
 }
 export function parseUrl(url: string): ValueRef {
     let [_, site, table, key] = url.split("/")
     return { site: parseInt(site), table, key }
 }
 
-type Attr = undefined|(string|string[])[]
-enum Op {
-    insertString = 0,
-    retain = 1,
-    delete = 2,
-    insertObject = 3,
-    insertInlineObject = 4,
-    insertBreak = 5
-}
-type Chunk = [string, Attr ] | [1, number,Attr ] | [2, number] | [3|4, string, any] | [5, Attr]
-type QuillDoc = Chunk[]
-type QuillDelta = Chunk[]
-
-function squash(q: QuillDelta[]) : QuillDelta {
-    return q[0]
-}
-
-// provide log(n) operations
-class QuillTree  {
-    apply(p: QuillDelta) {
-
-    }
-}
 
 
 interface Text {
@@ -129,7 +109,7 @@ class LexicalBufferState implements EditorBuffer{
     
 }
 
-interface GlobalApi {
+interface ServerApi {
 
     // provide the length you last saw a {key} write, and the bytes you want write. returns the length of the site if you are behind or 0 if the write is accepted.
     commit(site: number,  
@@ -139,30 +119,29 @@ interface GlobalApi {
     // acknowledge reading the sync log.
     trim(device: number, length: number) : Promise<void>
 }
-interface GlobalListener {
-    sync(length: number) : Promise<void>
+interface ServerListener {
+    sync(sitelength: number[]) : Promise<void>
 }
 
 
 class ValueManager {
-    constructor(public bw: BufferWorker, public ref: string){
+    constructor(public bw: BufferWorker, public ref: string){}
 
-    }
+    base?: QuillTree
+    global?: QuillTree  // cache the value as we might be getting a stream of updates.
 
     // global doc will need to be some type that works with multiple editors, lexical for now.
-    globalDoc = new QuillTree()
     proposalDoc = new QuillTree()
-    // squash as we go? we might need to read a list from the database?
-    proposalDelta: QuillDelta[] = []
     version = 0
     buffer = new Map<any, EditorBuffer>()
 
 
+    // consider this as merging from the main branch to the task branch.
+    updateGlobal(base: QuillTree, p: QuillTree) {
+        // three way merge with the proposal doc to create new proposal doc and a delta to send to the editors
 
-    applyGlobalPatch(p: QuillDelta) {
-        // apply the patch to the global doc
-        // we'll wait 
-        this.globalDoc.apply(p)
+
+        this.base = p
     }
     applyProposalPatch(b: EditorBuffer, p: JsonPatch[]) {
         // 
@@ -175,20 +154,31 @@ export const editors : {
     lexical: ( bs: ValueManager, bw: BufferWorker, api: BufferListener) => new LexicalBufferState(bs,bw,api)
 }
 
+class Site{
+    
+}
+class Server implements ServerListener{
+    sync(sitelength: number[]): Promise<void> {
+        throw new Error("Method not implemented.")
+    }
+    api?: ServerApi
+    site= new Map<number, Site>()
+}
 // we need a network manager that alerts us to global api's going up and down.
 // we need a storage manager that keeps our local data 
 class BufferWorker {
     path = new Map<string, ValueManager>()
     buffer = new Map<MessagePort, BufferApi>()
-    server =  new Map<string, GlobalApi>()
+    server =  new Map<string, Server>()
 
-
+    async logDelta(key: string, delta: QuillDelta) {
+    }
     // sort the keys and split them by server, we can try to sync in parallel
     async attemptPush(key: string[]){
         // in general we can be ahead and behind here, we need to do a merge before a push (but we merge as we read)
         // we also want to rate limit our writing, batching changes, so probably call this from a timer. we would like to tweak the counter if we are actively collaborating
         for (let k of key){
-            let api: GlobalApi
+            let api: ServerApi
             // squash any outstanding commits
             let v : ValueManager 
             v.proposalDelta = [squash(v.proposalDelta)]
