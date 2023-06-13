@@ -2,18 +2,11 @@
 // based on google/raph levien's toy ot under apache license
 // here are using it to order a vector of unique keys (distributed order maintenance problem?). We could also use RGA, but let's try this.
 
-// the ordering itself needs to be kept in a table cell.
+// the ordering itself needs to be kept in a table cell. 
 
 
-export interface Op {
-	ty: string;
-	ix: number;
-	pri?: number;
-	ch?: string;
-	id: number;
-}
 
-
+// a sparse set of integers.
 interface Tree {
 	left: Tree | null;
 	right: Tree | null;
@@ -165,6 +158,15 @@ function tree_toy() {
 // {ty: 'ins', ix: 1, ch: 'x', pri: 0}
 // {ty: 'del', ix: 1}
 
+// can we break ties based on the keys themselves? pri is tricky to manage.
+export interface Op {
+	ty: string;
+	ix: number;
+	pri?: number; // priority is a tiebreaker for ins operations, session id.
+	keys?: string[];
+	id: number;
+}
+
 // Note: mutating in place is appealing, to avoid allocations.
 function transform(op1: Op, op2: Op): Op {
 	if (op2.ty != 'ins') { return op1; }
@@ -176,7 +178,7 @@ function transform_ins(op1: Op, ix: number, pri: number) {
 		if (op1.ix < ix || (op1.ix == ix && (op1.pri ?? 0 < pri))) {
 			return op1;
 		}
-		return { ty: op1.ty, ix: op1.ix + 1, ch: op1.ch, pri: op1.pri, id: op1.id };
+		return { ty: op1.ty, ix: op1.ix + 1, ch: op1.keys, pri: op1.pri, id: op1.id };
 	} else { // op1.ty is del
 		if (op1.ix < ix) {
 			return op1;
@@ -213,7 +215,7 @@ export class DocState {
 		} else if (op.ty == 'ins') {
 			this.dels = xi_one(this.dels, op.ix);
 			var ix = xi_inv(this.dels, op.ix);
-			this.str = this.str.slice(0, ix) + op.ch + this.str.slice(ix);
+			this.str = this.str.slice(0, ix) + op.keys + this.str.slice(ix);
 			for (var i = 0; i < this.points.length; i++) {
 				if (this.points[i] > ix) {
 					this.points[i] += 1;
