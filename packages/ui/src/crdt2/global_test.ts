@@ -6,7 +6,7 @@
 // keyVersion is the last siteVersion that wrote to the key.
 // as long as nobody has written to the key since then, the write is allowed.
 import { createContext, createEffect, createSignal, useContext } from "solid-js"
-import { Channel, Service, WorkerChannel, apiSet } from "../abc/rpc"
+import { Channel, Service, WorkerChannel, apiCall } from "../abc/rpc"
 import { JsonPatch } from "../lexical/sync"
 import { GlobalApi, ListenerApi } from "./data"
 

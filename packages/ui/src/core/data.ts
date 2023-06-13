@@ -1,4 +1,4 @@
-import { ApiSet, Channel, apiSet } from "../abc/rpc"
+import { ApiSet, Channel, apiCall } from "../abc/rpc"
 import { Schema, TableUpdate, Tx , Keyed, LensRef} from "../dblite/schema"
 
 // this is used from worker and implemented by the tab
@@ -10,7 +10,7 @@ export interface TabStateClient   {
 }
 
 export function TabStateClientApi(mc: Channel)  {
-    return apiSet<TabStateClient>(mc,"becomeLeader", "update") 
+    return apiCall<TabStateClient>(mc,"becomeLeader", "update") 
 }
 
 export interface Stat {
@@ -64,7 +64,7 @@ export interface LocalStateClient{
 }
 
 export function LocalStateClientApi(mc: Channel) {
-    return apiSet<LocalStateClient>(mc, "scan", "query","lens","commit")
+    return apiCall<LocalStateClient>(mc, "scan", "query","lens","commit")
 }
 
 
@@ -77,7 +77,7 @@ export interface KeeperClient  {
    append(site: number,at: number, a: Uint32Array) : Promise<Err|undefined>
 }
 export function KeeperClientApi(mc: Channel) {
-    return apiSet<KeeperClient>(mc, "read", "write") 
+    return apiCall<KeeperClient>(mc, "read", "write") 
 }
 
 // add authorization apis etc.
@@ -96,7 +96,7 @@ export interface HostClient  {
     authorize(site: number, length: number) : Promise<string[]|Err>,
 }
 export function HostClientApi(mc: Channel) {
-    return apiSet<HostClient>(mc, "publish", "authorize") 
+    return apiCall<HostClient>(mc, "publish", "authorize") 
 }
 
 
@@ -105,7 +105,7 @@ export interface LocalStateFromHost  {
     update(site: number[], length: number[]) : Promise<void>
 }
 export function LocalStateFromHostApi(mc: Channel) {
-    return apiSet<LocalStateFromHost>(mc, "update") 
+    return apiCall<LocalStateFromHost>(mc, "update") 
 }
 
 import { QuerySchema } from "../dblite/schema"

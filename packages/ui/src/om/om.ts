@@ -207,7 +207,7 @@ export class DocState {
 			// convert to the tombstoned index
 			var ix = xi_inv(this.dels, op.ix);
 			//add it to our list
-			this.str = this.str.slice(0, ix).concat([ op.ch!,... this.str.slice(ix)])
+			this.str = this.str.slice(0, ix).concat([op.ch!, ... this.str.slice(ix)])
 			// update the points
 			for (var i = 0; i < this.points.length; i++) {
 				if (this.points[i] > ix) {
@@ -220,23 +220,23 @@ export class DocState {
 
 
 // peer per connection, docstate per key
-	export class Peer {
-		rev = 0 //  number;
-		context = new Set<number>();   // this tracks all our peers.
+export class OmPeer {
+	rev = 0 //  number;
+	context = new Set<number>();   // this tracks all our peers.
 
 	merge_op(doc_state: DocState, op: Op) {
 		// Note: mutating in place is appealing, to avoid allocations.
-// function transform(op1: Op, op2: Op): Op {
-// 	if (op2.ty != 'ins') { return op1; }
-// 	return transform_ins(op1, op2.ix, op2.ch) //, op2.pri ?? 0);
-// }
+		// function transform(op1: Op, op2: Op): Op {
+		// 	if (op2.ty != 'ins') { return op1; }
+		// 	return transform_ins(op1, op2.ix, op2.ch) //, op2.pri ?? 0);
+		// }
 
-		const  transform_ins = (op1: Op, ix: number, pri: string) : Op =>{
+		const transform_ins = (op1: Op, ix: number, pri: string): Op => {
 			if (op1.ty == 'ins') {
-				if (op1.ix < ix || (op1.ix == ix && (op1.ch  < pri))) {
+				if (op1.ix < ix || (op1.ix == ix && (op1.ch < pri))) {
 					return op1;
 				}
-				return { ty: op1.ty, ix: op1.ix + 1, ch: op1.ch,  id: op1.id };
+				return { ty: op1.ty, ix: op1.ix + 1, ch: op1.ch, id: op1.id };
 			} else { // op1.ty is del
 				if (op1.ix < ix) {
 					return op1;
@@ -316,79 +316,79 @@ export class DocState {
 
 
 
-interface UpdateOrder{
-    version:  number
-    device: string
-    op: number[]
-    at: number[]
-    keys: string[]
+interface UpdateOrder {
+	version: number
+	device: string
+	op: number[]
+	at: number[]
+	keys: string[]
 }
-function compose(u: UpdateOrder[]) : UpdateOrder {
-    return u[0]
+function compose(u: UpdateOrder[]): UpdateOrder {
+	return u[0]
 }
 
 class Listener {
-    listener = new Set<()=>void>()
-    add(l: ()=>void) {
-        this.listener.add(l)
-    }
-    remove(l: ()=>void) {
-        this.listener.delete(l)
-    }
-    notify() {
-        for (const l of this.listener) {
-            l()
-        }
-    }
+	listener = new Set<() => void>()
+	add(l: () => void) {
+		this.listener.add(l)
+	}
+	remove(l: () => void) {
+		this.listener.delete(l)
+	}
+	notify() {
+		for (const l of this.listener) {
+			l()
+		}
+	}
 }
 /*
 interface Ordering {
-    version: number
-    keys: string[]
+	version: number
+	keys: string[]
 }
 
 interface OrderKeeper {
-    read(from: number) : Promise<[Ordering,number]>
-    //if the socket breaks the status of the proposal is undefined.
-    // maybe then we should return void?
-    propose(u: UpdateOrder) : Promise<boolean|undefined>
+	read(from: number) : Promise<[Ordering,number]>
+	//if the socket breaks the status of the proposal is undefined.
+	// maybe then we should return void?
+	propose(u: UpdateOrder) : Promise<boolean|undefined>
 }
 class OrderedKeys extends Listener  implements OrderKeeper{
-    start = 0
-    keys : string[] = []
+	start = 0
+	keys : string[] = []
 
 
-    // I might not know the outcome of a proposal yet, thus nextProposal
-    proposal?: UpdateOrder
-    nextProposal? : UpdateOrder
+	// I might not know the outcome of a proposal yet, thus nextProposal
+	proposal?: UpdateOrder
+	nextProposal? : UpdateOrder
 
-    log : UpdateOrder[] = []
-
-
-
-    get version() { 
-        return this.log.length + this.start
-    }
-
-    constructor(public parent?: OrderedKeys) {
-        super()
-        if (parent) {
-            parent.add(()=>this.notify())
-        }
-    }
-
-    async read(from: number) : Promise<[UpdateOrder,number]> {
-        return [compose(this.log.slice(from)), this.version]
-    }
-
-    // propose(u: UpdateOrder) : boolean{
-    //     if (u.version != this.version) {
-    //         return false
-    //     }
+	log : UpdateOrder[] = []
 
 
-    //     this.notify()
-    //     return true
-    // }
+
+	get version() { 
+		return this.log.length + this.start
+	}
+
+	constructor(public parent?: OrderedKeys) {
+		super()
+		if (parent) {
+			parent.add(()=>this.notify())
+		}
+	}
+
+	async read(from: number) : Promise<[UpdateOrder,number]> {
+		return [compose(this.log.slice(from)), this.version]
+	}
+
+	// propose(u: UpdateOrder) : boolean{
+	//     if (u.version != this.version) {
+	//         return false
+	//     }
+
+
+	//     this.notify()
+	//     return true
+	// }
 
 }*/

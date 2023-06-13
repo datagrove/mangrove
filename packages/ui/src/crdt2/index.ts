@@ -4,7 +4,7 @@
 
 
 import { createContext, createEffect, createSignal, useContext } from "solid-js"
-import { Channel, Service, WorkerChannel, apiSet } from "../abc/rpc"
+import { Channel, Service, WorkerChannel, apiCall } from "../abc/rpc"
 import { JsonPatch } from "../lexical/sync"
 import { ListenerApi } from "./data"
 import { useTab } from "./tab"

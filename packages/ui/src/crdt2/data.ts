@@ -1,5 +1,5 @@
 import { createContext, createEffect, createSignal, useContext } from "solid-js"
-import { Channel, Service, WorkerChannel, apiSet } from "../abc/rpc"
+import { Channel, Service, WorkerChannel, apiCall } from "../abc/rpc"
 import { JsonPatch } from "../lexical/sync"
 import { number } from "zod"
 
@@ -16,7 +16,7 @@ export interface GlobalApi {
     commit(site: number, lock: number[], data: Uint8Array): Promise<boolean>
 }
 export function globalApi(ch: Channel): GlobalApi {
-    return apiSet(ch, "write", "read")
+    return apiCall(ch, "write", "read")
 }
 
 
@@ -42,7 +42,7 @@ export interface DocApi {
 }
 
 export function listenerApi(ch: Channel): ListenerApi {
-    return apiSet(ch, "update")
+    return apiCall(ch, "update")
 }
 
 
@@ -55,7 +55,7 @@ export interface LocalStateApi {
     read(path: string, start: number): Promise<Op[]>
 }
 export function localStateApi(ch: Channel): LocalStateApi {
-    return apiSet(ch, "open", "close", "read")
+    return apiCall(ch, "open", "close", "read")
 }
 
 export interface EditorSelection {

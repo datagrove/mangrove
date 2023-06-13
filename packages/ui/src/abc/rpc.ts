@@ -176,7 +176,7 @@ export class Peer<T> {
 // we create api's from channels
 // build an rpc set from a list of rpc names
 // eventually change this to code generation, or maybe typescript magic
-export function apiSet<T>(mc: Channel, ...rpc: string[]): T {
+export function apiCall<T>(mc: Channel, ...rpc: string[]): T {
     const peer = new Peer(mc)
     const o: any = {}
     rpc.forEach((e) => {
@@ -185,6 +185,17 @@ export function apiSet<T>(mc: Channel, ...rpc: string[]): T {
         }
     })
     return o as T
+}
+export function apiListen<T>(mc: Channel, api: T): void {
+    mc.listen((d: any) => {
+        const a = api as any
+        const m = a[d.method]
+        if (m) {
+            m(d.params)
+        } else {
+            console.log("unknown method", d)
+        }
+    })
 }
 /*
 export class BaseClient {

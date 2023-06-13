@@ -1,5 +1,5 @@
 import { createContext, createEffect, createSignal, useContext } from "solid-js"
-import { Channel, Service, WorkerChannel, apiSet } from "../abc/rpc"
+import { Channel, Service, WorkerChannel, apiCall } from "../abc/rpc"
 import { JsonPatch } from "../lexical/sync"
 import { DocApi, EditorSelection, ListenerApi, LocalStateApi, Op } from "./data"
 
@@ -31,7 +31,7 @@ export interface BufferApi {
     update(patch: JsonPatch[]) : Promise<void>
 }
 export function bufferApi(ch: Channel): BufferApi {
-    return apiSet(ch, "update")
+    return apiCall(ch, "update")
 }
 
 // we need to track the state of the buffer so we can send it accurate patches.

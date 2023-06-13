@@ -3,7 +3,7 @@ import { createContext, useContext } from "solid-js"
 // @ts-ignore
 import LocalStateWorker from "./localstate?sharedworker"
 import { LocalStateClient, TabStateClient } from "./data"
-import { Peer, WorkerChannel, apiSet } from "../abc/rpc"
+import { Peer, WorkerChannel, apiCall } from "../abc/rpc"
 
 
 // context for the tab to connect to localstate
@@ -28,6 +28,6 @@ export function connectLocalState(p: MessagePort) {
     let ch = new WorkerChannel(p)
     const peer = new Peer(ch, api)
 
-    return apiSet<LocalStateClient>(ch, "publish", "subscribe")
+    return apiCall<LocalStateClient>(ch, "publish", "subscribe")
 }
 

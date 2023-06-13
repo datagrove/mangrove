@@ -194,7 +194,8 @@ export function useSyncPort () {
   return useContext(PathProvider)
 }
 type InputString = string | (()=>string)
-function SyncPath(props: {path: InputString, fallback: JSXElement, children: JSXElement}) {
+
+export function SyncPath(props: {path: InputString, fallback: JSXElement, children: JSXElement}) {
   const prov = useSync()!
 
   //const [myversion, setMyVersion] = createSignal(0)
