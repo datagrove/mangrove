@@ -1,64 +1,65 @@
 
-import { Channel, Service, apiCall } from '../abc/rpc';
+import { Channel, Service, WorkerChannel, apiCall, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 import { DocState, Op, OmPeer as OmPeer } from './om';
+import { LensApi, lensApi } from './simple_sync_shared';
 
 // call back to client with new ops, or new path open.
-export interface BufferClientApi {
-    update(ops: Op[]): void
-}
-export interface BufferApi {
-    update(ops: Op[]): void
-}
-export function bufferApi(ch: Channel): BufferApi {
-    return apiCall(ch, "update")
-}
 
-
-class BufferClient {
+class Cl {
     peer = new OmPeer()
-    constructor(public api: BufferApi) {
+    constructor(public api: LensApi) { }
+}
+class Doc {
+    ds = new DocState()
+    cl = new Set<Cl>()
+    rev = 0
 
+    update (peer: OmPeer, ops: Op<any>[])  {
+        for (var i = 0; i < ops.length; i++) {
+            peer.merge_op(this.ds, ops[i]);
+        }
+        if (this.rev < this.ds.ops.length) {
+            for (let o of this.cl.values()) {
+                o.api.update(this.ds.ops.slice(this.rev))
+            }
+            this.rev = this.ds.ops.length;
+        }
     }
 }
-
 interface ServiceApi {
-    openDoc(path: string): BufferApi
-    
+    open(path: string, mp: MessagePort):void
 }
 
 class PeerServer implements Service {
-    cl = new Map<Channel, BufferClient>();
-    ds = new DocState();
-    rev = 0
+    ds = new Map<string,Doc>();
 
-    connectDoc(ch: Channel): BufferApi {
-        const c = new BufferClient(bufferApi(ch))
-        this.cl.set(ch, c)
-        const r: BufferApi = {
-            update: (ops: Op[]) => {
-                for (var i = 0; i < ops.length; i++) {
-                    c.peer.merge_op(this.ds, ops[i]);
-                }
-                if (this.rev < this.ds.ops.length) {
-                    for (let o of this.cl.values()) {
-                        o.api.update(this.ds.ops.slice(this.rev))
-                    }
-                    this.rev = this.ds.ops.length;
-                }
+    open(path: string, mp: MessagePort) {
+        let doc = this.ds.get(path)
+        if (!doc) {
+            doc = new Doc()
+            this.ds.set(path, doc)
+        }
+        const w =  new WorkerChannel(mp) 
+        const c = new Cl(lensApi(w))      
+        doc.cl.add(c)
+        const r: LensApi = {
+            update: (ops: Op<any>[]) => {
+                doc?.update(c.peer, ops)
+            }
+        }
+        apiListen(w, r)
+    }
+    // one per tab
+    connect(ch: Channel) : ServiceApi{
+        const r : ServiceApi = {
+            open:  (path: string, mp: MessagePort) => {
+                this.open(path, mp)
             }
         }
         return r
-    }
-    // one per tab
-    connect(ch: Channel): ServiceApi {
-        return {
-
-        }
-        return this.connectDoc(ch)
-    }
+    }   
     disconnect(ch: Channel): void {
-        this.cl.delete(ch);
     }
 }
 

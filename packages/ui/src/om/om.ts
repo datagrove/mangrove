@@ -158,29 +158,60 @@ function tree_toy() {
 // {ty: 'ins', ix: 1, ch: 'x', pri: 0}
 // {ty: 'del', ix: 1}
 
-// can we break ties based on the keys themselves? pri is tricky to manage.
-export interface Op {
-	ty: string;
-	ix: number;
-	//pri?: number; // priority is a tiebreaker for ins operations, session id.
-	ch: string;
-	id: number;
+// chunks should be byte arrays, vsdiff from parents.
+
+interface NodeDesc {
+	alg: "text" | "element"
 }
 
 
+// always type and key.
+type Keyed = [string, string, ...any]
+
+// can we break ties based on the keys themselves? pri is tricky to manage.
+export interface Op<T> {
+	ty: 'ins' | 'del' ;
+	key: string   // parent key.
+	ix: number;  // index to insert/delete, 
+	//pri?: number; // priority is a tiebreaker for ins operations, session id.
+	ch: string   // holds key.
+	id: number;  // serial number sessionid:counter
+}
+export interface RegisterOp {
+	ty: 'set';
+	replaces: number[];  // list of op ids that this op replaces.
+	ch: any
+	id: number;
+}
+
+class OmElement {
+	constructor(public type: string){}
+	children? = new DocState<any>()
+	// multi valued register; represent conflicts, potentially register different algorithms.
+	content? = new Map<number, RegisterOp>()
+
+	// we can ignore if this operation is already superceded. possible though?
+	merge(op: RegisterOp) {
+		this.content?.set(op.id, op)
+		for (let r of op.replaces) {
+			this.content?.delete(r)
+		}
+	}
+}
+export class OmState {
+	objo = new Map<string, OmElement>()
+}
 
 // each editor will need a doc state, how do we initialze from database? what ops do we need?
 // can we call for backup if an op hasn't been loaded?
-export class DocState {
+export class DocState<T extends Keyed> {
 	start = 0     // earliest op that we have.
-	ops: Op[];
+	ops: Op<T>[];
 	dels: Tree | null;
-	str: string[];
+	str: T[];
 	points: number[];  // in user-visible string coordinates
 
-
 	constructor() {
-
 		this.ops = [];
 		this.dels = null;
 		this.str = [];
@@ -188,7 +219,7 @@ export class DocState {
 	}
 
 	// different buffers will add ops in different orders.
-	add(op: Op) {
+	add(op: Op<T>) {
 		this.ops.push(op);
 		if (op.ty == 'del') {
 			if (!contains(this.dels, op.ix)) {
@@ -224,24 +255,24 @@ export class OmPeer {
 	rev = 0 //  number;
 	context = new Set<number>();   // this tracks all our peers.
 
-	merge_op(doc_state: DocState, op: Op) {
+	merge_op(doc_state: DocState<any>, op: Op<any>) {
 		// Note: mutating in place is appealing, to avoid allocations.
 		// function transform(op1: Op, op2: Op): Op {
 		// 	if (op2.ty != 'ins') { return op1; }
 		// 	return transform_ins(op1, op2.ix, op2.ch) //, op2.pri ?? 0);
 		// }
 
-		const transform_ins = (op1: Op, ix: number, pri: string): Op => {
+		const transform_ins = (op1: Op<any>, ix: number, pri: string): Op<any> => {
 			if (op1.ty == 'ins') {
 				if (op1.ix < ix || (op1.ix == ix && (op1.ch < pri))) {
 					return op1;
 				}
-				return { ty: op1.ty, ix: op1.ix + 1, ch: op1.ch, id: op1.id };
+				return { key: op1.key, ty: op1.ty, ix: op1.ix + 1, ch: op1.ch, id: op1.id };
 			} else { // op1.ty is del
 				if (op1.ix < ix) {
 					return op1;
 				}
-				return { ty: op1.ty, ix: op1.ix + 1, id: op1.id, ch: "" };
+				return { key: op1.key, ty: op1.ty, ix: op1.ix + 1, id: op1.id, ch: "" };
 			}
 		}
 
