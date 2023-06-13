@@ -42,7 +42,8 @@ function broadcast() {
         rev = docState.ops.length;
     }
 }
-
+// a peer for every client, but one shared docState
+// this transforms on the server as well as the client, not ideal.
 io.on('connection', function(socket){
     var peer = new ot_toy.Peer();
     console.log('client connected');

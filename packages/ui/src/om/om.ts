@@ -167,37 +167,19 @@ export interface Op {
 	id: number;
 }
 
-// Note: mutating in place is appealing, to avoid allocations.
-function transform(op1: Op, op2: Op): Op {
-	if (op2.ty != 'ins') { return op1; }
-	return transform_ins(op1, op2.ix, op2.ch) //, op2.pri ?? 0);
-}
 
-function transform_ins(op1: Op, ix: number, pri: string) : Op{
-	if (op1.ty == 'ins') {
-		if (op1.ix < ix || (op1.ix == ix && (op1.ch  < pri))) {
-			return op1;
-		}
-		return { ty: op1.ty, ix: op1.ix + 1, ch: op1.ch,  id: op1.id };
-	} else { // op1.ty is del
-		if (op1.ix < ix) {
-			return op1;
-		}
-		return { ty: op1.ty, ix: op1.ix + 1, id: op1.id, ch: "" };
-	}
-}
 
+// each editor will need a doc state, how do we initialze from database? what ops do we need?
+// can we call for backup if an op hasn't been loaded?
 export class DocState {
+	start = 0     // earliest op that we have.
 	ops: Op[];
 	dels: Tree | null;
 	str: string[];
 	points: number[];  // in user-visible string coordinates
 
-    rev: number;
-	context: Set<number>;
+
 	constructor() {
-        this.rev = 0;
-		this.context = new Set();
 
 		this.ops = [];
 		this.dels = null;
@@ -205,6 +187,7 @@ export class DocState {
 		this.points = [];  // in user-visible string coordinates
 	}
 
+	// different buffers will add ops in different orders.
 	add(op: Op) {
 		this.ops.push(op);
 		if (op.ty == 'del') {
@@ -219,9 +202,13 @@ export class DocState {
 				}
 			}
 		} else if (op.ty == 'ins') {
+			// widen the delete map
 			this.dels = xi_one(this.dels, op.ix);
+			// convert to the tombstoned index
 			var ix = xi_inv(this.dels, op.ix);
+			//add it to our list
 			this.str = this.str.slice(0, ix).concat([ op.ch!,... this.str.slice(ix)])
+			// update the points
 			for (var i = 0; i < this.points.length; i++) {
 				if (this.points[i] > ix) {
 					this.points[i] += 1;
@@ -229,18 +216,41 @@ export class DocState {
 			}
 		}
 	}
+}
 
-	xform_ix(ix: number) {
-		return xi(this.dels, ix);
-	}
-
-	get_str() {
-		return this.str;
-	}
+import { ConnectablePeer } from '../abc/rpc';
+class PeerServer extends ConnectablePeer {
 
 
-	merge_op( op: Op) {
-        const doc_state = this;
+}
+
+// peer per connection, docstate per key
+	class Peer {
+		rev = 0 //  number;
+		context = new Set<number>();   // this tracks all our peers.
+
+	merge_op(doc_state: DocState, op: Op) {
+		// Note: mutating in place is appealing, to avoid allocations.
+// function transform(op1: Op, op2: Op): Op {
+// 	if (op2.ty != 'ins') { return op1; }
+// 	return transform_ins(op1, op2.ix, op2.ch) //, op2.pri ?? 0);
+// }
+
+		const  transform_ins = (op1: Op, ix: number, pri: string) : Op =>{
+			if (op1.ty == 'ins') {
+				if (op1.ix < ix || (op1.ix == ix && (op1.ch  < pri))) {
+					return op1;
+				}
+				return { ty: op1.ty, ix: op1.ix + 1, ch: op1.ch,  id: op1.id };
+			} else { // op1.ty is del
+				if (op1.ix < ix) {
+					return op1;
+				}
+				return { ty: op1.ty, ix: op1.ix + 1, id: op1.id, ch: "" };
+			}
+		}
+
+
 		var id = op.id;
 		var ops = doc_state.ops;
 		if (this.rev < ops.length && ops[this.rev].id == id) {
@@ -336,7 +346,7 @@ class Listener {
         }
     }
 }
-
+/*
 interface Ordering {
     version: number
     keys: string[]
@@ -376,14 +386,14 @@ class OrderedKeys extends Listener  implements OrderKeeper{
         return [compose(this.log.slice(from)), this.version]
     }
 
-    propose(u: UpdateOrder) : boolean{
-        if (u.version != this.version) {
-            return false
-        }
+    // propose(u: UpdateOrder) : boolean{
+    //     if (u.version != this.version) {
+    //         return false
+    //     }
 
 
-        this.notify()
-        return true
-    }
+    //     this.notify()
+    //     return true
+    // }
 
-}
+}*/
