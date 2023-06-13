@@ -25,6 +25,21 @@ export interface Service {
 }
 
 
+export class Listener {
+    listen = new Set<()=>void>()
+    add(p: ()=>void) {
+      this.listen.add(p)
+    }
+    remove(p: ()=>void) {
+      this.listen.delete(p)
+    }
+    notify() {
+      for (let p of this.listen) {
+        p()
+      }
+    }
+  }
+  
 type Statusfn = (x: string) => void
 type Recv = (x: any) => void
 // maybe make a url that works with all of these?

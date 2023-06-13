@@ -2,9 +2,10 @@ import { Op } from "./om"
 
 
 // shared state.
-export interface ServiceApi {
-    update(ops: Op[]): void
 
+// we have to do something unusual to send a MessagePort?
+export interface ServiceApi {
+    connect(ch: MessagePort, ): void
 }
 
 // receive updates to a sequence

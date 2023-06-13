@@ -1,97 +1,118 @@
-import { JSXElement, createContext, createSignal, useContext } from "solid-js"
+import { Accessor, JSXElement, Show, createContext, createEffect, createSignal, onCleanup, useContext } from "solid-js"
 import SimpleWorker from './simple_worker.ts?sharedworker'
 import { DocState, OmPeer, Op } from "./om"
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
 import { $getNodeByKey, $getRoot, $parseSerializedNode, ElementNode } from "lexical"
-import { WorkerChannel } from "../abc/rpc"
+import { Channel, Listener, WorkerChannel, apiListen } from "../abc/rpc"
 import { BufferApi, bufferApi } from "./simple_worker"
 import { ServiceApi } from "./simple_sync_shared"
+import { on } from "events"
+
+// objective is to share a ordered tree, like xml
+// without specifying the object in the tree
+/*
+  <TabState>  // tab level state, starts shared worker
+  <SyncPath path={ } fallback={loading}> // support suspense
+    <Editor>  // editor level state
+        <Sync>
+    </Editor>
+  </SyncPath>
+  </TabState>
+*/
 
 type InputString = string | (()=>string)
 
- class SyncProviderx {
+export const TabStateContext = createContext<TabStateValue>()
+export function  useSync () { return useContext(TabStateContext) }
+
+
+// all this does is make available the connection to the shared worker.
+export class TabStateValue {
   sw = new SimpleWorker()
-  api: ServiceApi
+
+  open(path: string) : MessagePort {
+    const mc = new MessageChannel()
+    this.sw.port.postMessage({method: "open", params: [mc.port2,path]}, [mc.port2])
+    return mc.port1
+  }
+    
   constructor() {
-     const w = new WorkerChannel(this.sw.port)
-     this.api = bufferApi(w)
+   
   }
 }
 
-export const SyncContext = createContext<SyncProviderx>()
-export function  useSync () { return useContext(SyncContext) }
-
-class Listener {
-  listen = new Set<()=>void>()
-  add(p: ()=>void) {
-    this.listen.add(p)
-  }
-  remove(p: ()=>void) {
-    this.listen.delete(p)
-  }
-  notify() {
-    for (let p of this.listen) {
-      p()
-    }
-  }
+export function TabState(props: { children: JSXElement }) {
+  const u = new TabStateValue()
+  return <TabStateContext.Provider value={u}>
+        {props.children}
+    </TabStateContext.Provider>
 }
 
-class SyncPort {
-  listener = new Listener()
-  version = createSignal(0)
-  constructor(public api: BufferApi){
+
+export const SyncPathContext = createContext<DocBuffer>()
+export function  useSyncPath () { return useContext(SyncPathContext) }
+
+
+
+// loading signal?
+class DocBuffer {
+  ds = new DocState()
+  //listener = new Listener()
+
+  constructor(public key: Accessor<string|undefined>,
+    public version: Accessor<number>) {
 
   }
-
-  // it's not clear we can or want to support multiple editors here, so addListener may be misleading. Potentially other things could listen, but each editor has its own unique node ids, so two editors won't simply work. To support this case create another provider on the same path. The main reason we even have this wrapper is to support suspense.
 }
 
 export function SyncPath(props: {path: InputString, fallback: JSXElement, children: JSXElement}) {
   const prov = useSync()!
+  const [key, setKey] = createSignal<string>()
+  const [ch,setCh] = createSignal<Channel>()
+  const [ver, setVer] = createSignal(0)
 
-  //const [myversion, setMyVersion] = createSignal(0)
-
-  // create a port and connect it using the tabstate.
-
-  apiListen()
-
-  // every time the path changes we need to go back to the loading state.
-  let port: SyncPort
-  const listen = (diff: JsonPatch[]|string, version: number, pm: PositionMapPatch) => {
-    port.version[1](version)
-    for (let p of port.listen) {
-      p(diff, version, pm)
-    }
+  let ds = new DocBuffer(key,ver)
+  const closeKey = () => {
+      ch()?.close()
   }
-  const api = prov.open(listen)
- port = new SyncPort(api)
-
   onCleanup(() => {
-    prov.close(port.api)
+    closeKey()
   })
 
-  const mypath = ""
+  // manage the key
   if (typeof props.path == "string") {
-    port.api.setPath(props.path)
-  } else {
-    createEffect(() =>{
-      const pth = (props.path as ()=>string)()
-      if (pth != mypath) {
-        port.api.setPath((props.path as ()=>string)())
-        port.version[1](0)
-      }     
+    setKey(props.path)
+  } else{
+    createEffect(() => {
+      closeKey()
+      setKey((props.path as ()=>string)())
     })
   }
-  return <PathProvider.Provider value={port}>
-    <Show fallback={props.fallback} when={port.version[0]()!=0}>{props.children}</Show>
-    </PathProvider.Provider>
-}
 
-export function SyncProvider(props: { children: JSXElement }) {
-  const u = new SyncProviderx()
-  return <SyncContext.Provider value={u}>
-        {props.children}
-    </SyncContext.Provider>
+  let oldkey = ""
+  createEffect(() => {
+    // run every time the key changes.
+    // create a new channel and listen to it.
+    if (!key() || key()==oldkey) return
+    oldkey = key()!
+    ds.ds = new DocState()
+    const peer = new OmPeer()
+    const mp = prov.open(key()!)
+    const ch = new WorkerChannel(mp)
+    
+    setCh(ch)
+    apiListen<BufferApi>(ch,{
+      update: function (ops: Op[]): void {
+        for (let o of ops) {
+          peer.merge_op(ds.ds, o)
+        }
+      }
+    })
+  })
+
+  return <SyncPathContext.Provider value={ds}>
+    <Show fallback={props.fallback} when={ver()!=0}>{props.children}</Show>
+    </SyncPathContext.Provider>
 }
 
 class BufferProviderx {
@@ -99,7 +120,7 @@ class BufferProviderx {
    peer = new OmPeer() 
    
    constructor() {
-     const 
+      
    }
 }
 
@@ -115,8 +136,6 @@ export function BufferProvider(props: { children: JSXElement }) {
 
 
 export function SimpleSync() {
-
-
     const b = useBuffer()
     if (!b) return null  // deactivate if not in Sync context
     const [editor] = useLexicalComposerContext()
@@ -124,7 +143,7 @@ export function SimpleSync() {
     const listen = (update: Op[]) => { 
       console.log("update", update)
     }
-    port.addListener(listen)
+    
   
     onMount(async () => {
   
