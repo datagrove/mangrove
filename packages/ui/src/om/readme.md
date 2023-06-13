@@ -11,3 +11,9 @@ local server will transform each op and sequence it in global order.
 
 a shadow writer will retry sending based on locks. It will only send local ops that have "seen" every op in global order.'
 
+rather than keys, why can't we use an index? would it be faster?
+
+delete element would delete all it's children
+
+insert element provides no children.
+

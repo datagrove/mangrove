@@ -160,16 +160,14 @@ function tree_toy() {
 
 // chunks should be byte arrays, vsdiff from parents.
 
-interface NodeDesc {
-	alg: "text" | "element"
-}
+
 
 
 // always type and key.
 type Keyed = [string, string, ...any]
 
 // can we break ties based on the keys themselves? pri is tricky to manage.
-export interface Op<T> {
+export interface Op {
 	ty: 'ins' | 'del' ;
 	key: string   // parent key.
 	ix: number;  // index to insert/delete, 
@@ -185,10 +183,13 @@ export interface RegisterOp {
 }
 
 class OmElement {
-	constructor(public type: string){}
-	children? = new DocState<any>()
+	type: string = ""
+	parent?: OmElement
+	children = new Array<OmElement>()
 	// multi valued register; represent conflicts, potentially register different algorithms.
 	content? = new Map<number, RegisterOp>()
+	
+	height = 1 // sum of heights of children + 1, leaf is height 1
 
 	// we can ignore if this operation is already superceded. possible though?
 	merge(op: RegisterOp) {
@@ -198,28 +199,57 @@ class OmElement {
 		}
 	}
 }
-export class OmState {
-	objo = new Map<string, OmElement>()
+class OmRootElement extends OmElement {
 }
+
 
 // each editor will need a doc state, how do we initialze from database? what ops do we need?
 // can we call for backup if an op hasn't been loaded?
-export class DocState<T extends Keyed> {
+export class DocState {
 	start = 0     // earliest op that we have.
-	ops: Op<T>[];
+	ops: Op[];
 	dels: Tree | null;
-	str: T[];
+	// how do we find the parent and keep it up to date?
+	// keep as children, but walk down to find the index count.
+	// this would be child of the root.
+	root: OmElement = new OmRootElement();  // we need to keep the intervals as well; how? pre/post?
 	points: number[];  // in user-visible string coordinates
 
 	constructor() {
 		this.ops = [];
 		this.dels = null;
-		this.str = [];
 		this.points = [];  // in user-visible string coordinates
 	}
 
+	find(om: OmElement, ix: number) : OmElement {
+		if (ix==0) {
+			return om
+		}
+		let s = 0
+		for (let i = 0; i < om.children.length; i++) {
+			s = s + om.height
+			if (ix <= s) {
+				return this.find(om.children[i], ix - s)
+			}
+		}
+		throw new Error("index out of bounds")
+	}
+
+	insertFirst(ix: number, o: OmElement ) {
+		// update the width of parents to add one.
+		let o = this.find(this.root, ix)
+
+	}
+	insertAfter (ix: number, o: OmElement) {
+		let o = this.find(this.root, ix)
+	}
+	
+	delete(ix: number, len: number) {
+
+	}
+
 	// different buffers will add ops in different orders.
-	add(op: Op<T>) {
+	add(op: Op) {
 		this.ops.push(op);
 		if (op.ty == 'del') {
 			if (!contains(this.dels, op.ix)) {
