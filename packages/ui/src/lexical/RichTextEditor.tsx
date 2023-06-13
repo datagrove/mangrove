@@ -34,7 +34,7 @@ import { SiteDocument, readAll, useDocument, usePage } from "../core";
 import { UNDO_COMMAND, REDO_COMMAND } from 'lexical';
 import { useLexicalComposerContext } from './lexical-solid/LexicalComposerContext';
 import { debounce } from "../core/rpc";
-import { Sync } from "./sync";
+import { Sync } from "../om/sync";
 import { Listener } from "lexical/LexicalEditor";
 
 
