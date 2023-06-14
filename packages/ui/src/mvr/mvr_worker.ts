@@ -42,9 +42,12 @@ export class DocState {
   import(lex: any) {
     for (let [k, v] of Object.entries(lex)) {
       const e = new Mvr()
-      e._el = v
+      e._el = v as DgElement
       this._doc.set(k, e)
     }
+  }
+  constructor() {
+    this.import(sample)
   }
 
   toJson() {
