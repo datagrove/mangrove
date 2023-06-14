@@ -2,7 +2,16 @@ import { GridSelection, LexicalNode, NodeSelection, RangeSelection, SerializedLe
 import { Channel, apiCall } from "../abc/rpc"
 
 
-
+export interface DgElement {
+  id: string
+  v: number // increment each time
+  conflict: string
+  tagName: string
+  class: string
+  parent?: string
+  children: string[]
+  [key: string]: any
+}
 // shared state.
 
 
@@ -22,13 +31,13 @@ export type DgSelection = DgRangeSelection
 
 export type KeyMap = [string, string][]
 export interface LensApi {
-  update(op: Op[], selection: DgSelection) : Promise<KeyMap>
+  update(upd: DgElement[], del: string[], selection: DgSelection|null) : Promise<KeyMap>
 }
 export function lensApi(ch: Channel): LensApi {
     return apiCall(ch, "update")
 }
 export interface LensServerApi {
-  update(ops: (DgElement|string)[], sel: DgSelection): Promise<void>
+  update(upd: DgElement[], del: string[], sel: DgSelection): Promise<void>
   subscribe(key: KeyMap): Promise<void>
   close(): Promise<void>
 }
@@ -36,24 +45,14 @@ export function lensServerApi(ch: Channel): LensServerApi {
   return apiCall(ch, "update", "subscribe","close")
 }
 
-interface Upd {
+export interface Upd {
   op: "upd" | "ins"
   v: DgElement
 }
-interface Del {
+export interface Del {
   op: "del"
   id: string
 }
-
 export type Op = Upd | Del
 
-export interface DgElement {
-  id: string
-  v: number // increment each time
-  conflict: string
-  tagName: string
-  class: string
-  parent?: string
-  children: string[]
-  [key: string]: any
-}
+

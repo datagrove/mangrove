@@ -3,9 +3,10 @@ import { map } from 'zod';
 import { Channel, Service, WorkerChannel, apiCall, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, Op, DgElement, lensApi, LensServerApi, DgRangeSelection, ServiceApi, DgSelection } from './mvr_shared';
+import { LensApi, Op, DgElement, lensApi, LensServerApi, DgRangeSelection, ServiceApi, DgSelection, Upd } from './mvr_shared';
 
 import { sample } from './mvr_test'
+import { SerializedElementNode } from 'lexical';
 
 //export type DgDoc = { [key: string] : DgElement }
 
@@ -53,7 +54,8 @@ export class DocState {
 
 
     merge_remote(op: Rop[]) {
-        let opx: Op[] = []
+        let del: string[] = []
+        let upd: DgElement[] = []
         for (let o of op) {
             let e = this._doc.get(o.id)
             if (!e) {
@@ -78,32 +80,29 @@ export class DocState {
                 // merge
             }
         }
-        this.broadcast(null, opx)
+        this.broadcast(null, del, upd)
     }
-    async broadcast(from: BufferState | null, op: Op[]) {
+    async broadcast(from: BufferState | null, del: string[], upd: DgElement[]) {
+        upd = topologicalSort(upd)
         for (let b of this._buffer) {
             if (b !== from) {
-                for (let o of op) {
-                    if (o.op === "upd" || o.op === "ins") {
-                        o.v.id = b.keyMap.get(o.v.id) || o.v.id
-                    } else if (o.op === "del") {
-                        o.id = b.keyMap.get(o.id) || o.id
-                        b.keyMap.delete(o.id)
-                    }
-                }
-
-                let sel: DgSelection = {
-
-                }
-                const map_update = await b.api.update(op, sel)
-                for (let [gid,lex] of map_update){
-                    b.keyMap.set(lex, gid)
-                    b.revMap.set(gid, lex)
-                }
+                del = del.map(d => b.keyMap.get(d) || d)
+                del.forEach(d => b.revMap.delete(d))
+                upd.forEach(u => {
+                    u.id = b.revMap.get(u.id) || u.id
+                })
+            }
+            const map_update = await b.api.update(upd, del, null)
+            for (let [gid, lex] of map_update) {
+                b.keyMap.set(lex, gid)
+                b.revMap.set(gid, lex)
             }
         }
+
+
     }
 }
+
 
 let next = 0
 class BufferState implements LensServerApi {
@@ -120,31 +119,32 @@ class BufferState implements LensServerApi {
     }
     async update(ops: (string | DgElement)[], sel: DgRangeSelection): Promise<void> {
         // all these elements are coming with a lexical id. If they are inserts we need to give them a global id
-        let op: Op[] = []
+        let del: string[] = []
+        let upd: DgElement[] = []
         for (let o of ops) {
             if (typeof o === "string") {
                 const gid = this.keyMap.get(o)
                 if (gid) {
-                    op.push({ op: "del", id: gid })
+                    del.push(gid)
                     this.keyMap.delete(o)
                     this.revMap.delete(gid)
                 }
             } else {
-                const id = this.keyMap.get(o.id) 
+                const id = this.keyMap.get(o.id)
                 if (id) {
-                    op.push({ op: "upd", v: o })
+                    upd.push(o)
                 } else {
                     const n = `${next++}`
                     this.keyMap.set(o.id, n)
                     this.revMap.set(n, o.id)
-                    op.push({ op: "ins", v: o })
+                    upd.push(o)
                 }
             }
         }
-        this.doc.broadcast(this, op)
+        this.doc.broadcast(this, del, upd)
     }
     // this is like the first update, it gives us all the lex keys for the document
-    async subscribe(key: [string,string][]): Promise<void> {
+    async subscribe(key: [string, string][]): Promise<void> {
         // we shouldn't send updates until we get this call
     }
     async close(): Promise<void> {
@@ -154,23 +154,25 @@ class BufferState implements LensServerApi {
 
 // give every node an id. 
 let _next = 0
-function lexicalToDg(lex: any) : DgElement[] {
-  let dgd : DgElement[] = []
+function lexicalToDg(lex: any): DgElement[] {
+    let dgd: DgElement[] = []
 
-  const copy1 = (root: any) : string => {
-    const key = `${_next++}`
-      for (let [k, v] of Object.entries(lex)) {
-        const a = v as any
+    const copy1 = (a: SerializedElementNode, parent: string): string => {
+        const key = `${_next++}`
+        const id: string[] = []
         if (a.children) {
-          for (k of a.children) {
-            copy1(k)
-          }
+            for (let k of a.children) {
+                id.push(copy1(k as any, key))
+            }
         }
-      }
-      return key
-  }
-  copy1(lex)
-  return dgd
+        dgd.push({
+            ...a,
+            children: id
+        } as any)
+        return key
+    }
+    copy1(lex, "")
+    return dgd
 }
 
 class PeerServer implements Service {
@@ -199,36 +201,31 @@ class PeerServer implements Service {
 createSharedListener(new PeerServer())
 
 
-interface DgElement {
-  id: string;
-  children: string[];
-}
-
 function topologicalSort(elements: DgElement[]): DgElement[] {
-  const visited: { [id: string]: boolean } = {};
-  const sorted: DgElement[] = [];
+    const visited: { [id: string]: boolean } = {};
+    const sorted: DgElement[] = [];
 
-  const visit = (element: DgElement) => {
-    if (visited[element.id]) {
-      return;
+    const visit = (element: DgElement) => {
+        if (visited[element.id]) {
+            return;
+        }
+
+        visited[element.id] = true;
+
+        for (const childId of element.children) {
+            const child = elements.find((e) => e.id === childId);
+
+            if (child) {
+                visit(child);
+            }
+        }
+
+        sorted.push(element);
+    };
+
+    for (const element of elements) {
+        visit(element);
     }
 
-    visited[element.id] = true;
-
-    for (const childId of element.children) {
-      const child = elements.find((e) => e.id === childId);
-
-      if (child) {
-        visit(child);
-      }
-    }
-
-    sorted.push(element);
-  };
-
-  for (const element of elements) {
-    visit(element);
-  }
-
-  return sorted.reverse();
+    return sorted.reverse();
 }

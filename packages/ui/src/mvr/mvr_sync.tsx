@@ -1,11 +1,11 @@
 import { Accessor, JSXElement, Show, createContext, createEffect, createResource, createSignal, onCleanup, onMount, useContext } from "solid-js"
-import SimpleWorker from './simple_worker.ts?sharedworker'
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
 import { $createRangeSelection, $getNodeByKey, $getRoot, $getSelection, $parseSerializedNode, $setSelection, EditorState, ElementNode, GridSelection, LexicalEditor, LexicalNode, NodeKey, NodeSelection, RangeSelection, TextNode } from "lexical"
 import { Channel, Listener, Peer, WorkerChannel, apiListen } from "../abc/rpc"
 import { LensApi, LensServerApi, Op, ServiceApi, lensApi, lensServerApi, serviceApi, DgSelection, KeyMap } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
+import SimpleWorker from './mvr_worker?sharedworker'
 // share an lex document
 /*
   <TabState>  // tab level state, starts shared worker
@@ -31,13 +31,7 @@ export class DocBuffer implements LensApi {
   }
 
   um: [string, string][] = []
-  makeLexicalNode(v: DgElement): LexicalNode | undefined {
-    const nodeInfo = this._editor?._nodes.get(v.class);
-    if (!nodeInfo) {
-      return
-    }
-    let ln = new nodeInfo.klass();
-    this.um.push([v.id, ln.getKey()])
+
     // recursive over children; are we clever enough to not repeat here though?
     // maybe we need a set of visited ids? how do we set lexical parents?
     // how to deal with text nodes? know when to stop?
@@ -45,41 +39,36 @@ export class DocBuffer implements LensApi {
 
     // assumes all children created first. assumes we are creating from scratch, not update.
 
-  }
+ 
    updateProps(v: DgElement, ln: LexicalNode | null) {
-    const nl = this.makeLexicalNode(v)
-    if (!nl) return
-    for (let c of v.children ?? []) {
-      const n = $getNodeByKey(c)
-      if (n) {
-        nl.append(n)
+      const nodeInfo = this._editor?._nodes.get(v.class);
+      if (!nodeInfo) {
+        return
       }
-    }
-    if (ln) {
-      ln.replace(nl)
-    } 
+      let nl = new nodeInfo.klass();
+      if (!nl) return
+      for (let c of v.children ?? []) {
+        const n = $getNodeByKey(c)
+        if (n) {
+          nl.append(n)
+        }
+      }
+      if (ln) {
+        ln.replace(nl)
+      } else {
+        this.um.push([v.id, nl.getKey()])
+      }
   }
   // return the keys for every element created
   // with upd and del the id is already the lex key
   // with ins the id is the mvr key, create the lex key and return the pair.
   // we need to top sort this to make sure children are created before parents?
   // then we need to sync the children and the properties.
-  async update(op: Op[], selection: DgSelection|null): Promise<[string, string][]> {
+  async update(upd: DgElement[], del: string[], selection: DgSelection|null): Promise<[string, string][]> {
     this.um = []
     this._editor?.update(() => {
-      for (let o of op) {
-        switch (o.op) {
-          case "ins":
-            this.updateProps(o.v, null)
-            break;
-          case "upd":
-            this.updateProps(o.v, $getNodeByKey(o.v.id))
-            break;
-          case "del":
-            $getNodeByKey(o.id)?.remove()
-            break;
-        }
-      }
+      del.forEach(d => { $getNodeByKey(d)?.remove() })
+      upd.forEach(u => { this.updateProps(u, $getNodeByKey(u.id)) })
       const sel = $getSelection()
       const selr = $createRangeSelection()
       //$setSelection(null)
@@ -126,12 +115,13 @@ export class DocBuffer implements LensApi {
           return r
         }
         const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
-        let now: (DgElement | string)[] = []
+        let upd: DgElement [] = []
+        let del: string[] = []
         editorState.read(() => {
           for (let k of dirty) {
             const a = fromLexical($getNodeByKey(k))
-            if (a) now.push(a)
-            else now.push(k)
+            if (a) upd.push(a)
+            else del.push(k)
           }
         })
         // let prev: DgElement[] = []
@@ -147,7 +137,7 @@ export class DocBuffer implements LensApi {
         const dgSel: DgSelection = {
 
         }
-        this.api.update(now, dgSel)
+        this.api.update(upd,del, dgSel)
       })
 
   }
