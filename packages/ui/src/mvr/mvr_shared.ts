@@ -1,3 +1,4 @@
+import { GridSelection, NodeSelection, RangeSelection } from "lexical"
 import { Channel, apiCall } from "../abc/rpc"
 
 
@@ -7,22 +8,29 @@ import { Channel, apiCall } from "../abc/rpc"
 
 // we have to do something unusual to send a MessagePort?
 export interface ServiceApi {
-    open(ch: MessagePort,key: string ): Promise<SimpleDoc>
+    open(ch: MessagePort,key: string ): Promise<DgDoc>
     close(ch: MessagePort):void
 }
 export function serviceApi(ch: Channel): ServiceApi {
     return apiCall(ch, "open")
 }
-
+//type LexSelection = null | RangeSelection | NodeSelection | GridSelection
 // receive updates to a sequence
+
+export type DgRangeSelection = {
+
+}
+export type DgSelection = DgRangeSelection
+
 export interface LensApi {
-    update(ops: Op[]): void
+  update(op: Op[], selection: DgSelection) : [string, string][]
 }
 export function lensApi(ch: Channel): LensApi {
     return apiCall(ch, "update")
 }
 export interface LensServerApi {
-  update(ops: Op[]): void
+  update(ops: (DgElement|string)[], sel: DgSelection): void
+  subscribe(): void
   close(): void
 }
 export function lensServerApi(ch: Channel): LensServerApi {
@@ -31,7 +39,7 @@ export function lensServerApi(ch: Channel): LensServerApi {
 
 interface Upd {
   op: "upd" | "ins"
-  v: SimpleElement
+  v: DgElement
 }
 interface Del {
   op: "del"
@@ -40,18 +48,17 @@ interface Del {
 
 export type Op = Upd | Del
 
-
-
-export interface SimpleElement {
+export interface DgElement {
   id: string
   v: number // increment each time
   conflict: string
   tagName: string
   class: string
+  parent?: string
   children: string[]
   [key: string]: any
 }
-export type SimpleDoc = { [key: string] : SimpleElement }
+export type DgDoc = { [key: string] : DgElement }
 
 
 

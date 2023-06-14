@@ -2,7 +2,7 @@
 import { Channel, Service, WorkerChannel, apiCall, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, Op, SimpleElement, lensApi } from './mvr_shared';
+import { LensApi, Op, DgElement, lensApi } from './mvr_shared';
 interface MvrProposal {
     tagName: string
     children: string[]  // swizzle to _children: MvrProposal[]?
@@ -20,7 +20,7 @@ type Rop = {
     dv: number  // device
     rm: number[] // pairs of numbers.
     rv: number[]
-    v?: SimpleElement
+    v?: DgElement
   }
 class Mvr {
     _proposal = new Map<number, MvrProposal>()
