@@ -7,7 +7,7 @@ import { Channel, apiCall } from "../abc/rpc"
 
 
 export interface ServiceApi {
-    open(ch: MessagePort,key: string ): Promise<DgDoc>
+    open(ch: MessagePort,key: string ): Promise<DgElement[]>
 }
 export function serviceApi(ch: Channel): ServiceApi {
     return apiCall(ch, "open")
@@ -56,28 +56,4 @@ export interface DgElement {
   parent?: string
   children: string[]
   [key: string]: any
-}
-export type DgDoc = { [key: string] : DgElement }
-
-
-
-// give every node an id. 
-let _next = 0
-export function lexicalToDg(lex: any) : DgDoc {
-  let dgd : DgDoc = {}
-
-  const copy1 = (root: any) : string => {
-    const key = `${_next++}`
-      for (let [k, v] of Object.entries(lex)) {
-        const a = v as any
-        if (a.children) {
-          for (k of a.children) {
-            copy1(k)
-          }
-        }
-      }
-      return key
-  }
-  copy1(lex)
-  return dgd
 }

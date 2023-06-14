@@ -3,9 +3,14 @@ import { map } from 'zod';
 import { Channel, Service, WorkerChannel, apiCall, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, Op, DgElement, lensApi, LensServerApi, DgRangeSelection, ServiceApi, DgDoc, lexicalToDg, DgSelection } from './mvr_shared';
+import { LensApi, Op, DgElement, lensApi, LensServerApi, DgRangeSelection, ServiceApi, DgSelection } from './mvr_shared';
 
 import { sample } from './mvr_test'
+
+//export type DgDoc = { [key: string] : DgElement }
+
+
+
 
 interface MvrProposal {
     tagName: string
@@ -46,13 +51,7 @@ export class DocState {
         lexicalToDg(sample)
     }
 
-    toJson() {
-        const r: DgDoc = {}
-        for (let [k, v] of this._doc) {
-            r[k] = v._el
-        }
-        return r
-    }
+
     merge_remote(op: Rop[]) {
         let opx: Op[] = []
         for (let o of op) {
@@ -153,7 +152,26 @@ class BufferState implements LensServerApi {
     }
 }
 
+// give every node an id. 
+let _next = 0
+function lexicalToDg(lex: any) : DgElement[] {
+  let dgd : DgElement[] = []
 
+  const copy1 = (root: any) : string => {
+    const key = `${_next++}`
+      for (let [k, v] of Object.entries(lex)) {
+        const a = v as any
+        if (a.children) {
+          for (k of a.children) {
+            copy1(k)
+          }
+        }
+      }
+      return key
+  }
+  copy1(lex)
+  return dgd
+}
 
 class PeerServer implements Service {
     ds = new Map<string, DocState>();
@@ -161,14 +179,14 @@ class PeerServer implements Service {
     // one per tab
     connect(ch: Channel): ServiceApi {
         const r: ServiceApi = {
-            open: async (mp: MessagePort, path: string): Promise<DgDoc> => {
+            open: async (mp: MessagePort, path: string): Promise<DgElement[]> => {
                 let doc = this.ds.get(path)
                 if (!doc) {
                     doc = new DocState()
                     this.ds.set(path, doc)
                 }
                 new BufferState(this, mp, doc)
-                return doc.toJson()
+                return []
             },
         }
         return r
@@ -181,3 +199,36 @@ class PeerServer implements Service {
 createSharedListener(new PeerServer())
 
 
+interface DgElement {
+  id: string;
+  children: string[];
+}
+
+function topologicalSort(elements: DgElement[]): DgElement[] {
+  const visited: { [id: string]: boolean } = {};
+  const sorted: DgElement[] = [];
+
+  const visit = (element: DgElement) => {
+    if (visited[element.id]) {
+      return;
+    }
+
+    visited[element.id] = true;
+
+    for (const childId of element.children) {
+      const child = elements.find((e) => e.id === childId);
+
+      if (child) {
+        visit(child);
+      }
+    }
+
+    sorted.push(element);
+  };
+
+  for (const element of elements) {
+    visit(element);
+  }
+
+  return sorted.reverse();
+}
