@@ -1,4 +1,4 @@
-import { GridSelection, NodeSelection, RangeSelection } from "lexical"
+import { GridSelection, LexicalNode, NodeSelection, RangeSelection, SerializedLexicalNode } from "lexical"
 import { Channel, apiCall } from "../abc/rpc"
 
 
@@ -20,19 +20,20 @@ export type DgRangeSelection = {
 }
 export type DgSelection = DgRangeSelection
 
+export type KeyMap = [string, string][]
 export interface LensApi {
-  update(op: Op[], selection: DgSelection) : [string, string][]
+  update(op: Op[], selection: DgSelection) : Promise<KeyMap>
 }
 export function lensApi(ch: Channel): LensApi {
     return apiCall(ch, "update")
 }
 export interface LensServerApi {
-  update(ops: (DgElement|string)[], sel: DgSelection): void
-  subscribe(): void
-  close(): void
+  update(ops: (DgElement|string)[], sel: DgSelection): Promise<void>
+  subscribe(key: KeyMap): Promise<void>
+  close(): Promise<void>
 }
 export function lensServerApi(ch: Channel): LensServerApi {
-  return apiCall(ch, "update", "close")
+  return apiCall(ch, "update", "subscribe","close")
 }
 
 interface Upd {
@@ -60,4 +61,23 @@ export type DgDoc = { [key: string] : DgElement }
 
 
 
+// give every node an id. 
+let _next = 0
+export function lexicalToDg(lex: any) : DgDoc {
+  let dgd : DgDoc = {}
 
+  const copy1 = (root: any) : string => {
+    const key = `${_next++}`
+      for (let [k, v] of Object.entries(lex)) {
+        const a = v as any
+        if (a.children) {
+          for (k of a.children) {
+            copy1(k)
+          }
+        }
+      }
+      return key
+  }
+  copy1(lex)
+  return dgd
+}

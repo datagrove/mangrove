@@ -3,7 +3,7 @@ import SimpleWorker from './simple_worker.ts?sharedworker'
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
 import { $createRangeSelection, $getNodeByKey, $getRoot, $getSelection, $parseSerializedNode, $setSelection, EditorState, ElementNode, GridSelection, LexicalEditor, LexicalNode, NodeKey, NodeSelection, RangeSelection, TextNode } from "lexical"
 import { Channel, Listener, Peer, WorkerChannel, apiListen } from "../abc/rpc"
-import { LensApi, LensServerApi, Op, ServiceApi, DgDoc, lensApi, lensServerApi, serviceApi, DgSelection } from "./mvr_shared"
+import { LensApi, LensServerApi, Op, ServiceApi, DgDoc, lensApi, lensServerApi, serviceApi, DgSelection, KeyMap } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
 // share an lex document
@@ -30,29 +30,34 @@ export class DocBuffer implements LensApi {
     this._id = id
   }
 
-
-  // return the keys for every element created
-      // with upd and del the id is already the lex key
-    // with ins the id is the mvr key, create the lex key and return the pair.
- update(op: Op[], selection: DgSelection) : [string, string][] {
-    let um: [string, string][] = []
-
-    const ins = (v: DgElement) => {
-      const nodeInfo = this._editor?._nodes.get(v.class);
-      if (!nodeInfo) {
-        return
-      }
-
-      let ln = new nodeInfo.klass();
-      um.push([v.id, ln.getKey()])
-      // recursive over children.
+  um: [string, string][] = []
+  makeLexicalNode(v: DgElement): LexicalNode | undefined {
+    const nodeInfo = this._editor?._nodes.get(v.class);
+    if (!nodeInfo) {
+      return
     }
+
+    let ln = new nodeInfo.klass();
+    this.um.push([v.id, ln.getKey()])
+    // recursive over children; are we clever enough to not repeat here though?
+    // maybe we need a set of visited ids? how do we set lexical parents?
+    // how to deal with text nodes? know when to stop?
+    // coming from the server all the children are strings, not nodes.
+   
+    // assumes all children created first. assumes we are creating from scratch, not update.
+
+  }
+  // return the keys for every element created
+  // with upd and del the id is already the lex key
+  // with ins the id is the mvr key, create the lex key and return the pair.
+  async update(op: Op[], selection: DgSelection): Promise<[string, string][]> {
+    this.um = []
 
     this._editor?.update(() => {
       for (let o of op) {
         switch (o.op) {
           case "ins":
-            ins(o.v)
+            this.makeLexicalNode(o.v)
             break;
           case "upd":
             $getNodeByKey(o.v.id)
@@ -64,21 +69,34 @@ export class DocBuffer implements LensApi {
 
       }
       const sel = $getSelection()
-      const selr = $createRangeSelection() 
+      const selr = $createRangeSelection()
       //$setSelection(null)
     })
-    return um
-}
+    return this.um
+  }
+
 
   subscribe(editor: LexicalEditor) {
     this._editor = editor
-    this.api.subscribe()
+    // build the document and return the keymap
+    // _id was already retrieved by open.
+    this.um = []
+    const iter = (v: DgElement) => {
+      let ln : LexicalNode = this.makeLexicalNode(v)!
+      for (let c of v.children ?? []) {
+        ln?.append(this._id[v.id])
+      }
+    }
+    iter(this._id[""])
+
+    this.api.subscribe(this.um)
+
     editor.registerUpdateListener(
       ({ editorState, dirtyElements, dirtyLeaves, prevEditorState }) => {
 
         const fromLexical = (a: LexicalNode | null): DgElement | null => {
           if (!a) return a
-          const en = a instanceof ElementNode? a as ElementNode : null
+          const en = a instanceof ElementNode ? a as ElementNode : null
           const r: DgElement = {
             id: a.getKey(),
             parent: a.getParent()?.getKey(),
@@ -86,7 +104,7 @@ export class DocBuffer implements LensApi {
             conflict: "",
             tagName: a.getType(),
             class: "",
-            children: en?.getChildrenKeys()??[] ,
+            children: en?.getChildrenKeys() ?? [],
           }
 
           if (a instanceof TextNode) {
@@ -98,7 +116,7 @@ export class DocBuffer implements LensApi {
           return r
         }
         const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
-        let now: (DgElement|string)[] = []
+        let now: (DgElement | string)[] = []
         editorState.read(() => {
           for (let k of dirty) {
             const a = fromLexical($getNodeByKey(k))
@@ -119,7 +137,7 @@ export class DocBuffer implements LensApi {
         const dgSel: DgSelection = {
 
         }
-        this.api.update( now, dgSel)
+        this.api.update(now, dgSel)
       })
 
   }

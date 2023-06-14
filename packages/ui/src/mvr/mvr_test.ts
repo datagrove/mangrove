@@ -1,6 +1,7 @@
+import { SerializedElementNode, SerializedLexicalNode } from "lexical";
+
 // note no keys at all, if we add keys will they be preserved?
-export const sample = {
-  root: {
+export const sample : any= {
     children: [
       {
         children: [
@@ -392,5 +393,5 @@ export const sample = {
     indent: 0,
     type: "root",
     version: 1,
-  },
-};
+  }
+
