@@ -26,15 +26,15 @@ export interface Service {
 
 
 export class Listener {
-    listen = new Set<()=>void>()
+    _listen = new Set<()=>void>()
     add(p: ()=>void) {
-      this.listen.add(p)
+      this._listen.add(p)
     }
     remove(p: ()=>void) {
-      this.listen.delete(p)
+      this._listen.delete(p)
     }
     notify() {
-      for (let p of this.listen) {
+      for (let p of this._listen) {
         p()
       }
     }
@@ -140,10 +140,15 @@ export class Peer<T> {
         })
     }
 
-    async rpc<T>(method: string, params?: any): Promise<T> {
+    async rpc<T>(method: string, params?: any, transfer?: any[]): Promise<T> {
         console.log("send", method, params)
         const id = this.nextId++
-        this.ch?.postMessage(structuredClone({ method, params, id: id }))
+        if (transfer) {
+            const w = this.ch as WorkerChannel
+            w.port.postMessage(structuredClone({ method, params, id: id }), transfer)
+        } else {
+            this.ch?.postMessage(structuredClone({ method, params, id: id }))
+        }
         return new Promise<T>((resolve, reject) => {
             this.reply_.set(id, [resolve, reject])
         })

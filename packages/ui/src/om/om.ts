@@ -168,7 +168,7 @@ type Keyed = [string, string, ...any]
 
 // can we break ties based on the keys themselves? pri is tricky to manage.
 export interface Op {
-	ty: 'ins' | 'del' ;
+	ty: 'ins' | 'del'  ;
 	key: string   // parent key.
 	ix: number;  // index to insert/delete, 
 	//pri?: number; // priority is a tiebreaker for ins operations, session id.
@@ -176,16 +176,22 @@ export interface Op {
 	id: number;  // serial number sessionid:counter
 }
 export interface RegisterOp {
-	ty: 'set';
+	ty: 'upd';
 	replaces: number[];  // list of op ids that this op replaces.
 	ch: any
 	id: number;
 }
+export type Opx =  Op | RegisterOp
 
+// one element takes up at least 2 slots: head, tail
+// how do you find the head of a deleted node? If the head is deleted, then operation can be skipped.
+// but if the head is ok, we would insert the element anyway.
 class OmElement {
 	type: string = ""
 	parent?: OmElement
-	children = new Array<OmElement>()
+	ds = new DocState() // and children
+	tombstones = 0
+
 	// multi valued register; represent conflicts, potentially register different algorithms.
 	content? = new Map<number, RegisterOp>()
 	
@@ -201,46 +207,36 @@ class OmElement {
 }
 class OmRootElement extends OmElement {
 }
+export type OmStateJson = { [key: string]: OmElement }
 
+export class OmState {
+	constructor( public id: OmStateJson = {} ){
 
-// each editor will need a doc state, how do we initialze from database? what ops do we need?
-// can we call for backup if an op hasn't been loaded?
-export class DocState {
-	start = 0     // earliest op that we have.
-	ops: Op[];
-	dels: Tree | null;
-	// how do we find the parent and keep it up to date?
-	// keep as children, but walk down to find the index count.
-	// this would be child of the root.
-	root: OmElement = new OmRootElement();  // we need to keep the intervals as well; how? pre/post?
-	points: number[];  // in user-visible string coordinates
-
-	constructor() {
-		this.ops = [];
-		this.dels = null;
-		this.points = [];  // in user-visible string coordinates
 	}
+	root = new OmRootElement()
 
-	find(om: OmElement, ix: number) : OmElement {
+	points: number[] = [];  // in user-visible string coordinates
+
+	find(om: OmElement, ix: number) : OmElement|undefined {
 		if (ix==0) {
 			return om
 		}
 		let s = 0
-		for (let i = 0; i < om.children.length; i++) {
+		for (let i = 0; i < om.ds.children.length; i++) {
 			s = s + om.height
 			if (ix <= s) {
-				return this.find(om.children[i], ix - s)
+				return this.find(om.ds.children[i], ix - s)
 			}
 		}
 		throw new Error("index out of bounds")
 	}
 
-	insertFirst(ix: number, o: OmElement ) {
+	insertFirst(ix: number, om: OmElement ) {
 		// update the width of parents to add one.
 		let o = this.find(this.root, ix)
 
 	}
-	insertAfter (ix: number, o: OmElement) {
+	insertAfter (ix: number, om: OmElement) {
 		let o = this.find(this.root, ix)
 	}
 	
@@ -248,17 +244,30 @@ export class DocState {
 
 	}
 
+}
+
+// each editor will need a doc state, how do we initialze from database? what ops do we need?
+// can we call for backup if an op hasn't been loaded?
+export class DocState {
+	start = 0     // earliest op that we have.
+	ops: Op[]=[];
+	dels: Tree | null = null;
+	// how do we find the parent and keep it up to date?
+	// keep as children, but walk down to find the index count.
+	// this would be child of the root.
+	children: OmElement[] = []
+
 	// different buffers will add ops in different orders.
-	add(op: Op) {
+	add(op: Op, points: number[], om: OmState) {
 		this.ops.push(op);
 		if (op.ty == 'del') {
 			if (!contains(this.dels, op.ix)) {
 				var ix = xi_inv(this.dels, op.ix);
 				this.dels = union_one(this.dels, op.ix);
-				this.str = this.str.slice(0, ix).concat(this.str.slice(ix + 1))
-				for (var i = 0; i < this.points.length; i++) {
-					if (this.points[i] > ix) {
-						this.points[i] -= 1;
+				this.children = this.children.slice(0, ix).concat(this.children.slice(ix + 1))
+				for (var i = 0; i < points.length; i++) {
+					if (points[i] > ix) {
+						points[i] -= 1;
 					}
 				}
 			}
@@ -268,11 +277,12 @@ export class DocState {
 			// convert to the tombstoned index
 			var ix = xi_inv(this.dels, op.ix);
 			//add it to our list
-			this.str = this.str.slice(0, ix).concat([op.ch!, ... this.str.slice(ix)])
+			const el = om.id[op.ch]
+			this.children = this.children.slice(0, ix).concat([el!, ... this.children.slice(ix)])
 			// update the points
-			for (var i = 0; i < this.points.length; i++) {
-				if (this.points[i] > ix) {
-					this.points[i] += 1;
+			for (var i = 0; i < points.length; i++) {
+				if (points[i] > ix) {
+					points[i] += 1;
 				}
 			}
 		}
@@ -283,16 +293,24 @@ export class DocState {
 // peer per connection, docstate per key
 export class OmPeer {
 	rev = 0 //  number;
+	// overkill because this context set mostly varies by one value, the sender. Every other position is controlled by the broadcast
 	context = new Set<number>();   // this tracks all our peers.
+	
 
-	merge_op(doc_state: DocState<any>, op: Op<any>) {
+	// we need to create the lexical elements when creating the om element, in a batch though.
+	// 
+	merge_op(om: OmState, op: Op) {
 		// Note: mutating in place is appealing, to avoid allocations.
 		// function transform(op1: Op, op2: Op): Op {
 		// 	if (op2.ty != 'ins') { return op1; }
 		// 	return transform_ins(op1, op2.ix, op2.ch) //, op2.pri ?? 0);
 		// }
-
-		const transform_ins = (op1: Op<any>, ix: number, pri: string): Op<any> => {
+		let objo = om.id[op.key]
+		if (!objo) {
+		  objo = new OmElement()
+		  om.id[op.key] =  objo
+		}
+		const transform_ins = (op1: Op, ix: number, pri: string): Op => {
 			if (op1.ty == 'ins') {
 				if (op1.ix < ix || (op1.ix == ix && (op1.ch < pri))) {
 					return op1;
@@ -308,6 +326,10 @@ export class OmPeer {
 
 
 		var id = op.id;
+		const doc_state = om.id[op.key]?.ds
+		if (!doc_state) {
+			return
+		}
 		var ops = doc_state.ops;
 		if (this.rev < ops.length && ops[this.rev].id == id) {
 			// we already have this, roll rev forward
@@ -344,7 +366,7 @@ export class OmPeer {
 			op = transform_ins(op, ins_list[i][0], ins_list[i][1]);
 		}
 		var current = (this.rev == ops.length);
-		doc_state.add(op);
+		doc_state.add(op,[],om);
 		if (current) {
 			this.rev++;
 		} else {
