@@ -9,9 +9,11 @@ export function createSharedListener<T>(peer: Service) {
         const a:any = peer.connect(ch)
 
         port.addEventListener("message", async (e: MessageEvent) => {
+            console.log("worker got", e.data)
             const x: Rpc<any> = e.data
             const fn = a[x.method]
             if (!fn) {
+                console.log("unknown method", x.method)
                 port.postMessage({
                     id: x.id,
                     error: "unknown " + x.method
@@ -19,11 +21,13 @@ export function createSharedListener<T>(peer: Service) {
             } else {
                 try {
                     const a = await fn(x.params)
+                    console.log("worker reply", a)
                     port.postMessage({
                         id: x.id,
                         result: a
                     })                    
                 }catch(e: any){
+                    console.log("error", e)
                     port.postMessage({
                         id: x.id,
                         error: e.toString()

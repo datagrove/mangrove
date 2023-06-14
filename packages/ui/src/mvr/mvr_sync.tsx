@@ -5,7 +5,7 @@ import { Channel, Listener, Peer, WorkerChannel, apiListen } from "../abc/rpc"
 import { LensApi, LensServerApi, Op, ServiceApi, lensApi, lensServerApi, serviceApi, DgSelection, KeyMap } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
-import SimpleWorker from './mvr_worker?sharedworker'
+import LocalState from './mvr_worker?sharedworker'
 // share an lex document
 /*
   <TabState>  // tab level state, starts shared worker
@@ -156,7 +156,7 @@ export function useSync() { return useContext(TabStateContext) }
 // all this does is make available the connection to the shared worker.
 
 export class TabStateValue {
-  sw = new SimpleWorker()
+  sw = new LocalState()
   api: Peer<ServiceApi>
 
   constructor() {

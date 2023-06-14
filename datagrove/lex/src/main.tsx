@@ -6,23 +6,16 @@ import { render } from "solid-js/web"
 import { SyncPath, TabState } from "../../../packages/ui/src/mvr"
 
 // experiment with lexical 
-export function DoubleEditor() {
-	// normally there is one tabstate context
-	// here we want three for testing.
 
-	// simulate two tabs with two panes.
-
-	return <><TabState>  // tab level state, starts shared worker
-		<SyncPath path={"sample"} fallback={<div>Loading...</div>}>
-			<RichTextEditor />  // editor level state
-		</SyncPath>
-		<SyncPath path={"sample"} fallback={<div>Loading...</div>}>
-			<RichTextEditor />  // editor level state
-		</SyncPath>
-	</TabState>
-	</>
-}
 export function App() {
-	return <DoubleEditor />
+	return <><TabState> 
+	<SyncPath path={"sample"} fallback={<div>Loading...</div>}>
+		<RichTextEditor /> 
+	</SyncPath>
+	<SyncPath path={"sample"} fallback={<div>Loading...</div>}>
+		<RichTextEditor /> 
+	</SyncPath>
+</TabState>
+</>
 }
 render(() => (<Router><App /></Router>), document.getElementById("app")!)

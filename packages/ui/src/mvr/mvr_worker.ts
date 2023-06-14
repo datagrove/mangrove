@@ -180,8 +180,10 @@ class PeerServer implements Service {
 
     // one per tab
     connect(ch: Channel): ServiceApi {
+        console.log("worker connected")
         const r: ServiceApi = {
             open: async (mp: MessagePort, path: string): Promise<DgElement[]> => {
+                console.log("worker open", path)
                 let doc = this.ds.get(path)
                 if (!doc) {
                     doc = new DocState()
@@ -229,3 +231,5 @@ function topologicalSort(elements: DgElement[]): DgElement[] {
 
     return sorted.reverse();
 }
+
+console.log("worker started")

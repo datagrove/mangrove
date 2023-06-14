@@ -141,10 +141,11 @@ export class Peer<T> {
     }
 
     async rpc<T>(method: string, params?: any, transfer?: any[]): Promise<T> {
-        console.log("send", method, params)
+        console.log("send", method, params, transfer)
         const id = this.nextId++
         if (transfer) {
             const w = this.ch as WorkerChannel
+            console.log("transfer", transfer)
             w.port.postMessage(structuredClone({ method, params, id: id }), transfer)
         } else {
             this.ch?.postMessage(structuredClone({ method, params, id: id }))
