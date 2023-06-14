@@ -1,10 +1,68 @@
 
 import { Channel, Service, WorkerChannel, apiCall, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
-import { DocState, Op, OmPeer as OmPeer, OmState } from './om';
-import { LensApi, lensApi } from './simple_sync_shared';
 
+import { LensApi, Op, SimpleElement, lensApi } from './mvr_shared';
+interface MvrProposal {
+    tagName: string
+    children: string[]  // swizzle to _children: MvrProposal[]?
+    [key: string]: any
+  }
+  
+  export interface Mvrdoc {
+    [key: string]: Mvr
+  }
+  // locally it's just lww, no merging. buffers send exact ops to the shared worker, the 
 // call back to client with new ops, or new path open.
+type Rop = {
+    pk: string
+    id: string
+    dv: number  // device
+    rm: number[] // pairs of numbers.
+    rv: number[]
+    v?: SimpleElement
+  }
+class Mvr {
+    _proposal = new Map<number, MvrProposal>()
+ }
+export class DocState {
+  doc = new Map<string, Mvr >()
+
+  update( ){
+
+  }
+
+  merge_remote(op: Rop[]){
+    for (let o of op) {
+      let e = this.doc.get(o.id)
+      if (!e) {
+        e = new Mvr()
+        this.doc.set(o.id,e)
+      }
+      if (o.v)  {
+        e._proposal.set(o.dv, o.v)
+      }
+       
+      for (let i= 0; i< o.rv.length; i++) {
+        const p = e._proposal.get(o.rm[i])
+        if (p && p.v <= o.rv[i]) {
+          e._proposal.delete(o.rm[i])
+        }
+      }
+      if (e._proposal.size === 0) {
+        this.doc.delete(o.id)
+      }
+      else if (e._proposal.size === 1) {
+      } else if (e._proposal.size > 1) {
+        // merge
+      }
+    }
+  }
+
+  merge_local(op: Op[]){
+
+  }
+}
 
 class Cl {
     peer = new OmPeer()
