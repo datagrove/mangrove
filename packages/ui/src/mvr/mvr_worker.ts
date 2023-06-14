@@ -2,7 +2,10 @@
 import { Channel, Service, WorkerChannel, apiCall, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, Op, DgElement, lensApi } from './mvr_shared';
+import { LensApi, Op, DgElement, lensApi, LensServerApi, DgRangeSelection, ServiceApi, DgDoc } from './mvr_shared';
+
+import { sample } from './mvr_test'
+
 interface MvrProposal {
     tagName: string
     children: string[]  // swizzle to _children: MvrProposal[]?
@@ -24,20 +27,39 @@ type Rop = {
   }
 class Mvr {
     _proposal = new Map<number, MvrProposal>()
+    _el : DgElement = {
+        id: '',
+        v: 0,
+        conflict: '',
+        tagName: '',
+        class: '',
+        children: []
+    }
  }
 export class DocState {
-  doc = new Map<string, Mvr >()
+  _doc = new Map<string, Mvr >()
 
-  update( ){
-
+  import(lex: any) {
+    for (let [k, v] of Object.entries(lex)) {
+      const e = new Mvr()
+      e._el = v
+      this._doc.set(k, e)
+    }
   }
 
+  toJson() {
+    const r: DgDoc = {}
+    for (let [k, v] of this._doc) {
+      r[k] = v._el
+    }
+    return r
+  }
   merge_remote(op: Rop[]){
     for (let o of op) {
-      let e = this.doc.get(o.id)
+      let e = this._doc.get(o.id)
       if (!e) {
         e = new Mvr()
-        this.doc.set(o.id,e)
+        this._doc.set(o.id,e)
       }
       if (o.v)  {
         e._proposal.set(o.dv, o.v)
@@ -50,7 +72,7 @@ export class DocState {
         }
       }
       if (e._proposal.size === 0) {
-        this.doc.delete(o.id)
+        this._doc.delete(o.id)
       }
       else if (e._proposal.size === 1) {
       } else if (e._proposal.size > 1) {
@@ -64,62 +86,49 @@ export class DocState {
   }
 }
 
-class Cl {
-    peer = new OmPeer()
-    constructor(public api: LensApi) { }
-}
-class Doc {
-    ds = new OmState({})
-    cl = new Set<Cl>()
-    rev = 0
-
-    update (peer: OmPeer, ops: Op[])  {
-        for (var i = 0; i < ops.length; i++) {
-            peer.merge_op(this.ds, ops[i]);
-        }
-        // I think this may be a filter, so we don't send all the messages; still needed though?
-        if (this.rev < this.ds.ops.length) {
-            for (let o of this.cl.values()) {
-                o.api.update(this.ds.ops.slice(this.rev))
-            }
-            this.rev = this.ds.ops.length;
-        }
+class BufferState implements LensServerApi {
+    api: LensApi
+    constructor(public ps: PeerServer, mp: MessagePort){
+        const w =  new WorkerChannel(mp) 
+        this.api  = lensApi(w)
+        apiListen<LensServerApi>(w, this)
+    }
+    update (ops: (string | DgElement)[], sel: DgRangeSelection): void {
+        throw new Error('Function not implemented.');
+    }
+    subscribe (): void {
+        throw new Error('Function not implemented.');
+    }
+    close (): void {
+        throw new Error('Function not implemented.');
     }
 }
-interface ServiceApi {
-    open(path: string, mp: MessagePort):void
-}
+
+
 
 class PeerServer implements Service {
-    ds = new Map<string,Doc>();
+    ds = new Map<string,DocState>();
 
-    open(path: string, mp: MessagePort) {
-        let doc = this.ds.get(path)
-        if (!doc) {
-            doc = new Doc()
-            this.ds.set(path, doc)
-        }
-        const w =  new WorkerChannel(mp) 
-        const c = new Cl(lensApi(w))      
-        doc.cl.add(c)
-        const r: LensApi = {
-            update: (ops: Op[]) => {
-                doc?.update(c.peer, ops)
-            }
-        }
-        apiListen(w, r)
-    }
     // one per tab
     connect(ch: Channel) : ServiceApi{
         const r : ServiceApi = {
-            open:  (path: string, mp: MessagePort) => {
-                this.open(path, mp)
-            }
+            open:  async (mp: MessagePort, path: string): Promise<DgDoc> =>{
+                let doc = this.ds.get(path)
+                if (!doc) {
+                    doc = new DocState()
+                    this.ds.set(path, doc)
+                }
+                new BufferState(this, mp)    
+                return doc.toJson()           
+            },
         }
         return r
     }   
     disconnect(ch: Channel): void {
+        // not used, workers don't have disconnect (sockets do, thus the api)
     }
 }
 
 createSharedListener(new PeerServer())
+
+

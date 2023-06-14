@@ -1,7 +1,7 @@
 import { Accessor, JSXElement, Show, createContext, createEffect, createResource, createSignal, onCleanup, onMount, useContext } from "solid-js"
 import SimpleWorker from './simple_worker.ts?sharedworker'
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
-import { $getNodeByKey, $getRoot, $getSelection, $parseSerializedNode, $setSelection, EditorState, ElementNode, GridSelection, LexicalEditor, LexicalNode, NodeKey, NodeSelection, RangeSelection, TextNode } from "lexical"
+import { $createRangeSelection, $getNodeByKey, $getRoot, $getSelection, $parseSerializedNode, $setSelection, EditorState, ElementNode, GridSelection, LexicalEditor, LexicalNode, NodeKey, NodeSelection, RangeSelection, TextNode } from "lexical"
 import { Channel, Listener, Peer, WorkerChannel, apiListen } from "../abc/rpc"
 import { LensApi, LensServerApi, Op, ServiceApi, DgDoc, lensApi, lensServerApi, serviceApi, DgSelection } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
@@ -63,7 +63,9 @@ export class DocBuffer implements LensApi {
         }
 
       }
-      $setSelection(selection)
+      const sel = $getSelection()
+      const selr = $createRangeSelection() 
+      //$setSelection(null)
     })
     return um
 }
@@ -95,12 +97,8 @@ export class DocBuffer implements LensApi {
           }
           return r
         }
-
-        const sel = $getSelection()
         const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
-
         let now: (DgElement|string)[] = []
-      
         editorState.read(() => {
           for (let k of dirty) {
             const a = fromLexical($getNodeByKey(k))
@@ -117,8 +115,11 @@ export class DocBuffer implements LensApi {
         // })
 
         // to convert to ops we need to determine the node's parent 
+        const sel = $getSelection()
+        const dgSel: DgSelection = {
 
-        this.api.update( now, sel)
+        }
+        this.api.update( now, dgSel)
       })
 
   }

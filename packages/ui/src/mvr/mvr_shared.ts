@@ -6,10 +6,8 @@ import { Channel, apiCall } from "../abc/rpc"
 // shared state.
 
 
-// we have to do something unusual to send a MessagePort?
 export interface ServiceApi {
     open(ch: MessagePort,key: string ): Promise<DgDoc>
-    close(ch: MessagePort):void
 }
 export function serviceApi(ch: Channel): ServiceApi {
     return apiCall(ch, "open")
