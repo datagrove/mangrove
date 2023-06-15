@@ -8,20 +8,6 @@ import { LensApi, Op, DgElement, lensApi, LensServerApi, DgRangeSelection, Servi
 import { sample } from './mvr_test'
 import { SerializedElementNode } from 'lexical';
 
-//export type DgDoc = { [key: string] : DgElement }
-
-
-
-
-interface MvrProposal {
-    tagName: string
-    children: string[]  // swizzle to _children: MvrProposal[]?
-    [key: string]: any
-}
-
-export interface Mvrdoc {
-    [key: string]: Mvr
-}
 // locally it's just lww, no merging. buffers send exact ops to the shared worker, the 
 // call back to client with new ops, or new path open.
 type Rop = {
@@ -33,34 +19,48 @@ type Rop = {
     v?: DgElement
 }
 class Mvr {
+    // one for each concurrent device, need another approach for 3-way merge. gsn maybe?
     _proposal = new Map<number, MvrProposal>()
-    _el: DgElement = {
-        id: '',
-        v: 0,
-        conflict: '',
-        tagName: '',
-        class: '',
-        children: []
+    // _el: DgElement = {
+    //     id: '',
+    //     v: 0,
+    //     conflict: '',
+    //     tagName: '',
+    //     class: '',
+    //     children: []
+    // }
+    constructor(public _el: DgElement) {
     }
 }
-
+interface MvrProposal {
+    tagName: string
+    children: string[]  // swizzle to _children: MvrProposal[]?
+    [key: string]: any
+}
 // startup is awkward; we want to load the document, but that doesn't give us the key map we need. when we subscribe we can get the map.
 export class DocState {
     _doc = new Map<string, Mvr>()
     _buffer = new Set<BufferState>()
     constructor() {
-        lexicalToDg(sample)
+        const o = lexicalToDg(sample)
+        for (let e of o) {
+            this._doc.set(e.id, new Mvr(e))
+        }
     }
 
+    toJson(): DgElement[] {
+        console.log("doc", this._doc)
+        return topologicalSort(Array.from(this._doc.values()).map(m => m._el))
+    }
 
+    /*
     merge_remote(op: Rop[]) {
         let del: string[] = []
         let upd: DgElement[] = []
         for (let o of op) {
             let e = this._doc.get(o.id)
             if (!e) {
-                e = new Mvr()
-                this._doc.set(o.id, e)
+                this._doc.set(o.id, new Mvr(e))
             }
             if (o.v) {
                 e._proposal.set(o.dv, o.v)
@@ -81,7 +81,8 @@ export class DocState {
             }
         }
         this.broadcast(null, del, upd)
-    }
+    }*/
+
     async broadcast(from: BufferState | null, del: string[], upd: DgElement[]) {
         upd = topologicalSort(upd)
         for (let b of this._buffer) {
@@ -113,7 +114,7 @@ class BufferState implements LensServerApi {
 
     api: LensApi
     constructor(public ps: PeerServer, mp: MessagePort, public doc: DocState) {
-        const w = new Peer (new WorkerChannel(mp))
+        const w = new Peer(new WorkerChannel(mp))
         this.api = lensApi(w)
         apiListen<LensServerApi>(w, this)
     }
@@ -148,16 +149,18 @@ class BufferState implements LensServerApi {
         // we shouldn't send updates until we get this call
     }
     async close(): Promise<void> {
-        // this should reference count the doc
+        this.ps.bs.delete(this)
     }
 }
 
 // give every node an id. 
 let _next = 0
-function lexicalToDg(lex: any): DgElement[] {
+// does not need to be sorted. it wil push children first
+function lexicalToDg(lex: SerializedElementNode): DgElement[] {
     let dgd: DgElement[] = []
 
     const copy1 = (a: SerializedElementNode, parent: string): string => {
+
         const key = `${_next++}`
         const id: string[] = []
         if (a.children) {
@@ -167,22 +170,25 @@ function lexicalToDg(lex: any): DgElement[] {
         }
         dgd.push({
             ...a,
+            id: key,
             children: id
         } as any)
         return key
     }
     copy1(lex, "")
+    console.log("dgd", dgd)
     return dgd
 }
 
 class PeerServer implements Service {
     ds = new Map<string, DocState>();
+    bs = new Set<BufferState>()
 
     // one per tab
     connect(ch: Channel): ServiceApi {
         console.log("worker connected")
         const r: ServiceApi = {
-            open: async (path: string, mp: MessagePort ): Promise<DgElement[]> => {
+            open: async (path: string, mp: MessagePort): Promise<DgElement[]> => {
                 console.log("worker open", path, mp)
                 if (!(mp instanceof MessagePort))
                     throw new Error("expected message port")
@@ -191,8 +197,8 @@ class PeerServer implements Service {
                     doc = new DocState()
                     this.ds.set(path, doc)
                 }
-                new BufferState(this, mp, doc)
-                return []
+                this.bs.add(new BufferState(this, mp, doc))
+                return doc.toJson()
             },
         }
         return r
@@ -206,6 +212,7 @@ createSharedListener(new PeerServer())
 
 
 function topologicalSort(elements: DgElement[]): DgElement[] {
+    console.log("elements", elements)
     const visited: { [id: string]: boolean } = {};
     const sorted: DgElement[] = [];
 
@@ -213,25 +220,19 @@ function topologicalSort(elements: DgElement[]): DgElement[] {
         if (visited[element.id]) {
             return;
         }
-
         visited[element.id] = true;
-
         for (const childId of element.children) {
             const child = elements.find((e) => e.id === childId);
-
             if (child) {
                 visit(child);
             }
         }
-
         sorted.push(element);
     };
 
     for (const element of elements) {
         visit(element);
     }
-
-    return sorted.reverse();
+    console.log("sorted", sorted)
+    return sorted;
 }
-
-console.log("worker started")

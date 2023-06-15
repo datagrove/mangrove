@@ -168,6 +168,7 @@ export class TabStateValue {
   async load(path: string): Promise<DocBuffer> {
     const mc = new MessageChannel()
     const json = await this.api.rpc<DgElement[]>("open", [path, mc.port2], [mc.port2])
+    console.log("json", json)
     const wc = new Peer(new WorkerChannel(mc.port1))
     const db = new DocBuffer(lensServerApi(wc), json)
 

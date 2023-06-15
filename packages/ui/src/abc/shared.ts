@@ -22,7 +22,7 @@ export function createSharedListener<T>(peer: Service) {
             } else {
                 try {
                     const a = await fn.apply(null,x.params)
-                    console.log("worker reply", a)
+                    console.log("worker reply", x.id, a)
                     port.postMessage({
                         id: x.id,
                         result: a

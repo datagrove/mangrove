@@ -139,7 +139,7 @@ export class Peer {
 
     constructor(public ch: Channel) {
         ch.listen((d: any) => {
-            this.recv(d)
+            this.recv(d.data)
         })
     }
 
@@ -159,9 +159,13 @@ export class Peer {
     }
 
     async recv(data: any) {
+        console.log("recv", data)
         if (data.method) {
             for (let apix of this.api) {
                 const api = apix[data.method]
+                if (!api) {
+                    continue
+                }
                 try {
                     const result = await api.apply(null,data.params)
                     this.ch?.postMessage({
@@ -178,15 +182,14 @@ export class Peer {
                 }
             }
         }
-        if (data.id) {
+        else if (data.id) {
             const r = this.reply_.get(data.id)
             if (!r) {
                 this.ch?.postMessage({
                     id: data.id,
                     error: "unknown id " + data.id
                 })
-            }
-            if (r) {
+            } else {
                 this.reply_.delete(data.id)
                 if (data.result) {
                     console.log("resolved", data.result)
@@ -198,7 +201,9 @@ export class Peer {
                 return
             }
             //}
-        } // if no method and no id, ignore.
+        } else {
+            console.log("unknown message", data)
+        }
     }
 }
 // we create api's from channels
