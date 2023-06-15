@@ -21,14 +21,6 @@ type Rop = {
 class Mvr {
     // one for each concurrent device, need another approach for 3-way merge. gsn maybe?
     _proposal = new Map<number, MvrProposal>()
-    // _el: DgElement = {
-    //     id: '',
-    //     v: 0,
-    //     conflict: '',
-    //     tagName: '',
-    //     class: '',
-    //     children: []
-    // }
     constructor(public _el: DgElement) {
     }
 }
@@ -157,7 +149,7 @@ class BufferState  {
 }
 
 // give every node an id. 
-let _next = 0
+let _next = 422
 // does not need to be sorted. it wil push children first
 function lexicalToDg(lex: SerializedElementNode): DgElement[] {
     let dgd: DgElement[] = []
@@ -179,30 +171,32 @@ function lexicalToDg(lex: SerializedElementNode): DgElement[] {
         return key
     }
     copy1(lex, "")
-    console.log("dgd", dgd)
+    console.log("dgd", dgd.map(d => [ d.id,...d.children]))
     return dgd
 }
 
-class PeerServer implements Service {
+export class PeerServer implements Service {
     ds = new Map<string, DocState>();
     bs = new Set<BufferState>()
+
+    async open(path: string, mp: MessagePort): Promise<DgElement[]>  {
+        console.log("worker open", path, mp)
+        if (!(mp instanceof MessagePort))
+            throw new Error("expected message port")
+        let doc = this.ds.get(path)
+        if (!doc) {
+            doc = new DocState()
+            this.ds.set(path, doc)
+        }
+        this.bs.add(new BufferState(this, mp, doc))
+        return doc.toJson()
+    }
 
     // one per tab
     connect(ch: Channel): ServiceApi {
         console.log("worker connected")
         const r: ServiceApi = {
-            open: async (path: string, mp: MessagePort): Promise<DgElement[]> => {
-                console.log("worker open", path, mp)
-                if (!(mp instanceof MessagePort))
-                    throw new Error("expected message port")
-                let doc = this.ds.get(path)
-                if (!doc) {
-                    doc = new DocState()
-                    this.ds.set(path, doc)
-                }
-                this.bs.add(new BufferState(this, mp, doc))
-                return doc.toJson()
-            },
+            open: this.open.bind(this),
         }
         return r
     }
@@ -211,7 +205,11 @@ class PeerServer implements Service {
     }
 }
 
-createSharedListener(new PeerServer())
+if (!self.document) {
+    createSharedListener(new PeerServer())
+}
+
+
 
 
 

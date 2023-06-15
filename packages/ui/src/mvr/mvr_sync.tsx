@@ -2,10 +2,11 @@ import { JSXElement, Show, createContext, createResource, onCleanup, onMount, us
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
 import { $createRangeSelection, $getNodeByKey, $getSelection, ElementNode, GridSelection, LexicalEditor, LexicalNode, NodeSelection, RangeSelection, TextNode } from "lexical"
 import { Peer, WorkerChannel, apiListen } from "../abc/rpc"
-import { LensApi, LensServerApi, lensServerApi, DgSelection, DgRangeSelection, KeyMap } from "./mvr_shared"
+import { LensApi, LensServerApi, lensServerApi, DgSelection, DgRangeSelection, KeyMap, ServiceApi, topologicalSort } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
 import LocalState from './mvr_worker?sharedworker'
+import { PeerServer } from "./mvr_worker"
 // share an lex document
 /*
   <TabState>  // tab level state, starts shared worker
@@ -16,38 +17,7 @@ import LocalState from './mvr_worker?sharedworker'
   </SyncPath>
   </TabState>
 */
-function topologicalSort(elements: DgElement[]): DgElement[] {
-  console.log("elements", elements)
-  const id: { [id: string]: DgElement } = {};
-  const visited: { [id: string]: boolean } = {};
-  const sorted: DgElement[] = [];
 
-  for (const element of elements) {
-      id[element.id] = element;
-  }
-
-  const visit = (element: DgElement) => {
-      if (visited[element.id]) {
-          return;
-      }
-      visited[element.id] = true;
-      for (const childId of element.children) {
-          const child = id[childId]
-          if (child) {
-              visit(child);
-          } else {
-              throw new Error(`child ${childId} not found`)
-          }
-      }
-      sorted.push(element);
-  };
-
-  for (const element of elements) {
-      visit(element);
-  }
-  console.log("sorted", sorted)
-  return sorted;
-}
 
 // we need to open twice, essentially.
 // the first open will absorb the big async hit, and will trigger suspense
@@ -67,28 +37,37 @@ export class DocBuffer  {
   // coming from the server all the children are strings, not nodes.
 
   // assumes all children created first. assumes we are creating from scratch, not update.
-
-
-  updateProps(um : [string, string][], v: DgElement, ln: LexicalNode | null) {
-    console.log("updateProps", v, ln)
-    const nodeInfo = this._editor?._nodes.get(v.class);
+  // must call inside editor context
+  $updateProps(m: Map<string,LexicalNode>, um : [string, string][], v: DgElement, ln: LexicalNode | null) {
+    let nodeInfo = this._editor?._nodes.get(v.type);
     if (!nodeInfo) {
-      return
+      nodeInfo = this._editor?._nodes.get("text");
     }
-    let nl = new nodeInfo.klass();
-    if (!nl) return
+    let nl  = new nodeInfo!.klass() as TextNode
+    if (!nl) {
+      throw new Error("can't create node for " + v.type)
+    } 
+    // copy the properties to the new node
+    const vx = v as any
+    nl.__text = vx.text
+
+
+    m.set(v.id, nl)
     for (let c of v.children ?? []) {
-      const n = $getNodeByKey(c)
-      if (n) {
-        nl.append(n)
+      // getNodeByKey doesn't work here if we just created the node.
+      let n = m.get(c) || $getNodeByKey(c) 
+      if (!n) {
+        throw new Error(`missing child, sort failed parent ${v.id} child ${c}`)
       }
+      nl.append(n)
     }
+    console.log("up", ln, nl)
     if (ln) {
       ln.replace(nl)
     } else {
+      console.log("ins", v.id, nl.getKey())
       um.push([v.id, nl.getKey()])
     }
-
   }
   // return the keys for every element created
   // with upd and del the id is already the lex key
@@ -97,9 +76,10 @@ export class DocBuffer  {
   // then we need to sync the children and the properties.
   async update(upd: DgElement[], del: string[], selection: DgSelection | null): Promise<[string, string][]> {
     const um: [string, string][] = []
+    const m = new Map<string, LexicalNode>()
     this._editor?.update(() => {
       del.forEach(d => { $getNodeByKey(d)?.remove() })
-      upd.forEach(u => { this.updateProps(um, u, $getNodeByKey(u.id)) })
+      upd.forEach(u => { this.$updateProps(m, um, u, $getNodeByKey(u.id)) })
       const sel = $getSelection()
       const selr = $createRangeSelection()
       //$setSelection(null)
@@ -112,11 +92,9 @@ export class DocBuffer  {
   // there would be
 
   async subscribe(editor: LexicalEditor) {
-    console.log("subscribe")
     this._editor = editor
     editor.registerUpdateListener(
       ({ editorState, dirtyElements, dirtyLeaves, prevEditorState }) => {
-
         const fromLexical = (a: LexicalNode | null): DgElement | null => {
           if (!a) return a
           const en = a instanceof ElementNode ? a as ElementNode : null
@@ -125,16 +103,16 @@ export class DocBuffer  {
             parent: a.getParent()?.getKey(),
             v: 0,
             conflict: "",
-            tagName: a.getType(),
-            class: "",
+            type: a.getType(),
             children: en?.getChildrenKeys() ?? [],
           }
 
           if (a instanceof TextNode) {
-            r.text = a.__text
-            r.format = a.__format
-            r.mode = a.__mode
-            r.style = a.__style
+            let rx = r as any
+            rx.text = a.__text
+            rx.format = a.__format
+            rx.mode = a.__mode
+            rx.style = a.__style
           }
           return r
         }
@@ -148,16 +126,24 @@ export class DocBuffer  {
             else del.push(k)
           }
         })
-        this.api.update(upd, del, { start: 0, end: 0 })
+        //this.api.update(upd, del, { start: 0, end: 0 })
       })
+      
 
-          // build the document and return the keymap
-    // _id was already retrieved by open.
+      // build the document and return the keymap
+      // _id was already retrieved by open.
       const um: [string, string][] = []
-      for (let v of this._id ?? []) {
-        this.updateProps(um, v, null)
-      }
-      await this.api.subscribe(um)
+      editor.update(() => {
+        console.log("subscribe", this._id)
+        const m = new Map<string, LexicalNode>()
+        const doc = topologicalSort(this._id ?? [])
+        for (let v of doc) {
+          this.$updateProps(m,um, v, null)
+        }
+      })
+      this._id = undefined
+      console.log("subscribe end", um)
+      //await this.api.subscribe(um)
   }
 }
 
@@ -168,14 +154,31 @@ export function useSync() { return useContext(TabStateContext) }
 
 // all this does is make available the connection to the shared worker.
 
+
+
 export class TabStateValue {
-  sw = new LocalState()
-  api: Peer
+  
+  api!: Peer
+
+  makeWorker() {
+    const sw = new LocalState()
+    sw.port.start()
+    this.api = new Peer(new WorkerChannel(sw.port))
+  }
+  makeLocal() {
+    const ps = new PeerServer()
+    const mc = new MessageChannel()
+    this.api = new Peer(new WorkerChannel(mc.port1))
+
+    const svr = new Peer(new WorkerChannel(mc.port2))
+    const r : ServiceApi = {
+      open: ps.open.bind(ps),
+    }
+    apiListen<ServiceApi>(svr, r)
+  }
 
   constructor() {
-    this.sw.port.start()
-    this.sw.port.postMessage({ type: "init" })
-    this.api = new Peer(new WorkerChannel(this.sw.port))
+    this.makeLocal()
   }
 
   async load(path: string): Promise<DocBuffer> {
@@ -190,7 +193,6 @@ export class TabStateValue {
     apiListen<LensApi>(wc, db)
     return db
   }
-
 }
 export function TabState(props: { children: JSXElement }) {
   const u = new TabStateValue()

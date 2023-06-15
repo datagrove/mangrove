@@ -6,11 +6,9 @@ export interface DgElement {
   id: string
   v: number // increment each time
   conflict: string
-  tagName: string
-  class: string
+  type: string
   parent?: string
   children: string[]
-  [key: string]: any
 }
 // shared state.
 
@@ -58,3 +56,37 @@ export interface Del {
 export type Op = Upd | Del
 
 
+export function topologicalSort(elements: DgElement[]): DgElement[] {
+  console.log("elements", elements)
+  const id: { [id: string]: DgElement } = {};
+  const visited: { [id: string]: boolean } = {};
+  const sorted: DgElement[] = [];
+
+  for (const element of elements) {
+      id[element.id] = element;
+  }
+  console.log("idxx", elements.map(e => [e.id, ...e.children]))
+
+  const visit = (element: DgElement) => {
+      if (visited[element.id]) {
+          return;
+      }
+      visited[element.id] = true;
+      for (const childId of element.children) {
+          const child = id[childId]
+          if (child) {
+              visit(child);
+          } else {
+              throw new Error(`child ${childId} not found`)
+          }
+      }
+      // only push if all children have been visited.
+      sorted.push(element);
+  };
+
+  for (const element of elements) {
+      visit(element);
+  }
+  console.log("sorted", sorted.map(e => [e.id, ...e.children]))
+  return sorted;
+}
