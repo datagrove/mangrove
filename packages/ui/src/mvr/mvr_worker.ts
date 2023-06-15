@@ -13,6 +13,7 @@ import { SerializedElementNode } from 'lexical';
 // each version is identified by a (gsn-read, gsn-written) segment
 // a version (r1,w1) automatically supercedes (r0,w0) if r1 >= w0 
 type Rop = {
+    op: string
     pk: string  // site/table/primary key/attr
     id: string  // gid of the element
     dv: number  // device making the proposal. This would need to be version too, if we get away from serial order.
@@ -27,28 +28,49 @@ class MergeContext {
     _write = 0
 
     // we can have a dictionary of operations, subsuming type set
+    op: {
+        [pk: string]: MergeFn
+    } = {
+        "lww": lww_write
+    }
 }
 
 // some merge functions need more context then just the set of current proposals.
-export type MergeFn = (ctx: MergeContext, v: Mvr) => void
+export type MergeFn = (ctx: MergeContext, v: Mvr, arg?: DgElement) => void
 
-function lww_write(ctx: MergeContext, pr: MvrProposal) {
-    const bs = this._proposal.filter(e => e.written > pr.read)
-    this._proposal = bs.concat(pr)
-    this._el = this.fn(this))
+
+const  lww_write: MergeFn = (ctx: MergeContext, v:Mvr,  pr?: DgElement) =>{
+    const bs = v._proposal.filter(e => e.written > ctx._read)
+    if (pr) {
+        v._proposal = bs.concat({
+            read: ctx._read,
+            written: ctx._write,
+            v: pr
+        })
+        v._el = pr
+    }
+    else {
+        v._proposal = bs
+        v._el = v._proposal.length > 0 ? v._proposal[v._proposal.length - 1].v : null
+    }
+    
 }
 
 class Mvr {
-    
     // one for each concurrent device, need another approach for 3-way merge. gsn maybe?
     _proposal : MvrProposal[] = []
     _el: DgElement|null = null
-    constructor(public fn: MergeFn) {
 
+    constructor(el?: DgElement) {
+        if (el) {
+            this._el = el
+            this._proposal.push({
+                read: 0,
+                written: 0,
+                v: el
+            })
+        }
     }
-
-
-
 }
 interface MvrProposal {
     read: number
@@ -60,6 +82,8 @@ export class DocState {
     _doc = new Map<string, Mvr>()
     _buffer = new Set<BufferState>()
     constructor() {
+        // our canonical document will read to keep the read and write values of the mvr
+        // we can fake those on import.
         const o = lexicalToDg(sample)
         for (let e of o) {
             this._doc.set(e.id, new Mvr(e))
@@ -72,53 +96,60 @@ export class DocState {
     }
 
 
-    merge_remote(op: Rop[]) {
+    merge_remote(mc: MergeContext, op: Rop[]) {
         let del: string[] = []
         let upd: DgElement[] = []
         for (let o of op) {
-            let mvr : Mvr|undefined = this._doc.get(o.id)
-            if (!mvr) {
-                mvr = new Mvr(o.v??{})
-                this._doc.set(o.id, mvr)
+            const fn = mc.op[o.op]
+            if (!fn) {
+                console.log("unknown op", o.op)
+                continue
             }
             if (o.v) {
-                mvr._proposal.set(o.dv, o.v)
-            }
-
-            for (let i = 0; i < o.rv.length; i++) {
-                const p = mvr._proposal.get(o.rm[i])
-                if (p && p.v <= o.rv[i]) {
-                    mvr._proposal.delete(o.rm[i])
+                let mvr : Mvr|undefined = this._doc.get(o.id)
+                if (!mvr) {
+                    mvr = new Mvr()
+                    this._doc.set(o.id, mvr)
                 }
-            }
-            if (mvr._proposal.size === 0) {
-                this._doc.delete(o.id)
-            }
-            else if (mvr._proposal.size === 1) {
-            } else if (mvr._proposal.size > 1) {
-                // merge
+                fn(mc, mvr, o.v)
+            } else {
+                // we are deleting values only, but it may not delete the element if there are other values.
+                let mvr : Mvr|undefined = this._doc.get(o.id)
+                if (!mvr) {
+                    console.log("delete on unknown id", o.id)
+                    continue
+                }
+                fn(mc, mvr)
             }
         }
         this.broadcast(null, del, upd)
     }
 
     async broadcast(from: BufferState | null, del: string[], upd: DgElement[]) {
+        console.log("BROADCAST", del, upd, this._buffer)
         for (let b of this._buffer) {
-            if (b !== from) {
-                del = del.map(d => b.keyMap.get(d) || d)
-                del.forEach(d => b.revMap.delete(d))
-                upd.forEach(u => {
-                    u.id = b.revMap.get(u.id) || u.id
-                })
-            }
+            if (b === from) 
+                continue
+
+            del = del.map(d => b.keyMap.get(d) || d)
+            del.forEach(d => b.revMap.delete(d))
+            upd.map(u => {
+                return {
+                    ...u,
+                    id: b.revMap.get(u.id) || u.id
+                }
+            })
+
+          
             const map_update = await b.api.update(upd, del, null)
-            for (let [gid, lex] of map_update) {
-                b.keyMap.set(lex, gid)
-                b.revMap.set(gid, lex)
+            console.log("map update", map_update)
+            if (map_update) {
+                for (let [gid, lex] of map_update) {
+                    b.keyMap.set(lex, gid)
+                    b.revMap.set(gid, lex)
+                }
             }
         }
-
-
     }
 }
 
@@ -132,6 +163,7 @@ class BufferState  {
 
     api: LensApi
     constructor(public ps: PeerServer, mp: MessagePort, public doc: DocState) {
+        doc._buffer.add(this)
         const w = new Peer(new WorkerChannel(mp))
         this.api = lensApi(w)
         const r: LensServerApi = {
@@ -143,29 +175,25 @@ class BufferState  {
     }
     async updatex(upd: DgElement[], del: string[], sel: DgRangeSelection): Promise<void> {
         console.log("update", this, upd, del, sel)
-        return
+       
         // all these elements are coming with a lexical id. If they are inserts we need to give them a global id
-        // for (let o of del) {
-        //     const gid = this.keyMap.get(o)
-        //     if (gid) {
-        //         del.push(gid)
-        //         this.keyMap.delete(o)
-        //         this.revMap.delete(gid)
-        //     }
-        // }
-        // for (let o of upd) {
-        //     const id = this.keyMap.get(o.id)
-        //     if (id) {
-        //         upd.push(o)
-        //     } else {
-        //         const n = `${next++}`
-        //         this.keyMap.set(o.id, n)
-        //         this.revMap.set(n, o.id)
-        //         upd.push(o)
-        //     }
-        // }
+        for (let o of del) {
+            const gid = this.keyMap.get(o)
+            if (gid) { 
+                this.keyMap.delete(o)
+                this.revMap.delete(gid)
+            }
+        }
+        for (let o of upd) {
+            const id = this.keyMap.get(o.id)
+            if (!id) {
+                const n = `${next++}`
+                this.keyMap.set(o.id, n)
+                this.revMap.set(n, o.id)
+            }
+        }
 
-        // this.doc.broadcast(this, del, upd)
+       this.doc.broadcast(this, del, upd)
     }
     // this is like the first update, it gives us all the lex keys for the document
     async subscribex(key: [string, string][]): Promise<void> {

@@ -137,6 +137,7 @@ export function RichTextEditor(props: RteProps) {
           <AutoFocusPlugin />
           <CodeHighlightPlugin />
           <Sync/>
+          <TreeViewPlugin/>
         </div>
        
       </div>

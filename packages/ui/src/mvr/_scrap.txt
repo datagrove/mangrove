@@ -1,0 +1,87 @@
+
+const SYMBOLS: Record<string, string> = Object.freeze({
+  ancestorHasNextSibling: "|",
+  ancestorIsLastChild: " ",
+  hasNextSibling: "├",
+  isLastChild: "└",
+  selectedChar: "^",
+  selectedLine: ">",
+});
+function dump(){
+  let res = ""
+  visitTree($getRoot(), (node: LexicalNode, indent: Array<string>) => {
+  const nodeKey = node.getKey();
+  const nodeKeyDisplay = `(${nodeKey})`;
+  const typeDisplay = node.getType() || "";
+  const isSelected = node.isSelected();
+  const idsDisplay = $isMarkNode(node)
+    ? ` id: [ ${node.getIDs().join(", ")} ] `
+    : "";
+
+  res += `${isSelected ? SYMBOLS.selectedLine : " "} ${indent.join(
+    " "
+  )} ${nodeKeyDisplay} ${typeDisplay} ${idsDisplay} ${printNode(node)}\n`;
+
+  res += printSelectedCharsLine({
+    indent,
+    isSelected,
+    node,
+    nodeKeyDisplay,
+    selection,
+    typeDisplay,
+  });
+});
+}
+function printNode(node: LexicalNode) {
+  if ($isTextNode(node)) {
+    const text = node.getTextContent();
+    const title = text.length === 0 ? "(empty)" : `"${normalize(text)}"`;
+    const properties = printAllTextNodeProperties(node);
+    return [title, properties.length !== 0 ? `{ ${properties} }` : null]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+  } else if ($isLinkNode(node)) {
+    const link = node.getURL();
+    const title = link.length === 0 ? "(empty)" : `"${normalize(link)}"`;
+    const properties = printAllLinkNodeProperties(node);
+    return [title, properties.length !== 0 ? `{ ${properties} }` : null]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+  } else {
+    return "";
+  }
+}
+
+function visitTree(
+  currentNode: ElementNode,
+  visitor: (node: LexicalNode, indentArr: Array<string>) => void,
+  indent: Array<string> = []
+) {
+  const childNodes = currentNode.getChildren();
+  const childNodesLength = childNodes.length;
+
+  childNodes.forEach((childNode, i) => {
+    visitor(
+      childNode,
+      indent.concat(
+        i === childNodesLength - 1
+          ? SYMBOLS.isLastChild
+          : SYMBOLS.hasNextSibling
+      )
+    );
+
+    if ($isElementNode(childNode)) {
+      visitTree(
+        childNode,
+        visitor,
+        indent.concat(
+          i === childNodesLength - 1
+            ? SYMBOLS.ancestorIsLastChild
+            : SYMBOLS.ancestorHasNextSibling
+        )
+      );
+    }
+  });
+}

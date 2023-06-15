@@ -1,5 +1,7 @@
 import { GridSelection, LexicalNode, NodeSelection, RangeSelection, SerializedLexicalNode } from "lexical"
 import { Channel, Peer, apiCall } from "../abc/rpc"
+import { createSign } from "crypto"
+import { createSignal } from "solid-js"
 
 
 export interface DgElement {
