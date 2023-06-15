@@ -56,7 +56,7 @@ export interface Del {
 export type Op = Upd | Del
 
 
-export function topologicalSort(elements: DgElement[]): DgElement[] {
+export function topologicalSort(elements: DgElement[]): [DgElement[],{[id:string]:DgElement}] {
   console.log("elements", elements)
   const id: { [id: string]: DgElement } = {};
   const visited: { [id: string]: boolean } = {};
@@ -88,5 +88,5 @@ export function topologicalSort(elements: DgElement[]): DgElement[] {
       visit(element);
   }
   console.log("sorted", sorted.map(e => [e.id, ...e.children]))
-  return sorted;
+  return [sorted,id];
 }

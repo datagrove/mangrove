@@ -1,6 +1,6 @@
 import { JSXElement, Show, createContext, createResource, onCleanup, onMount, useContext } from "solid-js"
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
-import { $createRangeSelection, $getNodeByKey, $getSelection, ElementNode, GridSelection, LexicalEditor, LexicalNode, NodeSelection, RangeSelection, TextNode } from "lexical"
+import { $createRangeSelection, $getNodeByKey, $getRoot, $getSelection, ElementNode, GridSelection, LexicalEditor, LexicalNode, NodeSelection, RangeSelection, RootNode, TextNode } from "lexical"
 import { Peer, WorkerChannel, apiListen } from "../abc/rpc"
 import { LensApi, LensServerApi, lensServerApi, DgSelection, DgRangeSelection, KeyMap, ServiceApi, topologicalSort } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
@@ -50,7 +50,9 @@ export class DocBuffer  {
     // copy the properties to the new node
     const vx = v as any
     nl.__text = vx.text
-
+    nl.__format = vx.format
+    nl.__mode = vx.mode
+    nl.__style = vx.style
 
     m.set(v.id, nl)
     for (let c of v.children ?? []) {
@@ -68,6 +70,9 @@ export class DocBuffer  {
       console.log("ins", v.id, nl.getKey())
       um.push([v.id, nl.getKey()])
     }
+    // the last node in the array is the root, how do we replace that?
+    // why are nodes creating dom when they are not connected to the root?
+    return nl
   }
   // return the keys for every element created
   // with upd and del the id is already the lex key
@@ -136,9 +141,13 @@ export class DocBuffer  {
       editor.update(() => {
         console.log("subscribe", this._id)
         const m = new Map<string, LexicalNode>()
-        const doc = topologicalSort(this._id ?? [])
-        for (let v of doc) {
-          this.$updateProps(m,um, v, null)
+        const [doc,id] = topologicalSort(this._id ?? [])
+        let nl: LexicalNode | null = null
+        const mr = doc[doc.length - 1]
+        const root = $getRoot() as RootNode
+        for (let i of mr.children ?? []) {
+          const v = id[i]
+          root.append(this.$updateProps(m,um, v, null))
         }
       })
       this._id = undefined
