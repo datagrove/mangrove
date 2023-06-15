@@ -10,25 +10,50 @@ import { SerializedElementNode } from 'lexical';
 
 // locally it's just lww, no merging. buffers send exact ops to the shared worker, the 
 // call back to client with new ops, or new path open.
+// each version is identified by a (gsn-read, gsn-written) segment
+// a version (r1,w1) automatically supercedes (r0,w0) if r1 >= w0 
 type Rop = {
     pk: string  // site/table/primary key/attr
     id: string  // gid of the element
     dv: number  // device making the proposal. This would need to be version too, if we get away from serial order.
-    rm: number[] // pairs of numbers: [device, version]
-    rv: number[]
-    // might be empty if we are deleting.
+    rd: number[] // version to remove
+    wr: number[] // device that made the revision we are replacing.
+    // empty to delete
     v?: DgElement
 }
+
+class MergeContext {
+    _read = 0
+    _write = 0
+
+    // we can have a dictionary of operations, subsuming type set
+}
+
+// some merge functions need more context then just the set of current proposals.
+export type MergeFn = (ctx: MergeContext, v: Mvr) => void
+
+function lww_write(ctx: MergeContext, pr: MvrProposal) {
+    const bs = this._proposal.filter(e => e.written > pr.read)
+    this._proposal = bs.concat(pr)
+    this._el = this.fn(this))
+}
+
 class Mvr {
+    
     // one for each concurrent device, need another approach for 3-way merge. gsn maybe?
-    _proposal = new Map<number, MvrProposal>()
-    constructor(public _el?: DgElement) {
+    _proposal : MvrProposal[] = []
+    _el: DgElement|null = null
+    constructor(public fn: MergeFn) {
+
     }
+
+
+
 }
 interface MvrProposal {
-    tagName: string
-    children: string[]  // swizzle to _children: MvrProposal[]?
-    [key: string]: any
+    read: number
+    written: number
+    v: DgElement
 }
 // startup is awkward; we want to load the document, but that doesn't give us the key map we need. when we subscribe we can get the map.
 export class DocState {
@@ -53,7 +78,7 @@ export class DocState {
         for (let o of op) {
             let mvr : Mvr|undefined = this._doc.get(o.id)
             if (!mvr) {
-                mvr = new Mvr(o.v)
+                mvr = new Mvr(o.v??{})
                 this._doc.set(o.id, mvr)
             }
             if (o.v) {
