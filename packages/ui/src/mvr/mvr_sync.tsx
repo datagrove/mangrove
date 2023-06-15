@@ -53,6 +53,14 @@ export class DocBuffer  {
     nl.__format = vx.format
     nl.__mode = vx.mode
     nl.__style = vx.style
+    nl.__direction = vx.direction
+    nl.__indent = vx.indent
+    nl.__type = vx.type
+    nl.__version = vx.version
+    nl.__listType = vx.listType
+    nl.__start = vx.start
+    nl.__tag = vx.tag
+
 
     m.set(v.id, nl)
     for (let c of v.children ?? []) {
@@ -63,11 +71,9 @@ export class DocBuffer  {
       }
       nl.append(n)
     }
-    console.log("up", ln, nl)
     if (ln) {
       ln.replace(nl)
     } else {
-      console.log("ins", v.id, nl.getKey())
       um.push([v.id, nl.getKey()])
     }
     // the last node in the array is the root, how do we replace that?
@@ -131,23 +137,26 @@ export class DocBuffer  {
             else del.push(k)
           }
         })
-        //this.api.update(upd, del, { start: 0, end: 0 })
+        console.log("trying to update" ,this.api.update, upd, del, { start: 0, end: 0 }) 
+        this.api.update(upd, del, { start: 0, end: 0 })
       })
       
 
       // build the document and return the keymap
       // _id was already retrieved by open.
       const um: [string, string][] = []
+      const [doc] = topologicalSort(this._id ?? [])
+      const mr = doc[doc.length - 1]
+      const top = new Set<string>(mr.children ?? [])
+      const m = new Map<string, LexicalNode>()
+
       editor.update(() => {
-        console.log("subscribe", this._id)
-        const m = new Map<string, LexicalNode>()
-        const [doc,id] = topologicalSort(this._id ?? [])
-        let nl: LexicalNode | null = null
-        const mr = doc[doc.length - 1]
         const root = $getRoot() as RootNode
-        for (let i of mr.children ?? []) {
-          const v = id[i]
-          root.append(this.$updateProps(m,um, v, null))
+        for (let v of doc)  {
+          let nl = this.$updateProps(m,um, v, null)
+          if (top.has(v.id)) {
+            root.append()
+          }
         }
       })
       this._id = undefined
@@ -155,8 +164,6 @@ export class DocBuffer  {
       //await this.api.subscribe(um)
   }
 }
-
-
 
 export const TabStateContext = createContext<TabStateValue>()
 export function useSync() { return useContext(TabStateContext) }

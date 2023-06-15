@@ -87,6 +87,6 @@ export function topologicalSort(elements: DgElement[]): [DgElement[],{[id:string
   for (const element of elements) {
       visit(element);
   }
-  console.log("sorted", sorted.map(e => [e.id, ...e.children]))
+  console.log("sorted", sorted.map(e => [e.type+"."+e.id, ...e.children]))
   return [sorted,id];
 }

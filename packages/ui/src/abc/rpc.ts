@@ -214,10 +214,15 @@ export class Peer {
 // eventually change this to code generation, or maybe typescript magic
 export function apiCall<T>(peer: Peer, ...rpc: string[]): T {
     const o: any = {}
-    rpc.forEach((e) => {
-        o[e] = async (...arg: any[]): Promise<any> => {
-            console.log("rpc", e, arg)
-            return await peer.rpc(e, arg)
+    rpc.forEach((method) => {
+        o[method] = async (...arg: any[]): Promise<any> => {
+            console.log("rpc", method, arg)
+            try {
+                return await peer.rpc(method, arg)
+            } catch (e) {
+                console.log("rpc throw", method, e)
+                return null
+            }
         }
     })
     return o as T

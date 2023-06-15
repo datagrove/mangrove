@@ -44,7 +44,6 @@ export function createSharedListener<T>(peer: Service) {
 
 export function createListener<T>(peer: Service) {
     ctx.onconnect = async (e: any) => {
-
         // create a channel and connect it to the p
         const port = e.ports[0];
         const ch = new WorkerChannel(port)

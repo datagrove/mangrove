@@ -116,28 +116,29 @@ class BufferState  {
     }
     async updatex(upd: DgElement[], del: string[], sel: DgRangeSelection): Promise<void> {
         console.log("update", this, upd, del, sel)
+        return
         // all these elements are coming with a lexical id. If they are inserts we need to give them a global id
-        for (let o of del) {
-            const gid = this.keyMap.get(o)
-            if (gid) {
-                del.push(gid)
-                this.keyMap.delete(o)
-                this.revMap.delete(gid)
-            }
-        }
-        for (let o of upd) {
-            const id = this.keyMap.get(o.id)
-            if (id) {
-                upd.push(o)
-            } else {
-                const n = `${next++}`
-                this.keyMap.set(o.id, n)
-                this.revMap.set(n, o.id)
-                upd.push(o)
-            }
-        }
+        // for (let o of del) {
+        //     const gid = this.keyMap.get(o)
+        //     if (gid) {
+        //         del.push(gid)
+        //         this.keyMap.delete(o)
+        //         this.revMap.delete(gid)
+        //     }
+        // }
+        // for (let o of upd) {
+        //     const id = this.keyMap.get(o.id)
+        //     if (id) {
+        //         upd.push(o)
+        //     } else {
+        //         const n = `${next++}`
+        //         this.keyMap.set(o.id, n)
+        //         this.revMap.set(n, o.id)
+        //         upd.push(o)
+        //     }
+        // }
 
-        this.doc.broadcast(this, del, upd)
+        // this.doc.broadcast(this, del, upd)
     }
     // this is like the first update, it gives us all the lex keys for the document
     async subscribex(key: [string, string][]): Promise<void> {
