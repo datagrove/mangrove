@@ -2,7 +2,7 @@ import { Accessor, JSXElement, Show, createContext, createEffect, createResource
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
 import { $createRangeSelection, $getNodeByKey, $getRoot, $getSelection, $parseSerializedNode, $setSelection, EditorState, ElementNode, GridSelection, LexicalEditor, LexicalNode, NodeKey, NodeSelection, RangeSelection, TextNode } from "lexical"
 import { Channel, Listener, Peer, WorkerChannel, apiListen } from "../abc/rpc"
-import { LensApi, LensServerApi, Op, ServiceApi, lensApi, lensServerApi, serviceApi, DgSelection, KeyMap } from "./mvr_shared"
+import { LensApi, LensServerApi, Op, ServiceApi, lensApi, lensServerApi, serviceApi, DgSelection } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
 import LocalState from './mvr_worker?sharedworker'
@@ -26,45 +26,46 @@ export class DocBuffer implements LensApi {
   _id?: DgElement[] // only used for initializing.
   _editor?: LexicalEditor
 
-  constructor(public api: LensServerApi, id: DgElement[] ) {
+  constructor(public api: LensServerApi, id: DgElement[]) {
     this._id = id
   }
 
   um: [string, string][] = []
 
-    // recursive over children; are we clever enough to not repeat here though?
-    // maybe we need a set of visited ids? how do we set lexical parents?
-    // how to deal with text nodes? know when to stop?
-    // coming from the server all the children are strings, not nodes.
+  // recursive over children; are we clever enough to not repeat here though?
+  // maybe we need a set of visited ids? how do we set lexical parents?
+  // how to deal with text nodes? know when to stop?
+  // coming from the server all the children are strings, not nodes.
 
-    // assumes all children created first. assumes we are creating from scratch, not update.
+  // assumes all children created first. assumes we are creating from scratch, not update.
 
- 
-   updateProps(v: DgElement, ln: LexicalNode | null) {
-      const nodeInfo = this._editor?._nodes.get(v.class);
-      if (!nodeInfo) {
-        return
+
+  updateProps(v: DgElement, ln: LexicalNode | null) {
+    console.log("updateProps", v, ln)
+    const nodeInfo = this._editor?._nodes.get(v.class);
+    if (!nodeInfo) {
+      return
+    }
+    let nl = new nodeInfo.klass();
+    if (!nl) return
+    for (let c of v.children ?? []) {
+      const n = $getNodeByKey(c)
+      if (n) {
+        nl.append(n)
       }
-      let nl = new nodeInfo.klass();
-      if (!nl) return
-      for (let c of v.children ?? []) {
-        const n = $getNodeByKey(c)
-        if (n) {
-          nl.append(n)
-        }
-      }
-      if (ln) {
-        ln.replace(nl)
-      } else {
-        this.um.push([v.id, nl.getKey()])
-      }
+    }
+    if (ln) {
+      ln.replace(nl)
+    } else {
+      this.um.push([v.id, nl.getKey()])
+    }
   }
   // return the keys for every element created
   // with upd and del the id is already the lex key
   // with ins the id is the mvr key, create the lex key and return the pair.
   // we need to top sort this to make sure children are created before parents?
   // then we need to sync the children and the properties.
-  async update(upd: DgElement[], del: string[], selection: DgSelection|null): Promise<[string, string][]> {
+  async update(upd: DgElement[], del: string[], selection: DgSelection | null): Promise<[string, string][]> {
     this.um = []
     this._editor?.update(() => {
       del.forEach(d => { $getNodeByKey(d)?.remove() })
@@ -80,7 +81,8 @@ export class DocBuffer implements LensApi {
   // what about making the initial document into an insert?
   // there would be
 
-  subscribe(editor: LexicalEditor) {
+  async subscribe(editor: LexicalEditor) {
+    console.log("subscribe")
     this._editor = editor
     // build the document and return the keymap
     // _id was already retrieved by open.
@@ -88,8 +90,6 @@ export class DocBuffer implements LensApi {
     for (let v of this._id ?? []) {
       this.updateProps(v, null)
     }
-    this.api.subscribe(this.um)
-
     editor.registerUpdateListener(
       ({ editorState, dirtyElements, dirtyLeaves, prevEditorState }) => {
 
@@ -115,7 +115,7 @@ export class DocBuffer implements LensApi {
           return r
         }
         const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
-        let upd: DgElement [] = []
+        let upd: DgElement[] = []
         let del: string[] = []
         editorState.read(() => {
           for (let k of dirty) {
@@ -133,13 +133,13 @@ export class DocBuffer implements LensApi {
         // })
 
         // to convert to ops we need to determine the node's parent 
-        const sel = $getSelection()
-        const dgSel: DgSelection = {
+        // const sel = $getSelection()
+        // const dgSel: DgSelection = {
 
-        }
-        this.api.update(upd,del, dgSel)
+        // }
+        this.api.update(upd, del, { start: 0, end: 0 })
       })
-
+     // await this.api.subscribe(this.um)
   }
 }
 
@@ -193,18 +193,19 @@ export function SyncPath(props: { path: InputString, fallback: JSXElement, child
   const [rs] = createResource(props.path, ars)
   onCleanup(() => { rs()?.api.close() })
 
-  return <SyncPathContext.Provider value={rs()}>
-    <Show fallback={props.fallback} when={!rs.loading}>{props.children}</Show>
-  </SyncPathContext.Provider>
+  return <Show fallback={props.fallback} when={!rs.loading }>
+    <SyncPathContext.Provider value={rs()}>
+      {props.children}
+    </SyncPathContext.Provider></Show>
 }
 
 export function Sync() {
   const st = useSyncPath()
-  if (!st) return null
   const [editor] = useLexicalComposerContext()
 
   onMount(async () => {
-    st.subscribe(editor)
+    console.log("sync", st,editor)
+    st?.subscribe(editor)
   })
 
   return <></>

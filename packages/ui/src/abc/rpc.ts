@@ -143,7 +143,7 @@ export class Peer {
         })
     }
 
-    async rpc<T>(method: string, params?: any, transfer?: any[]): Promise<T> {
+    async rpc<T>(method: string, params: any[], transfer?: any[]): Promise<T> {
         const w = this.ch as WorkerChannel
         console.log("send", method, params, transfer)
         const id = this.nextId++
@@ -210,10 +210,10 @@ export class Peer {
 // build an rpc set from a list of rpc names
 // eventually change this to code generation, or maybe typescript magic
 export function apiCall<T>(peer: Peer, ...rpc: string[]): T {
-
     const o: any = {}
     rpc.forEach((e) => {
         o[e] = async (...arg: any[]): Promise<any> => {
+            console.log("rpc", e, arg)
             return await peer.rpc(e, arg)
         }
     })
