@@ -163,7 +163,7 @@ export class Peer {
             for (let apix of this.api) {
                 const api = apix[data.method]
                 try {
-                    const result = await api(data.params)
+                    const result = await api.apply(null,data.params)
                     this.ch?.postMessage({
                         id: data.id,
                         result: result
