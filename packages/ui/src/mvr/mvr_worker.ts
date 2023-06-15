@@ -11,17 +11,18 @@ import { SerializedElementNode } from 'lexical';
 // locally it's just lww, no merging. buffers send exact ops to the shared worker, the 
 // call back to client with new ops, or new path open.
 type Rop = {
-    pk: string
-    id: string
-    dv: number  // device
-    rm: number[] // pairs of numbers.
+    pk: string  // site/table/primary key/attr
+    id: string  // gid of the element
+    dv: number  // device making the proposal. This would need to be version too, if we get away from serial order.
+    rm: number[] // pairs of numbers: [device, version]
     rv: number[]
+    // might be empty if we are deleting.
     v?: DgElement
 }
 class Mvr {
     // one for each concurrent device, need another approach for 3-way merge. gsn maybe?
     _proposal = new Map<number, MvrProposal>()
-    constructor(public _el: DgElement) {
+    constructor(public _el?: DgElement) {
     }
 }
 interface MvrProposal {
@@ -42,38 +43,39 @@ export class DocState {
 
     toJson(): DgElement[] {
         console.log("doc", this._doc)
-        return Array.from(this._doc.values()).map(m => m._el)
+        return Array.from(this._doc.values()).map(m => m._el!)
     }
 
-    /*
+
     merge_remote(op: Rop[]) {
         let del: string[] = []
         let upd: DgElement[] = []
         for (let o of op) {
-            let e = this._doc.get(o.id)
-            if (!e) {
-                this._doc.set(o.id, new Mvr(e))
+            let mvr : Mvr|undefined = this._doc.get(o.id)
+            if (!mvr) {
+                mvr = new Mvr(o.v)
+                this._doc.set(o.id, mvr)
             }
             if (o.v) {
-                e._proposal.set(o.dv, o.v)
+                mvr._proposal.set(o.dv, o.v)
             }
 
             for (let i = 0; i < o.rv.length; i++) {
-                const p = e._proposal.get(o.rm[i])
+                const p = mvr._proposal.get(o.rm[i])
                 if (p && p.v <= o.rv[i]) {
-                    e._proposal.delete(o.rm[i])
+                    mvr._proposal.delete(o.rm[i])
                 }
             }
-            if (e._proposal.size === 0) {
+            if (mvr._proposal.size === 0) {
                 this._doc.delete(o.id)
             }
-            else if (e._proposal.size === 1) {
-            } else if (e._proposal.size > 1) {
+            else if (mvr._proposal.size === 1) {
+            } else if (mvr._proposal.size > 1) {
                 // merge
             }
         }
         this.broadcast(null, del, upd)
-    }*/
+    }
 
     async broadcast(from: BufferState | null, del: string[], upd: DgElement[]) {
         for (let b of this._buffer) {

@@ -151,7 +151,7 @@ export class Peer {
             console.log("transfer", transfer)
             w.port.postMessage({ method, params, id: id }, transfer)
         } else {
-            this.ch?.postMessage({ method, params, id: id })
+            w.port.postMessage({ method, params, id: id })
         }
         return new Promise<T>((resolve, reject) => {
             this.reply_.set(id, [resolve, reject])
@@ -188,18 +188,16 @@ export class Peer {
         else if (data.id) {
             const r = this.reply_.get(data.id)
             if (!r) {
-                this.ch?.postMessage({
-                    id: data.id,
-                    error: "unknown id " + data.id
-                })
+                console.log("%c unknown reply " + data.id, "color:red")
             } else {
                 this.reply_.delete(data.id)
-                if (data.result) {
-                    console.log("resolved", data.result)
-                    r[0](data.result)
-                } else {
+                if (data.error) {
                     console.log("error", data.error)
                     r[1](data.error)
+                } else {
+                    // note that result can be void
+                    console.log("resolved", data.result)
+                    r[0](data.result)
                 }
                 return
             }
@@ -232,39 +230,3 @@ export function apiCall<T>(peer: Peer, ...rpc: string[]): T {
 export function apiListen<T>(peer: Peer, api: T): void {
     peer.api.push(api as ApiSet)
 }
-/*
-export class BaseClient {
-    peer?: Peer
-    status: () => string
-    setOnline: (x: string) => void
-    constructor(public cn: Cloud, public url: string) {
-        const [online, setOnline] = createSignal("connecting")
-        this.status = online
-        this.setOnline = setOnline
-    }
-
-    async connect(channel: Channel) {
-        this.channel = await this.cn.open(this.url,
-            this.setOnline,
-            (a: any) => {
-                this.recv(a)
-            })
-    }
-
-    // typeface interfaces, retry
-
-    // onmessage_ = new Map<string, NotifyHandler>()
-
-
-
-    async rpc<T>(method: string, params?: any): Promise<T> {
-        console.log("send", method, params)
-        const id = this.nextId++
-        this.channel?.postMessage(structuredClone({ method, params, id: id }))
-        return new Promise<T>((resolve, reject) => {
-            this.reply.set(id, [resolve, reject])
-        })
-    }
-
-}*/
-
