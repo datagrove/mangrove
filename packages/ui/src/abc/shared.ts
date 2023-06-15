@@ -28,7 +28,7 @@ export function createSharedListener<T>(peer: Service) {
                         result: a
                     })                    
                 }catch(e: any){
-                    console.log("error", e)
+                    console.log("%c error"+ e, "color: red")
                     port.postMessage({
                         id: x.id,
                         error: e.toString()

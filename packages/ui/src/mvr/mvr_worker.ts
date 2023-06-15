@@ -3,7 +3,7 @@ import { map } from 'zod';
 import { Channel, Peer, Service, WorkerChannel, apiCall, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, Op, DgElement, lensApi, LensServerApi, DgRangeSelection, ServiceApi, DgSelection, Upd } from './mvr_shared';
+import { LensApi, Op, DgElement, lensApi, LensServerApi, DgRangeSelection, ServiceApi, DgSelection, Upd, KeyMap } from './mvr_shared';
 
 import { sample } from './mvr_test'
 import { SerializedElementNode } from 'lexical';
@@ -50,7 +50,7 @@ export class DocState {
 
     toJson(): DgElement[] {
         console.log("doc", this._doc)
-        return topologicalSort(Array.from(this._doc.values()).map(m => m._el))
+        return Array.from(this._doc.values()).map(m => m._el)
     }
 
     /*
@@ -84,7 +84,6 @@ export class DocState {
     }*/
 
     async broadcast(from: BufferState | null, del: string[], upd: DgElement[]) {
-        upd = topologicalSort(upd)
         for (let b of this._buffer) {
             if (b !== from) {
                 del = del.map(d => b.keyMap.get(d) || d)
@@ -106,7 +105,7 @@ export class DocState {
 
 
 let next = 0
-class BufferState implements LensServerApi {
+class BufferState  {
     // lexical keys to global keys
     keyMap = new Map<string, string>()
     // global keys to lexical keys for this buffer.
@@ -116,39 +115,43 @@ class BufferState implements LensServerApi {
     constructor(public ps: PeerServer, mp: MessagePort, public doc: DocState) {
         const w = new Peer(new WorkerChannel(mp))
         this.api = lensApi(w)
-        apiListen<LensServerApi>(w, this)
+        const r: LensServerApi = {
+            update: this.updatex.bind(this),
+            subscribe: this.subscribex.bind(this),
+            close: this.closex.bind(this)
+        }
+        apiListen<LensServerApi>(w, r)
     }
-    async update(ops: (string | DgElement)[], sel: DgRangeSelection): Promise<void> {
+    async updatex(upd: DgElement[], del: string[], sel: DgRangeSelection): Promise<void> {
+        console.log("update", this, upd, del, sel)
         // all these elements are coming with a lexical id. If they are inserts we need to give them a global id
-        let del: string[] = []
-        let upd: DgElement[] = []
-        for (let o of ops) {
-            if (typeof o === "string") {
-                const gid = this.keyMap.get(o)
-                if (gid) {
-                    del.push(gid)
-                    this.keyMap.delete(o)
-                    this.revMap.delete(gid)
-                }
-            } else {
-                const id = this.keyMap.get(o.id)
-                if (id) {
-                    upd.push(o)
-                } else {
-                    const n = `${next++}`
-                    this.keyMap.set(o.id, n)
-                    this.revMap.set(n, o.id)
-                    upd.push(o)
-                }
+        for (let o of del) {
+            const gid = this.keyMap.get(o)
+            if (gid) {
+                del.push(gid)
+                this.keyMap.delete(o)
+                this.revMap.delete(gid)
             }
         }
+        for (let o of upd) {
+            const id = this.keyMap.get(o.id)
+            if (id) {
+                upd.push(o)
+            } else {
+                const n = `${next++}`
+                this.keyMap.set(o.id, n)
+                this.revMap.set(n, o.id)
+                upd.push(o)
+            }
+        }
+
         this.doc.broadcast(this, del, upd)
     }
     // this is like the first update, it gives us all the lex keys for the document
-    async subscribe(key: [string, string][]): Promise<void> {
+    async subscribex(key: [string, string][]): Promise<void> {
         // we shouldn't send updates until we get this call
     }
-    async close(): Promise<void> {
+    async closex(): Promise<void> {
         this.ps.bs.delete(this)
     }
 }
@@ -211,28 +214,4 @@ class PeerServer implements Service {
 createSharedListener(new PeerServer())
 
 
-function topologicalSort(elements: DgElement[]): DgElement[] {
-    console.log("elements", elements)
-    const visited: { [id: string]: boolean } = {};
-    const sorted: DgElement[] = [];
 
-    const visit = (element: DgElement) => {
-        if (visited[element.id]) {
-            return;
-        }
-        visited[element.id] = true;
-        for (const childId of element.children) {
-            const child = elements.find((e) => e.id === childId);
-            if (child) {
-                visit(child);
-            }
-        }
-        sorted.push(element);
-    };
-
-    for (const element of elements) {
-        visit(element);
-    }
-    console.log("sorted", sorted)
-    return sorted;
-}

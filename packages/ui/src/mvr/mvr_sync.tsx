@@ -1,8 +1,8 @@
-import { Accessor, JSXElement, Show, createContext, createEffect, createResource, createSignal, onCleanup, onMount, useContext } from "solid-js"
+import { JSXElement, Show, createContext, createResource, onCleanup, onMount, useContext } from "solid-js"
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
-import { $createRangeSelection, $getNodeByKey, $getRoot, $getSelection, $parseSerializedNode, $setSelection, EditorState, ElementNode, GridSelection, LexicalEditor, LexicalNode, NodeKey, NodeSelection, RangeSelection, TextNode } from "lexical"
-import { Channel, Listener, Peer, WorkerChannel, apiListen } from "../abc/rpc"
-import { LensApi, LensServerApi, Op, ServiceApi, lensApi, lensServerApi, serviceApi, DgSelection } from "./mvr_shared"
+import { $createRangeSelection, $getNodeByKey, $getSelection, ElementNode, GridSelection, LexicalEditor, LexicalNode, NodeSelection, RangeSelection, TextNode } from "lexical"
+import { Peer, WorkerChannel, apiListen } from "../abc/rpc"
+import { LensApi, LensServerApi, lensServerApi, DgSelection, DgRangeSelection, KeyMap } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
 import LocalState from './mvr_worker?sharedworker'
@@ -16,21 +16,50 @@ import LocalState from './mvr_worker?sharedworker'
   </SyncPath>
   </TabState>
 */
+function topologicalSort(elements: DgElement[]): DgElement[] {
+  console.log("elements", elements)
+  const id: { [id: string]: DgElement } = {};
+  const visited: { [id: string]: boolean } = {};
+  const sorted: DgElement[] = [];
 
+  for (const element of elements) {
+      id[element.id] = element;
+  }
+
+  const visit = (element: DgElement) => {
+      if (visited[element.id]) {
+          return;
+      }
+      visited[element.id] = true;
+      for (const childId of element.children) {
+          const child = id[childId]
+          if (child) {
+              visit(child);
+          } else {
+              throw new Error(`child ${childId} not found`)
+          }
+      }
+      sorted.push(element);
+  };
+
+  for (const element of elements) {
+      visit(element);
+  }
+  console.log("sorted", sorted)
+  return sorted;
+}
 
 // we need to open twice, essentially.
 // the first open will absorb the big async hit, and will trigger suspense
 // the second "subscribe"" will be when we have an editor ready to receive updates.
 // we have to buffer the updates on the shared worker side, since it will await the updates to keep everything in sync
-export class DocBuffer implements LensApi {
+export class DocBuffer  {
   _id?: DgElement[] // only used for initializing.
   _editor?: LexicalEditor
 
   constructor(public api: LensServerApi, id: DgElement[]) {
     this._id = id
   }
-
-  um: [string, string][] = []
 
   // recursive over children; are we clever enough to not repeat here though?
   // maybe we need a set of visited ids? how do we set lexical parents?
@@ -40,7 +69,7 @@ export class DocBuffer implements LensApi {
   // assumes all children created first. assumes we are creating from scratch, not update.
 
 
-  updateProps(v: DgElement, ln: LexicalNode | null) {
+  updateProps(um : [string, string][], v: DgElement, ln: LexicalNode | null) {
     console.log("updateProps", v, ln)
     const nodeInfo = this._editor?._nodes.get(v.class);
     if (!nodeInfo) {
@@ -57,8 +86,9 @@ export class DocBuffer implements LensApi {
     if (ln) {
       ln.replace(nl)
     } else {
-      this.um.push([v.id, nl.getKey()])
+      um.push([v.id, nl.getKey()])
     }
+
   }
   // return the keys for every element created
   // with upd and del the id is already the lex key
@@ -66,15 +96,15 @@ export class DocBuffer implements LensApi {
   // we need to top sort this to make sure children are created before parents?
   // then we need to sync the children and the properties.
   async update(upd: DgElement[], del: string[], selection: DgSelection | null): Promise<[string, string][]> {
-    this.um = []
+    const um: [string, string][] = []
     this._editor?.update(() => {
       del.forEach(d => { $getNodeByKey(d)?.remove() })
-      upd.forEach(u => { this.updateProps(u, $getNodeByKey(u.id)) })
+      upd.forEach(u => { this.updateProps(um, u, $getNodeByKey(u.id)) })
       const sel = $getSelection()
       const selr = $createRangeSelection()
       //$setSelection(null)
     })
-    return this.um
+    return um
   }
 
 
@@ -84,12 +114,6 @@ export class DocBuffer implements LensApi {
   async subscribe(editor: LexicalEditor) {
     console.log("subscribe")
     this._editor = editor
-    // build the document and return the keymap
-    // _id was already retrieved by open.
-    this.um = []
-    for (let v of this._id ?? []) {
-      this.updateProps(v, null)
-    }
     editor.registerUpdateListener(
       ({ editorState, dirtyElements, dirtyLeaves, prevEditorState }) => {
 
@@ -124,31 +148,20 @@ export class DocBuffer implements LensApi {
             else del.push(k)
           }
         })
-        // let prev: DgElement[] = []
-        // prevEditorState.read(() => {
-        //   for (let k of dirty) {
-        //     const a = fromLexical($getNodeByKey(k))
-        //     if (a) prev.push(a)
-        //   }
-        // })
-
-        // to convert to ops we need to determine the node's parent 
-        // const sel = $getSelection()
-        // const dgSel: DgSelection = {
-
-        // }
         this.api.update(upd, del, { start: 0, end: 0 })
       })
-     // await this.api.subscribe(this.um)
+
+          // build the document and return the keymap
+    // _id was already retrieved by open.
+      const um: [string, string][] = []
+      for (let v of this._id ?? []) {
+        this.updateProps(um, v, null)
+      }
+      await this.api.subscribe(um)
   }
 }
 
 
-
-
-
-
-type InputString = string | (() => string)
 
 export const TabStateContext = createContext<TabStateValue>()
 export function useSync() { return useContext(TabStateContext) }
@@ -171,7 +184,9 @@ export class TabStateValue {
     console.log("json", json)
     const wc = new Peer(new WorkerChannel(mc.port1))
     const db = new DocBuffer(lensServerApi(wc), json)
-
+    const r : LensApi = {
+      update: db.update.bind(db),
+    }
     apiListen<LensApi>(wc, db)
     return db
   }
@@ -187,7 +202,7 @@ export function TabState(props: { children: JSXElement }) {
 export const SyncPathContext = createContext<DocBuffer>()
 export function useSyncPath() { return useContext(SyncPathContext) }
 
-export function SyncPath(props: { path: InputString, fallback: JSXElement, children: JSXElement }) {
+export function SyncPath(props: { path: string|(()=>string), fallback: JSXElement, children: JSXElement }) {
   const prov = useSync()!
   const ars = async (path: string) => { return await prov.load(path) }
   const [rs] = createResource(props.path, ars)

@@ -167,13 +167,16 @@ export class Peer {
                     continue
                 }
                 try {
+                    console.log("listen ", data.method, data.params)
                     const result = await api.apply(null,data.params)
                     this.ch?.postMessage({
                         id: data.id,
                         result: result
                     })
+                    console.log("returned",data.id,result)
                     return
                 } catch (e: any) {
+                    console.log("%c error "+e, "color:red")
                     this.ch?.postMessage({
                         id: data.id,
                         error: e.toString()
