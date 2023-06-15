@@ -1,6 +1,6 @@
 
 import { map } from 'zod';
-import { Channel, Service, WorkerChannel, apiCall, apiListen } from '../abc/rpc';
+import { Channel, Peer, Service, WorkerChannel, apiCall, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
 import { LensApi, Op, DgElement, lensApi, LensServerApi, DgRangeSelection, ServiceApi, DgSelection, Upd } from './mvr_shared';
@@ -113,7 +113,7 @@ class BufferState implements LensServerApi {
 
     api: LensApi
     constructor(public ps: PeerServer, mp: MessagePort, public doc: DocState) {
-        const w = new WorkerChannel(mp)
+        const w = new Peer (new WorkerChannel(mp))
         this.api = lensApi(w)
         apiListen<LensServerApi>(w, this)
     }
@@ -182,8 +182,10 @@ class PeerServer implements Service {
     connect(ch: Channel): ServiceApi {
         console.log("worker connected")
         const r: ServiceApi = {
-            open: async (mp: MessagePort, path: string): Promise<DgElement[]> => {
-                console.log("worker open", path)
+            open: async (path: string, mp: MessagePort ): Promise<DgElement[]> => {
+                console.log("worker open", path, mp)
+                if (!(mp instanceof MessagePort))
+                    throw new Error("expected message port")
                 let doc = this.ds.get(path)
                 if (!doc) {
                     doc = new DocState()

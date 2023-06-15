@@ -8,6 +8,7 @@ export function createSharedListener<T>(peer: Service) {
         const ch = new WorkerChannel(port)
         const a:any = peer.connect(ch)
 
+        console.log("waiting for message")
         port.addEventListener("message", async (e: MessageEvent) => {
             console.log("worker got", e.data)
             const x: Rpc<any> = e.data

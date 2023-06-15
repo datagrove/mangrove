@@ -1,5 +1,5 @@
 import { GridSelection, LexicalNode, NodeSelection, RangeSelection, SerializedLexicalNode } from "lexical"
-import { Channel, apiCall } from "../abc/rpc"
+import { Channel, Peer, apiCall } from "../abc/rpc"
 
 
 export interface DgElement {
@@ -16,9 +16,9 @@ export interface DgElement {
 
 
 export interface ServiceApi {
-    open(ch: MessagePort,key: string ): Promise<DgElement[]>
+    open(key: string,ch: MessagePort ): Promise<DgElement[]>
 }
-export function serviceApi(ch: Channel): ServiceApi {
+export function serviceApi(ch: Peer): ServiceApi {
     return apiCall(ch, "open")
 }
 //type LexSelection = null | RangeSelection | NodeSelection | GridSelection
@@ -30,18 +30,20 @@ export type DgRangeSelection = {
 export type DgSelection = DgRangeSelection
 
 export type KeyMap = [string, string][]
+
 export interface LensApi {
   update(upd: DgElement[], del: string[], selection: DgSelection|null) : Promise<KeyMap>
 }
-export function lensApi(ch: Channel): LensApi {
+export function lensApi(ch: Peer): LensApi {
     return apiCall(ch, "update")
 }
+
 export interface LensServerApi {
   update(upd: DgElement[], del: string[], sel: DgSelection): Promise<void>
   subscribe(key: KeyMap): Promise<void>
   close(): Promise<void>
 }
-export function lensServerApi(ch: Channel): LensServerApi {
+export function lensServerApi(ch: Peer): LensServerApi {
   return apiCall(ch, "update", "subscribe","close")
 }
 

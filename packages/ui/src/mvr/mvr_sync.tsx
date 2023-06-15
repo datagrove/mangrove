@@ -157,16 +157,18 @@ export function useSync() { return useContext(TabStateContext) }
 
 export class TabStateValue {
   sw = new LocalState()
-  api: Peer<ServiceApi>
+  api: Peer
 
   constructor() {
+    this.sw.port.start()
+    this.sw.port.postMessage({ type: "init" })
     this.api = new Peer(new WorkerChannel(this.sw.port))
   }
 
   async load(path: string): Promise<DocBuffer> {
     const mc = new MessageChannel()
     const json = await this.api.rpc<DgElement[]>("open", [path, mc.port2], [mc.port2])
-    const wc = new WorkerChannel(mc.port1)
+    const wc = new Peer(new WorkerChannel(mc.port1))
     const db = new DocBuffer(lensServerApi(wc), json)
 
     apiListen<LensApi>(wc, db)

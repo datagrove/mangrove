@@ -26,25 +26,28 @@ export interface Service {
 
 
 export class Listener {
-    _listen = new Set<()=>void>()
-    add(p: ()=>void) {
-      this._listen.add(p)
+    _listen = new Set<() => void>()
+    add(p: () => void) {
+        this._listen.add(p)
     }
-    remove(p: ()=>void) {
-      this._listen.delete(p)
+    remove(p: () => void) {
+        this._listen.delete(p)
     }
     notify() {
-      for (let p of this._listen) {
-        p()
-      }
+        for (let p of this._listen) {
+            p()
+        }
     }
-  }
-  
+}
+
 type Statusfn = (x: string) => void
 type Recv = (x: any) => void
 // maybe make a url that works with all of these?
 export class WorkerChannel implements Channel {
     constructor(public port: MessagePort) {
+        if (!(port instanceof MessagePort)) {
+            throw new Error("not a message port")
+        }
     }
     postMessage(data: any): void {
         this.port.postMessage(data)
@@ -64,8 +67,8 @@ export class WsChannel implements Channel {
     constructor(public url: string, public status: (x: string) => void, public recv?: (d: any) => void) {
         this.connect()
     }
-    connect(){
-          this.ws = new WebSocket(this.url)
+    connect() {
+        this.ws = new WebSocket(this.url)
         this.status("connecting")
         this.ws.onclose = () => {
             this.status("closed")
@@ -83,7 +86,7 @@ export class WsChannel implements Channel {
             } else {
                 this.recv?.(decode(e.data))
             }
-        }      
+        }
     }
     listen(fn: (d: any) => void): void {
         this.recv = fn
@@ -124,31 +127,31 @@ export class WebRTC implements Channel {
 //     close(): void
 // } 
 
-export type  ApiSet =  {
+export type ApiSet = {
     [key: string]: ((...a: any[]) => Promise<any>)
 }
 
-export class Peer<T> {
+// a peer needs to support multiple api's, for listening try each in order.
+export class Peer {
     nextId = 1
     reply_ = new Map<number, [(data: any) => void, (data: any) => void]>()
-    api: ApiSet
+    api: ApiSet[] = []
 
-    constructor(public ch: Channel, api?: T) {
-        this.api = api??{} as ApiSet
+    constructor(public ch: Channel) {
         ch.listen((d: any) => {
             this.recv(d)
         })
     }
 
     async rpc<T>(method: string, params?: any, transfer?: any[]): Promise<T> {
+        const w = this.ch as WorkerChannel
         console.log("send", method, params, transfer)
         const id = this.nextId++
         if (transfer) {
-            const w = this.ch as WorkerChannel
             console.log("transfer", transfer)
-            w.port.postMessage(structuredClone({ method, params, id: id }), transfer)
+            w.port.postMessage({ method, params, id: id }, transfer)
         } else {
-            this.ch?.postMessage(structuredClone({ method, params, id: id }))
+            this.ch?.postMessage({ method, params, id: id })
         }
         return new Promise<T>((resolve, reject) => {
             this.reply_.set(id, [resolve, reject])
@@ -156,19 +159,23 @@ export class Peer<T> {
     }
 
     async recv(data: any) {
-        if (data.method && this.api) {
-            const api = this.api[data.method]
-            try {
-                const result = await api(data.params)
-                this.ch?.postMessage({
-                    id: data.id,
-                    result: result
-                })
-            } catch (e: any) {
-                this.ch?.postMessage({
-                    id: data.id,
-                    error: e.toString()
-                })
+        if (data.method) {
+            for (let apix of this.api) {
+                const api = apix[data.method]
+                try {
+                    const result = await api(data.params)
+                    this.ch?.postMessage({
+                        id: data.id,
+                        result: result
+                    })
+                    return
+                } catch (e: any) {
+                    this.ch?.postMessage({
+                        id: data.id,
+                        error: e.toString()
+                    })
+                    return
+                }
             }
         }
         if (data.id) {
@@ -197,8 +204,8 @@ export class Peer<T> {
 // we create api's from channels
 // build an rpc set from a list of rpc names
 // eventually change this to code generation, or maybe typescript magic
-export function apiCall<T>(mc: Channel, ...rpc: string[]): T {
-    const peer = new Peer(mc)
+export function apiCall<T>(peer: Peer, ...rpc: string[]): T {
+
     const o: any = {}
     rpc.forEach((e) => {
         o[e] = async (...arg: any[]): Promise<any> => {
@@ -207,16 +214,10 @@ export function apiCall<T>(mc: Channel, ...rpc: string[]): T {
     })
     return o as T
 }
-export function apiListen<T>(mc: Channel, api: T): void {
-    mc.listen((d: any) => {
-        const a = api as any
-        const m = a[d.method]
-        if (m) {
-            m(d.params)
-        } else {
-            console.log("unknown method", d)
-        }
-    })
+
+// listen on a peer? maybe we should wrap call on a peer too.
+export function apiListen<T>(peer: Peer, api: T): void {
+    peer.api.push(api as ApiSet)
 }
 /*
 export class BaseClient {
