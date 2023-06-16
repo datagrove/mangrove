@@ -24,7 +24,7 @@ export function DbDebugger(props: { path?: string }) {
         setVer(ps()?.changed[0]()??0)
         setDver(ds()?.changed[0]()??0)
 
-        console.log("SERVER CHANGe ", ps(),docs(),doc(),ds())        
+        //console.log("SERVER CHANGe ", ps(),docs(),doc(),ds())        
     }
 
     createEffect(() => {    

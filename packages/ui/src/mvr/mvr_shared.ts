@@ -29,7 +29,7 @@ export function serviceApi(ch: Peer): ServiceApi {
 export type KeyMap = [string, string][]
 
 export interface LensApi {
-  update(upd: DgElement[], del: string[], selection: DgSelection|null) : Promise<KeyMap>
+  update(upd: DgElement[], del: string[], selection: DgSelection) : Promise<KeyMap>
 }
 export function lensApi(ch: Peer): LensApi {
     return apiCall(ch, "update")

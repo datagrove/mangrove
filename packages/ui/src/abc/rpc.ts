@@ -167,7 +167,7 @@ export class Peer {
                     continue
                 }
                 try {
-                    console.log("listen ", data.method, data.params)
+                    //console.log("listen ", data.method, data.params)
                     const result = await api.apply(null,data.params)
                     this.ch?.postMessage({
                         id: data.id,

@@ -96,7 +96,7 @@ export class DocBuffer  {
   // with ins the id is the mvr key, create the lex key and return the pair.
   // we need to top sort this to make sure children are created before parents?
   // then we need to sync the children and the properties.
-  async updatex(upd: DgElement[], del: string[], selection: DgSelection | null): Promise<[string, string][]> {
+  async updatex(upd: DgElement[], del: string[], selection: DgSelection): Promise<[string, string][]> {
     console.log("apply update to lexical", upd,del, selection)
     const um: [string, string][] = []
     const m = new Map<string, LexicalNode>()
@@ -180,8 +180,9 @@ export class DocBuffer  {
             const selx = $getSelection()
           })
          
-           
-          this.api.update(upd, del, sel)
+          // this should check for a change in selection
+          if (upd.length > 0 || del.length > 0 || sel.length > 0)
+            this.api.update(upd, del, sel)
         })
   
   }

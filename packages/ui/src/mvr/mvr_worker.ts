@@ -157,7 +157,7 @@ export class DocState {
             }
 
             // map update returns the keys that lexical assigned to the new elements
-            const map_update = await b.api.update(upd2, del2, null)
+            const map_update = await b.api.update(upd2, del2, [])
             for (let [gid, lex] of map_update) {
                 const mvr = this._doc.get(gid)
                 if (!mvr) {
@@ -200,7 +200,7 @@ class BufferState  {
         apiListen<LensServerApi>(w, r)
     }
     async updatex(upd: DgElement[], del: string[], sel: DgSelection): Promise<void> {
-        console.log("update from lexical", upd, del, sel, this.keyMap)
+        console.log("update from lexical", upd, del, sel)
         this.doc.trigger()
         // all these elements are coming with a lexical id. If they are inserts we need to give them a global id
         const upd2  : DgElement[] = []
