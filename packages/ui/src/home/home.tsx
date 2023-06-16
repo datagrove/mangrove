@@ -1,24 +1,22 @@
 
 
-import { For, JSXElement, Match, Show, Suspense, Switch, createContext, createEffect, createMemo, createResource, createSignal, useContext } from "solid-js";
+import { For, JSXElement, Match, Show, Suspense, Switch, createContext, createEffect, createResource, createSignal, useContext } from "solid-js";
 import { createWs } from "../core/socket";
-import { A, useLocation, useNavigate } from "@solidjs/router";
+import { A, useLocation } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
 import { Icon, } from "solid-heroicons";
-import { signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, arrowsRightLeft as eastWest, map, plusCircle , circleStack} from "solid-heroicons/solid";
+import { signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, map, plusCircle , circleStack} from "solid-heroicons/solid";
 import { ChatPanel, ChatViewer, DatabaseTool, DatabaseViewer } from "./viewer";
 import { SettingsViewer } from "./settings";
 import { DarkButton } from "../lib";
-import { createWindowSize } from "@solid-primitives/resize-observer";
 import { SearchPanel, SearchViewer } from "./search";
 import { Settings } from "./settings";
-import { Graphic, SitePage, SitePageContext, Tool, contentLeft, getUser, layout, left, login, menuToggle, mobile, online, setLayout, setLeft, showPanel, showTools, useUser, userState } from "../core";
+import { Graphic, SitePage, SitePageContext, Tool, contentLeft, left, login, menuToggle, mobile, online, setLeft, showPanel, showTools, useUser, userState } from "../core";
 import { EditTool, EditViewer } from "./edit";
 import { MapTool, MapViewer } from "./map";
-import { DropModal, NewModal, PickGroupModal, pickNewFile, setShowNew, uploadFiles } from "./new";
+import { DropModal, NewModal, PickGroupModal, pickNewFile, uploadFiles } from "./new";
 
-import { Database } from "../lib/db";
 import { Db, createDb } from "../db";
 import { HSplitterButton } from "./viewer/splitter";
 

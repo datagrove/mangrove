@@ -7,7 +7,6 @@ import { log } from "console";
 import { IntervalTree } from "./itree";
 import { ScanQuery, ScanDiff, binarySearch } from "./localstate_shared";
 import { QuerySchema, Keyed, TableUpdate, Tx } from "../dblite/schema";
-import { Db } from "../db";
 
 export function mapCache<K, V>(m: Map<K, V>, url: K, fn: (x: K) => V): V {
     let sx = m.get(url)

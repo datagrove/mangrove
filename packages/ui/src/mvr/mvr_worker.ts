@@ -8,7 +8,7 @@ import { LensApi, Op, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection
 import { sample } from './mvr_test'
 import { SerializedElementNode } from 'lexical';
 import { createSignal } from 'solid-js';
-import { Tx } from '../dblite';
+import { TableUpdate, Tx } from '../dblite';
 
 // locally it's just lww, no merging. buffers send exact ops to the shared worker, the 
 // call back to client with new ops, or new path open.
@@ -189,7 +189,7 @@ class BufferState  {
     revMap = new Map<string, string>()
 
     api: LensApi
-    constructor(public ps: PeerServer, mp: MessagePort, public doc: DocState) {
+    constructor(public ps: MvrServer, mp: MessagePort, public doc: DocState) {
         console.log("BUFFER ADDED", doc._buffer.size)
         const w = new Peer(new WorkerChannel(mp))
         this.api = lensApi(w)
@@ -281,19 +281,42 @@ function lexicalToDg(lex: SerializedElementNode): DgElement[] {
 }
 
 // to watch the database state, we want a signal for when the buffer state or the doc state changes
-export class PeerServer implements Service {
-    ds = new Map<string, DocState>();
 
+class Db {
     commit(tx: Tx) {
         // there are special site ids
+
+        // these can 
+        const u : TableUpdate = {
+            tuple: {},
+            op: 'table-key-insert'
+        }
     }
 
-    //bs = new Set<BufferState>()
+    // sets up a subscription to just the range 1 tuple
+    // 
+    htmlLens(key: string){
+
+    }
+}
+
+
+
+// the mvr server wraps around the database server?
+// will the elements be available as tuples or only in documents?
+export class MvrServer implements Service {
+    ds = new Map<string, DocState>();
     changed =  createSignal(0)
+    db = new Db()
 
     trigger() {
         this.changed[1](this.changed[0]() + 1)
     }
+
+    // the path here needs to give us the address of a cell in the database.
+    // should it be structured, or parsed string? We probably need a string in any event so we can use it in the url
+    // site.server.com/table?key{x}=value|value&attr=name
+    // site.server.com/edit/table/key/attr/value/value/value
 
     async open(path: string, mp: MessagePort): Promise<DgElement[]>  {
         console.log("worker open", path, mp)
@@ -326,7 +349,7 @@ export class PeerServer implements Service {
 }
 
 if (!self.document) {
-    createSharedListener(new PeerServer())
+    createSharedListener(new MvrServer())
 }
 
 

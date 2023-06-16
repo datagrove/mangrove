@@ -6,7 +6,7 @@ import { LensApi, LensServerApi, lensServerApi, DgSelection, KeyMap, ServiceApi,
 import { DgElement as DgElement } from "./mvr_shared"
 
 import LocalState from './mvr_worker?sharedworker'
-import { PeerServer } from "./mvr_worker"
+import { MvrServer } from "./mvr_worker"
 import { $isMarkNode } from "@lexical/mark"
 import { $isLinkNode } from "@lexical/link"
 import { normalize } from "path"

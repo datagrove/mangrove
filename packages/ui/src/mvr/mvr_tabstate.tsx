@@ -6,7 +6,7 @@ import { LensApi, lensServerApi, ServiceApi } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
 import LocalState from './mvr_worker?sharedworker'
-import { PeerServer } from "./mvr_worker"
+import { MvrServer } from "./mvr_worker"
 import { DocBuffer } from "./mvr_sync"
 
 // share an lex document
@@ -30,7 +30,7 @@ export const TabStateContext = createContext<TabStateValue>()
 export function useDg() { return useContext(TabStateContext) }
 export class TabStateValue {
   api!: Peer
-  ps?: PeerServer
+  ps?: MvrServer
 
   makeWorker() {
     const sw = new LocalState()
@@ -38,7 +38,7 @@ export class TabStateValue {
     this.api = new Peer(new WorkerChannel(sw.port))
   }
   makeLocal() {
-    this.ps = new PeerServer()
+    this.ps = new MvrServer()
     const mc = new MessageChannel()
     this.api = new Peer(new WorkerChannel(mc.port1))
 
