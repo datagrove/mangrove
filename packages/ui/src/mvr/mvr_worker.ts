@@ -8,6 +8,7 @@ import { LensApi, Op, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection
 import { sample } from './mvr_test'
 import { SerializedElementNode } from 'lexical';
 import { createSignal } from 'solid-js';
+import { Tx } from '../dblite';
 
 // locally it's just lww, no merging. buffers send exact ops to the shared worker, the 
 // call back to client with new ops, or new path open.
@@ -157,7 +158,7 @@ export class DocState {
             }
 
             // map update returns the keys that lexical assigned to the new elements
-            const map_update = await b.api.update(upd2, del2, [])
+            const map_update = await b.api.update([],upd2, del2, [])
             for (let [gid, lex] of map_update) {
                 const mvr = this._doc.get(gid)
                 if (!mvr) {
@@ -199,11 +200,11 @@ class BufferState  {
         }
         apiListen<LensServerApi>(w, r)
     }
-    async updatex(upd: DgElement[], del: string[], sel: DgSelection): Promise<void> {
+    async updatex( upd: DgElement[], del: string[], sel: DgSelection): Promise<void> {
         console.log("update from lexical", upd, del, sel)
         this.doc.trigger()
         // all these elements are coming with a lexical id. If they are inserts we need to give them a global id
-        const upd2  : DgElement[] = []
+        const upd2 : DgElement[] = []
         const del2 : string[] = []
         for (let o of del) {
             const mvr = this.keyMap.get(o)
@@ -282,6 +283,11 @@ function lexicalToDg(lex: SerializedElementNode): DgElement[] {
 // to watch the database state, we want a signal for when the buffer state or the doc state changes
 export class PeerServer implements Service {
     ds = new Map<string, DocState>();
+
+    commit(tx: Tx) {
+        // there are special site ids
+    }
+
     //bs = new Set<BufferState>()
     changed =  createSignal(0)
 
