@@ -2,7 +2,7 @@ import { JSXElement, Show, createContext, createResource, createSignal, onCleanu
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
 import { $createRangeSelection, $getNodeByKey, $getRoot, $getSelection, $isElementNode, $isTextNode, ElementNode, GridSelection, LexicalEditor, LexicalNode, NodeSelection, RangeSelection, RootNode, TextNode } from "lexical"
 import { Peer, WorkerChannel, apiListen } from "../abc/rpc"
-import { LensApi, LensServerApi, lensServerApi, DgSelection, DgRangeSelection, KeyMap, ServiceApi, topologicalSort } from "./mvr_shared"
+import { LensApi, LensServerApi, lensServerApi, DgSelection, KeyMap, ServiceApi, topologicalSort } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
 import LocalState from './mvr_worker?sharedworker'
@@ -10,29 +10,14 @@ import { PeerServer } from "./mvr_worker"
 import { $isMarkNode } from "@lexical/mark"
 import { $isLinkNode } from "@lexical/link"
 import { normalize } from "path"
-// share an lex document
-/*
-  <TabState>  // tab level state, starts shared worker
-  <SyncPath path={ } fallback={loading}> // support suspense while loading
-    <Editor>  // editor level state
-        <Sync>
-    </Editor>
-  </SyncPath>
-  </TabState>
-*/
 
-
-// we need to open twice, essentially.
-// the first open will absorb the big async hit, and will trigger suspense
-// the second "subscribe"" will be when we have an editor ready to receive updates.
-// we have to buffer the updates on the shared worker side, since it will await the updates to keep everything in sync
 let cnt = 32
 export class DocBuffer  {
   _id?: DgElement[] // only used for initializing.
   _editor?: LexicalEditor
   _debug =  createSignal(`${cnt++}`)
   constructor(public api: LensServerApi, id: DgElement[]) {
-    
+    // this stores the document just until we have an editor to receive it.
     this._id = id
   }
 
@@ -44,6 +29,7 @@ export class DocBuffer  {
   // assumes all children created first. assumes we are creating from scratch, not update.
   // must call inside editor context
   $updateProps(m: Map<string,LexicalNode>, um : [string, string][], v: DgElement, ln: LexicalNode | null) {
+    
 
     let nodeInfo = this._editor?._nodes.get(v.type);
     if (!nodeInfo) {
@@ -111,16 +97,12 @@ export class DocBuffer  {
   // we need to top sort this to make sure children are created before parents?
   // then we need to sync the children and the properties.
   async updatex(upd: DgElement[], del: string[], selection: DgSelection | null): Promise<[string, string][]> {
-
-    this._debug[1](JSON.stringify(this._editor?.toJSON(),null, 4))
-
-    console.log("%c update", "color: green")
-    console.log(upd,del, selection)
+    console.log("apply update to lexical", upd,del, selection)
     const um: [string, string][] = []
     const m = new Map<string, LexicalNode>()
     this._editor?.update(() => {
       upd.forEach(u => { this.$updateProps(m, um, u, $getNodeByKey(u.id)) })
-      del.forEach(d => { $getNodeByKey(d)?.remove() })
+      // del.forEach(d => { $getNodeByKey(d)?.remove() })
       const sel = $getSelection()
       const selr = $createRangeSelection()
       //$setSelection(null)
@@ -134,43 +116,7 @@ export class DocBuffer  {
 
   async subscribe(editor: LexicalEditor) {
     this._editor = editor
-    editor.registerUpdateListener(
-      ({ editorState, dirtyElements, dirtyLeaves, prevEditorState }) => {
-        const fromLexical = (a: LexicalNode | null): DgElement | null => {
-          if (!a) return a
-          const en = a instanceof ElementNode ? a as ElementNode : null
-          const r: DgElement = {
-            id: a.getKey(),
-            parent: a.getParent()?.getKey(),
-            v: 0,
-            conflict: "",
-            type: a.getType(),
-            children: en?.getChildrenKeys() ?? [],
-          }
-
-          if (a instanceof TextNode) {
-            let rx = r as any
-            rx.text = a.__text
-            rx.format = a.__format
-            rx.mode = a.__mode
-            rx.style = a.__style
-          }
-          return r
-        }
-        const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
-        let upd: DgElement[] = []
-        let del: string[] = []
-        editorState.read(() => {
-          for (let k of dirty) {
-            const a = fromLexical($getNodeByKey(k))
-            if (a) upd.push(a)
-            else del.push(k)
-          }
-        })
-        console.log("trying to update" ,this.api.update, upd, del, { start: 0, end: 0 }) 
-        this.api.update(upd, del, { start: 0, end: 0 })
-      })
-      
+       
 
       // build the document and return the keymap
       // _id was already retrieved by open.
@@ -191,87 +137,52 @@ export class DocBuffer  {
       })
       this._id = undefined
       console.log("subscribe end", um)
-      //await this.api.subscribe(um)
+      await this.api.subscribe(um)
+
+      editor.registerUpdateListener(
+        ({ editorState, dirtyElements, dirtyLeaves, prevEditorState }) => {
+  
+          // map a lexical node into something that can be sent to the worker
+          // mostly overhead; should split lexical into worker component with reconciliation in the tab
+          const fromLexical = (a: LexicalNode | null): DgElement | null => {
+            if (!a) return a
+            const en = a instanceof ElementNode ? a as ElementNode : null
+            const r: DgElement = {
+              id: a.getKey(),
+              parent: a.getParent()?.getKey(),
+              v: 0,
+              conflict: "",
+              type: a.getType(),
+              children: en?.getChildrenKeys() ?? [],
+            }
+  
+            if (a instanceof TextNode) {
+              let rx = r as any
+              rx.text = a.__text
+              rx.format = a.__format
+              rx.mode = a.__mode
+              rx.style = a.__style
+            }
+            return r
+          }
+  
+  
+          const dirty = [...dirtyElements.keys(), ...dirtyLeaves.keys()]
+          let upd: DgElement[] = []
+          let del: string[] = []
+          let sel: DgSelection = []
+          editorState.read(() => {
+            for (let k of dirty) {
+              const a = fromLexical($getNodeByKey(k))
+              if (a) upd.push(a)
+              else del.push(k)
+            }
+            const selx = $getSelection()
+          })
+         
+           
+          this.api.update(upd, del, sel)
+        })
+  
   }
 }
-
-export const TabStateContext = createContext<TabStateValue>()
-export function useSync() { return useContext(TabStateContext) }
-export class TabStateValue {
-  api!: Peer
-
-  makeWorker() {
-    const sw = new LocalState()
-    sw.port.start()
-    this.api = new Peer(new WorkerChannel(sw.port))
-  }
-  makeLocal() {
-    const ps = new PeerServer()
-    const mc = new MessageChannel()
-    this.api = new Peer(new WorkerChannel(mc.port1))
-
-    const svr = new Peer(new WorkerChannel(mc.port2))
-    const r : ServiceApi = {
-      open: ps.open.bind(ps),
-    }
-    apiListen<ServiceApi>(svr, r)
-  }
-
-  constructor() {
-    this.makeLocal()
-  }
-
-  async load(path: string): Promise<DocBuffer> {
-    const mc = new MessageChannel()
-    const json = await this.api.rpc<DgElement[]>("open", [path, mc.port2], [mc.port2])
-    console.log("json", json)
-    const wc = new Peer(new WorkerChannel(mc.port1))
-    const db = new DocBuffer(lensServerApi(wc), json)
-    const r : LensApi = {
-      update: db.updatex.bind(db),
-    }
-    apiListen<LensApi>(wc, r)
-    return db
-  }
-}
-export function TabState(props: { children: JSXElement }) {
-  const u = new TabStateValue()
-  return <TabStateContext.Provider value={u}>
-    {props.children}
-  </TabStateContext.Provider>
-}
-
-export const SyncPathContext = createContext<DocBuffer>()
-export function useSyncPath() { return useContext(SyncPathContext) }
-
-export function OtDebugger() {
-  const prov = useSyncPath()!
-  return <div class='overflow-scroll h-1/2 w-1/2'>
-    <pre >{prov?._debug[0]()}</pre>
-  </div>
-}
-export function SyncPath(props: { path: string|(()=>string), fallback: JSXElement, children: JSXElement }) {
-  const prov = useSync()!
-  const ars = async (path: string) => { return await prov.load(path) }
-  const [rs] = createResource(props.path, ars)
-  onCleanup(() => { rs()?.api.close() })
-
-  return <Show fallback={props.fallback} when={!rs.loading }>
-    <SyncPathContext.Provider value={rs()}>
-      {props.children}
-    </SyncPathContext.Provider></Show>
-}
-
-export function Sync() {
-  const st = useSyncPath()
-  const [editor] = useLexicalComposerContext()
-
-  onMount(async () => {
-    console.log("sync", st,editor)
-    st?.subscribe(editor)
-  })
-
-  return <></>
-}
-
-type LexSelection = null | RangeSelection | NodeSelection | GridSelection

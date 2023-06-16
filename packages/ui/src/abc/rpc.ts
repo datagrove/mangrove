@@ -145,10 +145,10 @@ export class Peer {
 
     async rpc<T>(method: string, params: any[], transfer?: any[]): Promise<T> {
         const w = this.ch as WorkerChannel
-        console.log("send", method, params, transfer)
+        //console.log("send", method, params, transfer)
         const id = this.nextId++
         if (transfer) {
-            console.log("transfer", transfer)
+            //console.log("transfer", transfer)
             w.port.postMessage({ method, params, id: id }, transfer)
         } else {
             w.port.postMessage({ method, params, id: id })
@@ -159,7 +159,7 @@ export class Peer {
     }
 
     async recv(data: any) {
-        console.log("recv", data)
+        //console.log("recv", data)
         if (data.method) {
             for (let apix of this.api) {
                 const api = apix[data.method]
@@ -173,7 +173,7 @@ export class Peer {
                         id: data.id,
                         result: result
                     })
-                    console.log("returned",data.id,result)
+                    //console.log("returned",data.id,result)
                     return
                 } catch (e: any) {
                     console.log("%c error "+e, "color:red")
@@ -196,7 +196,7 @@ export class Peer {
                     r[1](data.error)
                 } else {
                     // note that result can be void
-                    console.log("resolved", data.result)
+                    //console.log("resolved", data.result)
                     r[0](data.result)
                 }
                 return
@@ -214,7 +214,7 @@ export function apiCall<T>(peer: Peer, ...rpc: string[]): T {
     const o: any = {}
     rpc.forEach((method) => {
         o[method] = async (...arg: any[]): Promise<any> => {
-            console.log("rpc", method, arg)
+            //console.log("rpc", method, arg)
             try {
                 return await peer.rpc(method, arg)
             } catch (e) {

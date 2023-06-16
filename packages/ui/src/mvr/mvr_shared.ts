@@ -1,4 +1,4 @@
-import { GridSelection, LexicalNode, NodeSelection, RangeSelection, SerializedLexicalNode } from "lexical"
+import { LexicalNode, SerializedLexicalNode } from "lexical"
 import { Channel, Peer, apiCall } from "../abc/rpc"
 import { createSign } from "crypto"
 import { createSignal } from "solid-js"
@@ -24,10 +24,7 @@ export function serviceApi(ch: Peer): ServiceApi {
 //type LexSelection = null | RangeSelection | NodeSelection | GridSelection
 // receive updates to a sequence
 
-export type DgRangeSelection = {
 
-}
-export type DgSelection = DgRangeSelection
 
 export type KeyMap = [string, string][]
 
@@ -66,7 +63,7 @@ export function topologicalSort(elements: DgElement[]): [DgElement[],{[id:string
   for (const element of elements) {
       id[element.id] = element;
   }
-  console.log("idxx", elements.map(e => [e.id, ...e.children]))
+  //console.log("idxx", elements.map(e => [e.id, ...e.children]))
 
   const visit = (element: DgElement) => {
       if (visited[element.id]) {
@@ -88,6 +85,26 @@ export function topologicalSort(elements: DgElement[]): [DgElement[],{[id:string
   for (const element of elements) {
       visit(element);
   }
-  console.log("sorted", sorted.map(e => [e.type+"."+e.id, ...e.children]))
+  //console.log("sorted", sorted.map(e => [e.type+"."+e.id, ...e.children]))
   return [sorted,id];
 }
+
+interface RangeSelection {
+  type: "range"
+  start: string
+  end: string
+  startOffset: number
+  endOffset: number
+}
+interface NodeSelection {
+  type: "node"
+  node: string
+}
+interface GridSelection {
+  type: "grid"
+  topLeft: string
+  bottomRight: string
+}
+
+export type DgSelection = (RangeSelection | NodeSelection | GridSelection)[]
+

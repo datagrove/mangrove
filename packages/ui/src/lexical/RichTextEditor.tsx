@@ -83,7 +83,7 @@ const editorConfig = {
 
 
 function Bottom() {
-  return <div class='w-full h-8 dark:bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
+  return <div class=' h-8 dark:bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
     <Icon class='h-6 w-6' path={check} />
     <div class='flex-1 '></div>
     <div class='space-x-4 flex mr-2'>
@@ -103,7 +103,7 @@ export function RichTextEditor(props: RteProps) {
 
   const Menu = () => {
     const [editor] = useLexicalComposerContext();
-    return <div class='w-full h-8 dark:bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
+    return <div class=' h-8 dark:bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
       <Icon class='h-6 w-6' path={check} />
       <div class='flex-1 '></div>
       <div class='space-x-4 flex mr-2'>
@@ -119,11 +119,11 @@ export function RichTextEditor(props: RteProps) {
 
   return (
     <LexicalComposer initialConfig={editorConfig}>
-      <div class="editor-container w-full h-full">
+      <div class="editor-container">
         <Menu />
         <TextMenu />
 
-        <div class="editor-inner w-full h-full">
+        <div class="editor-inner ">
 
           <RichTextPlugin
             contentEditable={<ContentEditable class="editor-input" ></ContentEditable>}

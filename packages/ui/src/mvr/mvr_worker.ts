@@ -3,10 +3,11 @@ import { map } from 'zod';
 import { Channel, Peer, Service, WorkerChannel, apiCall, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, Op, DgElement, lensApi, LensServerApi, DgRangeSelection, ServiceApi, DgSelection, Upd, KeyMap } from './mvr_shared';
+import { LensApi, Op, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, Upd, KeyMap } from './mvr_shared';
 
 import { sample } from './mvr_test'
 import { SerializedElementNode } from 'lexical';
+import { createSignal } from 'solid-js';
 
 // locally it's just lww, no merging. buffers send exact ops to the shared worker, the 
 // call back to client with new ops, or new path open.
@@ -71,6 +72,7 @@ class Mvr {
             })
         }
     }
+    get gid() { return this._el!.id }
 }
 interface MvrProposal {
     read: number
@@ -81,6 +83,12 @@ interface MvrProposal {
 export class DocState {
     _doc = new Map<string, Mvr>()
     _buffer = new Set<BufferState>()
+    changed = createSignal(0)
+
+    trigger() {
+        this.changed[1](this.changed[0]() + 1)
+    }
+
     constructor() {
         // our canonical document will read to keep the read and write values of the mvr
         // we can fake those on import.
@@ -95,8 +103,7 @@ export class DocState {
         return Array.from(this._doc.values()).map(m => m._el!)
     }
 
-
-    merge_remote(mc: MergeContext, op: Rop[]) {
+    async merge_remote(mc: MergeContext, op: Rop[]) {
         let del: string[] = []
         let upd: DgElement[] = []
         for (let o of op) {
@@ -122,7 +129,7 @@ export class DocState {
                 fn(mc, mvr)
             }
         }
-        this.broadcast(null, del, upd)
+        await this.broadcast(null, del, upd)
     }
 
     async broadcast(from: BufferState | null, del: string[], upd: DgElement[]) {
@@ -131,39 +138,58 @@ export class DocState {
             if (b === from) 
                 continue
 
-            del = del.map(d => b.keyMap.get(d) || d)
-            del.forEach(d => b.revMap.delete(d))
-            upd.map(u => {
-                return {
+            const del2 : string[] = []
+            const upd2 : DgElement[] = []
+
+            // be sure to complete the broadcast before deleting from the document map
+            for (let d of del) {
+                const lid = b.keyMap.get(d)?.gid || d
+                del2.push(lid)
+                b.revMap.delete(lid)
+            }
+
+            for (let u of upd) {
+                const u2 = {
                     ...u,
                     id: b.revMap.get(u.id) || u.id
                 }
-            })
-
-          
-            const map_update = await b.api.update(upd, del, null)
-            console.log("map update", map_update)
-            if (map_update) {
-                for (let [gid, lex] of map_update) {
-                    b.keyMap.set(lex, gid)
-                    b.revMap.set(gid, lex)
-                }
+                upd2.push(u2)
             }
+
+            // map update returns the keys that lexical assigned to the new elements
+            const map_update = await b.api.update(upd2, del2, null)
+            for (let [gid, lex] of map_update) {
+                const mvr = this._doc.get(gid)
+                if (!mvr) {
+                    console.log("unknown gid from lexical", gid)
+                    continue
+                }
+                b.keyMap.set(lex, mvr )
+                b.revMap.set(gid, lex)
+            }
+            
         }
+      // now the broadcast is complete we can delete from the document map
+      // this will change though with cloud state
+        del.forEach(d => {
+            this._doc.delete(d)
+        })
+        this.trigger()
     }
 }
 
 
 let next = 0
 class BufferState  {
+    // we can eliminate this mapping by forking lexical and putting the vdom in the shared worker
     // lexical keys to global keys
-    keyMap = new Map<string, string>()
+    keyMap = new Map<string, Mvr>()
     // global keys to lexical keys for this buffer.
     revMap = new Map<string, string>()
 
     api: LensApi
     constructor(public ps: PeerServer, mp: MessagePort, public doc: DocState) {
-        doc._buffer.add(this)
+        console.log("BUFFER ADDED", doc._buffer.size)
         const w = new Peer(new WorkerChannel(mp))
         this.api = lensApi(w)
         const r: LensServerApi = {
@@ -173,27 +199,42 @@ class BufferState  {
         }
         apiListen<LensServerApi>(w, r)
     }
-    async updatex(upd: DgElement[], del: string[], sel: DgRangeSelection): Promise<void> {
-        console.log("update", this, upd, del, sel)
-       
+    async updatex(upd: DgElement[], del: string[], sel: DgSelection): Promise<void> {
+        console.log("update from lexical", upd, del, sel, this.keyMap)
+        this.doc.trigger()
         // all these elements are coming with a lexical id. If they are inserts we need to give them a global id
         const upd2  : DgElement[] = []
         const del2 : string[] = []
         for (let o of del) {
-            const gid = this.keyMap.get(o)
-            if (gid) { 
+            const mvr = this.keyMap.get(o)
+            if (mvr) { 
                 this.keyMap.delete(o)
-                this.revMap.delete(gid)
-                del2.push(gid)
+                this.revMap.delete(mvr.gid)
+                del2.push(mvr.gid)
             }
         }
         for (let o of upd) {
-            const id = this.keyMap.get(o.id)
-            if (!id) {
+            const mvr = this.keyMap.get(o.id)
+            if (!mvr) {
+                console.log("New element",o)
                 const n = `${next++}`
-                this.keyMap.set(o.id, n)
+                const mvr = new Mvr(o)
+                this.keyMap.set(o.id, mvr)
                 this.revMap.set(n, o.id)
                 upd2.push(o)
+            } else {
+                const x = mvr._el as any
+                console.log("old/new", x,o)
+                const y = o as any
+                if (x.text != y.text) {
+                    console.log("changing text ",x.text, y.text)
+                    // not right, we need to update the mvr
+                    x.text = y.text
+                    upd2.push({
+                        ...o,
+                        id: mvr.gid
+                    })
+                }
             }
         }
 
@@ -201,10 +242,14 @@ class BufferState  {
     }
     // this is like the first update, it gives us all the lex keys for the document
     async subscribex(key: [string, string][]): Promise<void> {
-        // we shouldn't send updates until we get this call
+        for (let [gid,lid] of key) {
+            this.keyMap.set(lid, this.doc._doc.get(gid)!)
+            this.revMap.set(gid, lid)
+        }
     }
     async closex(): Promise<void> {
-        this.ps.bs.delete(this)
+        this.doc._buffer.delete(this)
+        //this.ps.bs.delete(this)
     }
 }
 
@@ -215,7 +260,6 @@ function lexicalToDg(lex: SerializedElementNode): DgElement[] {
     let dgd: DgElement[] = []
 
     const copy1 = (a: SerializedElementNode, parent: string): string => {
-
         const key = `${_next++}`
         const id: string[] = []
         if (a.children) {
@@ -231,13 +275,19 @@ function lexicalToDg(lex: SerializedElementNode): DgElement[] {
         return key
     }
     copy1(lex, "")
-    console.log("dgd", dgd.map(d => [ d.id,...d.children]))
+    // console.log("convert to dg", dgd.map(d => [ d.id,...d.children]))
     return dgd
 }
 
+// to watch the database state, we want a signal for when the buffer state or the doc state changes
 export class PeerServer implements Service {
     ds = new Map<string, DocState>();
-    bs = new Set<BufferState>()
+    //bs = new Set<BufferState>()
+    changed =  createSignal(0)
+
+    trigger() {
+        this.changed[1](this.changed[0]() + 1)
+    }
 
     async open(path: string, mp: MessagePort): Promise<DgElement[]>  {
         console.log("worker open", path, mp)
@@ -248,7 +298,11 @@ export class PeerServer implements Service {
             doc = new DocState()
             this.ds.set(path, doc)
         }
-        this.bs.add(new BufferState(this, mp, doc))
+        const bs = new BufferState(this, mp, doc)
+        //this.bs.add(bs)
+        doc._buffer.add(bs)
+        this.trigger()
+        doc.trigger()
         return doc.toJson()
     }
 

@@ -134,7 +134,7 @@ export function TextMenu() {
         state().isCode = !state().isCode
         editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code");
     }
-    return <Portal><div
+    return <div
         ref={el!} class='flex fixed border  border-neutral-700  rounded-md bg-neutral-800 text-white ' style={{
             left: (pos()?.x ?? 0) + "px",
             top: (pos()?.y ?? 0) + "px",
@@ -146,7 +146,7 @@ export function TextMenu() {
         <Sb isActive={state().isUnderline} onClick={underline}><span class='underline'>U</span></Sb>
         <Sb isActive={state().isStrikethrough} onClick={strike}><span class='line-through'>S</span></Sb>
         <Sb isActive={state().isCode} onClick={code}><span >{"<>"}</span></Sb>
-    </div></Portal>
+    </div>
 
 }
 
