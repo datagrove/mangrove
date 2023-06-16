@@ -119,8 +119,8 @@ export class DocBuffer  {
     const um: [string, string][] = []
     const m = new Map<string, LexicalNode>()
     this._editor?.update(() => {
-      del.forEach(d => { $getNodeByKey(d)?.remove() })
       upd.forEach(u => { this.$updateProps(m, um, u, $getNodeByKey(u.id)) })
+      del.forEach(d => { $getNodeByKey(d)?.remove() })
       const sel = $getSelection()
       const selr = $createRangeSelection()
       //$setSelection(null)

@@ -57,7 +57,6 @@ export interface Del {
 }
 export type Op = Upd | Del
 
-
 export function topologicalSort(elements: DgElement[]): [DgElement[],{[id:string]:DgElement}] {
   console.log("elements", elements)
   const id: { [id: string]: DgElement } = {};
