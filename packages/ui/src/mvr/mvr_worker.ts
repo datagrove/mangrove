@@ -3,12 +3,18 @@ import { map } from 'zod';
 import { Channel, Peer, Service, WorkerChannel, apiCall, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, Op, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, Upd, KeyMap } from './mvr_shared';
+import { LensApi, Op, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, Upd, KeyMap, ValuePointer } from './mvr_shared';
 
 import { sample } from './mvr_test'
 import { SerializedElementNode } from 'lexical';
 import { createSignal } from 'solid-js';
 import { TableUpdate, Tx, Tx2 } from '../dblite';
+
+
+// we need to support different storage hosts, for testing purposes we should assume something like R2. The lock server will point us to the log host and the tail host.
+
+
+
 
 // locally it's just lww, no merging. buffers send exact ops to the shared worker, the 
 // call back to client with new ops, or new path open.
@@ -304,56 +310,82 @@ class Db {
 
 }
 
+// servers can require drivers to support their storage
+// servers. When contacting the host, the driver can be negotiated; the host can offer more than one driver.
+export interface ServerDriver {
+    // read is not generally authorized, as the data is already encrypted. There are few threat models where this would be useful
+    readPage( id: string, credential: Uint8Array|null): Promise<Uint8Array>
 
+    // writes generally need to be authorized because they must share a bucket in popular cloud services.
+    writePage( id: string, credential: Uint8Array|null,  data: Uint8Array): Promise<string>
+
+    authorize?: (id: string, credential: Uint8Array) => Promise<Uint8Array|null>
+}
+
+export class TestServerClient implements ServerDriver{
+    data = new Map<string, Uint8Array>()
+    async readPage(id: string, credential: Uint8Array | null): Promise<Uint8Array> {
+        return this.data.get(id)!
+    }
+    async writePage(id: string, credential: Uint8Array | null, data: Uint8Array): Promise<string> {
+        this.data.set(id, data)
+        return ""
+    }
+}
+
+const drivers : {[key: string]: (config: any)=>ServerDriver}= {
+    "test":  (_)=>new TestServerClient()
+}
+
+// we need to initialize the MvrServer with a host for its user configuration
+// from there we can access other servers, but we need to store data to share among the user's devices
 
 // the mvr server wraps around the database server?
 // will the elements be available as tuples or only in documents?
 export class MvrServer implements Service {
+    server = new Map<string, ServerDriver>()
     ds = new Map<string, DocState>();
-    changed =  createSignal(0)
+    changed = createSignal(0)
     db = new Db()
 
     trigger() {
         this.changed[1](this.changed[0]() + 1)
     }
+
+    // generally we get the driver from the host, but if we are offline can we do this?
+    // we also need a device id and a user identity.
+    // can we do anything before we get these? but we need to start somehow.
+
+    // default to self.orgin. if you don't have a device id, ask for one. (how do we do this in vite?)
+
+    // merge this with the database functionality
+    static async connect( host?: string, driver?: string) {
+        const s = new MvrServer()
+        const d = drivers[driver || "test"]({})
+        s.server.set(host??self.origin, d)
+        return s
+    }
     async schema(siteServer: string) : Promise<Schema>{
         return {}
     }
 
-    // SubscriberApi
-    async sync(server: string, site: number, length: number,tail: Uint8Array) {
-        // read the new entries and write to local database
-
-        // 
-    }
-
-    // the path here needs to give us the address of a cell in the database.
-    // should it be structured, or parsed string? We probably need a string in any event so we can use it in the url
-    // site.server.com/table?key{x}=value|value&attr=name
-    // site.server.com/edit/table/key/attr/value/value/value
-    async open(url: string, mp: MessagePort): Promise<DgElement[]>  {
-
-        const u = new URL(url)
-        // site can be in parameters or part of domain.
-        const site = u.searchParams.get("site")
-        const siteServer = site + u.hostname
-        const sch =  await this.schema(siteServer)
-        // the first part of path is ignored, it is used for the tool that uses the value.
-        const path = u.pathname.split("/").slice(1)
-        const [table,key, attr, ...value] = path
-        //return [(x:any)=>{}]
-
-        console.log("worker open", path, mp)
-        if (!(mp instanceof MessagePort))
-            throw new Error("expected message port")
-        let doc = this.ds.get(url)
+    async open(url: ValuePointer, mp: MessagePort): Promise<DgElement[]|string>  {
+        if (!(mp instanceof MessagePort)) throw new Error("expected message port")
+        const cachekey = url.join("/")
+        // check our cache, if not found instantiate a new one. 
+        let doc = this.ds.get(cachekey)
         if (!doc) {
             doc = new DocState()
-            this.ds.set(url, doc)
+            // load the value from our local store if available, otherwise load from the server if a snapshot is available, otherwise we return unavailable arror.
+            
+            this.ds.set(cachekey, doc)
         }
+
+        // create a new buffer state for this document
         const bs = new BufferState(this, mp, doc)
-        //this.bs.add(bs)
         doc._buffer.add(bs)
+
+        // notify the debugger
         this.trigger()
         doc.trigger()
         return doc.toJson()

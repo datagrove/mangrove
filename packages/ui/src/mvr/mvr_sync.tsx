@@ -32,6 +32,7 @@ function dg2lex(dg: DgElement, nl: LexicalNode) {
 
 let cnt = 32
 export class DocBuffer {
+  _error: Error | undefined
   _id?: DgElement[] // only used for initializing.
   _editor?: LexicalEditor
   _debug = createSignal(`${cnt++}`)

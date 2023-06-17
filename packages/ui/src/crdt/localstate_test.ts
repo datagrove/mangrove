@@ -3,7 +3,7 @@ import { KeeperClient, LocalStateClient,  HostClient, Stat, LocalStateFromHost, 
 import { ApiSet, Service, Peer, WorkerChannel } from "../abc/rpc"
 import { Channel } from "../abc/rpc"
 import { DbLiteClientApi } from "../dblite/api"
-import { DbLite } from "../dblite/dblite"
+import { DbLite } from "../dblite/worker"
 import { editor_schema } from "./editor_schema"
 
 

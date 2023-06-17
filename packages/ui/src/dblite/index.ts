@@ -1,3 +1,3 @@
 export * from './schema'
-export * from './dblite'
+export * from './worker'
 export * from './api'

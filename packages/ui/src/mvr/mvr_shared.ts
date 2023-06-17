@@ -4,6 +4,10 @@ import { createSign } from "crypto"
 import { createSignal } from "solid-js"
 import { Tx } from "../dblite"
 
+// [ host, site, table, rowid, columnid]
+// we can use queries to return a tuple pointer. we can use the tuple pointer to initiate an editor
+
+export type ValuePointer = [number,number,number,number,number]
 
 export interface DgElement {
   id: string
@@ -17,14 +21,14 @@ export interface DgElement {
 
 
 export interface ServiceApi {
-    open(key: string,ch: MessagePort ): Promise<DgElement[]>
+    open(url: ValuePointer,ch: MessagePort ): Promise<DgElement[]|string>
 }
 export function serviceApi(ch: Peer): ServiceApi {
     return apiCall(ch, "open")
 }
+
 //type LexSelection = null | RangeSelection | NodeSelection | GridSelection
 // receive updates to a sequence
-
 
 
 export interface Etx {
@@ -41,9 +45,16 @@ export interface CommitApi {
 }
 // subscribe is a commit to the user database.
 
+// tail updates are best effort and may not include the bytes when the lock server is under stress. it may not update every tail (based on load an capacity), but will prioritize according to subscription weight stored in the subscription database.
+type TailUpdate = [number, Uint8Array]
 export interface SubscriberApi {
-  sync(length: number) : Promise<void>
+  sync(length: number, tail: TailUpdate[]) : Promise<void>
 }
+export function subscriberApi(ch: Peer): SubscriberApi {
+    return apiCall(ch, "sync")
+}
+
+
 export interface KeeperApi {
   read(id: number, at: number, size: number): Promise<Uint8Array|string>
 }

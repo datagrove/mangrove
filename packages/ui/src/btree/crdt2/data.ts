@@ -63,6 +63,8 @@ export interface EditorSelection {
     end: number
 }
 
+// should this require a token? should their be an api to generate the token?
+// eventually this should be a wrap for r2?
 export interface KeeperApi {
     read(file: string, start: number, end: number): Promise<Uint8Array|string>
 }
