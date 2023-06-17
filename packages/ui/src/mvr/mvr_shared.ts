@@ -27,6 +27,27 @@ export function serviceApi(ch: Peer): ServiceApi {
 
 
 
+export interface Etx {
+  id: number
+  data: Uint8Array
+  lock: number[]
+  lockValue: number[]
+}
+export interface AuthApi {
+  login(challenge: Uint8Array, user: string, response: Uint8Array): Promise<void>
+}
+export interface CommitApi {
+  commit(tx: Etx): Promise<number>
+}
+// subscribe is a commit to the user database.
+
+export interface SubscriberApi {
+  sync(length: number) : Promise<void>
+}
+export interface KeeperApi {
+  read(id: number, at: number, size: number): Promise<Uint8Array|string>
+}
+
 export type KeyMap = [string, string][]
 
 export interface LensApi {

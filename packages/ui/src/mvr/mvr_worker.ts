@@ -8,7 +8,7 @@ import { LensApi, Op, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection
 import { sample } from './mvr_test'
 import { SerializedElementNode } from 'lexical';
 import { createSignal } from 'solid-js';
-import { TableUpdate, Tx } from '../dblite';
+import { TableUpdate, Tx, Tx2 } from '../dblite';
 
 // locally it's just lww, no merging. buffers send exact ops to the shared worker, the 
 // call back to client with new ops, or new path open.
@@ -90,6 +90,10 @@ export class DocState {
         this.changed[1](this.changed[0]() + 1)
     }
 
+    // whenever we add a proposal to a mvr we need to commit it to disk
+    // after committing it to disk we will write it to the cloud. Cloud writes may fail and need retrying.
+    
+
     constructor() {
         // our canonical document will read to keep the read and write values of the mvr
         // we can fake those on import.
@@ -104,6 +108,7 @@ export class DocState {
         return Array.from(this._doc.values()).map(m => m._el!)
     }
 
+    // merge remote ops come from reading the cloud log.
     async merge_remote(mc: MergeContext, op: Rop[]) {
         let del: string[] = []
         let upd: DgElement[] = []
@@ -252,6 +257,8 @@ class BufferState  {
         this.doc._buffer.delete(this)
         //this.ps.bs.delete(this)
     }
+
+
 }
 
 // give every node an id. 
@@ -282,22 +289,19 @@ function lexicalToDg(lex: SerializedElementNode): DgElement[] {
 
 // to watch the database state, we want a signal for when the buffer state or the doc state changes
 
+interface Schema {
+
+}
+
+// we need a commit locally that should succeed and a remote commit that may need to be retried
+// retrying requires a rebase
 class Db {
-    commit(tx: Tx) {
+    //
+    commit(tx: Tx2) {
         // there are special site ids
 
-        // these can 
-        const u : TableUpdate = {
-            tuple: {},
-            op: 'table-key-insert'
-        }
     }
 
-    // sets up a subscription to just the range 1 tuple
-    // 
-    htmlLens(key: string){
-
-    }
 }
 
 
@@ -312,20 +316,40 @@ export class MvrServer implements Service {
     trigger() {
         this.changed[1](this.changed[0]() + 1)
     }
+    async schema(siteServer: string) : Promise<Schema>{
+        return {}
+    }
+
+    // SubscriberApi
+    async sync(server: string, site: number, length: number,tail: Uint8Array) {
+        // read the new entries and write to local database
+
+        // 
+    }
 
     // the path here needs to give us the address of a cell in the database.
     // should it be structured, or parsed string? We probably need a string in any event so we can use it in the url
     // site.server.com/table?key{x}=value|value&attr=name
     // site.server.com/edit/table/key/attr/value/value/value
+    async open(url: string, mp: MessagePort): Promise<DgElement[]>  {
 
-    async open(path: string, mp: MessagePort): Promise<DgElement[]>  {
+        const u = new URL(url)
+        // site can be in parameters or part of domain.
+        const site = u.searchParams.get("site")
+        const siteServer = site + u.hostname
+        const sch =  await this.schema(siteServer)
+        // the first part of path is ignored, it is used for the tool that uses the value.
+        const path = u.pathname.split("/").slice(1)
+        const [table,key, attr, ...value] = path
+        //return [(x:any)=>{}]
+
         console.log("worker open", path, mp)
         if (!(mp instanceof MessagePort))
             throw new Error("expected message port")
-        let doc = this.ds.get(path)
+        let doc = this.ds.get(url)
         if (!doc) {
             doc = new DocState()
-            this.ds.set(path, doc)
+            this.ds.set(url, doc)
         }
         const bs = new BufferState(this, mp, doc)
         //this.bs.add(bs)

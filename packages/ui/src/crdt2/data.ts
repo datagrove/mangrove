@@ -64,7 +64,7 @@ export interface EditorSelection {
 }
 
 export interface KeeperApi {
-    read(file: string, start: number, end: number): Promise<Uint8Array>
+    read(file: string, start: number, end: number): Promise<Uint8Array|string>
 }
 
 export interface LexDiff {

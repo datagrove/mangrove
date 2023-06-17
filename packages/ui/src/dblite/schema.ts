@@ -20,12 +20,18 @@ export interface LensRef {
 }
 // server://org.site.whatever/path/to/whatever
 export interface Tx  {
-    server: string
     siteid: number // determines the server and the site, this is a local rowid from the $site table. This is only used for inserts. The rowid for an insert is used to return a map to the committed rowid if the app cares to await it.
     table: {
         [table: string]: TableUpdate[]
     }
 }
+
+export type Tx2 = [
+    number, // tupe id indicating server and site.
+    Uint32Array, // one 32 bit hashed id for each method
+    any[] // each method indicates the number and type of arguments
+]
+
 
 export interface Keyed {
     _key: string;

@@ -1,24 +1,5 @@
-
-interface Etx {
-    id: number
-    data: Uint8Array
-    lock: number[]
-    lockValue: number[]
-}
-interface AuthApi {
-    login(challenge: Uint8Array, user: string, response: Uint8Array): Promise<void>
-}
-interface CommitApi {
-    commit(tx: Etx): Promise<number>
-}
-// subscribe is a commit to the user database.
-
-interface SubscriberApi {
-    sync(length: number) : Promise<void>
-}
-interface KeeperApi {
-    read(id: number, at: number, size: number): Promise<Uint8Array|string>
-}
+import { KeeperApi } from "../crdt2/data";
+import { CommitApi, Etx } from "./mvr_shared";
 
 function concat(a: Uint8Array, b: Uint8Array) {
     var c = new Uint8Array(a.length + b.length);
