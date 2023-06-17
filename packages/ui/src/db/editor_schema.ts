@@ -1,4 +1,4 @@
-import {Query, QuerySchema, Schema, Transaction, encodeNumber, npath, standardFunctors} from './mvr_shared'
+import {Query, QuerySchema, Schema, TxBuilder, Txc, encodeNumber, npath, standardFunctors} from './mvr_shared'
 
 // lots of inefficiency convert to utf16.
 const sql = [
@@ -77,9 +77,9 @@ export const select_file_recursive : Query< {path:string} ,FileTuple> = {
     sql: 'select * from file where  path=like ?'
 }
 
-export function insert_file(tx: Transaction,f: FileTuple){
+export function insert_file(tx: TxBuilder,f: FileTuple){
     f.npath = npath(f.path)
-    tx.insert('file', f)
+    //tx.insert('file', f)
 }
 
 

@@ -10,7 +10,7 @@ import {
     get,
     parseRequestOptionsFromJSON,
 } from "@github/webauthn-json/browser-ponyfill";
-import { Cell, CellOptions } from "../db/v2/cell";
+import { Cell, CellOptions } from "../db";
 import { Ab, Bb } from "../layout/nav";
 import { on } from "events";
 import { FactorSettings } from "./settings";

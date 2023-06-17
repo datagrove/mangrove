@@ -25,6 +25,8 @@ import {
 } from "@github/webauthn-json/browser-ponyfill";
 import { login } from "../lib/crypto"
 import { setCoreLogin } from "../core"
+
+// as cell is like a lens, do we need both?
 import { createCells } from "../db"
 
 export type DivProps = JSX.HTMLAttributes<HTMLDivElement>

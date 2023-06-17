@@ -1,15 +1,8 @@
-import { JSXElement, Show, createContext, createResource, createSignal, onCleanup, onMount, useContext } from "solid-js"
-import { useLexicalComposerContext } from "../lexical/lexical-solid"
-import { $createRangeSelection, $getNodeByKey, $getRoot, $getSelection, $isElementNode, $isTextNode, ElementNode, GridSelection, LexicalEditor, LexicalNode, NodeSelection, RangeSelection, RootNode, TextNode } from "lexical"
-import { Peer, WorkerChannel, apiListen } from "../abc/rpc"
-import { LensApi, LensServerApi, lensServerApi, DgSelection, KeyMap, ServiceApi, topologicalSort } from "./mvr_shared"
+import { createSignal } from "solid-js"
+import { $createRangeSelection, $getNodeByKey, $getRoot, $getSelection, ElementNode, LexicalEditor, LexicalNode, RootNode, TextNode } from "lexical"
+import { LensServerApi, DgSelection, topologicalSort } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
-import LocalState from './mvr_worker?sharedworker'
-import { MvrServer } from "./mvr_worker"
-import { $isMarkNode } from "@lexical/mark"
-import { $isLinkNode } from "@lexical/link"
-import { normalize } from "path"
 
 function dg2lex(dg: DgElement, nl: LexicalNode) {
   const vx = dg as any

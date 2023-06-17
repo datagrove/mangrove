@@ -19,11 +19,12 @@ import { EditorState, LexicalEditor, $getRoot, $getSelection, KEY_ENTER_COMMAND 
 import {$getHtmlContent} from '@lexical/clipboard'
 import { TextMenu } from "../../lexical/menu"
 import { handThumbUp as reactionIcon , arrowUturnLeft as  replyIcon, hashtag as threadIcon, ellipsisHorizontal as dotsIcon} from 'solid-heroicons/solid'
-import { createDb, createQuery } from "../../db"
 import { IconPath } from "../search"
 import { Icon } from "solid-heroicons"
 import { SectionNav } from "../site_menu"
 import { Message, chatTable } from "../../db/editor_schema"
+import { ScanDiff } from "../../core/data"
+import { useDg } from "../../db"
 
 //import { getUsage } from "../../db/range"
 // multiple messages close to each should be grouped
@@ -119,7 +120,7 @@ export function ChatViewer() {
     let el: HTMLDivElement | null = null
     let el2: HTMLDivElement | null = null   
 
-    const db = createDb('dg')
+    const db = useDg()
 
     let ed: Scroller
 
