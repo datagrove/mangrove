@@ -2,7 +2,7 @@ import { Icon } from "solid-heroicons"
 import { arrowUp, arrowUpCircle, xMark } from "solid-heroicons/solid"
 import { SearchBox } from "./search"
 import { For, JSXElement, Show, createResource, createSignal } from "solid-js"
-import { SiteRef } from "../db"
+
 
 export interface FilterSet {
     name: string   // translate

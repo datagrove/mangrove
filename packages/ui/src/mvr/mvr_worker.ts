@@ -1,15 +1,16 @@
 
-import { map } from 'zod';
-import { Channel, Peer, Service, WorkerChannel, apiCall, apiListen } from '../abc/rpc';
+import { Channel, Peer, Service, WorkerChannel, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, Op, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, Upd, KeyMap, ValuePointer } from './mvr_shared';
+import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, Subscription } from './mvr_shared';
 
 import { sample } from './mvr_test'
 import { SerializedElementNode } from 'lexical';
-import { createSignal } from 'solid-js';
-import { TableUpdate, Tx, Tx2 } from '../dblite';
 
+import { PinnedTuple, drivers } from './mvr_db';
+import { IntervalTree } from './itree';
+import { createSignal } from 'solid-js';
+import { Schema } from './schema';
 
 // we need to support different storage hosts, for testing purposes we should assume something like R2. The lock server will point us to the log host and the tail host.
 
@@ -295,61 +296,64 @@ function lexicalToDg(lex: SerializedElementNode): DgElement[] {
 
 // to watch the database state, we want a signal for when the buffer state or the doc state changes
 
-interface Schema {
 
-}
-
-// we need a commit locally that should succeed and a remote commit that may need to be retried
-// retrying requires a rebase
-class Db {
-    //
-    commit(tx: Tx2) {
-        // there are special site ids
-
-    }
-
-}
-
-// servers can require drivers to support their storage
-// servers. When contacting the host, the driver can be negotiated; the host can offer more than one driver.
-export interface ServerDriver {
-    // read is not generally authorized, as the data is already encrypted. There are few threat models where this would be useful
-    readPage( id: string, credential: Uint8Array|null): Promise<Uint8Array>
-
-    // writes generally need to be authorized because they must share a bucket in popular cloud services.
-    writePage( id: string, credential: Uint8Array|null,  data: Uint8Array): Promise<string>
-
-    authorize?: (id: string, credential: Uint8Array) => Promise<Uint8Array|null>
-}
-
-export class TestServerClient implements ServerDriver{
-    data = new Map<string, Uint8Array>()
-    async readPage(id: string, credential: Uint8Array | null): Promise<Uint8Array> {
-        return this.data.get(id)!
-    }
-    async writePage(id: string, credential: Uint8Array | null, data: Uint8Array): Promise<string> {
-        this.data.set(id, data)
-        return ""
-    }
-}
-
-const drivers : {[key: string]: (config: any)=>ServerDriver}= {
-    "test":  (_)=>new TestServerClient()
-}
 
 // we need to initialize the MvrServer with a host for its user configuration
 // from there we can access other servers, but we need to store data to share among the user's devices
 
+
+// we can broadcast service status and range versions
+
+class Server {
+    constructor(){
+
+    }
+}
+
 // the mvr server wraps around the database server?
 // will the elements be available as tuples or only in documents?
 export class MvrServer implements Service {
-    server = new Map<string, ServerDriver>()
+    server = new Map<string, Server>()
     ds = new Map<string, DocState>();
     changed = createSignal(0)
-    db = new Db()
+    bc = new BroadcastChannel('dgdb')
+
+    // there is an glsn per server, otherwise it would be hard for server to know if any are missing
+    glsn = 0
+    // we have a tree per table, this lets us cache/hash the top cheaply.
+
+    sub = new Map<string , {
+                pinned: IntervalTree<Subscription>
+                dirty: {
+                    [key: number]: PinnedTuple
+                }
+    }>()
+
+    avail = new Map<string, number>()
+
+    sv (url: string): Server {
+        let sx = this.server.get(url)
+        if (!sx) {
+            sx = new Server()
+            this.server.set(url, sx)
+        }
+        return sx
+    }
+    
+    getTable(server: string, site: string, table: string): IntervalTree<Subscription> {
+        throw new Error("Method not implemented.");
+    }
+
 
     trigger() {
         this.changed[1](this.changed[0]() + 1)
+    }
+
+    notifyStatus() {
+        this.bc.postMessage({
+            server: [...this.server.keys()],
+            //up: [...server.values()].filter(x => x.isConnected).map(x => x.url)
+        })
     }
 
     // generally we get the driver from the host, but if we are offline can we do this?
@@ -361,12 +365,16 @@ export class MvrServer implements Service {
     // merge this with the database functionality
     static async connect( host?: string, driver?: string) {
         const s = new MvrServer()
-        const d = drivers[driver || "test"]({})
-        s.server.set(host??self.origin, d)
+        s.server.set(host??self.origin, s)
         return s
     }
     async schema(siteServer: string) : Promise<Schema>{
-        return {}
+        const r : Schema =  {
+            create: [],
+            view: {},
+            functor: {}
+        }
+        return r
     }
 
     async open(url: ValuePointer, mp: MessagePort): Promise<DgElement[]|string>  {
@@ -377,7 +385,7 @@ export class MvrServer implements Service {
         if (!doc) {
             doc = new DocState()
             // load the value from our local store if available, otherwise load from the server if a snapshot is available, otherwise we return unavailable arror.
-            
+
             this.ds.set(cachekey, doc)
         }
 

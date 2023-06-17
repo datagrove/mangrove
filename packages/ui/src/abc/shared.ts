@@ -41,3 +41,12 @@ export function createSharedListener<T>(peer: Service) {
 
     }
 }
+export const log = (...args: any[]) => {
+    ctx.postMessage({
+        method: 'log',
+        params: args
+    })
+}
+export const error = (...msg: string[]) => {
+    log("%c", "color: red", ...msg)
+}
