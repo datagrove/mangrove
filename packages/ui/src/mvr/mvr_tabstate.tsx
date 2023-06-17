@@ -83,7 +83,7 @@ export class TabStateValue {
   const tbl = getTable(q.server, q.site, q.table)
 }
 
- scan(ts: TabState, q: ScanQuery<any, any>) {
+ scan( q: ScanQuery<any, any>) {
   const s = sv(q.server)
 
   // we need a way to compute a binary key
