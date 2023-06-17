@@ -2,7 +2,7 @@ import { LocalState, LocalStateConfig } from "./localstate"
 import { KeeperClient, LocalStateClient,  HostClient, Stat, LocalStateFromHost, LocalStateFromHostApi, Err, KeeperClientApi, LocalStateClientApi, HostClientApi } from "./localstate_shared"
 import { ApiSet, Service, Peer, WorkerChannel } from "../abc/rpc"
 import { Channel } from "../abc/rpc"
-import { DbLiteClientApi } from "../mvr/api"
+import { DbLiteClientApi } from "../mvr/sqlite_api"
 import { DbLite } from "../dblite/worker"
 import { editor_schema } from "./editor_schema"
 

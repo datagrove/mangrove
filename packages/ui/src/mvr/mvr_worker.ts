@@ -2,7 +2,7 @@
 import { Channel, Peer, Service, WorkerChannel, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery, Tx, Schema, TableUpdate } from './mvr_shared';
+import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery, Tx, Schema, TableUpdate, binarySearch, QuerySchema } from './mvr_shared';
 import { SerializedElementNode } from 'lexical';
 
 import { DgServer, PinnedTuple, Subscription, drivers } from './mvr_db';
@@ -386,7 +386,72 @@ export class MvrServer implements Service {
         // insert tx into our 
         const svr = this.sv(tx.server)
         if (!svr) return
-      
+        const execOps = (tbl: IntervalTree<Subscription>, table: string, upd: TableUpdate, dirty: Set<Subscription>)=> {
+            // to find the key in our cache we need to encode it
+            const v: QuerySchema<any> = schema.view[table]
+            const keystr = v.marshalKey(upd.tuple)
+        
+            // we need collect the subscriptions, update all at once.
+            const sub: Subscription[] = tbl.stab(keystr)
+            sub.forEach(s => dirty.add(s))
+        
+        
+            switch (upd.op) {
+                case 'insert':
+                    break;
+                case 'delete':
+                    break;
+                case 'update':
+                    break;
+            }
+        
+            // update is read-modify-write
+            const updateSql = (row: unknown) => {
+                // we need to run the functors on this. how does crdt fit here
+                // it may need to write a file, so we should probably give the functor
+                // a context. it might be good to have a functor that can do the whole
+                // update in sql.
+                const updated = schema.functor[upd.op](row, upd.tuple)
+                // we need to update the database
+                const sql = v.marshalWrite1(updated)
+                this.db.exec({
+                    sql: sql[0],
+                    bind: sql.slice(1),
+                })
+                return updated
+            }
+        
+            if (sub.length === 0) {
+                // we need to read the record from the database to do the merge
+                const r = v.marshalRead1(upd.tuple)
+                this.db.exec({
+                    sql: r[0],
+                    bind: r.slice(1),
+                    callback: (row: any) => {
+                        updateSql(row)
+                    }
+                })
+            } else {
+                // find the key in the first matching subscription, it will be the same in all of the matching. here we don't need to do the read, we can just do the write.
+                // update all of them
+                const s = sub[0]
+                const n = binarySearch(s.cache, keystr)
+                if (n >= 0) {
+                    // found it, update and notify
+                    const upd = updateSql(s.cache[n])
+        
+                    sub.forEach(s => {
+                        const n = binarySearch(s.cache, keystr)
+                        if (n >= 0) {
+                            // 
+                        }
+                    })
+                }
+                 
+            }
+            // store
+        
+            }
         // how do we rebase if we fail?
         this.db.exec("insert into log(server, entry) values (?,?)",
             [tx.server, encode(tx)])

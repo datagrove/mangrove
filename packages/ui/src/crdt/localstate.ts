@@ -1,6 +1,6 @@
 import { ApiSet, Channel, WorkerChannel } from "../abc/rpc"
 import { HostClient, KeeperClient, LocalStateClient, Scan, Stat, TabStateClient, TabStateClientApi } from "./localstate_shared"
-import { DbLiteClient, DbLiteClientApi } from "../mvr/api"
+import { DbLiteClient, DbLiteClientApi } from "../mvr/sqlite_api"
 import { editor_schema } from "./editor_schema"
 import { encode } from "cbor-x";
 import { log } from "console";

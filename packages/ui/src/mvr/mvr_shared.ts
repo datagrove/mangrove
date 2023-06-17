@@ -118,7 +118,12 @@ export function npath(path: string) : number {
 export interface Database {
   
 }
+export interface RangeSubscriber {
 
+}
+export function rangeSubscriberApi(mc: Peer) : RangeSubscriber {
+    return apiCall<RangeSubscriber>(mc, "range") 
+}
 
 
 
