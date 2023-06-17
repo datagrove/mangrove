@@ -11,11 +11,11 @@ export function reindex(){
 
 
 
-import { Db, exec } from "./db";
+import { Db, exec } from ".";
 // build a file system on db
 
-import { FileByPath, FileTuple, insert_file, select_file, select_file_recursive } from "./editor_schema";
-import { Query, Transaction, npath } from "./mvr_shared";
+import { FileTuple, insert_file, select_file, select_file_recursive } from "./editor_schema";
+import { npath } from "./mvr_shared";
 
 // files are just channels?
 // we need to figure out the type of the file to do this correctly?

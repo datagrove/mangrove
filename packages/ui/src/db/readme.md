@@ -28,7 +28,14 @@ For elements without text children we are only looking for the best way to inter
 
 a B c 
 
+updates use procs that return
+2. tuple pointer; this allows use to check the cache.
 
+
+
+
+ranges don't work with tuple pointers because these are not in order
+as we 
 
 # multiple global values
 

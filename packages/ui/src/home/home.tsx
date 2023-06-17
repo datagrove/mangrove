@@ -19,7 +19,7 @@ import { DropModal, NewModal, PickGroupModal, pickNewFile, uploadFiles } from ".
 
 //import { Db, createDb } from "../db";
 import { HSplitterButton } from "./viewer/splitter";
-import { TabState, useDg } from "../mvr";
+import { TabState, useDg } from "../db";
 
 const builtinTools: { [key: string]: Tool } = {
   "edit": {

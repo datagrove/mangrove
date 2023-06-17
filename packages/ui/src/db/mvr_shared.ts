@@ -1,7 +1,87 @@
-import { LexicalNode, SerializedLexicalNode } from "lexical"
-import { Channel, Peer, apiCall } from "../abc/rpc"
-import { createSign } from "crypto"
-import { createSignal } from "solid-js"
+import { Peer, apiCall } from "../abc/rpc"
+import { FileByPath, FileTuple } from ".";
+import crypto from 'crypto'
+
+// server://org.site.whatever/path/to/whatever
+// export interface Tx  {
+//   siteid: number // determines the server and the site, this is a local rowid from the $site table. This is only used for inserts. The rowid for an insert is used to return a map to the committed rowid if the app cares to await it.
+//   table: {
+//       [table: string]: TableUpdate[]
+//   }
+// }
+
+
+// server://org.site.whatever/path/to/whatever
+// export interface Tx  {
+//   server: string
+//   site: string
+//   table: {
+//       [table: string]: TableUpdate[]
+//   }
+// }
+export type Txc = [
+  number, // tupe id indicating server and site.
+  number, // method hash
+  ...any // each method indicates the number and type of arguments
+][]
+
+export class TxBuilder {
+  // tx: Tx = {
+  //   siteid: 0, 
+  //   table: {},
+  //   server: "",
+  //   site: ""
+  // }
+  txc: Txc
+  site = 0
+  constructor(public dbms: Db) {
+    this.txc = []
+  }
+
+//   insert(table: string, tuple: any) {
+//     this.tx[table] = this.tx[table] || []
+//     this.tx[table].push({op: 'insert', tuple})
+// }
+  async useSite(server: string, site: string): Promise<void> {
+    return
+  }
+  async commit(): Promise<string>{
+    return ""
+  }
+}
+
+
+export function methodHash(data: string): number {
+  const hash = crypto.createHash('sha256').update(data).digest();
+  const bits = hash[0] << 24 | hash[1] << 16 | hash[2] << 8 | hash[3];
+  return bits >>> 1; // shift right by 1 to get 31 bits
+}
+
+// build functions that add a functor to the transaction
+const insert_file_hash = methodHash("insert-file")
+function insert_file(tx: TxBuilder, file: FileByPath) {
+  tx.txc.push([tx.site, insert_file_hash, file])
+}
+
+
+// store in tabstate. 
+export class Db {
+  begin() { return new TxBuilder(this) }
+}
+
+// use with createResource
+// export async function dbr(dbms: dbms, server: string, site: string): Promise<Db> {
+//   return new
+// }
+
+
+export function exec<Params,Tuple>(db: Db, 
+    select_file: Query<Params, Tuple>, 
+    arg: Params)
+    : Promise<FileTuple[]> {
+
+    throw new Error("Function not implemented.");
+}
 
 
 // this is all accessed from the worker thread
@@ -33,21 +113,6 @@ table: string
 rowid: number
 column: string
 }
-// server://org.site.whatever/path/to/whatever
-export interface Tx  {
-  siteid: number // determines the server and the site, this is a local rowid from the $site table. This is only used for inserts. The rowid for an insert is used to return a map to the committed rowid if the app cares to await it.
-  table: {
-      [table: string]: TableUpdate[]
-  }
-}
-
-
-
-export type Tx2 = [
-  number, // tupe id indicating server and site.
-  Uint32Array, // one 32 bit hashed id for each method
-  any[] // each method indicates the number and type of arguments
-]
 
 
 export interface Keyed {
@@ -73,9 +138,7 @@ export interface Query<Params, FileTuple> {
 const q1: Query<{id: number}, {id: number}> = {
   sql: ''
 }
-function exec<Params,Tuple>(db: Database, q: Query<Params,Tuple>, params: Params) : Tuple[]{
-  return []
-}
+
 
 export const encodeNumber = (n: number) => n.toString(16).padStart(15, '0')
 
@@ -101,17 +164,7 @@ export const standardFunctors : FunctorMap = {
   }
 }
 
-export abstract class Transaction {
-   tx  = {} as {
-      [table: string]: TableUpdate[]
-  }
-  
-  insert(table: string, tuple: any) {
-      this.tx[table] = this.tx[table] || []
-      this.tx[table].push({op: 'insert', tuple})
-  }
-  abstract commit() : void
-}
+
 
 export function npath(path: string) : number {
   return path.split('/').length
@@ -134,6 +187,7 @@ export function rangeSubscriberApi(mc: Peer) : RangeSubscriber {
 // we can use queries to return a tuple pointer. we can use the tuple pointer to initiate an editor
 
 export type ValuePointer = [number,number,number,number,number]
+export type TuplePointer = [number,number,number,number]
 
 export interface DgElement {
   id: string
@@ -296,14 +350,7 @@ export interface TableUpdate {
     value: Uint8Array[]  // in some cases this could be a delta too. we could invoke a blob then? maybe the (handle,length) of the bloglog changes to trigger.
 } */
 
-// server://org.site.whatever/path/to/whatever
-export interface Tx  {
-    server: string
-    site: string
-    table: {
-        [table: string]: TableUpdate[]
-    }
-}
+
 
 export interface ScanQuery<Key,Tuple> {
     sql: string

@@ -1,5 +1,4 @@
-import { ApiSet, Channel, Peer, apiCall } from "../abc/rpc";
-import { LocalStateFromHost } from "../crdt/localstate_shared";
+import { Peer, apiCall } from "../abc/rpc";
 
 
 export interface DbLiteClient  {

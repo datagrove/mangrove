@@ -1,5 +1,5 @@
 import { Peer, WorkerChannel } from '../abc/rpc';
-import { Keyed, RangeSubscriber, ScanQuery, Tuple, Tx, rangeSubscriberApi } from './mvr_shared';
+import { Keyed, RangeSubscriber, ScanQuery, Tuple,  Txc,  rangeSubscriberApi } from './mvr_shared';
 const ctx = self as any;
 
 // global, each worker has a single database
@@ -72,21 +72,23 @@ export interface PinnedTuple {
 
 // subscriptions are going to be tied to message port.
 export class Subscription {
-    constructor(public query: ScanQuery<any, any>, mp: MessagePort) {
+    constructor(cacheKey: string, public query: ScanQuery<any, any>, mp: MessagePort) {
         this.api = rangeSubscriberApi(new Peer(new WorkerChannel(mp)))
     }
     cache: Keyed[] = []
     lastSent: Keyed[] = [] // use this for diff,
     api: RangeSubscriber
+    
 }
 
 export class DgServer {
+    glsn=0
     constructor() {
 
     }
 
     // these can't fail; they always just apply the delta from the server and advance the universal version number. If the tuple has been pinned then we let the editors that pinned it known and send them the delta or new value. which one is specified in the pin command.
-    async syncFromServer(tx: Tx) {
+    async syncFromServer(tx: Txc) {
 
     }
 
