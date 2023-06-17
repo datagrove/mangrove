@@ -5,7 +5,7 @@ import { createSharedListener } from '../abc/shared';
 import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery, Tx, Schema, TableUpdate, binarySearch, QuerySchema } from './mvr_shared';
 import { SerializedElementNode } from 'lexical';
 
-import { DgServer, PinnedTuple, Subscription, drivers } from './mvr_db';
+import { DgServer, PinnedTuple, Subscription, drivers } from './mvr_worker_db';
 import { IntervalTree } from './itree';
 import { createSignal } from 'solid-js';
 import { DbLite } from './sqlite_worker';
@@ -314,7 +314,7 @@ export class MvrServer implements Service {
     changed = createSignal(0)
     bc = new BroadcastChannel('dgdb')
 
-    db: DbLite
+    db?: DbLite
 
     // there is an glsn per server, otherwise it would be hard for server to know if any are missing
     glsn = 0
@@ -411,26 +411,26 @@ export class MvrServer implements Service {
                 // it may need to write a file, so we should probably give the functor
                 // a context. it might be good to have a functor that can do the whole
                 // update in sql.
-                const updated = schema.functor[upd.op](row, upd.tuple)
-                // we need to update the database
-                const sql = v.marshalWrite1(updated)
-                this.db.exec({
-                    sql: sql[0],
-                    bind: sql.slice(1),
-                })
-                return updated
+                // const updated = schema.functor[upd.op](row, upd.tuple)
+                // // we need to update the database
+                // const sql = v.marshalWrite1(updated)
+                // this.db.exec({
+                //     sql: sql[0],
+                //     bind: sql.slice(1),
+                // })
+                //return updated
             }
         
             if (sub.length === 0) {
                 // we need to read the record from the database to do the merge
                 const r = v.marshalRead1(upd.tuple)
-                this.db.exec({
-                    sql: r[0],
-                    bind: r.slice(1),
-                    callback: (row: any) => {
-                        updateSql(row)
-                    }
-                })
+                // this.db.exec({
+                //     sql: r[0],
+                //     bind: r.slice(1),
+                //     callback: (row: any) => {
+                //         updateSql(row)
+                //     }
+                // })
             } else {
                 // find the key in the first matching subscription, it will be the same in all of the matching. here we don't need to do the read, we can just do the write.
                 // update all of them

@@ -1,4 +1,4 @@
-import {Query, QuerySchema, Schema, Transaction, encodeNumber, npath, standardFunctors} from './schema'
+import {Query, QuerySchema, Schema, Transaction, encodeNumber, npath, standardFunctors} from './mvr_shared'
 
 // lots of inefficiency convert to utf16.
 const sql = [

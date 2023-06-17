@@ -41,6 +41,8 @@ export interface Tx  {
   }
 }
 
+
+
 export type Tx2 = [
   number, // tupe id indicating server and site.
   Uint32Array, // one 32 bit hashed id for each method
@@ -153,7 +155,15 @@ export function serviceApi(ch: Peer): ServiceApi {
 
 //type LexSelection = null | RangeSelection | NodeSelection | GridSelection
 // receive updates to a sequence
+export interface SiteRef {
+  name: string
+  did: string
+}
 
+export type FacetSelect<T> = {
+  limit?: number
+  offset?: number
+}
 
 export interface Etx {
   id: number

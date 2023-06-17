@@ -2,13 +2,12 @@ import { JSXElement, Show, createContext, createResource, onCleanup, onMount, us
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
 import { GridSelection, NodeSelection, RangeSelection } from "lexical"
 import { Peer, WorkerChannel, apiListen } from "../abc/rpc"
-import { LensApi, lensServerApi, ScanQuery, ServiceApi, ValuePointer } from "./mvr_shared"
+import { LensApi, lensServerApi, QuerySchema, ScanQuery, ServiceApi, ValuePointer } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
 import LocalState from './mvr_worker?sharedworker'
 import { MvrServer } from "./mvr_worker"
 import { DocBuffer } from "./mvr_sync"
-import { QuerySchema } from "./schema"
 
 // share an lex document
 /*
@@ -26,25 +25,25 @@ import { QuerySchema } from "./schema"
 // maybe all tuples just come packed though? the go server doesn't need this.
 // the worker needs this code to keep it up to date.
 // we could compile it into the worker for now.
-export class RangeSource<Key,Tuple> {
-  constructor(public db: TabStateValue, public q: ScanQuery<Key,Tuple>, public schema: QuerySchema<Key>, public listener: (s: ScanDiff) => void) {
-      // we have to send db thread a query
-  }
+// export class RangeSource<Key,Tuple> {
+//   constructor(public db: TabStateValue, public q: ScanQuery<Key,Tuple>, public schema: QuerySchema<Key>, public listener: (s: ScanDiff) => void) {
+//       // we have to send db thread a query
+//   }
 
-  // update(n: Partial<ScanQuery<Key,Tuple>>) {
-  //     // we have to send db thread an update query
-  //     this.db.w.send({
-  //         method: 'updateScan',
-  //         params: n
-  //     })
-  // }
-  // close() {
-  //     this.db.w.send({
-  //         method: 'close',
-  //         params: this.q.handle
-  //     })
-  // }
-}
+//   // update(n: Partial<ScanQuery<Key,Tuple>>) {
+//   //     // we have to send db thread an update query
+//   //     this.db.w.send({
+//   //         method: 'updateScan',
+//   //         params: n
+//   //     })
+//   // }
+//   // close() {
+//   //     this.db.w.send({
+//   //         method: 'close',
+//   //         params: this.q.handle
+//   //     })
+//   // }
+// }
 
 // we need to open twice, essentially.
 // the first open will absorb the big async hit, and will trigger suspense
@@ -66,6 +65,8 @@ export function useDg() { return useContext(TabStateContext) }
 
 
 
+
+
 export class TabStateValue {
   api!: Peer
   ps?: MvrServer
@@ -78,6 +79,7 @@ export class TabStateValue {
 
 // should we smuggle the source into the worker in order to pack keys?
 // can they all be packed prior to sending?
+/*
  updateScan( q: ScanQuery<any, any>) {
   const x = ts.cache.get(q.handle)
   const tbl = getTable(q.server, q.site, q.table)
@@ -106,7 +108,7 @@ export class TabStateValue {
   }
   const tbl = getTable(q.server, q.site, q.table)
   tbl.add(q.from_, q.to_, sub)
-}
+}*/
 
   makeWorker() {
     const sw = new LocalState()

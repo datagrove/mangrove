@@ -1,5 +1,5 @@
 import { Peer, WorkerChannel } from '../abc/rpc';
-import { RangeSubscriber, ScanQuery, Tuple, Tx, rangeSubscriberApi } from './mvr_shared';
+import { Keyed, RangeSubscriber, ScanQuery, Tuple, Tx, rangeSubscriberApi } from './mvr_shared';
 const ctx = self as any;
 
 // global, each worker has a single database

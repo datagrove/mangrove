@@ -2,7 +2,7 @@ import { For, Show, Signal, createEffect, createSignal } from "solid-js"
 import { ListTile, Modal, Text, ModalBody, ModalButton, ModalTitle, SearchProps, SelectionList, UploadButton, SearchableView } from "./dialog"
 import { arrowUp } from "solid-heroicons/solid"
 import { H2 } from "../layout/nav"
-import { FacetSelect, SiteRef } from "../db"
+import { FacetSelect, SiteRef } from "../mvr"
 import { IconPath, SearchBox } from "./search"
 import { useNavigate } from "@solidjs/router"
 import { Input } from "../lib/input"
@@ -68,13 +68,16 @@ export interface DropProps {
 }
 export const [showDrop, setShowDrop] = createSignal<Dialog<DropProps,void>>()
 // can we make this async? Is that more organized?
-export async function uploadFiles(fl: FileList, group: SiteRef) {
-    return new Promise((resolve, reject) => {
-        setShowDrop([{
-            files: fl,
-            group: group
-        }, resolve])
-    })
+export async function uploadFiles(fl: FileList, group?: SiteRef) {
+    // group = group || recentGroup()
+    // return new Promise((resolve, reject) => {
+    //     const a = [{
+    //         files: fl,
+    //         group: group
+    //     }, resolve]
+
+    //     setShowDrop(a)
+    // })
 }
 
 export function DropModal() {

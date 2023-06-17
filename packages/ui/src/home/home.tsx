@@ -17,8 +17,9 @@ import { EditTool, EditViewer } from "./edit";
 import { MapTool, MapViewer } from "./map";
 import { DropModal, NewModal, PickGroupModal, pickNewFile, uploadFiles } from "./new";
 
-import { Db, createDb } from "../db";
+//import { Db, createDb } from "../db";
 import { HSplitterButton } from "./viewer/splitter";
+import { TabState, useDg } from "../mvr";
 
 const builtinTools: { [key: string]: Tool } = {
   "edit": {
@@ -83,10 +84,7 @@ export function PinnedTool() {
   </span>
 }
 
-const DbContext = createContext<Db>();
-export function useDb() {
-  return useContext(DbContext)
-}
+
 
 // const userState: UserState = {
 //   settings: anon,
@@ -103,16 +101,15 @@ export function XX() {
 
 
 export function LoggedIn() {
-  let [db] = createResource('dg', createDb)
+
   // pause here until we have a database
-  return <Show when={!db.loading} fallback={<div>Loading...</div>}>
-    <DbContext.Provider value={db()}>
+  return <TabState >
     <LoggedIn2 />
-    </DbContext.Provider>
-    </Show>
+    </TabState>
+
 }
 export function LoggedIn2() {
-  const db = useDb()!
+  const db = useDg()!
   const ws = createWs()
   const loc = useLocation()
   const ln = useLn()
@@ -132,8 +129,8 @@ export function LoggedIn2() {
         if (files) {
           // Handle dropped files here
           // start the new dialog, with files alread prepped.
-          const group = db!.recentGroup(1)
-          uploadFiles(files,group[0])
+          //const group = db!.recentGroup(1)
+          uploadFiles(files)
         }
       });
     }
