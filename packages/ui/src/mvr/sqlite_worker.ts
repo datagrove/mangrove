@@ -1,10 +1,12 @@
 // this must be in a worker to get opfs\
 // @ts-ignore
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
-import { Schema } from './schema';
 import { ApiSet, Channel, Service } from '../abc/rpc';
 import { DbLiteClient as DbLiteEngine } from './api';
+import { Schema } from './mvr_shared';
 const ctx = self as any;
+
+// we can load in memory for testing, but it needs to be in a worker for opfs
 
 // @ts-ignore
 const isWorker = self instanceof DedicatedWorkerGlobalScope
@@ -70,7 +72,7 @@ export class DbLite implements Service {
         start(s)
     }
 
-    async query (sql: string, ...bind: any[]) : Promise<any>   {
+    async exec (sql: string, ...bind: any[]) : Promise<any>   {
         const r : any[]= []
         db.exec({
             sql: sql,
@@ -85,7 +87,7 @@ export class DbLite implements Service {
     
     connect(ch: Channel): DbLiteEngine {
         const r: DbLiteEngine = {
-            query:  this.query.bind(this),
+            exec:  this.exec.bind(this),
         }
         return r
     }

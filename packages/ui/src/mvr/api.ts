@@ -3,8 +3,8 @@ import { LocalStateFromHost } from "../crdt/localstate_shared";
 
 
 export interface DbLiteClient  {
-    query(sql: string, ...args: any[]): any
+    exec(sql: string, ...args: any[]): any
 }
 export function DbLiteClientApi(mc: Peer) : DbLiteClient {
-    return apiCall<DbLiteClient>(mc, "query") 
+    return apiCall<DbLiteClient>(mc, "exec") 
 }

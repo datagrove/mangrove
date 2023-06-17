@@ -70,6 +70,44 @@ export class TabStateValue {
   api!: Peer
   ps?: MvrServer
 
+
+// maybe a shared array buffer would be cheaper? every tab could process in parallel their own ranges
+// unlikely; one tree should save power.
+// we optimistically execute the query locally, and multicast the results to listeners
+// server can proceed at its own pase.
+
+// should we smuggle the source into the worker in order to pack keys?
+// can they all be packed prior to sending?
+ updateScan( q: ScanQuery<any, any>) {
+  const x = ts.cache.get(q.handle)
+  const tbl = getTable(q.server, q.site, q.table)
+}
+
+ scan(ts: TabState, q: ScanQuery<any, any>) {
+  const s = sv(q.server)
+
+  // we need a way to compute a binary key
+  const value: any[] = []
+  db.exec({
+      sql: q.sql,
+      rowMode: 'array', // 'array' (default), 'object', or 'stmt'
+      callback: function (row: any) {
+          value.push(row);
+      }.bind({ counter: 0 }),
+  });
+
+  const key = value.map(x => "")
+
+  const sub: Subscription = {
+      ctx: ts,
+      query: q,
+      cache:  value,
+      lastSent: []
+  }
+  const tbl = getTable(q.server, q.site, q.table)
+  tbl.add(q.from_, q.to_, sub)
+}
+
   makeWorker() {
     const sw = new LocalState()
     sw.port.start()

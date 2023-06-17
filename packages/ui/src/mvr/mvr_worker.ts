@@ -2,15 +2,15 @@
 import { Channel, Peer, Service, WorkerChannel, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, Subscription } from './mvr_shared';
-
-import { sample } from './mvr_test'
+import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery, Tx, Schema, TableUpdate } from './mvr_shared';
 import { SerializedElementNode } from 'lexical';
 
-import { PinnedTuple, drivers } from './mvr_db';
+import { DgServer, PinnedTuple, Subscription, drivers } from './mvr_db';
 import { IntervalTree } from './itree';
 import { createSignal } from 'solid-js';
-import { Schema } from './schema';
+import { DbLite } from './sqlite_worker';
+import { encode } from 'cbor-x';
+import { sample } from './mvr_test';
 
 // we need to support different storage hosts, for testing purposes we should assume something like R2. The lock server will point us to the log host and the tail host.
 
@@ -304,19 +304,17 @@ function lexicalToDg(lex: SerializedElementNode): DgElement[] {
 
 // we can broadcast service status and range versions
 
-class Server {
-    constructor(){
 
-    }
-}
 
 // the mvr server wraps around the database server?
 // will the elements be available as tuples or only in documents?
 export class MvrServer implements Service {
-    server = new Map<string, Server>()
+    server = new Map<string, DgServer>()
     ds = new Map<string, DocState>();
     changed = createSignal(0)
     bc = new BroadcastChannel('dgdb')
+
+    db: DbLite
 
     // there is an glsn per server, otherwise it would be hard for server to know if any are missing
     glsn = 0
@@ -331,10 +329,16 @@ export class MvrServer implements Service {
 
     avail = new Map<string, number>()
 
-    sv (url: string): Server {
+    sv (url: string): DgServer {
+        const  connect = async ( host?: string, driver?: string) => {
+            const s = new DgServer()
+            this.server.set(host??self.origin, s)
+            return s
+        }
+
         let sx = this.server.get(url)
         if (!sx) {
-            sx = new Server()
+            sx = new DgServer()
             this.server.set(url, sx)
         }
         return sx
@@ -363,11 +367,7 @@ export class MvrServer implements Service {
     // default to self.orgin. if you don't have a device id, ask for one. (how do we do this in vite?)
 
     // merge this with the database functionality
-    static async connect( host?: string, driver?: string) {
-        const s = new MvrServer()
-        s.server.set(host??self.origin, s)
-        return s
-    }
+
     async schema(siteServer: string) : Promise<Schema>{
         const r : Schema =  {
             create: [],
@@ -377,6 +377,37 @@ export class MvrServer implements Service {
         return r
     }
 
+    async openRange(q: ScanQuery<any,any> ,mp:MessagePort){
+
+    }
+
+    // global database update. we need to make sure to update subcribers
+    commit(tx: Tx) {
+        // insert tx into our 
+        const svr = this.sv(tx.server)
+        if (!svr) return
+      
+        // how do we rebase if we fail?
+        this.db.exec("insert into log(server, entry) values (?,?)",
+            [tx.server, encode(tx)])
+      
+        // stab with all the keys, then broadcast all the updated ranges.
+        const site = svr.site[tx.site]
+        if (!site) {
+            console.log("site not found", tx.site)
+            return
+        }
+      
+        const dirty = new Set<Subscription>()
+        for (const [table, upd] of Object.entries(tx.table)) {
+            const tbl = site[table]
+            if (!tbl) continue
+            upd.forEach((x: TableUpdate) => {
+                execOps(tbl.pinned, table, x, dirty)
+            })
+        }
+        
+      }
     async open(url: ValuePointer, mp: MessagePort): Promise<DgElement[]|string>  {
         if (!(mp instanceof MessagePort)) throw new Error("expected message port")
         const cachekey = url.join("/")
