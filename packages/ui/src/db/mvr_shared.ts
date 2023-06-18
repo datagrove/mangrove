@@ -1,6 +1,6 @@
 import { Peer, TransferableResult, WorkerChannel, apiCall, apiListen } from "../abc/rpc"
 import { FileByPath, FileTuple } from ".";
-import crypto from 'crypto'
+
 
 export interface OpfsApi {
   open(path: string): Promise<number>
@@ -88,7 +88,7 @@ export class TxBuilder {
 export async function methodHash(message: string): Promise<number> {
   const encoder = new TextEncoder();
   const data = encoder.encode(message);
-  const hash = new Uint8Array(await crypto.subtle.digest('sha256',data));
+  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256',data));
   const bits = hash[0] << 24 | hash[1] << 16 | hash[2] << 8 | hash[3];
   return bits >>> 1; // shift right by 1 to get 31 bits
 }

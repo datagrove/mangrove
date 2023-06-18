@@ -125,7 +125,7 @@ export class DocBuffer {
     editor.update(() => {
       const root = $getRoot() as RootNode
       for (let v of doc) {
-        console.log("writing", doc)
+        //console.log("writing", doc)
         let nl = this.$insert(m, um, v)
         if (top.has(v.id)) {
           root.append()
