@@ -1,4 +1,4 @@
-import { Channel, TransferableResult } from "../abc/rpc"
+import { Channel, Peer, TransferableResult, WorkerChannel, apiListen } from "../abc/rpc"
 import { get } from 'sortablejs';
 import { OpfsApi } from "./mvr_shared";
 
@@ -61,17 +61,20 @@ export class OpfsWorker {
             const writeSize = writable.write(data, { "at": at });
         }
     }
-
-    connect(ch: Channel): OpfsApi {
-        const r: OpfsApi = {
-            open: this.open.bind(this),
-            close: this.close.bind(this),
-            read: this.read.bind(this),
-            write: this.write.bind(this),
-            getSize: this.getSize.bind(this)         
-        }
-        return r
-    }
-
-
 }
+
+(async () => {
+    const svc = await OpfsWorker.create()
+    console.log('opfs worker')
+    self.onmessage =  (e: any) => {
+        const p = new Peer(new WorkerChannel(e.data))  // message port
+        const r: OpfsApi = {
+            open: svc.open.bind(svc),
+            close: svc.close.bind(svc),
+            read: svc.read.bind(svc),
+            write: svc.write.bind(svc),
+            getSize: svc.getSize.bind(svc)         
+        }
+        apiListen<OpfsApi>(p, r)
+    }
+})()

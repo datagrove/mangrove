@@ -86,13 +86,15 @@ export class TabStateValue {
   async createDb() {
     const lw = new LogWorker()
     const lwp = new MessageChannel()
-    const lapi = new Peer(new WorkerChannel(lwp.port1))
+    // send one port to the worker, and one to the shared worker
+    lw.postMessage(lwp.port1, [lwp.port1])
 
+    const dbc = new MessageChannel()
     const db = new DbWorker()
-    const dbapi = new Peer(new WorkerChannel(db))
-    const api = dbLiteApi(dbapi)
+    db.postMessage(dbc.port1, [dbc.port1])
+
     // send the api (transfer the port) to the server
-    return new TransferableResult([api,lw], [dbp.port2,lwp.port2])
+    return new TransferableResult([dbc.port2,lwp.port2], [dbc.port2,lwp.port2])
   }
 
   makeWorker() {
