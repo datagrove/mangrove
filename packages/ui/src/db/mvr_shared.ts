@@ -1,7 +1,7 @@
 import { Peer, WorkerChannel, apiCall, apiListen } from "../abc/rpc"
 import { FileByPath, FileTuple } from ".";
 import crypto from 'crypto'
-import { DbLiteApi } from "./sqlite_api";
+
 
 
 export interface TabStateApi {
@@ -76,8 +76,10 @@ export class TxBuilder {
 }
 
 
-export function methodHash(data: string): number {
-  const hash = crypto.createHash('sha256').update(data).digest();
+export async function methodHash(message: string): Promise<number> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hash = new Uint8Array(await crypto.subtle.digest('sha256',data));
   const bits = hash[0] << 24 | hash[1] << 16 | hash[2] << 8 | hash[3];
   return bits >>> 1; // shift right by 1 to get 31 bits
 }
@@ -85,7 +87,7 @@ export function methodHash(data: string): number {
 // build functions that add a functor to the transaction
 const insert_file_hash = methodHash("insert-file")
 function insert_file(tx: TxBuilder, file: FileByPath) {
-  tx.txc.push([tx.site, insert_file_hash, file])
+  //tx.txc.push([tx.site, insert_file_hash, file])
 }
 
 

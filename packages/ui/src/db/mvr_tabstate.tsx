@@ -12,7 +12,6 @@ import DbWorker from './sqlite_worker?worker'
 
 import { MvrServer } from "./mvr_worker"
 import { DocBuffer } from "./mvr_sync"
-import { LockServer } from "./mvr_server"
 import { dbLiteApi } from "./sqlite_api"
 
 export class RangeSource<Key, Tuple> {
@@ -74,8 +73,6 @@ export async function storeCredential(siteServer: string, credential: Uint8Array
 
 }
 
-
-
 export const TabStateContext = createContext<TabStateValue>()
 export function useDg() { return useContext(TabStateContext) }
 
@@ -103,14 +100,13 @@ export class TabStateValue {
 
   // we need to configure the server to use a local test server
   makeLocal() {
-    const cloud = new LockServer()
     const mcc = new MessageChannel()
     const capi = new Peer(new WorkerChannel(mcc.port1))
 
     // we need to get it a dictionary of local fake server for testing.
     // or maybe we can just use a test:// protocol to indicate this?
     // either way we have to get it pointed to the test server as host
-    this.ps = new MvrServer({ host: "test://"})
+    this.ps = new MvrServer({ origin: "ws://localhost:8080/"})
 
     const mc = new MessageChannel()
     this.api = new Peer(new WorkerChannel(mc.port1))

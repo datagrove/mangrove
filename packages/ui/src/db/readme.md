@@ -1,4 +1,30 @@
 
+key: number
+method: number
+author: number
+id: number
+op: ins|del|upd
+value: string
+pos: number
+
+
+append(author,id, streamtail)
+
+streamtail {
+  op: key|table|col|id|setpos|insert|delete
+  value: uint8array
+}
+uint8Array is utf8, with the first character as the op.
+this is arguably minimal.
+
+pagemap for each contributor; use 4-16K pages, overwrite tail, (r2 though? when do we hit issues?)
+
+consensus log:
+(author,skip,count,alloc)|
+
+ // skip and count should be smallish numbers, save space over start, end? alloc gives more pages to the author.
+
+
 
 Multi-value registers, with global sequencing.
 

@@ -3,7 +3,7 @@ import { Router } from "@solidjs/router"
 import { RichTextEditor } from "../../../packages/ui/src/lexical"
 import "./index.css"
 import { ErrorBoundary, render } from "solid-js/web"
-import { DbDebugger, SyncPath, TabState } from "../../../packages/ui/src/mvr"
+import { DbDebugger, SyncPath, TabState } from "../../../packages/ui/src/db"
 
 // experiment with lexical 
 
