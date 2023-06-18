@@ -154,7 +154,7 @@ export class Peer {
 
     async rpc<T>(method: string, params: any[], transfer?: any[]): Promise<T> {
         const w = this.ch as WorkerChannel
-        //console.log("send", method, params, transfer)
+        console.log("send", method, params, transfer)
         const id = this.nextId++
         if (transfer) {
             //console.log("transfer", transfer)
@@ -170,13 +170,13 @@ export class Peer {
     async recv(data: any) {
         //console.log("recv", data)
         if (data.method) {
+            console.log("listen ", data.method, data.params)
             for (let apix of this.api) {
                 const api = apix[data.method]
                 if (!api) {
                     continue
                 }
-                try {
-                    //console.log("listen ", data.method, data.params)
+                try {                   
                     const result = await api.apply(null,data.params)
                     if (result instanceof TransferableResult) {
                         //console.log("transfer", result.transfer)

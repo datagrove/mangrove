@@ -87,10 +87,12 @@ export class TabStateValue {
     const lw = new LogWorker()
     const lwp = new MessageChannel()
     // send one port to the worker, and one to the shared worker
+    console.log("%c sending port to worker", "color:blue")
     lw.postMessage(lwp.port1, [lwp.port1])
 
     const dbc = new MessageChannel()
     const db = new DbWorker()
+    console.log("%c sending port to db", "color:blue")
     db.postMessage(dbc.port1, [dbc.port1])
 
     // send the api (transfer the port) to the server
@@ -110,6 +112,9 @@ export class TabStateValue {
   makeLocal() {
     const mc = new MessageChannel()
     this.api = new Peer(new WorkerChannel(mc.port1))
+    apiListen<TabStateApi>(this.api, {
+      createDb: this.createDb.bind(this),
+    })
     this.ps = new MvrServer({ origin: "ws://localhost:8080/"})
     this.ps.connect(new WorkerChannel(mc.port2))
     //   if (true) { } else {

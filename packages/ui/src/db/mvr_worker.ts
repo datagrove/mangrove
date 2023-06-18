@@ -2,7 +2,7 @@
 import { Channel, Peer, Service, WorkerChannel, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery, Schema, TableUpdate, binarySearch, QuerySchema, Txc, TuplePointer, TabStateApi, tabStateApi, SubscriberApi, subscriberApi, CommitApi, Etx, OpfsApi } from './mvr_shared';
+import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery, Schema, TableUpdate, binarySearch, QuerySchema, Txc, TuplePointer, TabStateApi, tabStateApi, SubscriberApi, subscriberApi, CommitApi, Etx, OpfsApi, opfsApi } from './mvr_shared';
 import { SerializedElementNode } from 'lexical';
 
 import { DgServer, PinnedTuple, Subscription, drivers } from './mvr_worker_db';
@@ -11,6 +11,7 @@ import { createSignal } from 'solid-js';
 import { DbLite } from './sqlite_worker';
 import { encode } from 'cbor-x';
 import { sample } from './mvr_test';
+import { DbLiteApi, dbLiteApi } from './sqlite_api';
 
 // we need to support different storage hosts, for testing purposes we should assume something like R2. The lock server will point us to the log host and the tail host.
 
@@ -327,6 +328,7 @@ export interface MvrServerOptions {
     }
 }
 
+let nserver = 0
 // the mvr server wraps around the database server?
 // will the elements be available as tuples or only in documents?
 export class MvrServer implements Service {
@@ -335,7 +337,14 @@ export class MvrServer implements Service {
     log = new Map<number, Uint8Array>()
     watchers = new Map<string, Uint8Array>()
     logApi? : OpfsApi
+    server = new Map<string, DgServer>()
+    ds = new Map<string, DocState>();
+    changed = createSignal(0)
+    bc = new BroadcastChannel('dgdb')
+    db?: DbLiteApi
 
+
+    avail = new Map<string, number>()
     constructor(public opt?: MvrServerOptions) {
         if (!opt) {
             opt = {}
@@ -380,15 +389,6 @@ export class MvrServer implements Service {
 
 
 
-    server = new Map<string, DgServer>()
-    ds = new Map<string, DocState>();
-    changed = createSignal(0)
-    bc = new BroadcastChannel('dgdb')
-
-    db?: DbLite
-
-
-    avail = new Map<string, number>()
 
     sv(url: string): DgServer {
         const connect = async (host?: string, driver?: string) => {
@@ -450,14 +450,11 @@ export class MvrServer implements Service {
     // global database update. we need to make sure to update subcribers
     commit(tx: Txc) {
         if (!this.db) throw new Error("No database")
-
-
         const sql = []
         for (const [site, method, ...a] of tx) {
             sql.push("insert into log(site, entry) values (?,?)", [site, encode(tx)])
             // executing the functor should return an array of tuple pointers. if any of these are in our cache we need to invalidate them. alternately we can pass this class to the proc and then the proc can manage invalidation.
         }
-
     }
 
     async open(url: ValuePointer, mp: MessagePort): Promise<DgElement[] | string> {
@@ -499,15 +496,23 @@ export class MvrServer implements Service {
         if (!this.leader) {
             this.leader = api
             console.log("creating db")
-            const [db,log] = await this.leader.createDb()
+            // this just transfers the ports back, we need to create peers for them here.
+            const [dbp,logp]:[MessagePort,MessagePort] = await this.leader.createDb()
+            dbp.start()
+            logp.start()
+            const pdb = new Peer(new WorkerChannel(dbp))
+            const plog = new Peer(new WorkerChannel(logp))
+            const db : DbLiteApi = dbLiteApi(pdb)
+            const log = opfsApi(plog)
+
             console.log("created db",db,log)
             this.db = db
             this.logApi = log
 
-            const h = await log.create("test")
-            await log.write(h, new Uint8Array([1, 2, 3]))
-            const r = log.read(h,0, 3)
-            console.log(r)
+            const h = await log.open("test"+(nserver++))
+            await log.write(h, 0, new Uint8Array([1, 2, 3]))
+            const r = await log.read(h,0, 3)
+            console.log("BACK IN WORKER",r)
         }
 
         return r

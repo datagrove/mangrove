@@ -1,9 +1,8 @@
 // this must be in a worker to get opfs\
 // @ts-ignore
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
-import { ApiSet, Channel, Peer, Service, WorkerChannel, apiListen } from '../abc/rpc';
-import { DbLiteApi, DbLiteApi as DbLiteEngine } from './sqlite_api';
-import { Schema } from './mvr_shared';
+import { Peer, WorkerChannel, apiListen } from '../abc/rpc';
+import { DbLiteApi } from './sqlite_api';
 const ctx = self as any;
 
 // we can load in memory for testing, but it needs to be in a worker for opfs
@@ -22,11 +21,8 @@ const error = (...msg: string[]) => {
 
 
 export class DbLite  {
-    constructor(public s: Schema) {
-        
-    }
 
-    static async create(schema: Schema) {
+    static async create() {
         // the first client to connect initializes the database
         // create an index worker 
         let sqlite3 = await sqlite3InitModule({
@@ -45,12 +41,7 @@ export class DbLite  {
     
             // we need to benchmark sql that allows us to edit tuples with large blobs cheaply
             // one approach is to have the crdt value reach a fixed limit, then it writes a base to disk and keeps putting tail changes into the tuple.
-    
             const search = (match: string) => `SELECT highlight(doc, 2, '<b>', '</b>') FROM doc(${match})`
-    
-            log('Creating tables...');
-            schema.create.forEach(x => db.exec(x))
-            log('Created tables');
         } catch (err: any) {
             error(err.name, err.message)
         }
@@ -68,7 +59,7 @@ export class DbLite  {
             }
         }
         connect(ctx, ctx)
-        return new DbLite(schema)
+        return new DbLite()
     }
     
 
@@ -91,8 +82,8 @@ export class DbLite  {
 (async () => {
     self.onmessage = async (e: any) => {
         console.log('sqlite worker')
-        const svc = await DbLite.create(e.data[1])
-        const p = new Peer(new WorkerChannel(e.data[0]))  // message port
+        const svc = await DbLite.create()
+        const p = new Peer(new WorkerChannel(e.data))  // message port
         const r:  DbLiteApi = {
             close: svc.close.bind(svc),
             exec: svc.exec.bind(svc)

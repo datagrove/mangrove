@@ -83,9 +83,6 @@ export class Subscription {
 
 export class DgServer {
     glsn=0
-    constructor() {
-
-    }
 
     // these can't fail; they always just apply the delta from the server and advance the universal version number. If the tuple has been pinned then we let the editors that pinned it known and send them the delta or new value. which one is specified in the pin command.
     async syncFromServer(tx: Txc) {
