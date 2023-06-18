@@ -494,11 +494,13 @@ export class MvrServer implements Service {
         }
         apiListen<ServiceApi>(peer, r)
 
-        const api = tabStateApi(new Peer(ch))
+        const api = tabStateApi(peer)
         this.tab.set(ch, api)
         if (!this.leader) {
             this.leader = api
+            console.log("creating db")
             const [db,log] = await this.leader.createDb()
+            console.log("created db",db,log)
             this.db = db
             this.logApi = log
 

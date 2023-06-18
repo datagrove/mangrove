@@ -89,8 +89,7 @@ export class TabStateValue {
     const lapi = new Peer(new WorkerChannel(lwp.port1))
 
     const db = new DbWorker()
-    const dbp = new MessageChannel()
-    const dbapi = new Peer(new WorkerChannel(dbp.port1))
+    const dbapi = new Peer(new WorkerChannel(db))
     const api = dbLiteApi(dbapi)
     // send the api (transfer the port) to the server
     return new TransferableResult([api,lw], [dbp.port2,lwp.port2])
@@ -107,22 +106,17 @@ export class TabStateValue {
 
   // we need to configure the server to use a local test server
   makeLocal() {
-    // const mcc = new MessageChannel()
-    // const capi = new Peer(new WorkerChannel(mcc.port1))
-
     const mc = new MessageChannel()
     this.api = new Peer(new WorkerChannel(mc.port1))
-
     this.ps = new MvrServer({ origin: "ws://localhost:8080/"})
-    if (false) {
-      this.ps.connect(new WorkerChannel(mc.port2))
-    } else {
-      const svr = new Peer(new WorkerChannel(mc.port2))
-      const r: ServiceApi = {
-        open: this.ps.open.bind(this.ps),
-      }
-      apiListen<ServiceApi>(svr, r)
-    }
+    this.ps.connect(new WorkerChannel(mc.port2))
+    //   if (true) { } else {
+    //   const svr = new Peer(new WorkerChannel(mc.port2))
+    //   const r: ServiceApi = {
+    //     open: this.ps.open.bind(this.ps),
+    //   }
+    //   apiListen<ServiceApi>(svr, r)
+    // }
   }
 
   constructor() {
