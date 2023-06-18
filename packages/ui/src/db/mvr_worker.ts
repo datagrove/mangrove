@@ -2,7 +2,7 @@
 import { Channel, Peer, Service, WorkerChannel, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery, Schema, TableUpdate, binarySearch, QuerySchema, Txc, TuplePointer, TabStateApi, tabStateApi, SubscriberApi, subscriberApi, CommitApi, Etx } from './mvr_shared';
+import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery, Schema, TableUpdate, binarySearch, QuerySchema, Txc, TuplePointer, TabStateApi, tabStateApi, SubscriberApi, subscriberApi, CommitApi, Etx, OpfsApi } from './mvr_shared';
 import { SerializedElementNode } from 'lexical';
 
 import { DgServer, PinnedTuple, Subscription, drivers } from './mvr_worker_db';
@@ -318,6 +318,7 @@ class LockClient {
 
 
 export interface MvrServerOptions {
+    leader?: Channel
     // host overrides the self.origin
     origin?: string
     // local dns remapping 
@@ -333,6 +334,7 @@ export class MvrServer implements Service {
     lock = new Map<number, Map<number, number>>()
     log = new Map<number, Uint8Array>()
     watchers = new Map<string, Uint8Array>()
+    logApi? : OpfsApi
 
     constructor(public opt?: MvrServerOptions) {
         if (!opt) {
@@ -492,7 +494,14 @@ export class MvrServer implements Service {
         this.tab.set(ch, api)
         if (!this.leader) {
             this.leader = api
-            this.db = await this.leader.createDb()
+            const [db,log] = await this.leader.createDb()
+            this.db = db
+            this.logApi = log
+
+            const h = await log.create("test")
+            await log.write(h, new Uint8Array([1, 2, 3]))
+            const r = log.read(h,0, 3)
+            console.log(r)
         }
         return r
     }

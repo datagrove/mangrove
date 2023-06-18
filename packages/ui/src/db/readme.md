@@ -11,11 +11,19 @@ pos: number
 append(author,id, streamtail)
 
 streamtail {
-  op: key|table|col|id|setpos|insert|delete
-  value: uint8array
+  op: key|table|col|id|setpos|insert|delete|replace|lock
+  value: uint8array[]
 }
+streamback {
+  op: boolean[]
+}
+
 uint8Array is utf8, with the first character as the op.
 this is arguably minimal.
+lock lasts one op. it doesn't need to be logged.
+what does locking do to synchronizing? 
+
+
 
 pagemap for each contributor; use 4-16K pages, overwrite tail, (r2 though? when do we hit issues?)
 

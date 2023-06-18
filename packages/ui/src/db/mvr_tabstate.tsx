@@ -10,6 +10,9 @@ import LocalState from './mvr_worker?sharedworker'
 // @ts-ignore
 import DbWorker from './sqlite_worker?worker'
 
+// @ts-ignore
+import LogWorker from './opfs_worker?worker'
+
 import { MvrServer } from "./mvr_worker"
 import { DocBuffer } from "./mvr_sync"
 import { dbLiteApi } from "./sqlite_api"
@@ -81,12 +84,16 @@ export class TabStateValue {
   ps?: MvrServer
 
   async createDb() {
+    const lw = new LogWorker()
+    const lwp = new MessageChannel()
+    const lapi = new Peer(new WorkerChannel(lwp.port1))
+
     const db = new DbWorker()
     const dbp = new MessageChannel()
     const dbapi = new Peer(new WorkerChannel(dbp.port1))
     const api = dbLiteApi(dbapi)
     // send the api (transfer the port) to the server
-    return new TransferableResult(api, [dbp.port2])
+    return new TransferableResult([api,lw], [dbp.port2,lwp.port2])
   }
 
   makeWorker() {

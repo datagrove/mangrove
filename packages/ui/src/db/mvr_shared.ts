@@ -1,8 +1,17 @@
-import { Peer, WorkerChannel, apiCall, apiListen } from "../abc/rpc"
+import { Peer, TransferableResult, WorkerChannel, apiCall, apiListen } from "../abc/rpc"
 import { FileByPath, FileTuple } from ".";
 import crypto from 'crypto'
 
-
+export interface OpfsApi {
+  open(path: string): Promise<number>
+  close(fd: number): Promise<void>
+  read(fd: number,at: number, size: number): Promise<TransferableResult>
+  write(fd: number, at: number, data: Uint8Array): Promise<void>
+  getSize(fd: number): Promise<number>
+}
+export function opfsApi(peer: Peer): OpfsApi {
+  return apiCall<OpfsApi>(peer, "open", "close", "read", "write", "getSize")
+}
 
 export interface TabStateApi {
   createDb(): Promise<any>
@@ -244,6 +253,12 @@ export interface SiteRef {
 export type FacetSelect<T> = {
   limit?: number
   offset?: number
+}
+
+// cbor transaction's are mostly "write to my log"
+// when reconnecting we need to send a "start here" message from the leader.
+export interface Ctx {
+
 }
 
 export interface Etx {
