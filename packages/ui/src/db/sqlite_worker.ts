@@ -84,10 +84,13 @@ export class DbLite implements Service {
         })
         return r
     }
+    async close(): Promise<void> {
+    }
     
     connect(ch: Channel): DbLiteEngine {
         const r: DbLiteEngine = {
-            exec:  this.exec.bind(this),
+            exec: this.exec.bind(this),
+            close: this.close.bind(this)
         }
         return r
     }

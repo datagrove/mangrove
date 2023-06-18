@@ -2,7 +2,7 @@ import { JSXElement, Show, createContext, createResource, onCleanup, onMount, us
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
 import { GridSelection, NodeSelection, RangeSelection } from "lexical"
 import { Peer, TransferableResult, WorkerChannel, apiListen } from "../abc/rpc"
-import { LensApi, lensServerApi, QuerySchema, scanApi, ScanApi, ScanQuery, ScanWatcherApi, ServiceApi, ValuePointer } from "./mvr_shared"
+import { LensApi, lensServerApi, QuerySchema, scanApi, ScanApi, ScanQuery, ScanWatcherApi, ServiceApi, TabStateApi, ValuePointer } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
 // @ts-ignore
@@ -15,6 +15,7 @@ import { DocBuffer } from "./mvr_sync"
 import { LockServer } from "./mvr_server"
 import { DbLite } from "./sqlite_worker"
 import { dbLiteApi } from "./sqlite_api"
+import { Tab } from '../../../../testview/ui/src/nav';
 
 
 // share an lex document
@@ -124,7 +125,7 @@ export class TabStateValue {
   }*/
 
   // 
-  createDb() {
+  async createDb() {
     const db = new DbWorker()
     const dbp = new MessageChannel()
     const dbapi = new Peer(new WorkerChannel(dbp.port1))
@@ -137,6 +138,9 @@ export class TabStateValue {
     const sw = new LocalState()
     sw.port.start()
     this.api = new Peer(new WorkerChannel(sw.port))
+    apiListen<TabStateApi>(this.api, {
+      createDb: this.createDb.bind(this),
+    })
   }
   makeLocal() {
     const cloud = new LockServer()

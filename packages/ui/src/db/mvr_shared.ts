@@ -1,7 +1,14 @@
 import { Peer, apiCall } from "../abc/rpc"
 import { FileByPath, FileTuple } from ".";
 import crypto from 'crypto'
+import { DbLiteApi } from "./sqlite_api";
 
+export interface TabStateApi {
+  createDb(): Promise<any>
+}
+export function tabStateApi(peer: Peer): TabStateApi {
+  return apiCall<TabStateApi>(peer, "createDb")
+}
 export interface ScanDiff {
   tuple: any[]
   copy: DiffCopy[]   // triples: [whichvector, from, to]

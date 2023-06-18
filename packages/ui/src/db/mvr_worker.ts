@@ -2,7 +2,7 @@
 import { Channel, Peer, Service, WorkerChannel, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery,  Schema, TableUpdate, binarySearch, QuerySchema, Txc, TuplePointer } from './mvr_shared';
+import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery,  Schema, TableUpdate, binarySearch, QuerySchema, Txc, TuplePointer, TabStateApi, tabStateApi } from './mvr_shared';
 import { SerializedElementNode } from 'lexical';
 
 import { DgServer, PinnedTuple, Subscription, drivers } from './mvr_worker_db';
@@ -410,18 +410,37 @@ export class MvrServer implements Service {
         return doc.toJson()
     }
 
+    tab = new Map<Channel, TabStateApi>()
+    leader? : TabStateApi
     // one per tab, if there is no db we can now ask for one
-    connect(ch: Channel): ServiceApi {
+    async connect(ch: Channel): Promise<ServiceApi> {
         console.log("worker connected")
         const r: ServiceApi = {
             open: this.open.bind(this),
         }
+        const api = tabStateApi(new Peer(ch))
+        this.tab.set(ch, api)
+        if (!this.leader) {
+            this.leader = api
+            this.db = await this.leader.createDb()
+        }
         return r
     }
-    disconnect(ch: Channel): void {
+    async disconnect(ch: Channel): Promise<void> {
+        const api = this.tab.get(ch)
+        if (!api) return
         // not used, workers don't have disconnect (sockets do, thus the api)
+        this.tab.delete(ch)
+        if (this.leader==api) {
+            await this.db?.close()
+            if (this.tab.size) {
+                this.leader = this.tab.values().next().value
+                this.db = await this.leader!.createDb()
+            }
+        }
     }
 }
+
 export async function createMvrServer() {
     return new MvrServer()
 }
