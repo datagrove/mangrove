@@ -54,7 +54,7 @@ class LockClient {
     }
 }
 
-class LockServer implements Service {
+export class LockServer implements Service {
     client = new Set<LockClient>()
     lock = new Map<number, Map<number, number>>()
     log = new Map<number, Uint8Array>()
@@ -72,13 +72,6 @@ class LockServer implements Service {
     disconnect(ch: Channel): void {
         this.client.delete(new LockClient(ch))
     }
-
-    // this could just be a write to a log that tne server can read.
-    // 
-
-
-
-
 
     async commit(tx: Etx): Promise<number> {
         const lockmap = this.lock.get(tx.id)
@@ -104,4 +97,3 @@ class LockServer implements Service {
     }
 }
 
-export const cloud = new LockServer()

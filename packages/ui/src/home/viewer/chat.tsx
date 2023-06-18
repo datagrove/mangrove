@@ -22,9 +22,8 @@ import { handThumbUp as reactionIcon , arrowUturnLeft as  replyIcon, hashtag as 
 import { IconPath } from "../search"
 import { Icon } from "solid-heroicons"
 import { SectionNav } from "../site_menu"
-import { Message, chatTable } from "../../db/editor_schema"
-import { ScanDiff } from "../../core/data"
-import { useDg } from "../../db"
+import { Message } from "../../db/editor_schema"
+import { useDg,ScanDiff } from "../../db"
 
 //import { getUsage } from "../../db/range"
 // multiple messages close to each should be grouped
@@ -158,7 +157,7 @@ export function ChatViewer() {
         const diff = (x: ScanDiff) => {
             ed.applyDiff(x)
         }
-        const q = createQuery(db, chatTable, { from: {id: 1, created: lastRead} } ,diff)
+        //const q = createQuery(db, chatTable, { from: {id: 1, created: lastRead} } )
         // ed.addListener((pos: number) => {
         //     q.update(pos)
         // })

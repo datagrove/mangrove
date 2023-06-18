@@ -1,6 +1,6 @@
 import { BuilderFn, Column, EstimatorFn, Scroller, ScrollerProps } from './scroll'
 import { onCleanup, createSignal, onMount, JSXElement } from 'solid-js'
-import { QueryResult } from '../db'
+
 
 
 const redFrame = "border-solid border-2 border-red-500"
@@ -16,7 +16,7 @@ const clearFrame = "border-solid border-0 border-opacity-0"
 // width and height should come from query result?
 
 
-export function QueryView(props: { query: QueryResult, builder: BuilderFn }) {
+export function QueryView(props: {  builder: BuilderFn }) {
     return <TableView fallback={<div>loading</div>} builder={props.builder} width={100} height={100} />
 }
 

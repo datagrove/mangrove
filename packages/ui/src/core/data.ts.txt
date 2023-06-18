@@ -1,5 +1,5 @@
-import { ApiSet, Channel, apiCall } from "../abc/rpc"
-import { Schema, TableUpdate, Tx , Keyed, LensRef} from "../dblite/schema"
+import { Channel, apiCall } from "../abc/rpc"
+import { Schema, Tx , Keyed, LensRef} from "../dblite/schema"
 
 // this is used from worker and implemented by the tab
 export interface TabStateClient   {
@@ -108,7 +108,6 @@ export function LocalStateFromHostApi(mc: Channel) {
     return apiCall<LocalStateFromHost>(mc, "update") 
 }
 
-import { QuerySchema } from "../dblite/schema"
 
 // these only live in the tab. not imported by the worker
 

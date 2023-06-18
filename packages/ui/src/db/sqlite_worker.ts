@@ -2,7 +2,7 @@
 // @ts-ignore
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { ApiSet, Channel, Service } from '../abc/rpc';
-import { DbLiteClient as DbLiteEngine } from './sqlite_api';
+import { DbLiteApi as DbLiteEngine } from './sqlite_api';
 import { Schema } from './mvr_shared';
 const ctx = self as any;
 

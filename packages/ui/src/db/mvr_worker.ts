@@ -317,8 +317,6 @@ export class MvrServer implements Service {
     db?: DbLite
 
 
-
-
     avail = new Map<string, number>()
 
     sv (url: string): DgServer {
@@ -412,7 +410,7 @@ export class MvrServer implements Service {
         return doc.toJson()
     }
 
-    // one per tab
+    // one per tab, if there is no db we can now ask for one
     connect(ch: Channel): ServiceApi {
         console.log("worker connected")
         const r: ServiceApi = {
@@ -424,9 +422,12 @@ export class MvrServer implements Service {
         // not used, workers don't have disconnect (sockets do, thus the api)
     }
 }
-
+export async function createMvrServer() {
+    return new MvrServer()
+}
 if (!self.document) {
-    createSharedListener(new MvrServer())
+    // if we are a worker
+    createMvrServer().then(e=>createSharedListener(e))
 }
 
 

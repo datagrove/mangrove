@@ -1,8 +1,7 @@
 import { JSXElement } from "solid-js"
 import { render } from "solid-js/web"
 import { RangeSource } from "../db"
-import { decode } from "cbor-x"
-import { ScanQuery, ScanQueryCache } from "../db/data"
+import { ScanDiff } from "../db"
 
 // this creates each row as a div.
 // the tradeoff here compared to cell as a div is that we make it harder to position columns

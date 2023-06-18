@@ -3,7 +3,7 @@ import { createContext, createSignal, useContext } from "solid-js"
 
 
 export interface Channel {
-    postMessage(data: any): void
+    postMessage(data: any, transfer?: any[]): void
     listen(fn: (d: any) => void): void
     close(): void
 }
@@ -49,8 +49,12 @@ export class WorkerChannel implements Channel {
             throw new Error("not a message port")
         }
     }
-    postMessage(data: any): void {
-        this.port.postMessage(data)
+    postMessage(data: any, transfer?: any[]): void {
+        if (transfer) {
+        this.port.postMessage(data,transfer)
+        } else {
+            this.port.postMessage(data)
+        }
     }
     listen(fn: (d: any) => void): void {
         this.port.onmessage = fn
@@ -131,6 +135,11 @@ export type ApiSet = {
     [key: string]: ((...a: any[]) => Promise<any>)
 }
 
+export class TransferableResult {
+    constructor(public result: any, public transfer: any[]) {
+    }
+}
+
 // a peer needs to support multiple api's, for listening try each in order.
 export class Peer {
     nextId = 1
@@ -169,10 +178,18 @@ export class Peer {
                 try {
                     //console.log("listen ", data.method, data.params)
                     const result = await api.apply(null,data.params)
+                    if (result instanceof TransferableResult) {
+                        //console.log("transfer", result.transfer)
+                        this.ch?.postMessage({
+                            id: data.id,
+                            result: result.result
+                        }, result.transfer)
+                    } else {
                     this.ch?.postMessage({
                         id: data.id,
                         result: result
                     })
+                }
                     //console.log("returned",data.id,result)
                     return
                 } catch (e: any) {

@@ -1,14 +1,21 @@
 import { JSXElement, Show, createContext, createResource, onCleanup, onMount, useContext } from "solid-js"
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
 import { GridSelection, NodeSelection, RangeSelection } from "lexical"
-import { Peer, WorkerChannel, apiListen } from "../abc/rpc"
-import { LensApi, lensServerApi, QuerySchema, ScanQuery, ServiceApi, ValuePointer } from "./mvr_shared"
+import { Peer, TransferableResult, WorkerChannel, apiListen } from "../abc/rpc"
+import { LensApi, lensServerApi, QuerySchema, scanApi, ScanApi, ScanQuery, ScanWatcherApi, ServiceApi, ValuePointer } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
+// @ts-ignore
 import LocalState from './mvr_worker?sharedworker'
+// @ts-ignore
+import DbWorker from './sqlite_worker?worker'
+
 import { MvrServer } from "./mvr_worker"
 import { DocBuffer } from "./mvr_sync"
-import { ScanDiff } from "../core/data"
+import { LockServer } from "./mvr_server"
+import { DbLite } from "./sqlite_worker"
+import { dbLiteApi } from "./sqlite_api"
+
 
 // share an lex document
 /*
@@ -21,78 +28,38 @@ import { ScanDiff } from "../core/data"
   </TabState>
 */
 
-// we need to pack the keys of any new tuples or diffing won't work?
-// maybe all tuples just come packed though? the go server doesn't need this.
-// the worker needs this code to keep it up to date.
-// we could compile it into the worker for now.
-export class RangeSource<Key,Tuple> {
-  constructor(public db: TabStateValue, 
-      public q: ScanQuery<Key,Tuple>, 
-      public schema: QuerySchema<Key>, 
-      public listener: (s: ScanDiff) => void) {
+// one reason to make this a provider is that we can control the loading interface (fallback, etc)
+// acts more like a signal than a resource?
+// what do we do with the schema?
+export class RangeSource<Key, Tuple> {
+  api: ScanApi
+  constructor(public mp: MessagePort, public q: ScanQuery<Key, Tuple>) {
+    //public schema: QuerySchema<Key>, 
+    // public listener: (s: ScanDiff) => void)
+    {
       // we have to send db thread a query
-  }
-  async update(n: Partial<ScanQuery<Key,Tuple>>) {
-
-      // we have to send db thread an update query
-      this.db.lc.updateScan(this.q.handle, n)
-  }
-  close() {
-      this.db.lc.closeScan(this.q.handle) 
+      let peer = new Peer(new WorkerChannel(mp))
+      this.api = scanApi(peer)
+      apiListen<ScanWatcherApi>(peer, {
+        update: function (q: any[]): Promise<void> {
+          throw new Error("Function not implemented.")
+        }
+      })
+    }
   }
 }
-
 
 // use the features of localState, implicitly uses tabstate provider
-export function createQuery<Key, Tuple>(
-  t: QuerySchema<Key>,
-  q: Partial<ScanQuery<Key, Tuple>>,
-  listener: (s: ScanDiff) => void): RangeSource<Key, Tuple> {
-
-  const db = useDg()!
-  // assign q a random number? then we can broadcast the changes to that number?
-  // we need a way to diff the changes that works through a message channel.
-  // hash the key -> version number, reference count?
-  // the ranges would delete the key when no versions are left.
-  // we send more data than we need to this way?
-  q.handle = db.next++
-
-  // change this to send scan to local state.
-  // the range source we create will have options to use the update scan
-  // clean up will close
-  db.lc.scan(q as ScanQuery<Key, Tuple>)
-
-  const rs = new RangeSource<Key, Tuple>(db, q as ScanQuery<Key, Tuple>, t, listener)
-  onCleanup(() => {
-    rs.close()
-  })
-  db.range.set(q.handle, rs)
-  return rs
-}
-
-
-// we need to pack the keys of any new tuples or diffing won't work?
-// maybe all tuples just come packed though? the go server doesn't need this.
-// the worker needs this code to keep it up to date.
-// we could compile it into the worker for now.
-// export class RangeSource<Key,Tuple> {
-//   constructor(public db: TabStateValue, public q: ScanQuery<Key,Tuple>, public schema: QuerySchema<Key>, public listener: (s: ScanDiff) => void) {
-//       // we have to send db thread a query
-//   }
-
-//   // update(n: Partial<ScanQuery<Key,Tuple>>) {
-//   //     // we have to send db thread an update query
-//   //     this.db.w.send({
-//   //         method: 'updateScan',
-//   //         params: n
-//   //     })
-//   // }
-//   // close() {
-//   //     this.db.w.send({
-//   //         method: 'close',
-//   //         params: this.q.handle
-//   //     })
-//   // }
+// should return a function that can be used in createResource? should call createResource here?
+// export async function createQuery<Key, Tuple>(t: QuerySchema<Key>,
+//   q: Partial<ScanQuery<Key, Tuple>>,
+//   listener: (s: ScanDiff) => void): Promise<RangeSource<Key, Tuple>> {
+//   const db = useDg()!
+//   const rs = await db.scan(t)
+//   onCleanup(() => {
+//     rs.api.close()
+//   })
+//   return rs
 // }
 
 // we need to open twice, essentially.
@@ -112,10 +79,6 @@ export async function storeCredential(siteServer: string, credential: Uint8Array
 
 export const TabStateContext = createContext<TabStateValue>()
 export function useDg() { return useContext(TabStateContext) }
-
-
-
-
 
 export class TabStateValue {
   api!: Peer
@@ -160,12 +123,27 @@ export class TabStateValue {
     tbl.add(q.from_, q.to_, sub)
   }*/
 
+  // 
+  createDb() {
+    const db = new DbWorker()
+    const dbp = new MessageChannel()
+    const dbapi = new Peer(new WorkerChannel(dbp.port1))
+    const api = dbLiteApi(dbapi)
+    // send the api (transfer the port) to the server
+    return new TransferableResult(api, [dbp.port2])
+  }
+
   makeWorker() {
     const sw = new LocalState()
     sw.port.start()
     this.api = new Peer(new WorkerChannel(sw.port))
   }
   makeLocal() {
+    const cloud = new LockServer()
+    const mcc = new MessageChannel()
+    const capi = new Peer(new WorkerChannel(mcc.port1))
+
+    
     this.ps = new MvrServer()
     const mc = new MessageChannel()
     this.api = new Peer(new WorkerChannel(mc.port1))
@@ -191,6 +169,18 @@ export class TabStateValue {
   // we can resolve this in the client, then pass the result to worker to keep complexity out of the worker.
   // we can reserve host 0 for being the origin host, site 0 can be the user's profile, and site 1 can be the subscription state
 
+  async scan(q: ScanQuery<any, any>): Promise<RangeSource<any, any>> {
+    const mc = new MessageChannel()
+    const json = await this.api.rpc<DgElement[] | string>("scan", [q, mc.port2], [mc.port2])
+    console.log("json", json)
+    const wc = new Peer(new WorkerChannel(mc.port1))
+    if (typeof json === "string") {
+      throw new Error(json)
+    }
+
+    const r = new RangeSource(mc.port1, q)
+    return r
+  }
   async load(url: string): Promise<DocBuffer> {
     console.log("load", url)
     const u = new URL(url)

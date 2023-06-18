@@ -1,5 +1,5 @@
 
-import { Accessor, createEffect, createResource, createSignal, onMount } from 'solid-js'
+import { createEffect, createResource, createSignal, onMount } from 'solid-js'
 import { EditorState } from "@codemirror/state"
 import { EditorView, keymap } from "@codemirror/view"
 import { defaultKeymap } from "@codemirror/commands"
@@ -21,14 +21,11 @@ import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } 
 import { lintKeymap } from "@codemirror/lint"
 import './code.css'
 import { VSplitterButton } from './splitter'
-import { SitePage, left, usePage } from '../../core'
-import { SheetViewer } from './sheet'
+import { SitePage, usePage } from '../../core'
 import { BuilderFn, Column, EstimatorFn, Scroller, ScrollerProps, TableContext } from '../../editor'
-import { RoundIcon, useDb } from '../home'
 import { BlueButton } from '../../lib/form'
-import { StringifyOptions } from 'querystring'
-import { HtmlDiff } from '../../crdt/dgot'
-import { HtmlLens, TextLens } from '../../db'
+import { useDg } from '../../db'
+
 
 // this should a scroller concept to operate on very large files
 // use database ideas we should be able insert lines into terabyte files!
@@ -63,20 +60,7 @@ import { HtmlLens, TextLens } from '../../db'
 //     }
 //     return [ get, ]
 // }
-export function HtmlEditor(props: {value: HtmlLens|undefined}){
-    if (!props.value) {
-        return <>Loading</>
-    }
-    createEffect(()=>{
-        // registers a dependency on this
-        props.value!.change()
-        // sync the editor.
-    })
-    return <div/>
-}
-export function TextEditor(props: {value: TextLens|undefined}) {
-    return <div/>
-}
+
 // how do we mount a lexical editor in a div inside a scroller row?
 // how does it function?
 
@@ -84,18 +68,16 @@ export function TextEditor(props: {value: TextLens|undefined}) {
 export function CodeEditor() {
     // from the url I need to figure out the query parameters, but I can't execute a query here 
     const p = usePage()
-    const db = useDb()
-    const [e] = createResource(p, async (s: SitePage) => { return db?.htmlLens('table', 0) } )
-    const [f] = createResource(p, async (s: SitePage)=> { return  db?.textLens('table',0) })
+    const db = useDg()
     return <div>
-        <HtmlEditor value={e()} />
-        <TextEditor value={f()} />
+      
+
         </div>
 
 }
 
 export function DatabaseViewer() {
-    const db = useDb()
+    const db = useDg()
     const [split, setSplit] = createSignal(300)
     let el: HTMLDivElement
     let cm: CodeMirror
@@ -105,8 +87,8 @@ export function DatabaseViewer() {
     const run = () => {
         let src = cm.ev?.state.doc.toString()
         if (!src) return
-        const a = db?.query(src)
-        console.log(src,  a )
+        // const a = db?.query(src)
+        // console.log(src,  a )
     }
 
     return <>

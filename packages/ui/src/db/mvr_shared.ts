@@ -2,6 +2,14 @@ import { Peer, apiCall } from "../abc/rpc"
 import { FileByPath, FileTuple } from ".";
 import crypto from 'crypto'
 
+export interface ScanDiff {
+  tuple: any[]
+  copy: DiffCopy[]   // triples: [whichvector, from, to]
+  size: number     // redundant
+}
+interface DiffCopy 
+    {which: 0|1, start: number, end: number}
+
 // server://org.site.whatever/path/to/whatever
 // export interface Tx  {
 //   siteid: number // determines the server and the site, this is a local rowid from the $site table. This is only used for inserts. The rowid for an insert is used to return a map to the committed rowid if the app cares to await it.
@@ -24,7 +32,16 @@ export type Txc = [
   number, // method hash
   ...any // each method indicates the number and type of arguments
 ][]
-
+export interface ScanApi {
+  update(q: Partial<ScanQuery<any, any>>): Promise<void>
+  close(): Promise<void>
+}
+export function scanApi(peer: Peer): ScanApi {
+  return apiCall<ScanApi>(peer, "update", "close")
+}
+export interface ScanWatcherApi {
+  update(q: any[]): Promise<void>
+}
 export class TxBuilder {
   // tx: Tx = {
   //   siteid: 0, 
@@ -391,14 +408,7 @@ export function binarySearch(arr: Keyed[], target: string): number {
     }
     return -1;
   }
-interface DiffCopy 
-    {which: 0|1, start: number, end: number}
 
-interface ScanDiff {
-    tuple: any[]
-    copy: DiffCopy[]   // triples: [whichvector, from, to]
-    size: number     // redundant
-}
 
 function computeDiff(old: any[], newer: any[], compare: (a:any,b:any)=>number) : ScanDiff {   
     let d: ScanDiff = {
