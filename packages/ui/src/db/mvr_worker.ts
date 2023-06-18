@@ -304,11 +304,19 @@ function lexicalToDg(lex: SerializedElementNode): DgElement[] {
 
 // we can broadcast service status and range versions
 
-
+export interface MvrServerOptions {
+    host?: string
+}
 
 // the mvr server wraps around the database server?
 // will the elements be available as tuples or only in documents?
 export class MvrServer implements Service {
+    constructor(public opt?: MvrServerOptions) {
+        if (!opt) {
+           opt = {}
+        }
+        // connect to the host server in the 
+    }
     server = new Map<string, DgServer>()
     ds = new Map<string, DocState>();
     changed = createSignal(0)

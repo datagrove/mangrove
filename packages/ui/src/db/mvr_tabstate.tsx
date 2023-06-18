@@ -110,7 +110,7 @@ export class TabStateValue {
     // we need to get it a dictionary of local fake server for testing.
     // or maybe we can just use a test:// protocol to indicate this?
     // either way we have to get it pointed to the test server as host
-    this.ps = new MvrServer()
+    this.ps = new MvrServer({ host: "test://"})
 
     const mc = new MessageChannel()
     this.api = new Peer(new WorkerChannel(mc.port1))
