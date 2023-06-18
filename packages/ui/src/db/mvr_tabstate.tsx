@@ -2,7 +2,7 @@ import { JSXElement, Show, createContext, createResource, onCleanup, onMount, us
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
 import { GridSelection, NodeSelection, RangeSelection } from "lexical"
 import { Peer, TransferableResult, WorkerChannel, apiListen } from "../abc/rpc"
-import { LensApi, lensServerApi, QuerySchema, scanApi, ScanApi, ScanQuery, ScanWatcherApi, ServiceApi, TabStateApi, ValuePointer } from "./mvr_shared"
+import { LensApi, lensServerApi, scanApi, ScanApi, ScanQuery, ScanWatcherApi, ServiceApi, TabStateApi, ValuePointer } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
 // @ts-ignore
@@ -13,25 +13,8 @@ import DbWorker from './sqlite_worker?worker'
 import { MvrServer } from "./mvr_worker"
 import { DocBuffer } from "./mvr_sync"
 import { LockServer } from "./mvr_server"
-import { DbLite } from "./sqlite_worker"
 import { dbLiteApi } from "./sqlite_api"
-import { Tab } from '../../../../testview/ui/src/nav';
 
-
-// share an lex document
-/*
-  <TabState>  // tab level state, starts shared worker
-  <SyncPath path={ } fallback={loading}> // support suspense while loading
-    <Editor>  // editor level state
-        <Sync>
-    </Editor>
-  </SyncPath>
-  </TabState>
-*/
-
-// one reason to make this a provider is that we can control the loading interface (fallback, etc)
-// acts more like a signal than a resource?
-// what do we do with the schema?
 export class RangeSource<Key, Tuple> {
   api: ScanApi
   constructor(public mp: MessagePort, public q: ScanQuery<Key, Tuple>) {
@@ -49,6 +32,21 @@ export class RangeSource<Key, Tuple> {
     }
   }
 }
+
+// share an lex document
+/*
+  <TabState>  // tab level state, starts shared worker
+  <SyncPath path={ } fallback={loading}> // support suspense while loading
+    <Editor>  // editor level state
+        <Sync>
+    </Editor>
+  </SyncPath>
+  </TabState>
+*/
+
+// one reason to make this a provider is that we can control the loading interface (fallback, etc)
+// acts more like a signal than a resource?
+// what do we do with the schema?
 
 // use the features of localState, implicitly uses tabstate provider
 // should return a function that can be used in createResource? should call createResource here?
@@ -85,46 +83,6 @@ export class TabStateValue {
   api!: Peer
   ps?: MvrServer
 
-
-  // maybe a shared array buffer would be cheaper? every tab could process in parallel their own ranges
-  // unlikely; one tree should save power.
-  // we optimistically execute the query locally, and multicast the results to listeners
-  // server can proceed at its own pase.
-
-  // should we smuggle the source into the worker in order to pack keys?
-  // can they all be packed prior to sending?
-  /*
-   updateScan( q: ScanQuery<any, any>) {
-    const x = ts.cache.get(q.handle)
-    const tbl = getTable(q.server, q.site, q.table)
-  }
-  
-   scan( q: ScanQuery<any, any>) {
-    const s = sv(q.server)
-  
-    // we need a way to compute a binary key
-    const value: any[] = []
-    db.exec({
-        sql: q.sql,
-        rowMode: 'array', // 'array' (default), 'object', or 'stmt'
-        callback: function (row: any) {
-            value.push(row);
-        }.bind({ counter: 0 }),
-    });
-  
-    const key = value.map(x => "")
-  
-    const sub: Subscription = {
-        ctx: ts,
-        query: q,
-        cache:  value,
-        lastSent: []
-    }
-    const tbl = getTable(q.server, q.site, q.table)
-    tbl.add(q.from_, q.to_, sub)
-  }*/
-
-  // 
   async createDb() {
     const db = new DbWorker()
     const dbp = new MessageChannel()
@@ -142,13 +100,18 @@ export class TabStateValue {
       createDb: this.createDb.bind(this),
     })
   }
+
+  // we need to configure the server to use a local test server
   makeLocal() {
     const cloud = new LockServer()
     const mcc = new MessageChannel()
     const capi = new Peer(new WorkerChannel(mcc.port1))
 
-    
+    // we need to get it a dictionary of local fake server for testing.
+    // or maybe we can just use a test:// protocol to indicate this?
+    // either way we have to get it pointed to the test server as host
     this.ps = new MvrServer()
+
     const mc = new MessageChannel()
     this.api = new Peer(new WorkerChannel(mc.port1))
 
