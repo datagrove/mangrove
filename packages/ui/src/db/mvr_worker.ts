@@ -487,9 +487,13 @@ export class MvrServer implements Service {
     // one per tab, if there is no db we can now ask for one
     async connect(ch: Channel): Promise<ServiceApi> {
         console.log("worker connected")
+        
+        const peer = new Peer(ch)
         const r: ServiceApi = {
             open: this.open.bind(this),
         }
+        apiListen<ServiceApi>(peer, r)
+
         const api = tabStateApi(new Peer(ch))
         this.tab.set(ch, api)
         if (!this.leader) {
@@ -503,6 +507,7 @@ export class MvrServer implements Service {
             const r = log.read(h,0, 3)
             console.log(r)
         }
+
         return r
     }
     async disconnect(ch: Channel): Promise<void> {

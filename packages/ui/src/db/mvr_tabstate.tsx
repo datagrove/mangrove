@@ -107,22 +107,22 @@ export class TabStateValue {
 
   // we need to configure the server to use a local test server
   makeLocal() {
-    const mcc = new MessageChannel()
-    const capi = new Peer(new WorkerChannel(mcc.port1))
-
-    // we need to get it a dictionary of local fake server for testing.
-    // or maybe we can just use a test:// protocol to indicate this?
-    // either way we have to get it pointed to the test server as host
-    this.ps = new MvrServer({ origin: "ws://localhost:8080/"})
+    // const mcc = new MessageChannel()
+    // const capi = new Peer(new WorkerChannel(mcc.port1))
 
     const mc = new MessageChannel()
     this.api = new Peer(new WorkerChannel(mc.port1))
 
-    const svr = new Peer(new WorkerChannel(mc.port2))
-    const r: ServiceApi = {
-      open: this.ps.open.bind(this.ps),
+    this.ps = new MvrServer({ origin: "ws://localhost:8080/"})
+    if (false) {
+      this.ps.connect(new WorkerChannel(mc.port2))
+    } else {
+      const svr = new Peer(new WorkerChannel(mc.port2))
+      const r: ServiceApi = {
+        open: this.ps.open.bind(this.ps),
+      }
+      apiListen<ServiceApi>(svr, r)
     }
-    apiListen<ServiceApi>(svr, r)
   }
 
   constructor() {
