@@ -48,16 +48,21 @@ export class DocBuffer {
   // how do we refer to these inserts? we need to let existing nodes be modified to reference them
   // potentially we need global ids to be namespaced from lexical ids (dg$), number?
   // maybe we need to send a different op rather than "all children"?
+
+  $create(v: DgElement) {
+        // use text node as default
+        let nodeInfo = this._editor?._nodes.get(v.type);
+        if (!nodeInfo) {
+          nodeInfo = this._editor?._nodes.get("text");
+        }
+        let nl = new nodeInfo!.klass() as TextNode
+        if (!nl) {
+          throw new Error("can't create node for " + v.type)
+        }
+        return nl
+      }
   $insert(inserted: Map<string, LexicalNode>, um: [string, string][], v: DgElement) {
-    // use text node as default
-    let nodeInfo = this._editor?._nodes.get(v.type);
-    if (!nodeInfo) {
-      nodeInfo = this._editor?._nodes.get("text");
-    }
-    let nl = new nodeInfo!.klass() as TextNode
-    if (!nl) {
-      throw new Error("can't create node for " + v.type)
-    }
+    let nl = this.$create(v)
     dg2lex(v, nl)
     inserted.set(v.id, nl)
 
@@ -77,10 +82,11 @@ export class DocBuffer {
 
   $updateProps(inserted: Map<string, LexicalNode>, v: DgElement) {
     const ln= $getNodeByKey(v.id)!
+    const nl = this.$create(v)
     // copy the properties to the new node
-    dg2lex(v, ln)
+    dg2lex(v, nl)
     if (ln.getParent()) {
-      ln.replace(ln)
+      ln.replace(nl)
     } else {
       const root = $getRoot()
       root.clear()
