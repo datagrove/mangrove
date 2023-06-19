@@ -297,11 +297,13 @@ export interface CommitApi {
 
 // tail updates are best effort and may not include the bytes when the lock server is under stress. it may not update every tail (based on load an capacity), but will prioritize according to subscription weight stored in the subscription database.
 type TailUpdate = [number, Uint8Array]
-export interface SubscriberApi {
+
+export interface PeerApi {
   sync(length: number, tail: TailUpdate[]) : Promise<void>
+  close(): Promise<void>
 }
-export function subscriberApi(ch: Peer): SubscriberApi {
-    return apiCall(ch, "sync")
+export function peerApi(ch: Peer): PeerApi {
+    return apiCall(ch, "close")
 }
 
 
@@ -497,4 +499,14 @@ function applyDiff(old: string[], diff: ScanDiff) : any[] {
         }
     })
     return n
+}
+
+export function packBits(bits: boolean[]): Uint32Array {
+  const r = new Uint32Array(Math.ceil(bits.length / 32))
+  for (let i = 0; i < bits.length; i++) {
+      if (bits[i]) {
+          r[i >> 5] |= 1 << (i & 31)
+      }
+  }
+  return r
 }

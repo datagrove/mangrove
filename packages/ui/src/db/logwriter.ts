@@ -3,10 +3,11 @@
 // this could eventually moved to shared array buffer
 
 import { concat } from "lodash"
-import { Channel, Peer } from "../abc/rpc"
+import { Channel, Peer, WsChannel } from "../abc/rpc"
 import { Tx } from "../lib/db"
-import { OpfsApi, CommitApi, Etx, SubscriberApi, TxBuilder, TxBulk, Txc, subscriberApi } from "./mvr_shared"
+import { OpfsApi, CommitApi, Etx, PeerApi, TxBuilder, TxBulk, Txc, peerApi } from "./mvr_shared"
 import { parse } from "path"
+import { CloudApi, cloudApi } from "./cloud"
 
 // serialize instructions to a buffer
 // for each site.server there is a log
@@ -14,9 +15,6 @@ import { parse } from "path"
 // operations
 // table, primary key, attr, id, ins, del, replace, load,
 // store potentially
-
-
-
 
 
 
@@ -37,6 +35,11 @@ type Op = [Opcode, string | number | Uint8Array]
 
 function parseTx(tx: Uint8Array): Op[] {
     return []
+}
+interface Log {
+    host: string // maybe empty, in which case this is the host
+    site: number
+    log: number  // eatch table is part of a log 
 }
 
 // we need to read the global log by transaction and apply it to global values
@@ -94,14 +97,24 @@ export class Writer {
     }
 }
 
-class LockClient {
-    api: SubscriberApi
+export class LockLeader {
+    
+}
+
+// peers may be leaders or users.
+class RecPeer {
+    api: PeerApi
     authLog = new Set<string>()
     constructor(public rec: Reconciler, ch: Channel) {
-        this.api = subscriberApi(new Peer(ch))
+        this.api = peerApi(new Peer(ch))
     }
 
+    getApi() {
+        return this.api
+    }
 
+    close() {
+    }
     // returns location of first error and the error code
     async acceptRemoteCommits(lg: Log, txx: Uint8Array): Promise<[number,string]> {
         // does aeron style transfer buy us anything here other than more work?
@@ -122,31 +135,31 @@ class LockClient {
             case Opcode.Version:
                 // we need to make sure that the submitter has seen all the updates
                 // if not, then this transaction fails
-                
+
             }
         }
 
-        const lockmap = this.lock.get(tx.id)
-        if (!lockmap) { return -a }
+        // const lockmap = this.lock.get(tx.id)
+        // if (!lockmap) { return -a }
 
-        for (let lk of tx.lock) {
-            const v = lockmap.get(lk)
-            if (v && v != tx.lockValue[0]) {
-                return -1
-            }
-        }
-        for (let lk of tx.lock) {
-            lockmap.set(lk, tx.lockValue[0] + 1)
-        }
+        // for (let lk of tx.lock) {
+        //     const v = lockmap.get(lk)
+        //     if (v && v != tx.lockValue[0]) {
+        //         return -1
+        //     }
+        // }
+        // for (let lk of tx.lock) {
+        //     lockmap.set(lk, tx.lockValue[0] + 1)
+        // }
 
-        let log = this.log.get(tx.id)
-        if (!log) {
-            log = new Uint8Array(0)
-        }
-        log = concat(log, tx.data)
-        this.log.set(tx.id, log)
+        // let log = this.log.get(tx.id)
+        // if (!log) {
+        //     log = new Uint8Array(0)
+        // }
+        // log = concat(log, tx.data)
+        // this.log.set(tx.id, log)
 
-        return packBits(r)
+        // return packBits(r)
     }
 }
 
@@ -154,47 +167,64 @@ class LockClient {
 // a  remote log chunk of operations. Some will succeed and some will fail
 // we will return a list of the ones that failed to be retried.
 
-function packBits(bits: boolean[]): Uint32Array {
-    const r = new Uint32Array(Math.ceil(bits.length / 32))
-    for (let i = 0; i < bits.length; i++) {
-        if (bits[i]) {
-            r[i >> 5] |= 1 << (i & 31)
-        }
+
+
+
+
+export class Host {
+
+    constructor(public api: CloudApi) {
     }
-    return r
 }
 
-function transformToTx(x: ReadableStream): ReadableStream<Tx | TxBulk> {
-    return x
+class LogTracker {
+    handle: number = 0
+    log: Uint8Array = new Uint8Array(0)
 }
-interface Log {
-    host: string // maybe empty, in which case this is the host
-    site: number
-    log: number  // eatch table is part of a log 
-}
-
-
 
 // reconciler for each site?
 export class Reconciler {
-    constructor(public opfs: OpfsApi) {
+    // we need to keep track of lease state of each site we are using. we might be leader or user
+
+    peer = new Map<Channel,RecPeer>() 
+    leader = new Map<string, RecPeer>()
+    cloud = new Map<string, Host>()
+    log = new Map<number, LogTracker>()
+    lock = new Map<number, Map<number, number>>()
+
+    constructor(public opfs: OpfsApi) {}
+
+    // this needs to be credentialed.
+    async connectHost(wss: string): Promise<CloudApi> {
+        return cloudApi(new Peer(new WsChannel(wss)));
+    }
+    // sites are {9+}.host
+    async requestSite(host: string, id: number) {
+        // see if we are leader
+        
+        const cacheKey = host + "|" + id
+        const site = this.leader.get(cacheKey)
+        if (!site) {
+            let cn = await this.connectHost(host)
+            if (cn) {
+                this.leader.set(cacheKey, cn)
+            }
+        }
 
     }
 
-    log = new Map<number, Uint8Array>()
-    client = new Set<LockClient>()
-    lock = new Map<number, Map<number, number>>()
-
     connectWebrtc(ch: Channel): CommitApi {
-        const r1: CommitApi = {
-            commit: this.acceptRemoteCommits.bind(this),
-        }
-        this.client.add(new LockClient(ch))
-        return r1
+        const o = new RecPeer(this,ch)
+        this.peer.add(o)
+        return o.getApi()
     }
 
     disconnectWebRtc(ch: Channel): void {
-        this.client.delete(new LockClient(ch))
+        const o = this.peer.get(ch)
+        if (o) {
+            o.close()
+            this.peer.delete(ch)
+        }
     }
 
     // these are always accepted
@@ -204,10 +234,21 @@ export class Reconciler {
     }
 
 
+    iamleader = new Set<LockLeader>()
+
+    async connectToCloud(host: string, site: number) {
+
+    }
+
     async proposeRemoteCommits() {
         // read the tail of the log and propose them to the leader
         // transactions that are rejected are rebased and retried
         // we write the accepts/reject/rebase to our log
+
+        // we have many logs, or just one interleaved log for a client?
+        // but we are client and server, and potentially low memory, so maybe one log per site is the way to go. sqlite is also a possibility.
+
+        
     }
 
     async acceptLocalCommit(lc: LocalCommit) {

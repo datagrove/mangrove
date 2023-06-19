@@ -68,8 +68,11 @@ export class WorkerChannel implements Channel {
 
 export class WsChannel implements Channel {
     ws?: WebSocket
-    constructor(public url: string, public status: (x: string) => void, public recv?: (d: any) => void) {
+    recv?: (d: any) => void
+    constructor(public url: string) {
         this.connect()
+    }
+    status(x: string) {
     }
     connect() {
         this.ws = new WebSocket(this.url)

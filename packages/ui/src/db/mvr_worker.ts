@@ -2,7 +2,7 @@
 import { Channel, Peer, Service, WorkerChannel, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery, Schema, TableUpdate, binarySearch, QuerySchema, Txc, TuplePointer, TabStateApi, tabStateApi, SubscriberApi, subscriberApi, CommitApi, Etx, OpfsApi, opfsApi } from './mvr_shared';
+import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery, Schema, TableUpdate, binarySearch, QuerySchema, Txc, TuplePointer, TabStateApi, tabStateApi, PeerApi, peerApi, CommitApi, Etx, OpfsApi, opfsApi } from './mvr_shared';
 import { SerializedElementNode } from 'lexical';
 
 import { DgServer, PinnedTuple, Subscription, drivers } from './mvr_worker_db';
