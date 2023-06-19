@@ -310,12 +310,6 @@ function lexicalToDg(lex: SerializedElementNode): DgElement[] {
 // we can subset the reliable ones and shard the locks.
 // 
 
-class LockClient {
-    api: SubscriberApi
-    constructor(ch: Channel) {
-        this.api = subscriberApi(new Peer(ch))
-    }
-}
 
 
 export interface MvrServerOptions {
@@ -332,9 +326,9 @@ let nserver = 0
 // the mvr server wraps around the database server?
 // will the elements be available as tuples or only in documents?
 export class MvrServer implements Service {
-    client = new Set<LockClient>()
-    lock = new Map<number, Map<number, number>>()
-    log = new Map<number, Uint8Array>()
+
+
+
     watchers = new Map<string, Uint8Array>()
     server = new Map<string, DgServer>()
     ds = new Map<string, DocState>();
@@ -355,40 +349,6 @@ export class MvrServer implements Service {
         // connect to the host server in the 
     }
 
-    connectWebrtc(ch: Channel): CommitApi {
-        const r1: CommitApi = {
-            commit: this.remoteCommit.bind(this),
-        }
-        this.client.add(new LockClient(ch))
-        return r1
-    }
-
-    disconnectWebRtc(ch: Channel): void {
-        this.client.delete(new LockClient(ch))
-    }
-
-    async remoteCommit(tx: Etx): Promise<number> {
-        const lockmap = this.lock.get(tx.id)
-        if (!lockmap) { return -a }
-
-        for (let lk of tx.lock) {
-            const v = lockmap.get(lk)
-            if (v && v != tx.lockValue[0]) {
-                return -1
-            }
-        }
-        for (let lk of tx.lock) {
-            lockmap.set(lk, tx.lockValue[0] + 1)
-        }
-
-        let log = this.log.get(tx.id)
-        if (!log) {
-            log = new Uint8Array(0)
-        }
-        log = concat(log, tx.data)
-        this.log.set(tx.id, log)
-        return log.length
-    }
 
     sv(url: string): DgServer {
         const connect = async (host?: string, driver?: string) => {

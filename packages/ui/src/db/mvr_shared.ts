@@ -48,7 +48,7 @@ export type Txc = [
   number, // tupe id indicating server and site.
   number, // method hash
   ...any // each method indicates the number and type of arguments
-][]
+]
 export interface ScanApi {
   update(q: Partial<ScanQuery<any, any>>): Promise<void>
   close(): Promise<void>
@@ -66,7 +66,7 @@ export class TxBuilder {
   //   server: "",
   //   site: ""
   // }
-  txc: Txc
+  txc: Txc[]
   site = 0
   constructor(public dbms: Db) {
     this.txc = []
@@ -83,7 +83,20 @@ export class TxBuilder {
     return ""
   }
 }
+export class TxBulk {
+  bytesWritten = 0
+ 
 
+  json(data: any|ReadableStream|Blob){
+  }
+  
+  
+  binary(data: Uint8Array|ReadableStream) {
+
+  }
+  commit() {
+  }
+}
 
 export async function methodHash(message: string): Promise<number> {
   const encoder = new TextEncoder();

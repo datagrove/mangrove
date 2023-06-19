@@ -76,6 +76,11 @@ export class TabStateValue {
   api!: Peer
   ps?: MvrServer
 
+  begin() : LocalTransaction{
+  }
+  bulk() : BulkTransation{
+  }
+
   async createDb() {
     const lw = new LogWorker()
     const lwp = new MessageChannel()

@@ -7,6 +7,10 @@ op: ins|del|upd
 value: string
 pos: number
 
+some values will have two values: global consensus and local value. These will eventually converge. When they converge (no outstanding local edits) then local editors are notified to update their view. As long as they are not converged, the editor stays on the local value.
+
+
+
 
 append(author,id, streamtail)
 
