@@ -9,7 +9,20 @@ pos: number
 
 some values will have two values: global consensus and local value. These will eventually converge. When they converge (no outstanding local edits) then local editors are notified to update their view. As long as they are not converged, the editor stays on the local value.
 
+note that peers may exchange data about multiple sites that they share, and may be leaders on different site sets.
 
+we need a kind of state machine that processes transactions one 64K block at a time
+it would be nice if normal transactions were not blocked by bulk transactions. the general idea is to model a promise; a normal transaction can indicate the future existance of a blob, that the bulk transaction then provides. this is even more difficult if the "blob" is a set of tuples, because how do we promise the existence of a set of undetermined tuples? This is even more troubled by the prospect that to the sending user, this transaction is already in some sense complete. 
+one practical solution would be to use two sites; then bulk transactions on the second site. Should this be a standard then, that every site has a bulk fork and a normal fork?
+
+create table xxx (      , log "async")
+this would allow xxx to be updated asynchronously, effectively two sites instead of one. How hard is this for the application developer to reason about? forking would require a vector clock that specified the state of both.
+
+when beginning a transaction we would specify the site.log (or log.site)
+
+we need a log transformer that takes log entries from a peer attempts to write them to a leased log. It may fail due to locks, in which case it will pause and let the peer rebase the subsequent transactions.
+
+bulk transactions themselves need to be accomplished by first transferring the blobs, then a transaction that loads the blobs. This will fix most, but not all the problems. One large attachment would still block all the chats for example. It may be that we want to not completely offline both logs; the attachment log could be a cache.
 
 
 append(author,id, streamtail)

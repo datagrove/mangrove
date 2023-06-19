@@ -17,6 +17,8 @@ import { CommitApi, Etx, SubscriberApi, TxBuilder, TxBulk, Txc, subscriberApi } 
 
 
 
+
+
 // inside of that we write op=table,primarykey, attr, o
 
 enum Op {
