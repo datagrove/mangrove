@@ -48,7 +48,18 @@ function parseTx(tx: Uint8Array): Op[] {
 
 // can this read bulk and non-bulk together? does it need to? wouldn't it tear transactions if the bulk was accepted locally in a different order, or can we just put a promise in there?
 
-class Reader {
+// is it a hassle when a transaction fails to re-establish the state?
+// is it problematic to rebase from this kind of log?
+class TxState {
+    key: number = 0
+    method: number = 0
+    author: number = 0
+    id: number = 0
+    op: Opcode =Opcode.Table
+    value: string = ""
+    pos: number = 0
+}
+class Reader extends TxState {
 
     async read() {
         const reader = this.tx.getReader()
@@ -57,10 +68,8 @@ class Reader {
     }
 
     constructor(public tx: ReadableStream) {
-
+        super()
     }
-
-
 }
 
 // we need to be able read and rewrite the tail of the log to reach consensus on ordering
