@@ -5,7 +5,8 @@
 import { concat } from "lodash"
 import { Channel, Peer } from "../abc/rpc"
 import { Tx } from "../lib/db"
-import { CommitApi, Etx, SubscriberApi, TxBuilder, TxBulk, Txc, subscriberApi } from "./mvr_shared"
+import { OpfsApi, CommitApi, Etx, SubscriberApi, TxBuilder, TxBulk, Txc, subscriberApi } from "./mvr_shared"
+import { parse } from "path"
 
 // serialize instructions to a buffer
 // for each site.server there is a log
@@ -21,7 +22,7 @@ import { CommitApi, Etx, SubscriberApi, TxBuilder, TxBulk, Txc, subscriberApi } 
 
 // inside of that we write op=table,primarykey, attr, o
 
-enum Op {
+enum Opcode {
     Table = 1,
     PrimaryKey,
     Attr,
@@ -30,6 +31,12 @@ enum Op {
     Del,
     Replace,
     Load,
+    Version
+}
+type Op = [Opcode, string | number | Uint8Array]
+
+function parseTx(tx: Uint8Array): Op[] {
+    return []
 }
 
 // we need to read the global log by transaction and apply it to global values
@@ -43,9 +50,9 @@ enum Op {
 
 class Reader {
 
-    async read()  {
+    async read() {
         const reader = this.tx.getReader()
-       const r = await reader.read()
+        const r = await reader.read()
         //this.tx = tx
     }
 
@@ -53,26 +60,26 @@ class Reader {
 
     }
 
-    
+
 }
 
 // we need to be able read and rewrite the tail of the log to reach consensus on ordering
 export class Writer {
     b = new Uint8Array(16384)
-    all : Uint8Array[] = []
+    all: Uint8Array[] = []
     pos = 0
     te = new TextEncoder()
 
-    emit(op: number){
+    emit(op: number) {
 
     }
-    emitstr(op: string){
+    emitstr(op: string) {
 
     }
     emitb(data: Uint8Array) {
 
     }
-    writeOp(op: number ){
+    writeOp(op: number) {
         this.b[this.pos++] = op
 
     }
@@ -80,51 +87,35 @@ export class Writer {
 
 class LockClient {
     api: SubscriberApi
-    constructor(ch: Channel) {
+    authLog = new Set<string>()
+    constructor(public rec: Reconciler, ch: Channel) {
         this.api = subscriberApi(new Peer(ch))
     }
-}
 
 
-// a  remote log chunk of operations. Some will succeed and some will fail
-// we will return a list of the ones that failed to be retried.
+    // returns location of first error and the error code
+    async acceptRemoteCommits(lg: Log, txx: Uint8Array): Promise<[number,string]> {
+        // does aeron style transfer buy us anything here other than more work?
 
-function packBits(bits: boolean[]): Uint32Array {
-    const r = new Uint32Array(Math.ceil(bits.length / 32))
-    for (let i = 0; i < bits.length; i++) {
-        if (bits[i]) {
-            r[i >> 5] |= 1 << (i & 31)
-        }   
-    }
-    return r
-}
+        // check authorization the first time we see a log.
 
-function transformToTx(x: ReadableStream ) : ReadableStream<Tx|TxBulk> {
-    return x
-}
-// reconciler for each site?
-export class Reconciler {
-    log = new Map<number, Uint8Array>()
-    client = new Set<LockClient>()
-   lock = new Map<number, Map<number, number>>()
-
-    connectWebrtc(ch: Channel): CommitApi {
-        const r1: CommitApi = {
-            commit: this.acceptRemoteCommits.bind(this),
+        // each block may be a write to a blob, or 1+ transactions.
+    
+        switch (txx[0]) {
+            case 0:
+                return this.rec.acceptRemoteBlob(lg, txx)
         }
-        this.client.add(new LockClient(ch))
-        return r1
-    }
 
-    disconnectWebRtc(ch: Channel): void {
-        this.client.delete(new LockClient(ch))
-    }
- 
-    // if we are taking a stream of txs can we stream back the accepts?
-    async acceptRemoteCommits(tx: ReadableStream<Uint8Array>): Promise<Uint32Array> {
-        const txs =   transformToTx(tx)
-        const r : boolean[] = []
-        const rdr = new Reader(tx)
+        // this can parse to ops, we can flip a bit on commit ops. 
+        const tx: Op[] = parseTx(txx)
+        for (let t of tx) {
+            switch(t[0]){
+            case Opcode.Version:
+                // we need to make sure that the submitter has seen all the updates
+                // if not, then this transaction fails
+                
+            }
+        }
 
         const lockmap = this.lock.get(tx.id)
         if (!lockmap) { return -a }
@@ -148,14 +139,69 @@ export class Reconciler {
 
         return packBits(r)
     }
+}
 
-    async proposeRemoteCommits(){
+
+// a  remote log chunk of operations. Some will succeed and some will fail
+// we will return a list of the ones that failed to be retried.
+
+function packBits(bits: boolean[]): Uint32Array {
+    const r = new Uint32Array(Math.ceil(bits.length / 32))
+    for (let i = 0; i < bits.length; i++) {
+        if (bits[i]) {
+            r[i >> 5] |= 1 << (i & 31)
+        }
+    }
+    return r
+}
+
+function transformToTx(x: ReadableStream): ReadableStream<Tx | TxBulk> {
+    return x
+}
+interface Log {
+    host: string // maybe empty, in which case this is the host
+    site: number
+    log: number  // eatch table is part of a log 
+}
+
+
+
+// reconciler for each site?
+export class Reconciler {
+    constructor(public opfs: OpfsApi) {
+
+    }
+
+    log = new Map<number, Uint8Array>()
+    client = new Set<LockClient>()
+    lock = new Map<number, Map<number, number>>()
+
+    connectWebrtc(ch: Channel): CommitApi {
+        const r1: CommitApi = {
+            commit: this.acceptRemoteCommits.bind(this),
+        }
+        this.client.add(new LockClient(ch))
+        return r1
+    }
+
+    disconnectWebRtc(ch: Channel): void {
+        this.client.delete(new LockClient(ch))
+    }
+
+    // these are always accepted
+    async acceptRemoteBlob(lg: Log, blob: Uint8Array) : Promise<[number,string]>{
+        
+        return [1, ""]
+    }
+
+
+    async proposeRemoteCommits() {
         // read the tail of the log and propose them to the leader
         // transactions that are rejected are rebased and retried
         // we write the accepts/reject/rebase to our log
     }
 
-    async acceptLocalCommit(lc: LocalCommit){
+    async acceptLocalCommit(lc: LocalCommit) {
 
     }
 
@@ -188,7 +234,7 @@ export interface BulkCommitx {
 // generated functions should allow bulk commit as target
 
 // we potentially need progress for large files. a call back is the most general, map to signals elsewhere? probably more performant to just set up an animation loop to poll?
-export async function insert_file(tx: TxBuilder|TxBulk, path: string, f: File) {
+export async function insert_file(tx: TxBuilder | TxBulk, path: string, f: File) {
 
 }
 
