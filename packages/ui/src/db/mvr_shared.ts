@@ -86,7 +86,8 @@ export class TxBuilder {
 export class TxBulk {
   bytesWritten = 0
  
-
+  constructor(public dbms: Db) {
+  }
   json(data: any|ReadableStream|Blob){
   }
   
@@ -115,7 +116,13 @@ function insert_file(tx: TxBuilder, file: FileByPath) {
 
 // store in tabstate. 
 export class Db {
-  begin() { return new TxBuilder(this) }
+  begin(site: string) : TxBuilder{
+    return new TxBuilder(this)
+  }
+  bulk(site: string) : TxBulk{
+    return new TxBulk(this)
+  }
+
 }
 
 // use with createResource
@@ -284,7 +291,7 @@ export interface AuthApi {
   login(challenge: Uint8Array, user: string, response: Uint8Array): Promise<void>
 }
 export interface CommitApi {
-  commit(tx: Etx): Promise<number>
+  commit(tx: Uint8Array): Promise<Uint32Array>
 }
 // subscribe is a commit to the user database.
 

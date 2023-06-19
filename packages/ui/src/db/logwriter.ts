@@ -36,16 +36,26 @@ enum Op {
 
 // to use pure delta ops we need to a snapshot of each device state, is it worth it?
 // maybe there can be a clear operation inserted when a connection is made 
+
+// can this read bulk and non-bulk together? does it need to? wouldn't it tear transactions if the bulk was accepted locally in a different order, or can we just put a promise in there?
+
 class Reader {
 
-    read()  {
+    async read()  {
+        const reader = this.tx.getReader()
+       const r = await reader.read()
+        //this.tx = tx
+    }
+
+    constructor(public tx: ReadableStream) {
 
     }
+
     
 }
 
 // we need to be able read and rewrite the tail of the log to reach consensus on ordering
-class Writer {
+export class Writer {
     b = new Uint8Array(16384)
     all : Uint8Array[] = []
     pos = 0
@@ -64,9 +74,8 @@ class Writer {
         this.b[this.pos++] = op
 
     }
-    
-    
 }
+
 class LockClient {
     api: SubscriberApi
     constructor(ch: Channel) {
@@ -88,16 +97,18 @@ function packBits(bits: boolean[]): Uint32Array {
     return r
 }
 
-
+function transformToTx(x: ReadableStream ) : ReadableStream<Tx|TxBulk> {
+    return x
+}
 // reconciler for each site?
 export class Reconciler {
     log = new Map<number, Uint8Array>()
-    lient = new Set<LockClient>()
+    client = new Set<LockClient>()
    lock = new Map<number, Map<number, number>>()
 
     connectWebrtc(ch: Channel): CommitApi {
         const r1: CommitApi = {
-            commit: this.remoteCommit.bind(this),
+            commit: this.acceptRemoteCommits.bind(this),
         }
         this.client.add(new LockClient(ch))
         return r1
@@ -107,9 +118,11 @@ export class Reconciler {
         this.client.delete(new LockClient(ch))
     }
  
-
-    async acceptRemoteCommits(tx: Uint8Array): Promise<Uint32Array> {
+    // if we are taking a stream of txs can we stream back the accepts?
+    async acceptRemoteCommits(tx: ReadableStream<Uint8Array>): Promise<Uint32Array> {
+        const txs =   transformToTx(tx)
         const r : boolean[] = []
+        const rdr = new Reader(tx)
 
         const lockmap = this.lock.get(tx.id)
         if (!lockmap) { return -a }

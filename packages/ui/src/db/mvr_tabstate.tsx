@@ -2,7 +2,7 @@ import { JSXElement, Show, createContext, createResource, onCleanup, onMount, us
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
 import { GridSelection, NodeSelection, RangeSelection } from "lexical"
 import { Peer, TransferableResult, WorkerChannel, apiListen } from "../abc/rpc"
-import { LensApi, lensServerApi, scanApi, ScanApi, ScanQuery, ScanWatcherApi, TabStateApi, ValuePointer } from "./mvr_shared"
+import { Db, LensApi, lensServerApi, scanApi, ScanApi, ScanQuery, ScanWatcherApi, TabStateApi, TxBuilder, ValuePointer } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
 // @ts-ignore
@@ -72,13 +72,15 @@ export async function storeCredential(siteServer: string, credential: Uint8Array
 export const TabStateContext = createContext<TabStateValue>()
 export function useDg() { return useContext(TabStateContext) }
 
-export class TabStateValue {
+// maybe there should be a site provider, and ask that for a transaction? or maybe as an argument to begin with default derived from the page?
+
+// Db is the cli version of tab state
+export class TabStateValue extends Db {
   api!: Peer
   ps?: MvrServer
 
-  begin() : LocalTransaction{
-  }
-  bulk() : BulkTransation{
+  defaultSite() : string {
+    return "" // TODO
   }
 
   async createDb() {
@@ -118,6 +120,7 @@ export class TabStateValue {
   }
 
   constructor() {
+    super()
     this.makeLocal()
   }
 
