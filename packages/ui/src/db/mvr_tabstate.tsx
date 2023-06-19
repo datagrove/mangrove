@@ -2,7 +2,7 @@ import { JSXElement, Show, createContext, createResource, onCleanup, onMount, us
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
 import { GridSelection, NodeSelection, RangeSelection } from "lexical"
 import { Peer, TransferableResult, WorkerChannel, apiListen } from "../abc/rpc"
-import { LensApi, lensServerApi, scanApi, ScanApi, ScanQuery, ScanWatcherApi, ServiceApi, TabStateApi, ValuePointer } from "./mvr_shared"
+import { LensApi, lensServerApi, scanApi, ScanApi, ScanQuery, ScanWatcherApi, TabStateApi, ValuePointer } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
 // @ts-ignore
@@ -15,23 +15,18 @@ import LogWorker from './opfs_worker?worker'
 
 import { MvrServer } from "./mvr_worker"
 import { DocBuffer } from "./mvr_sync"
-import { dbLiteApi } from "./sqlite_api"
 
 export class RangeSource<Key, Tuple> {
   api: ScanApi
   constructor(public mp: MessagePort, public q: ScanQuery<Key, Tuple>) {
-    //public schema: QuerySchema<Key>, 
-    // public listener: (s: ScanDiff) => void)
-    {
-      // we have to send db thread a query
-      let peer = new Peer(new WorkerChannel(mp))
-      this.api = scanApi(peer)
-      apiListen<ScanWatcherApi>(peer, {
-        update: function (q: any[]): Promise<void> {
-          throw new Error("Function not implemented.")
-        }
-      })
-    }
+    // we have to send db thread a query
+    let peer = new Peer(new WorkerChannel(mp))
+    this.api = scanApi(peer)
+    apiListen<ScanWatcherApi>(peer, {
+      update: function (q: any[]): Promise<void> {
+        throw new Error("Function not implemented.")
+      }
+    })
   }
 }
 
@@ -72,9 +67,7 @@ export class RangeSource<Key, Tuple> {
 // there will be one cloud state so that can always be a global
 
 // credentials are stored in our user log. Each user will need a host for the user log, which is generally just the server this page is loaded from. 
-export async function storeCredential(siteServer: string, credential: Uint8Array): Promise<void> {
-
-}
+export async function storeCredential(siteServer: string, credential: Uint8Array): Promise<void> {}
 
 export const TabStateContext = createContext<TabStateValue>()
 export function useDg() { return useContext(TabStateContext) }
@@ -96,7 +89,7 @@ export class TabStateValue {
     db.postMessage(dbc.port1, [dbc.port1])
 
     // send the api (transfer the port) to the server
-    return new TransferableResult([dbc.port2,lwp.port2], [dbc.port2,lwp.port2])
+    return new TransferableResult([dbc.port2, lwp.port2], [dbc.port2, lwp.port2])
   }
 
   makeWorker() {
@@ -115,22 +108,13 @@ export class TabStateValue {
     apiListen<TabStateApi>(this.api, {
       createDb: this.createDb.bind(this),
     })
-    this.ps = new MvrServer({ origin: "ws://localhost:8080/"})
+    this.ps = new MvrServer({ origin: "ws://localhost:8080/" })
     this.ps.connect(new WorkerChannel(mc.port2))
-    //   if (true) { } else {
-    //   const svr = new Peer(new WorkerChannel(mc.port2))
-    //   const r: ServiceApi = {
-    //     open: this.ps.open.bind(this.ps),
-    //   }
-    //   apiListen<ServiceApi>(svr, r)
-    // }
   }
 
   constructor() {
     this.makeLocal()
   }
-
-
 
   // the path here needs to give us the address of a cell in the database.
   // should it be structured, or parsed string? We probably need a string in any event so we can use it in the url
@@ -148,10 +132,10 @@ export class TabStateValue {
     if (typeof json === "string") {
       throw new Error(json)
     }
-
     const r = new RangeSource(mc.port1, q)
     return r
   }
+
   async load(url: string): Promise<DocBuffer> {
     console.log("load", url)
     const u = new URL(url)
@@ -180,6 +164,7 @@ export class TabStateValue {
     return db
   }
 }
+
 export function TabState(props: { children: JSXElement }) {
   const u = new TabStateValue()
   return <TabStateContext.Provider value={u}>

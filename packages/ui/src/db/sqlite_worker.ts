@@ -92,35 +92,3 @@ export class DbLite  {
     }
 })()
 
-/*
-            let sx: Server | undefined
-            switch (method) {
-                case 'disconnect':
-                    disconnect(lc)
-                    break
-                case 'query':
-                    db.exec({
-                        sql: params.sql,
-                        bind: params.bind,
-                        rowMode: 'array', // 'array' (default), 'object', or 'stmt'
-                        callback: function (row: any) {
-                            write.postMessage({ id: id, result: row })
-                        }.bind({ counter: 0 }),
-                    });
-                    break;
-                case 'commit':
-                    commit(lc, params)
-                    break
-                case 'scan':
-                    scan(lc, params)
-                    break
-                case 'updateScan':
-                    updateScan(lc, params)
-                    break;
-                case 'close':
-                    close(lc, params.handle)
-                    break
-                default:
-                    ctx.postMessage({ id: id, error: `no method ${method}` })
-            }
-*/

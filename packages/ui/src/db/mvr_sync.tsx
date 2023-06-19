@@ -6,7 +6,10 @@ import { DgElement as DgElement } from "./mvr_shared"
 
 function dg2lex(dg: DgElement, nl: LexicalNode) {
   const vx = dg as any
-  nl.__text = vx.text
+  if (nl instanceof TextNode) {
+    nl.setTextContent(vx.text)
+    //nl.__text = vx.text
+  }
   nl.__format = vx.format
   nl.__mode = vx.mode
   nl.__style = vx.style

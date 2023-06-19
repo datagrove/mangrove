@@ -336,15 +336,18 @@ export class MvrServer implements Service {
     lock = new Map<number, Map<number, number>>()
     log = new Map<number, Uint8Array>()
     watchers = new Map<string, Uint8Array>()
-    logApi? : OpfsApi
     server = new Map<string, DgServer>()
     ds = new Map<string, DocState>();
     changed = createSignal(0)
     bc = new BroadcastChannel('dgdb')
-    db?: DbLiteApi
-
 
     avail = new Map<string, number>()
+    tab = new Map<Channel, TabStateApi>()
+
+    leader?: TabStateApi
+    db?: DbLiteApi
+    logApi? : OpfsApi    
+
     constructor(public opt?: MvrServerOptions) {
         if (!opt) {
             opt = {}
@@ -387,9 +390,6 @@ export class MvrServer implements Service {
         return log.length
     }
 
-
-
-
     sv(url: string): DgServer {
         const connect = async (host?: string, driver?: string) => {
             const s = new DgServer()
@@ -408,7 +408,6 @@ export class MvrServer implements Service {
     getTable(server: string, site: string, table: string): IntervalTree<Subscription> {
         throw new Error("Method not implemented.");
     }
-
 
     trigger() {
         this.changed[1](this.changed[0]() + 1)
@@ -436,10 +435,6 @@ export class MvrServer implements Service {
             functor: {}
         }
         return r
-    }
-
-    async openRange(q: ScanQuery<any, any>, mp: MessagePort) {
-
     }
 
     // we don't need an interval tree? we need a hash table of all the ids on the screen that could need to be signaled.
@@ -479,8 +474,7 @@ export class MvrServer implements Service {
         return doc.toJson()
     }
 
-    tab = new Map<Channel, TabStateApi>()
-    leader?: TabStateApi
+
     // one per tab, if there is no db we can now ask for one
     async connect(ch: Channel): Promise<ServiceApi> {
         console.log("worker connected")
