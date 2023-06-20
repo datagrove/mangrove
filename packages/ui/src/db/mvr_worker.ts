@@ -1,8 +1,8 @@
 
-import { Channel, Peer, Service, WorkerChannel, apiListen } from '../abc/rpc';
+import { Channel, Peer, Service, WorkerChannel, WsChannel, apiListen } from '../abc/rpc';
 import { createSharedListener } from '../abc/shared';
 
-import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery, Schema, TableUpdate, binarySearch, QuerySchema, Txc, TuplePointer, TabStateApi, tabStateApi, PeerApi, peerApi, CommitApi, Etx, OpfsApi, opfsApi } from './mvr_shared';
+import { LensApi, DgElement, lensApi, LensServerApi, ServiceApi, DgSelection, ValuePointer, ScanQuery, Schema, TableUpdate, binarySearch, QuerySchema, Txc, TuplePointer, TabStateApi, tabStateApi, PeerApi, peerApi, CommitApi, Etx, OpfsApi, opfsApi, concat } from './mvr_shared';
 import { SerializedElementNode } from 'lexical';
 
 import { DgServer, PinnedTuple, Subscription, drivers } from './mvr_worker_db';
@@ -12,12 +12,10 @@ import { DbLite } from './sqlite_worker';
 import { encode } from 'cbor-x';
 import { sample } from './mvr_test';
 import { DbLiteApi, dbLiteApi } from './sqlite_api';
+import { Host, LocalCommit, RecPeer } from './logwriter';
+import { CloudApi, LesseeApi, cloudApi } from './cloud';
 
 // we need to support different storage hosts, for testing purposes we should assume something like R2. The lock server will point us to the log host and the tail host.
-
-
-
-
 // locally it's just lww, no merging. buffers send exact ops to the shared worker, the 
 // call back to client with new ops, or new path open.
 // each version is identified by a (gsn-read, gsn-written) segment
@@ -63,7 +61,6 @@ const lww_write: MergeFn = (ctx: MergeContext, v: Mvr, pr?: DgElement) => {
         v._proposal = bs
         v._el = v._proposal.length > 0 ? v._proposal[v._proposal.length - 1].v : null
     }
-
 }
 
 class Mvr {
@@ -295,23 +292,6 @@ function lexicalToDg(lex: SerializedElementNode): DgElement[] {
     return dgd
 }
 
-// to watch the database state, we want a signal for when the buffer state or the doc state changes
-
-
-
-// we need to initialize the MvrServer with a host for its user configuration
-// from there we can access other servers, but we need to store data to share among the user's devices
-
-
-// we can broadcast service status and range versions
-
-
-// each worker runs a lock server over webrtc
-// we can subset the reliable ones and shard the locks.
-// 
-
-
-
 export interface MvrServerOptions {
     leader?: Channel
     // host overrides the self.origin
@@ -323,25 +303,142 @@ export interface MvrServerOptions {
 }
 
 let nserver = 0
+
+// there can be more than one log per site with different priorities
+// there can be blobs that are not in the log but referenced by it.
+export class SiteTracker {
+    isLeader = false
+    constructor(public ps: MvrServer,public host: Host, public id: number ) {
+
+    }
+    leader?: RecPeer
+    peers = new Set<RecPeer>()
+    lease: number = 0
+    handle: number = 0
+
+    at: number = 0
+    log: Uint8Array = new Uint8Array(0)
+
+    // the leader processes these. reads are best effort, and the peer can simply read from the cloud directly (we don't read on their behalf)
+    async readFromPeer(peer: RecPeer) {
+
+    }
+    onNotify(stream: number, at: number, d: Uint8Array){
+        // notify the mvr registers
+    }
+    async notifyPeers(d: Uint8Array) {
+        for (let p of this.peers) {
+            p.api.notify(this.id, d)
+        }
+    }
+    async writeToLeader() {
+        // if this fails we need to try to become the leader or find a new leader
+        if (!this.leader) {
+            [this.isLeader, this.leader] = await this.host.findLeader()
+            if (!this.leader) {
+                return
+            }
+        }
+        this.leader.api.write(this.lease, this.at, this.log)
+        this.at += this.log.length
+    }
+    async writeToCloud() {
+        // when we write to the cloud we should also write to our connected peers
+        // the cloud will be responsible for push messages
+        if (!this.cloud)  return
+        // if this fails, then we may need to give the lease.
+        // how do we manage this sort of api with no return?
+        this.cloud.write(this.lease, this.at, this.log)
+        this.at += this.log.length
+    }
+}
+// this is the point of contact for ui tabs calling in.
 // the mvr server wraps around the database server?
 // will the elements be available as tuples or only in documents?
 export class MvrServer implements Service {
-
-
-
-    watchers = new Map<string, Uint8Array>()
-    server = new Map<string, DgServer>()
+    //watchers = new Map<string, Uint8Array>()
+    //server = new Map<string, DgServer>()
     ds = new Map<string, DocState>();
     changed = createSignal(0)
     bc = new BroadcastChannel('dgdb')
-
     avail = new Map<string, number>()
     tab = new Map<Channel, TabStateApi>()
-
     leader?: TabStateApi
     db?: DbLiteApi
     logApi? : OpfsApi    
 
+    peer = new Map<Channel,RecPeer>() 
+    host = new Map<string, Host>()
+    site = new Map<string, SiteTracker>()
+    lock = new Map<number, Map<number, number>>()
+    uncommited = new Set<string>()
+
+    notifyStatus() {
+        this.bc.postMessage({
+            server: [...this.site.keys()],
+            //up: [...server.values()].filter(x => x.isConnected).map(x => x.url)
+        })
+    }
+    
+    async getLog(cacheKey: string) : Promise<SiteTracker>{
+        const connectHost = async (wss: string): Promise<Host> => {
+            return new Host(cloudApi(new Peer(new WsChannel(wss))))
+        }
+        const site = this.site.get(cacheKey)
+        if (!site) {
+            let cn = await connectHost(cacheKey)
+            if (cn) {
+                this.host.set(cacheKey, cn)
+            }
+        }
+        return site!
+    }
+
+    connectWebrtc(ch: Channel): PeerApi {
+        const o = new RecPeer(this,ch)
+        this.peer.set(ch,o)
+        return o.getApi()
+    }
+
+    disconnectWebRtc(ch: Channel): void {
+        const o = this.peer.get(ch)
+        if (o) {
+            o.close()
+            this.peer.delete(ch)
+        }
+    }
+
+    // we restore our commits we may have some that are not globally committed
+
+    async proposeRemoteCommits() {
+        // read the tail of the log and propose them to the leader
+        // transactions that are rejected are rebased and retried
+        // we write the accepts/reject/rebase to our log
+        // we have many logs, or just one interleaved log for a client?
+        // but we are client and server, and potentially low memory, so maybe one log per site is the way to go. sqlite is also a possibility.
+        
+        let x : Promise<any>[] = []
+        for (let o of this.uncommited) {
+            const site =  await this.getLog(o)
+            // if we are the leader then we can write directly to the cloud backup, no one can stop us
+            // write all the logs
+            if (site.isLeader){
+                x.push(site.writeToCloud())
+            } else if (site.leader){
+                x.push(site.writeToLeader())
+            }
+        }
+        await Promise.all(x)
+    }
+
+    async acceptLocalCommit(lc: LocalCommit) {
+
+    }
+
+    // when we start up we need to read the log and apply it to our btree
+    // can I use leanstore style aries here? or only roll forward?
+    async recover() {
+    }
     constructor(public opt?: MvrServerOptions) {
         if (!opt) {
             opt = {}
@@ -350,20 +447,20 @@ export class MvrServer implements Service {
     }
 
 
-    sv(url: string): DgServer {
-        const connect = async (host?: string, driver?: string) => {
-            const s = new DgServer()
-            this.server.set(host ?? self.origin, s)
-            return s
-        }
+    // sv(url: string): DgServer {
+    //     const connect = async (host?: string, driver?: string) => {
+    //         const s = new DgServer()
+    //         this.server.set(host ?? self.origin, s)
+    //         return s
+    //     }
 
-        let sx = this.server.get(url)
-        if (!sx) {
-            sx = new DgServer()
-            this.server.set(url, sx)
-        }
-        return sx
-    }
+    //     let sx = this.server.get(url)
+    //     if (!sx) {
+    //         sx = new DgServer()
+    //         this.server.set(url, sx)
+    //     }
+    //     return sx
+    // }
 
     getTable(server: string, site: string, table: string): IntervalTree<Subscription> {
         throw new Error("Method not implemented.");
@@ -373,12 +470,7 @@ export class MvrServer implements Service {
         this.changed[1](this.changed[0]() + 1)
     }
 
-    notifyStatus() {
-        this.bc.postMessage({
-            server: [...this.server.keys()],
-            //up: [...server.values()].filter(x => x.isConnected).map(x => x.url)
-        })
-    }
+
 
     // generally we get the driver from the host, but if we are offline can we do this?
     // we also need a device id and a user identity.
@@ -495,38 +587,3 @@ if (!self.document) {
 }
 
 
-
-
-
-function concat(a: Uint8Array, b: Uint8Array) {
-    var c = new Uint8Array(a.length + b.length);
-    c.set(a);
-    c.set(b, a.length);
-    return c
-}
-
-const tostr = async (data: Uint8Array): Promise<string> => {
-    // Use a FileReader to generate a base64 data URI
-    const base64url = (await new Promise((r) => {
-        const reader = new FileReader()
-        reader.onload = () => r(reader.result as any)
-        reader.readAsDataURL(new Blob([data]))
-    })) as string
-
-    /*
-    The result looks like 
-    "data:application/octet-stream;base64,<your base64 data>", 
-    so we split off the beginning:
-    */
-    return base64url.substring(base64url.indexOf(',') + 1)
-}
-
-class SiteLog {
-    data = new Uint8Array(0)
-    append(data: Uint8Array) {
-        this.data = concat(this.data, data)
-    }
-}
-class Keeper {
-    site = new Map<string, SiteLog>()
-}

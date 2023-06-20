@@ -25,6 +25,21 @@ we need a log transformer that takes log entries from a peer attempts to write t
 bulk transactions themselves need to be accomplished by first transferring the blobs, then a transaction that loads the blobs. This will fix most, but not all the problems. One large attachment would still block all the chats for example. It may be that we want to not completely offline both logs; the attachment log could be a cache.
 
 
+// to watch the database state, we want a signal for when the buffer state or the doc state changes
+
+
+
+// we need to initialize the MvrServer with a host for its user configuration
+// from there we can access other servers, but we need to store data to share among the user's devices
+
+
+// we can broadcast service status and range versions
+
+
+// each worker runs a lock server over webrtc
+// we can subset the reliable ones and shard the locks.
+// 
+
 append(author,id, streamtail)
 
 streamtail {

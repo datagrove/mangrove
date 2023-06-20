@@ -299,11 +299,39 @@ export interface CommitApi {
 type TailUpdate = [number, Uint8Array]
 
 export interface PeerApi {
-  sync(length: number, tail: TailUpdate[]) : Promise<void>
+  notify(id: number, data: Uint8Array): Promise<void>
+  write(id: number, at: number, data: Uint8Array): Promise<void>
   close(): Promise<void>
 }
 export function peerApi(ch: Peer): PeerApi {
     return apiCall(ch, "close")
+}
+interface LeaseInfo {
+  until: number
+  credential: Uint8Array  // you can show you have this lease
+  length: number
+}
+// webrtc invite
+interface InviteInfo {
+
+}
+
+export interface LesseeApi {
+  revoke(lease: number): Promise<void>
+  nack(lease: number): Promise<void>
+}
+export interface CloudApi {
+  // returns cbor lease or webrtc invitation to connect to the current lease holder.
+  // transactions to the leaseholder 
+  lease(id: number, credential: Uint8Array): Promise<LeaseInfo|InviteInfo>
+  revoke(lease: number): Promise<void>
+  // no need to wait, 
+  write(lease: number, at: number, data: Uint8Array): Promise<void>
+  // authorize a blob. page name will include author id, so you can only overwrite your own data, and the transaction will have a sha256 so no shenanigans.
+  authorize(site: number, credential: Uint8Array): Promise<Uint8Array>
+}
+export function cloudApi(p: Peer) {
+  return apiCall<CloudApi>(p, "lease", "revoke", "write", "authorize")
 }
 
 
@@ -509,4 +537,27 @@ export function packBits(bits: boolean[]): Uint32Array {
       }
   }
   return r
+}
+
+export function concat(a: Uint8Array, b: Uint8Array) {
+  var c = new Uint8Array(a.length + b.length);
+  c.set(a);
+  c.set(b, a.length);
+  return c
+}
+
+export const base64 = async (data: Uint8Array): Promise<string> => {
+  // Use a FileReader to generate a base64 data URI
+  const base64url = (await new Promise((r) => {
+      const reader = new FileReader()
+      reader.onload = () => r(reader.result as any)
+      reader.readAsDataURL(new Blob([data]))
+  })) as string
+
+  /*
+  The result looks like 
+  "data:application/octet-stream;base64,<your base64 data>", 
+  so we split off the beginning:
+  */
+  return base64url.substring(base64url.indexOf(',') + 1)
 }

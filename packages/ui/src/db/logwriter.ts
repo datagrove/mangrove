@@ -3,11 +3,12 @@
 // this could eventually moved to shared array buffer
 
 import { concat } from "lodash"
-import { Channel, Peer, WsChannel } from "../abc/rpc"
+import { Channel, Peer, WsChannel, apiListen } from "../abc/rpc"
 import { Tx } from "../lib/db"
 import { OpfsApi, CommitApi, Etx, PeerApi, TxBuilder, TxBulk, Txc, peerApi } from "./mvr_shared"
 import { parse } from "path"
-import { CloudApi, cloudApi } from "./cloud"
+import { CloudApi, LesseeApi, cloudApi } from "./cloud"
+import { SiteTracker, MvrServer } from "./mvr_worker"
 
 // serialize instructions to a buffer
 // for each site.server there is a log
@@ -58,7 +59,7 @@ class TxState {
     method: number = 0
     author: number = 0
     id: number = 0
-    op: Opcode =Opcode.Table
+    op: Opcode = Opcode.Table
     value: string = ""
     pos: number = 0
 }
@@ -97,16 +98,22 @@ export class Writer {
     }
 }
 
-export class LockLeader {
-    
-}
 
 // peers may be leaders or users.
-class RecPeer {
+export class RecPeer {
     api: PeerApi
     authLog = new Set<string>()
-    constructor(public rec: Reconciler, ch: Channel) {
+    constructor(public rec: MvrServer, ch: Channel) {
         this.api = peerApi(new Peer(ch))
+    }
+    site = new Map<number, SiteTracker>()
+
+    // we are notif
+    onNotify(id: number, stream: number,  at: number, d: Uint8Array) {
+        const site = this.site.get(id)
+        if (site) {
+            site.onNotify(stream, at, d)
+        }
     }
 
     getApi() {
@@ -115,24 +122,28 @@ class RecPeer {
 
     close() {
     }
+    // these are always accepted
+    async acceptRemoteBlob(lg: SiteTracker, blob: Uint8Array): Promise<[number, string]> {
+        return [1, ""]
+    }
     // returns location of first error and the error code
-    async acceptRemoteCommits(lg: Log, txx: Uint8Array): Promise<[number,string]> {
+    async acceptRemoteCommits(lg: Log, txx: Uint8Array): Promise<[number, string]> {
         // does aeron style transfer buy us anything here other than more work?
-
+        return [0, ""]
         // check authorization the first time we see a log.
 
         // each block may be a write to a blob, or 1+ transactions.
-    
+
         switch (txx[0]) {
             case 0:
-                return this.rec.acceptRemoteBlob(lg, txx)
+            // return this.rec.acceptRemoteBlob(lg, txx)
         }
 
         // this can parse to ops, we can flip a bit on commit ops. 
         const tx: Op[] = parseTx(txx)
         for (let t of tx) {
-            switch(t[0]){
-            case Opcode.Version:
+            switch (t[0]) {
+                case Opcode.Version:
                 // we need to make sure that the submitter has seen all the updates
                 // if not, then this transaction fails
 
@@ -170,96 +181,31 @@ class RecPeer {
 
 
 
-
+// we don't want to keep a connection to the host unless we are the leader.
 export class Host {
+    api: CloudApi
 
-    constructor(public api: CloudApi) {
+    async findLeader() : Promise<[boolean,RecPeer]> {
+        return null
     }
-}
+    constructor(public ps: MvrServer, public host: string) {
+        let ch = new WsChannel(this.host)
+        let peer = new Peer(ch)
+        this. api = cloudApi(peer)
 
-class LogTracker {
-    handle: number = 0
-    log: Uint8Array = new Uint8Array(0)
-}
-
-// reconciler for each site?
-export class Reconciler {
-    // we need to keep track of lease state of each site we are using. we might be leader or user
-
-    peer = new Map<Channel,RecPeer>() 
-    leader = new Map<string, RecPeer>()
-    cloud = new Map<string, Host>()
-    log = new Map<number, LogTracker>()
-    lock = new Map<number, Map<number, number>>()
-
-    constructor(public opfs: OpfsApi) {}
-
-    // this needs to be credentialed.
-    async connectHost(wss: string): Promise<CloudApi> {
-        return cloudApi(new Peer(new WsChannel(wss)));
-    }
-    // sites are {9+}.host
-    async requestSite(host: string, id: number) {
-        // see if we are leader
-        
-        const cacheKey = host + "|" + id
-        const site = this.leader.get(cacheKey)
-        if (!site) {
-            let cn = await this.connectHost(host)
-            if (cn) {
-                this.leader.set(cacheKey, cn)
+        const r : LesseeApi = {
+            revoke: function (lease: number): Promise<void> {
+                throw new Error('Function not implemented.');
+            },
+            nack: function (lease: number): Promise<void> {
+                throw new Error('Function not implemented.');
             }
         }
-
+        apiListen<LesseeApi>(peer,  r)
     }
 
-    connectWebrtc(ch: Channel): CommitApi {
-        const o = new RecPeer(this,ch)
-        this.peer.add(o)
-        return o.getApi()
-    }
-
-    disconnectWebRtc(ch: Channel): void {
-        const o = this.peer.get(ch)
-        if (o) {
-            o.close()
-            this.peer.delete(ch)
-        }
-    }
-
-    // these are always accepted
-    async acceptRemoteBlob(lg: Log, blob: Uint8Array) : Promise<[number,string]>{
-        
-        return [1, ""]
-    }
-
-
-    iamleader = new Set<LockLeader>()
-
-    async connectToCloud(host: string, site: number) {
-
-    }
-
-    async proposeRemoteCommits() {
-        // read the tail of the log and propose them to the leader
-        // transactions that are rejected are rebased and retried
-        // we write the accepts/reject/rebase to our log
-
-        // we have many logs, or just one interleaved log for a client?
-        // but we are client and server, and potentially low memory, so maybe one log per site is the way to go. sqlite is also a possibility.
-
-        
-    }
-
-    async acceptLocalCommit(lc: LocalCommit) {
-
-    }
-
-    // when we start up we need to read the log and apply it to our btree
-    // can I use leanstore style aries here? or only roll forward?
-    async recover() {
-    }
 }
+
 
 // something that conveniently comes from the editor. Most should be in the form of tree edits since each value is a json-like tree. Some will be imports of various kinds: csv, json, etc. copy/paste things. Big imports need to allow interleaving with other operations, maybe adopt umbra's approach of 1 bulk operation at a time?
 
