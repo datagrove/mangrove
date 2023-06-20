@@ -13,7 +13,6 @@ import { encode } from 'cbor-x';
 import { sample } from './mvr_test';
 import { DbLiteApi, dbLiteApi } from './sqlite_api';
 import { Host, LocalCommit, RecPeer } from './logwriter';
-import { CloudApi, LesseeApi, cloudApi } from './cloud';
 
 // we need to support different storage hosts, for testing purposes we should assume something like R2. The lock server will point us to the log host and the tail host.
 // locally it's just lww, no merging. buffers send exact ops to the shared worker, the 
@@ -306,11 +305,33 @@ let nserver = 0
 
 // there can be more than one log per site with different priorities
 // there can be blobs that are not in the log but referenced by it.
+
+enum SiteStatus {
+    Unknown,
+    Leader,
+    LocalOnly,  // this machine is the cloud, there is no cloud.
+    Contributor, // using another peer as the leader
+
+}
+enum LogStatus {
+    Leader,
+    Contributor,
+    Unknown
+}
+
+// maybe we should track these globally with site as a key prefix?
 export class SiteTracker {
-    isLeader = false
+    status: SiteStatus = SiteStatus.Unknown
+    logStatus = new Map<number, LogStatus>()
+    registerStatus = new Map<string, LogStatus>()
+
+    // if we are the leader we need to track who has leases on our registers
+    registerLessee = new Map<string, RecPeer>()
+    
     constructor(public ps: MvrServer,public host: Host, public id: number ) {
 
     }
+    // this has a vale
     leader?: RecPeer
     peers = new Set<RecPeer>()
     lease: number = 0
