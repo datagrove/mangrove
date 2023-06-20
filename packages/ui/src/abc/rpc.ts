@@ -109,15 +109,28 @@ export class WsChannel implements Channel {
     }
 }
 
-export class WebRTC implements Channel {
-    constructor(public pc: RTCDataChannel, public listen: (d: any) => void, fn: (d: any) => void) {
-
+export class Wrtc implements Channel {
+    pc?: RTCDataChannel
+    recv?: (d: any) => void 
+    constructor() {
+        const pc = new RTCPeerConnection()
+        pc.ondatachannel = (e) => {
+            this.pc = e.channel
+            this.pc.onmessage = (e) => {
+                this.recv?.(e.data)
+            }
+        }
+        const dc = pc.createDataChannel("abc")
+        this.pc = dc
+    }
+    listen(fn: (d: any) => void): void {
+        this.recv = fn
     }
     postMessage(data: any): void {
-        this.pc.send(data)
+        this.pc?.send(data)
     }
     close() {
-        this.pc.close()
+        this.pc?.close()
     }
 }
 

@@ -1,7 +1,7 @@
 import { JSXElement, Show, createContext, createResource, onCleanup, onMount, useContext } from "solid-js"
 import { useLexicalComposerContext } from "../lexical/lexical-solid"
 import { GridSelection, NodeSelection, RangeSelection } from "lexical"
-import { Peer, TransferableResult, WorkerChannel, apiListen } from "../abc/rpc"
+import { Peer, TransferableResult, WorkerChannel, Wrtc, apiListen } from "../abc/rpc"
 import { Db, LensApi, lensServerApi, scanApi, ScanApi, ScanQuery, ScanWatcherApi, TabStateApi, TxBuilder, ValuePointer } from "./mvr_shared"
 import { DgElement as DgElement } from "./mvr_shared"
 
@@ -86,6 +86,17 @@ export class TabStateValue extends Db {
   async createDb() {
     const lw = new LogWorker()
     const lwp = new MessageChannel()
+    const dc = new MessageChannel()
+
+    // no api with the webrtc, just funnel to the worker
+    let r = new RTCDataChannel()
+    r.onmessage = function (e) {
+      dc.port1.postMessage(e.data)
+    }
+    dc.port1.onmessage = function (e) {
+      r.send(e.data)
+    }
+
     // send one port to the worker, and one to the shared worker
     console.log("%c sending port to worker", "color:blue")
     lw.postMessage(lwp.port1, [lwp.port1])
@@ -93,10 +104,10 @@ export class TabStateValue extends Db {
     const dbc = new MessageChannel()
     const db = new DbWorker()
     console.log("%c sending port to db", "color:blue")
-    db.postMessage(dbc.port1, [dbc.port1])
+    db.postMessage([dbc.port1], [dbc.port1])
 
     // send the api (transfer the port) to the server
-    return new TransferableResult([dbc.port2, lwp.port2], [dbc.port2, lwp.port2])
+    return new TransferableResult([dbc.port2, lwp.port2, dc.port2], [dbc.port2, lwp.port2, dc.port2])
   }
 
   makeWorker() {
@@ -109,6 +120,7 @@ export class TabStateValue extends Db {
   }
 
   // we need to configure the server to use a local test server
+  
   makeLocal() {
     const mc = new MessageChannel()
     this.api = new Peer(new WorkerChannel(mc.port1))
