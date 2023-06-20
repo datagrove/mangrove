@@ -7,6 +7,19 @@ op: ins|del|upd
 value: string
 pos: number
 
+we can lease registers from the site leader. The site leader can be responsible to create the snapshot, the register leader writes to the site leader writes to the cloud (if cloud enabled, if not then the leader is the cloud and it stops there). The tuple tree can contain a summary of the register (in most cases all of it), and a pointer to register log/snapshot. as the register leader updates the value, it potentially:
+1) replaces the summary
+2) adds an update to the log
+3) update the snapshot.
+4) the site leader notifies listeners, this may not be low latency enough, but simplifies some things.
+5) potentially the leader revokes the lease and provides it to a new writer, so currently all writes will hit the leader. This is not really a bad thing, since the leader needs these writes for it's own copy anyway. The real pain to the leader would be amplified reads, and these are handled by writing to the cloud and redirecting the reads to that.
+
+
+
+Subscribers can send updates to the register leader, if they fail the register leader provides them with the updates? or do they get these in order from the site leader and potentially the cloud if the site leader defers? I think to start lets try the site leader 
+
+R2 might not be the right api for snapshots. Maybe we are better off creating a paged service. potentially the cloud server can redirect reads to an r2 bucket, although more thought is needed on this. umbra writes to variable page sizes, but this may be problematic in the browser since we have even less control of memory; you can't even find available memory without asking and catching exceptions. Potentially we can try to create new ArrayBuffers, then as long as we have at least one of each size, we can evict as a last resort. This raises deadlock issues etc. Seems like it might be too much trouble for the application. Also we don't really get direct pointers from the wasm space anyway, so we don't get the juice for the squeeze. wasm multi-memory or 64 bit wasm may be needed to make revisiting this worthwhile. Neither seems to be coming soon.
+
 some values will have two values: global consensus and local value. These will eventually converge. When they converge (no outstanding local edits) then local editors are notified to update their view. As long as they are not converged, the editor stays on the local value.
 
 note that peers may exchange data about multiple sites that they share, and may be leaders on different site sets.
