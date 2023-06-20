@@ -2,12 +2,8 @@
 
 // this could eventually moved to shared array buffer
 
-import { concat } from "lodash"
 import { Channel, Peer, WsChannel, apiListen } from "../abc/rpc"
-import { Tx } from "../lib/db"
-import { OpfsApi, CommitApi, Etx, PeerApi, TxBuilder, TxBulk, Txc, peerApi } from "./mvr_shared"
-import { parse } from "path"
-import { CloudApi, LesseeApi, cloudApi } from "./cloud"
+import { CloudApi, LesseeApi, PeerApi, TxBuilder, TxBulk, cloudApi, peerApi } from "./mvr_shared"
 import { SiteTracker, MvrServer } from "./mvr_worker"
 
 // serialize instructions to a buffer
@@ -185,8 +181,8 @@ export class RecPeer {
 export class Host {
     api: CloudApi
 
-    async findLeader() : Promise<[boolean,RecPeer]> {
-        return null
+    async findLeader() : Promise<[boolean,RecPeer|undefined]> {
+        return [false, undefined]
     }
     constructor(public ps: MvrServer, public host: string) {
         let ch = new WsChannel(this.host)

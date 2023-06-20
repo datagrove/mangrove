@@ -322,15 +322,14 @@ enum LogStatus {
 // maybe we should track these globally with site as a key prefix?
 export class SiteTracker {
     status: SiteStatus = SiteStatus.Unknown
+    get isLeader() { return this.status == SiteStatus.Leader }
     logStatus = new Map<number, LogStatus>()
     registerStatus = new Map<string, LogStatus>()
 
     // if we are the leader we need to track who has leases on our registers
     registerLessee = new Map<string, RecPeer>()
     
-    constructor(public ps: MvrServer,public host: Host, public id: number ) {
-
-    }
+    constructor(public ps: MvrServer,public host: Host, public id: number ) {}
     // this has a vale
     leader?: RecPeer
     peers = new Set<RecPeer>()
@@ -355,7 +354,8 @@ export class SiteTracker {
     async writeToLeader() {
         // if this fails we need to try to become the leader or find a new leader
         if (!this.leader) {
-            [this.isLeader, this.leader] = await this.host.findLeader()
+            const [isleader, ldr] = await this.host.findLeader()
+            this.leader = ldr
             if (!this.leader) {
                 return
             }
@@ -366,10 +366,10 @@ export class SiteTracker {
     async writeToCloud() {
         // when we write to the cloud we should also write to our connected peers
         // the cloud will be responsible for push messages
-        if (!this.cloud)  return
+        if (!this.host)  return
         // if this fails, then we may need to give the lease.
         // how do we manage this sort of api with no return?
-        this.cloud.write(this.lease, this.at, this.log)
+        this.host.api.write(this.lease, this.at, this.log)
         this.at += this.log.length
     }
 }
@@ -403,7 +403,7 @@ export class MvrServer implements Service {
     
     async getLog(cacheKey: string) : Promise<SiteTracker>{
         const connectHost = async (wss: string): Promise<Host> => {
-            return new Host(cloudApi(new Peer(new WsChannel(wss))))
+            return new Host(this, wss)
         }
         const site = this.site.get(cacheKey)
         if (!site) {
