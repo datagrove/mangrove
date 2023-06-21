@@ -40,6 +40,7 @@ call auth server first time, then cache.
 # signal(leaderHandle, offer|candidate, data)
 leaderHandle can be random. we could send offer premptively from leader or aspirant, but 99% of time this is not used.
 we can scan a queue to discover new attestations and revokations and use that to update our access database.
+# attest(attestation)  
 
 # read(handle, from) -> data|redirect
 # write(handle, at, number)
