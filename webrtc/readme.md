@@ -22,6 +22,7 @@ maybe this replaces updateProfile
 Wave style authentication
 # lease(site,log,credential) -> token
 # refresh(token, refreshGuid)->token
+# claim(user, namespace, name) -> integer
 
 Tokens should be much faster for the tail server to check since they only use symmetric operations. Policy would say how long a token is good for. Potentially backstop with explicit revocation list which would be very small. But if we have this backstop, do we still want refresh tokens? do we need wave style and tokens? can we get good enough performance by caching? is security weaker in any way? does it make sense to create a new profile on every change and declare that in the wave database? do we need queries of who holds what capability? is that even practical? create table(user, site, log, credential)? Is this too invasive? seems like its information we need though.
 

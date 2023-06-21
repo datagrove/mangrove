@@ -25,7 +25,7 @@ type WebrtcApp struct {
 
 var app WebrtcApp
 
-func Init(home string) error {
+func Init(home string, m *rpc.ApiMap) error {
 	f := home + "/webrtc.json"
 	jsonRSAPrivateKey, err := ioutil.ReadFile(f)
 	// should generate a key here as needed, but also needs to sync with auth server
@@ -35,10 +35,6 @@ func Init(home string) error {
 		return err
 	}
 	app.TokenKey = privkey
-	return nil
-}
-
-func AddApi(m *rpc.ApiMap) {
 
 	// Tail server api; websocket for latency. Handles online user notification, but defers to notification server.
 	// # connect(token)
@@ -93,5 +89,5 @@ func AddApi(m *rpc.ApiMap) {
 	m.AddNotify("write", func(c context.Context, data []byte) (any, error) {
 		return nil, nil
 	})
-
+	return nil
 }
