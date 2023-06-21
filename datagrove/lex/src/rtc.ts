@@ -23,7 +23,11 @@ class WebRTCApp {
 
     socket.onopen = async () => {
       const pc = new RTCPeerConnection(config);
-      pc. = true
+      // must be before offer
+      if (!listen) {
+        this.channel = pc.createDataChannel('test');
+      }
+
       this.pc = pc
       this.pc.onicecandidateerror = (e) => {
         console.log("ice candidate error", e)
@@ -56,18 +60,17 @@ class WebRTCApp {
           case 'answer':
             console.log("got answer", message.data)
             await pc.setRemoteDescription(message.data);
-            this.channel = this.pc!.createDataChannel('test');
             console.log("creating data channel")
-            this.channel.onerror = (error) => {
+            this.channel!.onerror = (error) => {
               console.log("channel error", error)
             }
-            this.channel.onmessage = (message) => {
+            this.channel!.onmessage = (message) => {
               console.log("channel message", message)
             }
-            this.channel.onclose = () => {
+            this.channel!.onclose = () => {
               console.log("channel closed")
             }
-            this.channel.onopen = (message) => {
+            this.channel!.onopen = (message) => {
               console.log("channel open")
               for (let i = 0; i < 10; i++) {
                 this.channel?.send(`Hello, world! ${i}`);
