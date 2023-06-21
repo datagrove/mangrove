@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 
 	"github.com/datagrove/mangrove/rpc"
 	"github.com/fxamacker/cbor/v2"
+	"github.com/gorilla/websocket"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -15,30 +17,78 @@ import (
 // potentially if we needed to we could also split the site to different servers sharded by the user. if the users are sharded there would be one primary and then secondary servers would call the primary for that site.
 // if sharded by user
 // should this be more of a btree/leanstore thing? external database? in-memory database. should we shard by cpu/port such that each server running many shards?
-type SiteLog struct {
-	Length int64
+const (
+	OpRead = iota
+	OpWrite
+	OpLease
+)
+
+type Request struct {
+	Op      int
+	Session int64
+	Site    int64
+	Log     int64
+	At      int64
+	Data    []byte
+}
+
+type SiteLogShard struct {
+	req chan Request
+}
+
+func siteDrain(req chan Request) {
+	for {
+		m, e := <-req
+		if !e {
+			return
+		}
+		_ = m
+	}
+}
+func userDrain(req chan Request) {
+	for {
+		m, e := <-req
+		if !e {
+			return
+		}
+		_ = m
+	}
 }
 
 // message in channels with wait groups and ids. (promise)
 
 // maybe give each log a flat 64 bit? 32:32?
 type WebrtcSession struct {
-	app    *WebrtcApp
+	app    *DeviceShard
+	conn   *websocket.Conn
 	iss    string
 	device int64
 	user   int64
 
-	authCache map[int64]byte // map site.log -> read/write
+	handle map[int64]Handle // map site.log -> read/write
 }
-type WebrtcApp struct {
-	TokenKey jwk.Key
-	sharded  bool // if there is more than one site, then we need an extra hop to write the server responsible for a given site. Plus each server needs to broadcast their updates to the other servers.
+type Handle struct {
+	*SiteLogShard
+	site  int64
+	log   int64
+	write bool
+}
+type GlobalState struct {
+	log  []SiteLogShard
+	user []DeviceShard
+}
 
-	cache map[int64]SiteLog // map site -> log
+var g GlobalState
+
+// runs on its own port, so part of sessions. has its own apiset. does nbio let us single thread this though?
+// maybe we should go from a global api to a queue to the user drain
+type DeviceShard struct {
+	conn     *websocket.Conn
+	TokenKey jwk.Key
 }
 
 // sharding users would eliminate need for locking here.
-func (app *WebrtcApp) Auth(session *WebrtcSession, site int64, log int64, read bool) error {
+func (app *DeviceShard) Auth(session *WebrtcSession, site int64, log int64, read bool) error {
 	// check cache
 	// if not in cache, check auth server
 	// if not in auth server, return error
@@ -47,15 +97,16 @@ func (app *WebrtcApp) Auth(session *WebrtcSession, site int64, log int64, read b
 	return nil
 }
 
-func (app *WebrtcApp) GetSiteLog() error {
+func (app *GlobalState) GetSiteLogShard(site int64, log int64) *SiteLogShard {
+	return nil
 }
 
-func (app *WebrtcApp) Push() {
+func (app *DeviceShard) Push() {
 }
 
 // this is probably more like "shard" so shouldn't be global. we can get it from the session.
 
-func Init(app *WebrtcApp, home string, m *rpc.ApiMap) error {
+func Init(app *DeviceShard, home string, m *rpc.ApiMap) error {
 	f := home + "/webrtc.json"
 	jsonRSAPrivateKey, err := ioutil.ReadFile(f)
 	// should generate a key here as needed, but also needs to sync with auth server
@@ -98,6 +149,9 @@ func Init(app *WebrtcApp, home string, m *rpc.ApiMap) error {
 		session.iss = vt.Issuer()
 		session.device = vt.PrivateClaims()["device"].(int64)
 		session.user = vt.PrivateClaims()["user"].(int64)
+
+		// connecting a user results in muting the push, creating an online user, and initiating a drain procedure
+
 		return nil, nil
 	})
 	m.AddRpc("lease", func(c context.Context, data []byte) (any, error) {
@@ -105,6 +159,21 @@ func Init(app *WebrtcApp, home string, m *rpc.ApiMap) error {
 			Site int64 `json:"site,omitempty"`
 			Log  int64 `json:"log,omitempty"`
 		}
+		e := cbor.Unmarshal(data, &v)
+		if e != nil {
+			return nil, e
+		}
+		session := c.Value("session").(*WebrtcSession)
+		e = session.app.Auth(session, v.Site, v.Log, true)
+		if e != nil {
+			return nil, e
+		}
+		a := g.GetSiteLogShard(v.Site, v.Log)
+		if e != nil {
+			return nil, e
+		}
+		a.req <- Request{Session: session.device, Site: v.Site, Log: v.Log}
+
 		return nil, nil
 	})
 	m.AddRpc("signal", func(c context.Context, data []byte) (any, error) {
@@ -136,6 +205,12 @@ func Init(app *WebrtcApp, home string, m *rpc.ApiMap) error {
 		if e != nil {
 			return nil, e
 		}
+		session := c.Value("session").(*WebrtcSession)
+		h, ok := session.handle[v.Handle]
+		if !ok || !h.write {
+			return nil, fmt.Errorf("handle not found")
+		}
+		h.req <- Request{Session: session.device, Site: h.site, Log: h.log, At: v.At, Data: v.Data}
 		return nil, nil
 	})
 
