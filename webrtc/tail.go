@@ -87,7 +87,20 @@ func Init(home string, m *rpc.ApiMap) error {
 		return nil, nil
 	})
 	m.AddNotify("write", func(c context.Context, data []byte) (any, error) {
+		var 
 		return nil, nil
 	})
+
 	return nil
+}
+
+// potentially a call that the publisher can use to get the latest tail data. this can fan out, maybe shard by client?
+func publish(tailClient int, lastRead int64) {
+	// once all the tail clients have sipped the hose we can trim it.
+
+}
+
+func pushNotify() {
+
+
 }
