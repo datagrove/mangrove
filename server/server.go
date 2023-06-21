@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"sync"
 
-	"github.com/gliderlabs/ssh"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/gorilla/mux"
 	"github.com/kardianos/service"
@@ -179,20 +178,6 @@ func (sx *Server) Run() error {
 	}
 	defer sx.Ws.Stop()
 
-	go func() {
-		ssh_server := ssh.Server{
-			Addr: sx.Config.Sftp,
-			PublicKeyHandler: func(ctx ssh.Context, key ssh.PublicKey) bool {
-				return true
-			},
-			SubsystemHandlers: map[string]ssh.SubsystemHandler{
-				"sftp": SftpHandlerx,
-			},
-		}
-		kf := ssh.HostKeyFile(sx.Config.Key)
-		kf(&ssh_server)
-		log.Fatal(ssh_server.ListenAndServe())
-	}()
 	//go log.Fatal(http.ListenAndServe(x, sx.Mux))
 	//log.Fatal(http.ListenAndServeTLS(sx.Https, sx.Cert, sx.Key, sx.Mux))
 	//certmagic.HTTPS([]string{"example.com"}, mux)

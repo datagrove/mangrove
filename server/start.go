@@ -287,8 +287,6 @@ func NewServer(optc *Config) (*Server, error) {
 	}
 
 	WebauthnSocket(svr)
-	//svr.DbApi()
-	fileApi(svr)
 	SettingsApi(svr)
 	svr.WsHandler = svr.onWebSocket()
 	// return unstarted to allow the application to modify the server
