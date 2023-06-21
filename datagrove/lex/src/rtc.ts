@@ -23,6 +23,7 @@ class WebRTCApp {
 
     socket.onopen = async () => {
       const pc = new RTCPeerConnection(config);
+      pc. = true
       this.pc = pc
       this.pc.onicecandidateerror = (e) => {
         console.log("ice candidate error", e)
