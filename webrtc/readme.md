@@ -10,27 +10,38 @@ How it might work:
  http for better scalability? Cors to use from fetch? authorize to specific static host? can we link together in a monolith this way?
 
 Auth api:
-# signup(device, user)
-Could be new user or new device
-# updateProfile(device, changes, version) -> true|false
+# various: signup(device, user),login, refresh
+Could be new user or new device, multiple apis based on auth choices
+# updateProfile(token,device, changes, version) -> true|false, comment list
+profile here tells us which subsets of notifications matter to us, adjust login options
+is changes really helpful here? or better to do full refresh? database transactions? do we need ordering? maybe changes here is transactions to a database that is shared, is always leasted by the auth server then? does auth server need webrtc then? auth server in node, as bot? allow websocket based leader connections?
+# declare(wavedoc)
+maybe this replaces updateProfile
 
 # join(device, site,credential)
 Wave style authentication
 # lease(site,log,credential) -> token
 # refresh(token, refreshGuid)->token
 
-Tokens should be much faster for the tail server to check since they only use symmetric operations. Policy would say how long a token is good for. Potentially backstop with explicit revocation list which would be very small. But if we have this backstop, do we still want refresh tokens?
+Tokens should be much faster for the tail server to check since they only use symmetric operations. Policy would say how long a token is good for. Potentially backstop with explicit revocation list which would be very small. But if we have this backstop, do we still want refresh tokens? do we need wave style and tokens? can we get good enough performance by caching? is security weaker in any way? does it make sense to create a new profile on every change and declare that in the wave database? do we need queries of who holds what capability? is that even practical? create table(user, site, log, credential)? Is this too invasive? seems like its information we need though.
 
 should we check a signature on every lease? check for revocations ala wave?
 
+for scalability we can have a proof server that converts an attestation to a shared secret.
+
+Signaling server
 
 
 Tail server api; websocket for latency. Handles online user notification, but defers to notification server. 
 # connect(token)  
-retrieve/cache profile from auth server
-# lease(site,log)->handle,leader
+token declares device, user. retrieve/cache profile from auth server, lazy fetch site access from auth table.
+# lease(site,log)->handle|leaderHandle|needproof
+call auth server first time, then cache.
 # signal(leaderHandle, offer|candidate, data)
-# read(handle, from)
+leaderHandle can be random. we could send offer premptively from leader or aspirant, but 99% of time this is not used.
+we can scan a queue to discover new attestations and revokations and use that to update our access database.
+
+# read(handle, from) -> data|redirect
 # write(handle, at, number)
 
 private apis
