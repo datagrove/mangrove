@@ -1,10 +1,14 @@
-interface PeerConnectionConfig {
-  iceServers: RTCIceServer[];
-}
+
+import { error } from '../../../packages/ui/src/abc/shared';
 
 interface SignalingMessage {
-  type: string;
-  data?: any;
+    type: string
+    data?: any
+}
+interface JsonReply {
+  id: number
+  error?: string
+  result?: any
 }
 
 class WebRTCApp {
@@ -12,8 +16,12 @@ class WebRTCApp {
   pc?: RTCPeerConnection;
   channel?: RTCDataChannel;
 
-  async connect(signalingUrl: string, config: PeerConnectionConfig, listen: boolean) {
+  async connect(signalingUrl: string, config: RTCConfiguration, listen: boolean) {
     const socket = new WebSocket(signalingUrl);
+    const signal = (message: SignalingMessage) => {
+      socket.send(JSON.stringify(message))
+    }
+
     socket.onerror = () => {
       console.log("error")
     }
@@ -48,7 +56,8 @@ class WebRTCApp {
 
       socket.onmessage = async (m) => {
         console.log('Received message:', m.data);
-        const message = JSON.parse(m.data) as SignalingMessage;
+        const reply = JSON.parse(m.data) as JsonReply;
+        if (reply
 
         switch (message.type) {
           case 'offer':
@@ -98,14 +107,14 @@ class WebRTCApp {
 }
 
 const app1 = new WebRTCApp()
-app1.connect('ws://localhost:8080/ws', {
+app1.connect('ws://localhost:8080/ws?id=1', {
   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 }, true)
 
 
 
 const app2 = new WebRTCApp()
-app2.connect('ws://localhost:8080/ws', {
+app2.connect('ws://localhost:8080/ws?id=2', {
   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 }, false);
 
