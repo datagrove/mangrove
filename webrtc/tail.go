@@ -11,21 +11,51 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 )
 
-// can I add session state to the context?
-// should we
+// we can scale this by splitting the sites to different servers
+// potentially if we needed to we could also split the site to different servers sharded by the user. if the users are sharded there would be one primary and then secondary servers would call the primary for that site.
+// if sharded by user
+// should this be more of a btree/leanstore thing? external database? in-memory database. should we shard by cpu/port such that each server running many shards?
+type SiteLog struct {
+	Length int64
+}
 
+// message in channels with wait groups and ids. (promise)
+
+// maybe give each log a flat 64 bit? 32:32?
 type WebrtcSession struct {
+	app    *WebrtcApp
 	iss    string
 	device int64
 	user   int64
+
+	authCache map[int64]byte // map site.log -> read/write
 }
 type WebrtcApp struct {
 	TokenKey jwk.Key
+	sharded  bool // if there is more than one site, then we need an extra hop to write the server responsible for a given site. Plus each server needs to broadcast their updates to the other servers.
+
+	cache map[int64]SiteLog // map site -> log
 }
 
-var app WebrtcApp
+// sharding users would eliminate need for locking here.
+func (app *WebrtcApp) Auth(session *WebrtcSession, site int64, log int64, read bool) error {
+	// check cache
+	// if not in cache, check auth server
+	// if not in auth server, return error
+	// if in auth server, cache and return
 
-func Init(home string, m *rpc.ApiMap) error {
+	return nil
+}
+
+func (app *WebrtcApp) GetSiteLog() error {
+}
+
+func (app *WebrtcApp) Push() {
+}
+
+// this is probably more like "shard" so shouldn't be global. we can get it from the session.
+
+func Init(app *WebrtcApp, home string, m *rpc.ApiMap) error {
 	f := home + "/webrtc.json"
 	jsonRSAPrivateKey, err := ioutil.ReadFile(f)
 	// should generate a key here as needed, but also needs to sync with auth server
@@ -71,7 +101,10 @@ func Init(home string, m *rpc.ApiMap) error {
 		return nil, nil
 	})
 	m.AddRpc("lease", func(c context.Context, data []byte) (any, error) {
-
+		var v struct {
+			Site int64 `json:"site,omitempty"`
+			Log  int64 `json:"log,omitempty"`
+		}
 		return nil, nil
 	})
 	m.AddRpc("signal", func(c context.Context, data []byte) (any, error) {
@@ -82,12 +115,27 @@ func Init(home string, m *rpc.ApiMap) error {
 
 		return nil, nil
 	})
+	// anyone can read, we can also redirect the write to blob storage.
+	// if we are sharded, what does it take to do DSR? would doing webrtc allow a better solution? it seems like a webrtc connection would as expensive as a tcp one, if not more so.
 	m.AddRpc("read", func(c context.Context, data []byte) (any, error) {
-
+		var v struct {
+			Handle int64 `json:"handle,omitempty"`
+			From   int64 `json:"from,omitempty"`
+		}
+		e := cbor.Unmarshal(data, &v)
 		return nil, nil
 	})
 	m.AddNotify("write", func(c context.Context, data []byte) (any, error) {
-		var 
+		// is not waiting a bad idea here? the leader writes should always be allowed, otherwise not.
+		var v struct {
+			Handle int64  `json:"handle,omitempty"`
+			At     int64  `json:"at,omitempty"`
+			Data   []byte `json:"number,omitempty"`
+		}
+		e := cbor.Unmarshal(data, &v)
+		if e != nil {
+			return nil, e
+		}
 		return nil, nil
 	})
 
@@ -101,6 +149,5 @@ func publish(tailClient int, lastRead int64) {
 }
 
 func pushNotify() {
-
 
 }

@@ -32,6 +32,14 @@ for scalability we can have a proof server that converts an attestation to a sha
 
 Signaling server
 
+recovery
+when a user shard dies, the tail of writes is indeterminate. The leader may also die, and then writer is left to proceed with getting its writes sequenced.
+
+1. It tries to be leader. If it succeeds, it compares its last read to new tail
+2. If it fails, it resends to new leader. Then new leader must do the same examination.
+
+
+
 
 Tail server api; websocket for latency. Handles online user notification, but defers to notification server. 
 # connect(token)  
