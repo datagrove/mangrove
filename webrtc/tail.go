@@ -165,7 +165,6 @@ func NewDeviceShard() *DeviceShard {
 	return &DeviceShard{}
 }
 
-// sharding users would eliminate need for locking here.
 func (app *DeviceShard) Auth(session *WebrtcSession, site int64, log int64, read bool) error {
 	// check cache
 	// if not in cache, check auth server
@@ -237,8 +236,10 @@ func Init(home string, m *rpc.ApiMap) error {
 	// if there isn't one, then make the caller the owner
 	m.AddRpc("lease", func(c context.Context, data []byte) (any, error) {
 		var v struct {
-			Site int64 `json:"site,omitempty"`
-			Log  int64 `json:"log,omitempty"`
+			Site      int64 `json:"site,omitempty"`
+			Log       int64 `json:"log,omitempty"`
+			Signature []byte
+			Nonce     int64
 		}
 		e := cbor.Unmarshal(data, &v)
 		if e != nil {
@@ -257,11 +258,14 @@ func Init(home string, m *rpc.ApiMap) error {
 
 		return nil, nil
 	})
-	m.AddRpc("signal", func(c context.Context, data []byte) (any, error) {
-
+	// pass messages between nodes to facilitate webrtc connections
+	m.AddRpc("webrtc", func(c context.Context, data []byte) (any, error) {
+		var v struct {
+		}
 		return nil, nil
 	})
 	m.AddRpc("attest", func(c context.Context, data []byte) (any, error) {
+		// create an entry in the ULDM
 
 		return nil, nil
 	})

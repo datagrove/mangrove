@@ -169,7 +169,7 @@ func (z *ZeusDir) Run() {
 			if obj == nil {
 				obj = &ZeusState{
 					O_state:    O_request,
-					O_ts:       0,
+					O_ts:       Tstamp{0, v.Coordinator},
 					O_replicas: []PeerId{v.Coordinator},
 					O_owner:    NoPeer,
 				}
