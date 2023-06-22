@@ -52,7 +52,7 @@ type WebsockSession struct {
 	iss    string
 	device DeviceId
 	user   UserId
-
+	Nonce  int64
 	// authorization hash, this session has proved its authority on these logs
 	handle map[int64]Handle // map site.log -> read/write
 }
@@ -81,6 +81,9 @@ func (app *GlobalState) SendDevice(d DeviceId, m []byte) {
 func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 	f := home + "/webrtc.json"
 	jsonRSAPrivateKey, err := ioutil.ReadFile(f)
+	if err != nil {
+		return nil, err
+	}
 	// should generate a key here as needed, but also needs to sync with auth server
 
 	privkey, err := jwk.ParseKey(jsonRSAPrivateKey)
@@ -93,37 +96,71 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 
 	// a lease needs to read the current log and return webrtc owner if there is one
 	// if there isn't one, then make the caller the owner
+	// the nonce starts at a random number and is incremented by one each time.
 	m.AddRpc("lease", func(c context.Context, data []byte) (any, error) {
+
 		var v struct {
 			Site      SiteId `json:"site,omitempty"`
 			Log       LogId  `json:"log,omitempty"`
 			Signature []byte
 			Nonce     int64
+			Write     bool
 		}
-		type LeaseInfo struct {
-			Handle int64
-			Leader DeviceId
-		}
+		// we need to return a way to get a webrtc connection to the current leader.
 
 		e := cbor.Unmarshal(data, &v)
 		if e != nil {
 			return nil, e
 		}
 		session := c.Value("session").(*WebsockSession)
+		v.Nonce++
+		if v.Nonce != session.Nonce {
+			return nil, fmt.Errorf("invalid nonce")
+		}
 
-		cacheHandle := int64(v.Site<<32) + int64(v.Log)
-		h, ok := session.handle[cacheHandle]
+		var state LogState
+		session.shard.ReadLogState(v.Site, v.Log, &state)
+		// check the signature.
+		CheckProof := func(key []byte) bool {
+			plaintext := fmt.Sprintf("%d,%d,%d", v.Site, v.Log, v.Nonce)
+			_ = plaintext
+			return true
+		}
+		var ok bool
+		if v.Write {
+			ok = CheckProof(state.WriteKey)
+		} else {
+			ok = CheckProof(state.ReadKey)
+		}
 		if !ok {
-			// read the log state from zeus
-			// if there is a webrtc owner, then return that
-			// note that the request and leaders may on different front ends
-			// so we need our signaling to handle this.
-			// if there isn't one, then make the caller the owner
-			var state LogState
-			session.shard.ReadLogState(v.Site, v.Log, &state)
+			return nil, fmt.Errorf("invalid signature")
+		}
+
+		// read the log state from zeus
+		// if there is a webrtc owner, then return that
+		// note that the request and leaders may on different front ends
+		// so we need our signaling to handle this.
+		// if there isn't one, then make the caller the owner
+		// we need to check the signatures
+		// set the information into the cache for subsequent reads and writes.
+		cacheHandle := int64(v.Site<<32) + int64(v.Log)
+		session.handle[cacheHandle] = Handle{
+			site:  int64(v.Site),
+			log:   int64(v.Log),
+			write: true,
+		}
+
+		type LeaseInfo struct {
+			Handle int64
+			Leader DeviceId
+		}
+		// maybe if the leader belongs to a different front end, the client should connect to that front end directly to signal the webrtc connection
+		var li LeaseInfo = LeaseInfo{
+			Handle: cacheHandle,
+			Leader: DeviceId(state.DeviceOwner),
 		}
 		//
-		return h, nil
+		return &li, nil
 	})
 	// pass messages between nodes to facilitate webrtc connections
 	m.AddRpc("webrtc", func(c context.Context, data []byte) (any, error) {
@@ -152,8 +189,19 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 		}
 		return nil, nil
 	})
-	// some queues may be public, like the merkesquare, don't need to be leased or leadered.
-	m.AddRpc("publish", func(c context.Context, data []byte) (any, error) {
+	// merklesquare uses merkle squared log to add or revoke devices from a name
+	m.AddRpc("m2write", func(c context.Context, data []byte) (any, error) {
+		var v struct {
+			Log   LogId
+			Entry []byte
+		}
+		e := cbor.Unmarshal(data, &v)
+		if e != nil {
+			return nil, e
+		}
+		return nil, nil
+	})
+	m.AddRpc("m2read", func(c context.Context, data []byte) (any, error) {
 		var v struct {
 			Log   LogId
 			Entry []byte
@@ -203,6 +251,8 @@ func pushNotify() {
 // adapt Zeus
 
 type LogState struct {
+	WriteKey    []byte // people with
+	ReadKey     []byte
 	DeviceOwner int64 // connect using webrtc.
 	Length      int64
 	Tail        []byte

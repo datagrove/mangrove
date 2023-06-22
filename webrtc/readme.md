@@ -1,12 +1,27 @@
 
 Maybe server becomes authorization only and this becomes the performance critical signaling server. Can we make them linkable into a single monolith for ease of deployment though?
 
+Getting an name:
+1. To claim an unused name, ask datagrove to sign the name/id pair.
+2. To assign the name to a new device, use the existing device to sign the name/id pair.
+
+Datagrove can put these assignments  into a transparency log. but then it has the same problems of merkesquare?
+
+name->[set of certificates]
+certificates are signed by datagrove? by whomever?
+
+
+
 user selects an id. assume it is random. user publishes (id,pubkey)
 users may elect to have notaries sign their ids with alternate id's like email.
 
 If a device revokes its public key, then every site that has allowed access to this public key must rotate its key.
 
+merklesquare requires that there is a signature for the the id. in our scheme this would be stored in the user database, thus compromising any device would compromise the name. There's no great way around this; we could give security conscious the choice of erasing this. Otherwise peers would not be able to sign revocations
 
+what if we changed merklesquare to allow one of the set of signatures? does that improve anything? Now we can revoke the lost device, rotate the key on the database.
+
+what if we make the entries be DID's, and then you follow that to get the name (instead of trying to look up the name directly) The name could be signed to the DID by datagrove.
 
 Bootstrappin from oauth
 
