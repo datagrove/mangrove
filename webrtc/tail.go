@@ -8,84 +8,13 @@ import (
 	"github.com/datagrove/mangrove/rpc"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/gorilla/websocket"
-	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
 )
 
 type DeviceId int64
-
-// in general there should be only one session per device
-type SessionId int64
 type UserId int64
-
-type ZeusLogObject struct {
-	DeviceOwner int64 // connect using webrtc.
-	Length      int64
-	Tail        []byte
-	// cold is a blob store
-	ColdLength int64
-	// which nodes have a copy of the warm data
-	WarmReplica []int64
-}
-
-const (
-	ZtxRead = iota
-	ZtxWrite
-	ZtxTrim
-)
-
-type ZeusLogTx struct {
-	op      int
-	Payload cbor.RawMessage
-}
-type ZeusLogWrite struct {
-	At   []int64 // fails if this isn't Length
-	Data [][]byte
-}
-type ZeusLogRead struct {
-	At []int64
-}
-type ZeusLogWriteReply struct {
-	Ok bool
-}
-type ZeusLogReadReply struct {
-	DeviceOwner int64
-	Data        []byte
-}
-
-func OurCommit(tx ZeusTx, objects []any) []byte {
-	var txp ZeusLogTx
-	cbor.Unmarshal(tx.Params, &txp)
-	switch txp.op {
-	case ZtxRead:
-
-		break
-	case ZtxWrite:
-		var txw ZeusLogWrite
-		cbor.Unmarshal(txp.Payload, &txw)
-		fail := false
-		for i, at := range txw.At {
-			zo := objects[i].(*ZeusLogObject)
-			if at != zo.Length {
-				fail = true
-			}
-		}
-		if !fail {
-			for i, at := range txw.At {
-				zo := objects[i].(*ZeusLogObject)
-				if at == zo.Length {
-					zo.Length += int64(len(txw.Data))
-					zo.Tail = append(zo.Tail, txw.Data[i]...)
-				}
-			}
-		}
-		var r ZeusLogWriteReply = ZeusLogWriteReply{Ok: !fail}
-		b, _ := cbor.Marshal(r)
-		return b
-	}
-	return nil
-}
+type SiteId int64
+type LogId int64
 
 // we can scale this by splitting the sites to different servers
 // potentially if we needed to we could also split the site to different servers sharded by the user. if the users are sharded there would be one primary and then secondary servers would call the primary for that site.
@@ -97,55 +26,37 @@ const (
 	OpLease
 )
 
-type Request struct {
-	Op      int
-	Session SessionId
-	Device  DeviceId
-	Site    int64
-	Log     int64
-	At      int64
-	Data    []byte
-}
-
-type SiteLogShard struct {
-	req chan Request
-}
-
-func siteDrain(req chan Request) {
-	for {
-		m, e := <-req
-		if !e {
-			return
-		}
-		_ = m
-	}
-}
-func userDrain(req chan Request) {
-	for {
-		m, e := <-req
-		if !e {
-			return
-		}
-		_ = m
-	}
-}
-
 // message in channels with wait groups and ids. (promise)
 
-// maybe give each log a flat 64 bit? 32:32?
+// one shard per ip address/core
+// runs on its own port, so part of sessions. has its own apiset. does nbio let us single thread this though?
+// maybe we should go from a global api to a queue to the user drain
+type DeviceShard struct {
+	global *GlobalState
+	ZeusNode
+	session map[DeviceId]*WebsockSession // map device -> conn
+}
+
+func (dev *DeviceShard) ReadLogState(s SiteId, l LogId, out *LogState) error {
+	return nil
+}
+
+func NewDeviceShard() *DeviceShard {
+	return &DeviceShard{}
+}
+
+// one per websocket.
 type WebsockSession struct {
-	shard   *DeviceShard
-	conn    *websocket.Conn
-	iss     string
-	device  DeviceId
-	session SessionId
-	user    UserId
+	shard  *DeviceShard
+	conn   *websocket.Conn
+	iss    string
+	device DeviceId
+	user   UserId
 
 	// authorization hash, this session has proved its authority on these logs
 	handle map[int64]Handle // map site.log -> read/write
 }
 type Handle struct {
-	*SiteLogShard
 	site  int64
 	log   int64
 	write bool
@@ -153,45 +64,16 @@ type Handle struct {
 type GlobalState struct {
 	Home     string
 	TokenKey jwk.Key
-	log      []SiteLogShard
-	user     []DeviceShard
+	// we need multiple device shards on different ip addresses so we don't run out of ports.
+	user []DeviceShard
+	// do we need a cache of log objects other than what we read from zeus key store?
 }
 
+// might need to add the session? we shard by device, so we need that.
+// do we need a session id that's not the device id? maybe just log them out if they manage to do it.
 func (app *GlobalState) SendDevice(d DeviceId, m []byte) {
 	// find the device
 	// send the message
-}
-
-type DeviceConn struct {
-	conn *websocket.Conn
-}
-
-// runs on its own port, so part of sessions. has its own apiset. does nbio let us single thread this though?
-// maybe we should go from a global api to a queue to the user drain
-type DeviceShard struct {
-	global *GlobalState
-	ZeusNode
-	session map[SessionId]*WebsockSession // map device -> conn
-}
-
-func NewDeviceShard() *DeviceShard {
-	return &DeviceShard{}
-}
-
-func (app *DeviceShard) Auth(session *WebsockSession, site int64, log int64, read bool) error {
-	// check cache
-	// if not in cache, check auth server
-	// if not in auth server, return error
-	// if in auth server, cache and return
-
-	return nil
-}
-
-func (app *GlobalState) GetSiteLogShard(site int64, log int64) *SiteLogShard {
-	return nil
-}
-
-func (app *DeviceShard) Push() {
 }
 
 // this is probably more like "shard" so shouldn't be global. we can get it from the session.
@@ -209,69 +91,40 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 		TokenKey: privkey,
 	}
 
-	// Tail server api; websocket for latency. Handles online user notification, but defers to notification server.
-	// # connect(token)
-	// token declares device, user. retrieve/cache profile from auth server, lazy fetch site access from auth table.
-	// # lease(site,log)->handle|leaderHandle|needproof
-	// call auth server first time, then cache.
-	// # signal(leaderHandle, offer|candidate, data)
-	// leaderHandle can be random. we could send offer premptively from leader or aspirant, but 99% of time this is not used.
-	// we can scan a queue to discover new attestations and revokations and use that to update our access database.
-	// # attest(attestation)
-
-	// # read(handle, from) -> data|redirect
-	// # write(handle, at, number)
-
-	m.AddRpc("connect", func(c context.Context, data []byte) (any, error) {
-		var v struct {
-			Token []byte `json:"token,omitempty"`
-		}
-
-		e := cbor.Unmarshal(data, &v)
-		if e != nil {
-			return nil, e
-		}
-		session := c.Value("session").(*WebsockSession)
-		b := v.Token
-		vt, e := jwt.Parse(b, jwt.WithKey(jwa.RS256, g.TokenKey))
-		if e != nil {
-			return nil, e
-		}
-		_ = vt // token verified, can we get data from it?
-		session.iss = vt.Issuer()
-		session.device = vt.PrivateClaims()["device"].(DeviceId)
-		session.user = vt.PrivateClaims()["user"].(UserId)
-
-		// connecting a user results in muting the push, creating an online user, and initiating a drain procedure
-
-		return nil, nil
-	})
-
 	// a lease needs to read the current log and return webrtc owner if there is one
 	// if there isn't one, then make the caller the owner
 	m.AddRpc("lease", func(c context.Context, data []byte) (any, error) {
 		var v struct {
-			Site      int64 `json:"site,omitempty"`
-			Log       int64 `json:"log,omitempty"`
+			Site      SiteId `json:"site,omitempty"`
+			Log       LogId  `json:"log,omitempty"`
 			Signature []byte
 			Nonce     int64
 		}
+		type LeaseInfo struct {
+			Handle int64
+			Leader DeviceId
+		}
+
 		e := cbor.Unmarshal(data, &v)
 		if e != nil {
 			return nil, e
 		}
 		session := c.Value("session").(*WebsockSession)
-		e = session.shard.Auth(session, v.Site, v.Log, true)
-		if e != nil {
-			return nil, e
-		}
-		a := session.shard.global.GetSiteLogShard(v.Site, v.Log)
-		if e != nil {
-			return nil, e
-		}
-		a.req <- Request{Session: session.device, Site: v.Site, Log: v.Log}
 
-		return nil, nil
+		cacheHandle := int64(v.Site<<32) + int64(v.Log)
+		h, ok := session.handle[cacheHandle]
+		if !ok {
+			// read the log state from zeus
+			// if there is a webrtc owner, then return that
+			// note that the request and leaders may on different front ends
+			// so we need our signaling to handle this.
+			// if there isn't one, then make the caller the owner
+			var state LogState
+			session.shard.ReadLogState(v.Site, v.Log, &state)
+
+		}
+		//
+		return h, nil
 	})
 	// pass messages between nodes to facilitate webrtc connections
 	m.AddRpc("webrtc", func(c context.Context, data []byte) (any, error) {
@@ -320,7 +173,9 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 		if !ok || !h.write {
 			return nil, fmt.Errorf("handle not found")
 		}
-		h.req <- Request{Session: session.device, Site: h.site, Log: h.log, At: v.At, Data: v.Data}
+		// h.req <- Request{Session: session.device, Site: h.site, Log: h.log, At: v.At, Data: v.Data}
+		ZeusNode.ExecuteTx(func(tx *ZeusLogTx) error {
+		})
 		return nil, nil
 	})
 
@@ -335,4 +190,74 @@ func publish(tailClient int, lastRead int64) {
 
 func pushNotify() {
 
+}
+
+// adapt Zeus
+
+type LogState struct {
+	DeviceOwner int64 // connect using webrtc.
+	Length      int64
+	Tail        []byte
+	// cold is a blob store
+	ColdLength int64
+	// which nodes have a copy of the warm data
+	WarmReplica []int64
+}
+
+const (
+	ZtxRead = iota
+	ZtxWrite
+	ZtxTrim
+)
+
+type ZeusLogTx struct {
+	op      int
+	Payload cbor.RawMessage
+}
+type ZeusLogWrite struct {
+	At   []int64 // fails if this isn't Length
+	Data [][]byte
+}
+type ZeusLogRead struct {
+	At []int64
+}
+type ZeusLogWriteReply struct {
+	Ok bool
+}
+type ZeusLogReadReply struct {
+	DeviceOwner int64
+	Data        []byte
+}
+
+func OurCommit(tx ZeusTx, objects []any) []byte {
+	var txp ZeusLogTx
+	cbor.Unmarshal(tx.Params, &txp)
+	switch txp.op {
+	case ZtxRead:
+
+		break
+	case ZtxWrite:
+		var txw ZeusLogWrite
+		cbor.Unmarshal(txp.Payload, &txw)
+		fail := false
+		for i, at := range txw.At {
+			zo := objects[i].(*LogState)
+			if at != zo.Length {
+				fail = true
+			}
+		}
+		if !fail {
+			for i, at := range txw.At {
+				zo := objects[i].(*LogState)
+				if at == zo.Length {
+					zo.Length += int64(len(txw.Data))
+					zo.Tail = append(zo.Tail, txw.Data[i]...)
+				}
+			}
+		}
+		var r ZeusLogWriteReply = ZeusLogWriteReply{Ok: !fail}
+		b, _ := cbor.Marshal(r)
+		return b
+	}
+	return nil
 }

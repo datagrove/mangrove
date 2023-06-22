@@ -1,6 +1,10 @@
 
 Maybe server becomes authorization only and this becomes the performance critical signaling server. Can we make them linkable into a single monolith for ease of deployment though?
 
+If a device revokes its public key, then every site that has allowed access to this public key must rotate its key.
+
+
+
 Bootstrappin from oauth
 
 System 1 uses oauth to validate your identity with Google. It gives you a key generated from its own secret * your oauth id.
