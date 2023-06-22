@@ -10,6 +10,12 @@ Datagrove can put these assignments  into a transparency log. but then it has th
 name->[set of certificates]
 certificates are signed by datagrove? by whomever?
 
+maybe tail servers should publish to each other and push for themselves. Can this be built into zeus? is it a transaction to queue into publish objects for each listener?
+maybe each server keeps a publish queue and drains it, either to online users or offline.
+
+Maybe its a completely different machine? A non-server could start a billion webrtc connections and do all the pushing. Everyone could try to start a webrtc session with a reconciler.
+
+Say the log state keeps the listeners, their last read point, and the last sent timepoint. The node can keep a dirty list and sweep over them.
 
 
 user selects an id. assume it is random. user publishes (id,pubkey)

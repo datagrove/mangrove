@@ -33,7 +33,7 @@ const (
 type DeviceShard struct {
 	global *GlobalState
 	ZeusNode
-	session map[DeviceId]*WebsockSession // map device -> conn
+	Session map[DeviceId]*WebsockSession // map device -> conn
 }
 
 func (dev *DeviceShard) ReadLogState(l LogId, out *LogState) error {
@@ -50,24 +50,31 @@ func NewDeviceShard() *DeviceShard {
 // one per websocket.
 type WebsockSession struct {
 	shard  *DeviceShard
-	conn   *websocket.Conn
-	iss    string
-	device DeviceId
-	user   UserId
+	Conn   *websocket.Conn
+	Iss    string
+	Device DeviceId
+	User   UserId
 	Nonce  int64
 	// authorization hash, this session has proved its authority on these logs
-	handle map[LogId]Handle // map site.log -> read/write
+	handle map[int64]Handle // map site.log -> read/write
 }
 type Handle struct {
-	Log   LogId
-	Write bool
+	site  int64
+	log   int64
+	write bool
 }
 type GlobalState struct {
-	Home     string
-	TokenKey jwk.Key
+	ZeusGlobal *ZeusGlobal
+	Home       string
+	TokenKey   jwk.Key
 	// we need multiple device shards on different ip addresses so we don't run out of ports.
-	user []DeviceShard
+	DeviceShard []DeviceShard
+	Peer        []Peer
 	// do we need a cache of log objects other than what we read from zeus key store?
+}
+
+func (g *GlobalState) BroadCast(device []DeviceId, m []byte) {
+
 }
 
 // might need to add the session? we shard by device, so we need that.
@@ -146,9 +153,11 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 		// if there isn't one, then make the caller the owner
 		// we need to check the signatures
 		// set the information into the cache for subsequent reads and writes.
-		session.handle[v.LogId] = Handle{
-			Log:   v.LogId,
-			Write: true,
+		cacheHandle := int64(v.Site<<32) + int64(v.Log)
+		session.handle[cacheHandle] = Handle{
+			site:  int64(v.Site),
+			log:   int64(v.Log),
+			write: true,
 		}
 
 		type LeaseInfo struct {
@@ -232,8 +241,8 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 			return nil, e
 		}
 		session := c.Value("session").(*WebsockSession)
-		h, ok := session.handle[v.LogId]
-		if !ok || !h.Write {
+		h, ok := session.handle[v.Handle]
+		if !ok || !h.write {
 			return nil, fmt.Errorf("handle not found")
 		}
 		// h.req <- Request{Session: session.device, Site: h.site, Log: h.log, At: v.At, Data: v.Data}

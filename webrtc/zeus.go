@@ -39,15 +39,16 @@ type ZeusState struct {
 
 type ZeusCommit func(ZeusTx, []any) []byte
 
-type ZeusCluster struct {
+type ZeusGlobal struct {
+	// some peers are on the same machine, some are on websocket connections
 	node []Peer
-	dir  []Peer // a subset of node
+	dir  []Peer // a subset of node, there are only 3 directory nodes in the cluster (or world?)
 }
 
-func (z *ZeusCluster) ClusterSend(id PeerId, data []byte) {
+func (z *ZeusGlobal) ClusterSend(id PeerId, data []byte) {
 	z.node[int(id)].Send(data)
 }
-func (z *ZeusCluster) DriverFor(id PeerId) PeerId {
+func (z *ZeusGlobal) DriverFor(id PeerId) PeerId {
 	return PeerId(int(id) % len(z.dir))
 }
 
@@ -57,10 +58,12 @@ type ZeusDir struct {
 	dir map[KEY]*ZeusState
 }
 
+// not sure if we need this?
+
 type ZeusNode struct {
 	Req       chan []byte
 	ClientReq chan *ZeusTx
-	ZeusCluster
+	*ZeusGlobal
 	object ZeusMap
 	Commit ZeusCommit
 	Local  map[KEY]*ZeusState
