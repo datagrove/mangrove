@@ -121,7 +121,6 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 			// if there isn't one, then make the caller the owner
 			var state LogState
 			session.shard.ReadLogState(v.Site, v.Log, &state)
-
 		}
 		//
 		return h, nil
@@ -139,17 +138,25 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 		session.shard.global.SendDevice(DeviceId(v.DeviceId), data)
 		return nil, nil
 	})
-	m.AddRpc("attest", func(c context.Context, data []byte) (any, error) {
-		// create an entry in the ULDM
 
-		return nil, nil
-	})
 	// anyone can read, we can also redirect the write to blob storage.
 	// if we are sharded, what does it take to do DSR? would doing webrtc allow a better solution? it seems like a webrtc connection would as expensive as a tcp one, if not more so.
 	m.AddRpc("read", func(c context.Context, data []byte) (any, error) {
 		var v struct {
 			Handle int64 `json:"handle,omitempty"`
 			From   int64 `json:"from,omitempty"`
+		}
+		e := cbor.Unmarshal(data, &v)
+		if e != nil {
+			return nil, e
+		}
+		return nil, nil
+	})
+	// some queues may be public, like the merkesquare, don't need to be leased or leadered.
+	m.AddRpc("publish", func(c context.Context, data []byte) (any, error) {
+		var v struct {
+			Log   LogId
+			Entry []byte
 		}
 		e := cbor.Unmarshal(data, &v)
 		if e != nil {
@@ -174,8 +181,9 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 			return nil, fmt.Errorf("handle not found")
 		}
 		// h.req <- Request{Session: session.device, Site: h.site, Log: h.log, At: v.At, Data: v.Data}
-		ZeusNode.ExecuteTx(func(tx *ZeusLogTx) error {
-		})
+		cr := &ZeusTx{}
+		session.shard.ZeusNode.ClientReq <- cr
+
 		return nil, nil
 	})
 

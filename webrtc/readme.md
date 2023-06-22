@@ -1,6 +1,9 @@
 
 Maybe server becomes authorization only and this becomes the performance critical signaling server. Can we make them linkable into a single monolith for ease of deployment though?
 
+user selects an id. assume it is random. user publishes (id,pubkey)
+users may elect to have notaries sign their ids with alternate id's like email.
+
 If a device revokes its public key, then every site that has allowed access to this public key must rotate its key.
 
 
