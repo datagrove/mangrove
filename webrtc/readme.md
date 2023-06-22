@@ -1,6 +1,28 @@
 
 Maybe server becomes authorization only and this becomes the performance critical signaling server. Can we make them linkable into a single monolith for ease of deployment though?
 
+Bootstrappin from oauth
+
+System 1 uses oauth to validate your identity with Google. It gives you a key generated from its own secret * your oauth id.
+
+System 2 takes the blinded key and returns a value, then you compute your secret key.
+
+it doesn't work. System 1 has everything it needs to ask System 2 for your key. You trust one system, that's it. What about something like a mixnet, or riposte?
+
+system 1 gives you signature indicating that you own your email.
+you provide your blinded email to two different oprfs. They give you back keys that you mix. Problem is again that the system signing your email has all the power.
+if you encrypt the email with a pin, the oprf could detect a compromise of the signing system, but it would be expensive. It would need to be per email address to avoid bring down everything with a red flag.
+
+Each device has its own encrypted copy of the master key and its only passed by qr code or bip39. Now we want to sign this with a user key, so others can prove that device d belongs to user u, so they are willing to share a secret with d.
+
+1. Start on chromebook. You are in with random device key, but anonymous. Now you sign in with chrome, datagrove signs your key and says "this device logged in with email e chrome at time x". Other people wanting to share information to e can do a query that returns all the keys that have been identified as associated with e, and seperately envelope those keys.
+
+Most importantly your existing device can share information to the new device; a notification pops up that another device has logged in and ask you if you want to share keys with it. Before it does so it checks that datagrove's key has not been revoked.
+
+
+
+
+
 How it might work:
 
 1. client asks auth server for token, maybe this token is refreshable, stored locally so not every startup needs it.
