@@ -13,6 +13,12 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 )
 
+type DeviceId int64
+
+// in general there should be only one session per device
+type SessionId int64
+type UserId int64
+
 type ZeusLogObject struct {
 	DeviceOwner int64 // connect using webrtc.
 	Length      int64
@@ -93,7 +99,8 @@ const (
 
 type Request struct {
 	Op      int
-	Session int64
+	Session SessionId
+	Device  DeviceId
 	Site    int64
 	Log     int64
 	At      int64
@@ -126,13 +133,15 @@ func userDrain(req chan Request) {
 // message in channels with wait groups and ids. (promise)
 
 // maybe give each log a flat 64 bit? 32:32?
-type WebrtcSession struct {
-	app    *DeviceShard
-	conn   *websocket.Conn
-	iss    string
-	device int64
-	user   int64
+type WebsockSession struct {
+	shard   *DeviceShard
+	conn    *websocket.Conn
+	iss     string
+	device  DeviceId
+	session SessionId
+	user    UserId
 
+	// authorization hash, this session has proved its authority on these logs
 	handle map[int64]Handle // map site.log -> read/write
 }
 type Handle struct {
@@ -148,7 +157,10 @@ type GlobalState struct {
 	user     []DeviceShard
 }
 
-var g GlobalState
+func (app *GlobalState) SendDevice(d DeviceId, m []byte) {
+	// find the device
+	// send the message
+}
 
 type DeviceConn struct {
 	conn *websocket.Conn
@@ -157,15 +169,16 @@ type DeviceConn struct {
 // runs on its own port, so part of sessions. has its own apiset. does nbio let us single thread this though?
 // maybe we should go from a global api to a queue to the user drain
 type DeviceShard struct {
+	global *GlobalState
 	ZeusNode
-	device map[int64]*DeviceConn // map device -> conn
+	session map[SessionId]*WebsockSession // map device -> conn
 }
 
 func NewDeviceShard() *DeviceShard {
 	return &DeviceShard{}
 }
 
-func (app *DeviceShard) Auth(session *WebrtcSession, site int64, log int64, read bool) error {
+func (app *DeviceShard) Auth(session *WebsockSession, site int64, log int64, read bool) error {
 	// check cache
 	// if not in cache, check auth server
 	// if not in auth server, return error
@@ -183,16 +196,18 @@ func (app *DeviceShard) Push() {
 
 // this is probably more like "shard" so shouldn't be global. we can get it from the session.
 
-func Init(home string, m *rpc.ApiMap) error {
+func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 	f := home + "/webrtc.json"
 	jsonRSAPrivateKey, err := ioutil.ReadFile(f)
 	// should generate a key here as needed, but also needs to sync with auth server
 
 	privkey, err := jwk.ParseKey(jsonRSAPrivateKey)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	g.TokenKey = privkey
+	r := &GlobalState{Home: home,
+		TokenKey: privkey,
+	}
 
 	// Tail server api; websocket for latency. Handles online user notification, but defers to notification server.
 	// # connect(token)
@@ -216,7 +231,7 @@ func Init(home string, m *rpc.ApiMap) error {
 		if e != nil {
 			return nil, e
 		}
-		session := c.Value("session").(*WebrtcSession)
+		session := c.Value("session").(*WebsockSession)
 		b := v.Token
 		vt, e := jwt.Parse(b, jwt.WithKey(jwa.RS256, g.TokenKey))
 		if e != nil {
@@ -224,8 +239,8 @@ func Init(home string, m *rpc.ApiMap) error {
 		}
 		_ = vt // token verified, can we get data from it?
 		session.iss = vt.Issuer()
-		session.device = vt.PrivateClaims()["device"].(int64)
-		session.user = vt.PrivateClaims()["user"].(int64)
+		session.device = vt.PrivateClaims()["device"].(DeviceId)
+		session.user = vt.PrivateClaims()["user"].(UserId)
 
 		// connecting a user results in muting the push, creating an online user, and initiating a drain procedure
 
@@ -245,12 +260,12 @@ func Init(home string, m *rpc.ApiMap) error {
 		if e != nil {
 			return nil, e
 		}
-		session := c.Value("session").(*WebrtcSession)
-		e = session.app.Auth(session, v.Site, v.Log, true)
+		session := c.Value("session").(*WebsockSession)
+		e = session.shard.Auth(session, v.Site, v.Log, true)
 		if e != nil {
 			return nil, e
 		}
-		a := g.GetSiteLogShard(v.Site, v.Log)
+		a := session.shard.global.GetSiteLogShard(v.Site, v.Log)
 		if e != nil {
 			return nil, e
 		}
@@ -261,7 +276,14 @@ func Init(home string, m *rpc.ApiMap) error {
 	// pass messages between nodes to facilitate webrtc connections
 	m.AddRpc("webrtc", func(c context.Context, data []byte) (any, error) {
 		var v struct {
+			DeviceId int64 `json:"userId,omitempty"`
 		}
+		e := cbor.Unmarshal(data, &v)
+		if e != nil {
+			return nil, e
+		}
+		session := c.Value("session").(*WebsockSession)
+		session.shard.global.SendDevice(DeviceId(v.DeviceId), data)
 		return nil, nil
 	})
 	m.AddRpc("attest", func(c context.Context, data []byte) (any, error) {
@@ -293,7 +315,7 @@ func Init(home string, m *rpc.ApiMap) error {
 		if e != nil {
 			return nil, e
 		}
-		session := c.Value("session").(*WebrtcSession)
+		session := c.Value("session").(*WebsockSession)
 		h, ok := session.handle[v.Handle]
 		if !ok || !h.write {
 			return nil, fmt.Errorf("handle not found")
@@ -302,7 +324,7 @@ func Init(home string, m *rpc.ApiMap) error {
 		return nil, nil
 	})
 
-	return nil
+	return r, nil
 }
 
 // potentially a call that the publisher can use to get the latest tail data. this can fan out, maybe shard by client?
