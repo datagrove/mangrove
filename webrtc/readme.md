@@ -26,6 +26,9 @@ Each device has its own encrypted copy of the master key and its only passed by 
 
 Most importantly your existing device can share information to the new device; a notification pops up that another device has logged in and ask you if you want to share keys with it. Before it does so it checks that datagrove's key has not been revoked.
 
+What if we used a log just for the public keys associated with the that id? It would be easy for the owner to audit, and it would define for itself the owner. It would still allow equivocation though. we could use a merkesquare to point to such a log though.
+
+
 
 
 
