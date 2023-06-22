@@ -20,32 +20,6 @@ const (
 	Odrive
 )
 
-type ZeusDir struct {
-	// map log to state in directory
-	dir map[int64]*ZeusState
-}
-
-// apply implements StateMachine.
-func (*ZeusDir) Exec([]byte) error {
-	panic("unimplemented")
-}
-
-// checkpoint implements StateMachine.
-func (*ZeusDir) Checkpoint(path string) error {
-	panic("unimplemented")
-}
-
-var z StateMachine = (*ZeusDir)(nil)
-
-type ZeusState struct {
-	O_state    int8
-	O_ts       int64
-	O_nd       int64
-	O_replicas []int64
-}
-
-type ExecTakeover struct {
-}
 type Log interface {
 	Length() int
 	Append([]byte) error
@@ -168,11 +142,16 @@ func (c *ChannelPeer) Send(data []byte) error {
 
 func NewVrReplica(me int, peer []Peer) *VrReplica {
 	return &VrReplica{
-		me:   me,
-		peer: peer,
-		req:  make(chan Request),
-		log:  nil,
-		st:   z,
+		req:          make(chan Request),
+		st:           nil,
+		peer:         peer,
+		primary:      0,
+		me:           me,
+		viewNumber:   0,
+		opNumber:     0,
+		commitNumber: 0,
+		log:          nil,
+		client:       map[int64]*VrClientConnection{},
 	}
 }
 

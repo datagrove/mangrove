@@ -39,14 +39,12 @@ when a user shard dies, the tail of writes is indeterminate. The leader may also
 2. If it fails, it resends to new leader. Then new leader must do the same examination.
 
 
-
-
 Tail server api; websocket for latency. Handles online user notification, but defers to notification server. 
 # connect(token)  
 token declares device, user. retrieve/cache profile from auth server, lazy fetch site access from auth table.
-# lease(site,log)->handle|leaderHandle|needproof
+# lease(site,log)->handle|clientHandle|needproof
 call auth server first time, then cache.
-# signal(leaderHandle, offer|candidate, data)
+# webrtc_signal(clientHandle, offer|candidate, data)
 leaderHandle can be random. we could send offer premptively from leader or aspirant, but 99% of time this is not used.
 we can scan a queue to discover new attestations and revokations and use that to update our access database.
 # attest(attestation)  

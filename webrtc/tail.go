@@ -13,6 +13,74 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 )
 
+type ZeusLogObject struct {
+	DeviceOwner int64 // connect using webrtc.
+	Length      int64
+	Tail        []byte
+	// cold is a blob store
+	ColdLength int64
+	// which nodes have a copy of the warm data
+	WarmReplica []int64
+}
+
+const (
+	ZtxRead = iota
+	ZtxWrite
+	ZtxTrim
+)
+
+type ZeusLogTx struct {
+	op      int
+	Payload cbor.RawMessage
+}
+type ZeusLogWrite struct {
+	At   []int64 // fails if this isn't Length
+	Data [][]byte
+}
+type ZeusLogRead struct {
+	At []int64
+}
+type ZeusLogWriteReply struct {
+	Ok bool
+}
+type ZeusLogReadReply struct {
+	DeviceOwner int64
+	Data        []byte
+}
+
+func OurCommit(tx ZeusTx, objects []any) []byte {
+	var txp ZeusLogTx
+	cbor.Unmarshal(tx.Params, &txp)
+	switch txp.op {
+	case ZtxRead:
+
+		break
+	case ZtxWrite:
+		var txw ZeusLogWrite
+		cbor.Unmarshal(txp.Payload, &txw)
+		fail := false
+		for i, at := range txw.At {
+			zo := objects[i].(*ZeusLogObject)
+			if at != zo.Length {
+				fail = true
+			}
+		}
+		if !fail {
+			for i, at := range txw.At {
+				zo := objects[i].(*ZeusLogObject)
+				if at == zo.Length {
+					zo.Length += int64(len(txw.Data))
+					zo.Tail = append(zo.Tail, txw.Data[i]...)
+				}
+			}
+		}
+		var r ZeusLogWriteReply = ZeusLogWriteReply{Ok: !fail}
+		b, _ := cbor.Marshal(r)
+		return b
+	}
+	return nil
+}
+
 // we can scale this by splitting the sites to different servers
 // potentially if we needed to we could also split the site to different servers sharded by the user. if the users are sharded there would be one primary and then secondary servers would call the primary for that site.
 // if sharded by user
@@ -74,17 +142,27 @@ type Handle struct {
 	write bool
 }
 type GlobalState struct {
-	log  []SiteLogShard
-	user []DeviceShard
+	Home     string
+	TokenKey jwk.Key
+	log      []SiteLogShard
+	user     []DeviceShard
 }
 
 var g GlobalState
 
+type DeviceConn struct {
+	conn *websocket.Conn
+}
+
 // runs on its own port, so part of sessions. has its own apiset. does nbio let us single thread this though?
 // maybe we should go from a global api to a queue to the user drain
 type DeviceShard struct {
-	conn     *websocket.Conn
-	TokenKey jwk.Key
+	ZeusNode
+	device map[int64]*DeviceConn // map device -> conn
+}
+
+func NewDeviceShard() *DeviceShard {
+	return &DeviceShard{}
 }
 
 // sharding users would eliminate need for locking here.
@@ -106,7 +184,7 @@ func (app *DeviceShard) Push() {
 
 // this is probably more like "shard" so shouldn't be global. we can get it from the session.
 
-func Init(app *DeviceShard, home string, m *rpc.ApiMap) error {
+func Init(home string, m *rpc.ApiMap) error {
 	f := home + "/webrtc.json"
 	jsonRSAPrivateKey, err := ioutil.ReadFile(f)
 	// should generate a key here as needed, but also needs to sync with auth server
@@ -115,7 +193,7 @@ func Init(app *DeviceShard, home string, m *rpc.ApiMap) error {
 	if err != nil {
 		return err
 	}
-	app.TokenKey = privkey
+	g.TokenKey = privkey
 
 	// Tail server api; websocket for latency. Handles online user notification, but defers to notification server.
 	// # connect(token)
@@ -141,7 +219,7 @@ func Init(app *DeviceShard, home string, m *rpc.ApiMap) error {
 		}
 		session := c.Value("session").(*WebrtcSession)
 		b := v.Token
-		vt, e := jwt.Parse(b, jwt.WithKey(jwa.RS256, app.TokenKey))
+		vt, e := jwt.Parse(b, jwt.WithKey(jwa.RS256, g.TokenKey))
 		if e != nil {
 			return nil, e
 		}
@@ -154,6 +232,9 @@ func Init(app *DeviceShard, home string, m *rpc.ApiMap) error {
 
 		return nil, nil
 	})
+
+	// a lease needs to read the current log and return webrtc owner if there is one
+	// if there isn't one, then make the caller the owner
 	m.AddRpc("lease", func(c context.Context, data []byte) (any, error) {
 		var v struct {
 			Site int64 `json:"site,omitempty"`
@@ -192,6 +273,9 @@ func Init(app *DeviceShard, home string, m *rpc.ApiMap) error {
 			From   int64 `json:"from,omitempty"`
 		}
 		e := cbor.Unmarshal(data, &v)
+		if e != nil {
+			return nil, e
+		}
 		return nil, nil
 	})
 	m.AddNotify("write", func(c context.Context, data []byte) (any, error) {
