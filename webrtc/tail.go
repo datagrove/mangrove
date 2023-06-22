@@ -13,7 +13,6 @@ import (
 
 type DeviceId int64
 type UserId int64
-type SiteId int64
 type LogId int64
 
 // we can scale this by splitting the sites to different servers
@@ -37,8 +36,11 @@ type DeviceShard struct {
 	session map[DeviceId]*WebsockSession // map device -> conn
 }
 
-func (dev *DeviceShard) ReadLogState(s SiteId, l LogId, out *LogState) error {
+func (dev *DeviceShard) ReadLogState(l LogId, out *LogState) error {
 	return nil
+}
+func (dev *DeviceShard) SetLogOwner(l LogId, d DeviceId) DeviceId {
+	return d
 }
 
 func NewDeviceShard() *DeviceShard {
@@ -54,12 +56,11 @@ type WebsockSession struct {
 	user   UserId
 	Nonce  int64
 	// authorization hash, this session has proved its authority on these logs
-	handle map[int64]Handle // map site.log -> read/write
+	handle map[LogId]Handle // map site.log -> read/write
 }
 type Handle struct {
-	site  int64
-	log   int64
-	write bool
+	Log   LogId
+	Write bool
 }
 type GlobalState struct {
 	Home     string
@@ -98,10 +99,8 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 	// if there isn't one, then make the caller the owner
 	// the nonce starts at a random number and is incremented by one each time.
 	m.AddRpc("lease", func(c context.Context, data []byte) (any, error) {
-
 		var v struct {
-			Site      SiteId `json:"site,omitempty"`
-			Log       LogId  `json:"log,omitempty"`
+			LogId     LogId `json:"log,omitempty"`
 			Signature []byte
 			Nonce     int64
 			Write     bool
@@ -119,10 +118,10 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 		}
 
 		var state LogState
-		session.shard.ReadLogState(v.Site, v.Log, &state)
+		session.shard.ReadLogState(v.LogId, &state)
 		// check the signature.
 		CheckProof := func(key []byte) bool {
-			plaintext := fmt.Sprintf("%d,%d,%d", v.Site, v.Log, v.Nonce)
+			plaintext := fmt.Sprintf("%d,%d", v.LogId, v.Nonce)
 			_ = plaintext
 			return true
 		}
@@ -135,6 +134,10 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 		if !ok {
 			return nil, fmt.Errorf("invalid signature")
 		}
+		for state.DeviceOwner == 0 {
+			// try to set the owner to this device, can fail. If it fails we can retry the read
+			state.DeviceOwner = session.shard.SetLogOwner(v.LogId, session.device)
+		}
 
 		// read the log state from zeus
 		// if there is a webrtc owner, then return that
@@ -143,26 +146,23 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 		// if there isn't one, then make the caller the owner
 		// we need to check the signatures
 		// set the information into the cache for subsequent reads and writes.
-		cacheHandle := int64(v.Site<<32) + int64(v.Log)
-		session.handle[cacheHandle] = Handle{
-			site:  int64(v.Site),
-			log:   int64(v.Log),
-			write: true,
+		session.handle[v.LogId] = Handle{
+			Log:   v.LogId,
+			Write: true,
 		}
 
 		type LeaseInfo struct {
-			Handle int64
 			Leader DeviceId
 		}
 		// maybe if the leader belongs to a different front end, the client should connect to that front end directly to signal the webrtc connection
 		var li LeaseInfo = LeaseInfo{
-			Handle: cacheHandle,
 			Leader: DeviceId(state.DeviceOwner),
 		}
 		//
 		return &li, nil
 	})
 	// pass messages between nodes to facilitate webrtc connections
+	// maybe we should use dedicated
 	m.AddRpc("webrtc", func(c context.Context, data []byte) (any, error) {
 		var v struct {
 			DeviceId int64 `json:"userId,omitempty"`
@@ -180,13 +180,21 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 	// if we are sharded, what does it take to do DSR? would doing webrtc allow a better solution? it seems like a webrtc connection would as expensive as a tcp one, if not more so.
 	m.AddRpc("read", func(c context.Context, data []byte) (any, error) {
 		var v struct {
-			Handle int64 `json:"handle,omitempty"`
-			From   int64 `json:"from,omitempty"`
+			LogId LogId `json:"handle,omitempty"`
+			From  int64 `json:"from,omitempty"`
 		}
 		e := cbor.Unmarshal(data, &v)
 		if e != nil {
 			return nil, e
 		}
+		var state LogState
+		session := c.Value("session").(*WebsockSession)
+		h, ok := session.handle[v.LogId]
+		if !ok {
+			return nil, fmt.Errorf("invalid handle")
+		}
+		session.shard.ReadLogState(h.Log, &state)
+
 		return nil, nil
 	})
 	// merklesquare uses merkle squared log to add or revoke devices from a name
@@ -215,17 +223,17 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 	m.AddNotify("write", func(c context.Context, data []byte) (any, error) {
 		// is not waiting a bad idea here? the leader writes should always be allowed, otherwise not.
 		var v struct {
-			Handle int64  `json:"handle,omitempty"`
-			At     int64  `json:"at,omitempty"`
-			Data   []byte `json:"number,omitempty"`
+			LogId LogId  `json:"handle,omitempty"`
+			At    int64  `json:"at,omitempty"`
+			Data  []byte `json:"number,omitempty"`
 		}
 		e := cbor.Unmarshal(data, &v)
 		if e != nil {
 			return nil, e
 		}
 		session := c.Value("session").(*WebsockSession)
-		h, ok := session.handle[v.Handle]
-		if !ok || !h.write {
+		h, ok := session.handle[v.LogId]
+		if !ok || !h.Write {
 			return nil, fmt.Errorf("handle not found")
 		}
 		// h.req <- Request{Session: session.device, Site: h.site, Log: h.log, At: v.At, Data: v.Data}
@@ -253,7 +261,7 @@ func pushNotify() {
 type LogState struct {
 	WriteKey    []byte // people with
 	ReadKey     []byte
-	DeviceOwner int64 // connect using webrtc.
+	DeviceOwner DeviceId // connect using webrtc.
 	Length      int64
 	Tail        []byte
 	// cold is a blob store
