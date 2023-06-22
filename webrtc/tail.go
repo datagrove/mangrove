@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 
 	"github.com/datagrove/mangrove/rpc"
+
 	"github.com/fxamacker/cbor/v2"
 	"github.com/gorilla/websocket"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -56,13 +57,9 @@ type WebsockSession struct {
 	User   UserId
 	Nonce  int64
 	// authorization hash, this session has proved its authority on these logs
-	handle map[int64]Handle // map site.log -> read/write
+	Handle map[LogId]bool // map site.log -> read/write
 }
-type Handle struct {
-	site  int64
-	log   int64
-	write bool
-}
+
 type GlobalState struct {
 	ZeusGlobal *ZeusGlobal
 	Home       string
@@ -143,7 +140,7 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 		}
 		for state.DeviceOwner == 0 {
 			// try to set the owner to this device, can fail. If it fails we can retry the read
-			state.DeviceOwner = session.shard.SetLogOwner(v.LogId, session.device)
+			state.DeviceOwner = session.shard.SetLogOwner(v.LogId, session.Device)
 		}
 
 		// read the log state from zeus
@@ -153,12 +150,8 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 		// if there isn't one, then make the caller the owner
 		// we need to check the signatures
 		// set the information into the cache for subsequent reads and writes.
-		cacheHandle := int64(v.Site<<32) + int64(v.Log)
-		session.handle[cacheHandle] = Handle{
-			site:  int64(v.Site),
-			log:   int64(v.Log),
-			write: true,
-		}
+
+		session.Handle[v.LogId] = true
 
 		type LeaseInfo struct {
 			Leader DeviceId
@@ -198,11 +191,11 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 		}
 		var state LogState
 		session := c.Value("session").(*WebsockSession)
-		h, ok := session.handle[v.LogId]
+		_, ok := session.Handle[v.LogId]
 		if !ok {
 			return nil, fmt.Errorf("invalid handle")
 		}
-		session.shard.ReadLogState(h.Log, &state)
+		session.shard.ReadLogState(v.LogId, &state)
 
 		return nil, nil
 	})
@@ -241,28 +234,20 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 			return nil, e
 		}
 		session := c.Value("session").(*WebsockSession)
-		h, ok := session.handle[v.Handle]
-		if !ok || !h.write {
+		h, ok := session.Handle[v.LogId]
+		if !ok || !h {
 			return nil, fmt.Errorf("handle not found")
 		}
 		// h.req <- Request{Session: session.device, Site: h.site, Log: h.log, At: v.At, Data: v.Data}
-		cr := &ZeusTx{}
+		cr := &ZeusLogTx{
+			Op: ZtxWrite,
+		}
 		session.shard.ZeusNode.ClientReq <- cr
 
 		return nil, nil
 	})
 
 	return r, nil
-}
-
-// potentially a call that the publisher can use to get the latest tail data. this can fan out, maybe shard by client?
-func publish(tailClient int, lastRead int64) {
-	// once all the tail clients have sipped the hose we can trim it.
-
-}
-
-func pushNotify() {
-
 }
 
 // adapt Zeus
@@ -283,52 +268,58 @@ const (
 	ZtxRead = iota
 	ZtxWrite
 	ZtxTrim
+	ZtxAddListener
+	ZtxRemoveListener
 )
 
 type ZeusLogTx struct {
-	op      int
-	Payload cbor.RawMessage
-}
-type ZeusLogWrite struct {
-	At   []int64 // fails if this isn't Length
+	keys []KEY
+	Op   int
+	At   []int64
 	Data [][]byte
 }
-type ZeusLogRead struct {
-	At []int64
-}
-type ZeusLogWriteReply struct {
-	Ok bool
-}
-type ZeusLogReadReply struct {
-	DeviceOwner int64
-	Data        []byte
+
+var _ ZeusTx = (*ZeusLogTx)(nil)
+
+// Keys implements ZeusTx.
+func (z *ZeusLogTx) Keys() []KEY {
+	return z.keys
 }
 
-func OurCommit(tx ZeusTx, objects []any) []byte {
-	var txp ZeusLogTx
-	cbor.Unmarshal(tx.Params, &txp)
-	switch txp.op {
+func (tx *ZeusLogTx) OnCommit(objects []ZeusObject) []byte {
+	switch tx.Op {
 	case ZtxRead:
+		type ZeusLogRead struct {
+			At []int64
+		}
+
+		type ZeusLogReadReply struct {
+			DeviceOwner int64
+			Data        []byte
+		}
 
 		break
 	case ZtxWrite:
-		var txw ZeusLogWrite
-		cbor.Unmarshal(txp.Payload, &txw)
 		fail := false
-		for i, at := range txw.At {
+		for i := range objects {
 			zo := objects[i].(*LogState)
-			if at != zo.Length {
+			if tx.At[i] != zo.Length {
 				fail = true
 			}
 		}
 		if !fail {
-			for i, at := range txw.At {
+			for i, at := range objects {
 				zo := objects[i].(*LogState)
 				if at == zo.Length {
-					zo.Length += int64(len(txw.Data))
-					zo.Tail = append(zo.Tail, txw.Data[i]...)
+					zo.Length += int64(len(tx.Data[i]))
+					// this is too simplified, we need to write to the blob store
+					// we need to notify listeners
+					zo.Tail = append(zo.Tail, tx.Data[i]...)
 				}
 			}
+		}
+		type ZeusLogWriteReply struct {
+			Ok bool
 		}
 		var r ZeusLogWriteReply = ZeusLogWriteReply{Ok: !fail}
 		b, _ := cbor.Marshal(r)

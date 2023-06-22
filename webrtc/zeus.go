@@ -1,6 +1,10 @@
 package main
 
-import "github.com/fxamacker/cbor/v2"
+import (
+	"time"
+
+	"github.com/fxamacker/cbor/v2"
+)
 
 type KEY int64
 type ZeusObject any
@@ -61,24 +65,27 @@ type ZeusDir struct {
 // not sure if we need this?
 
 type ZeusNode struct {
-	Req       chan []byte
-	ClientReq chan *ZeusTx
+	Req       chan ZeusMessage
+	ClientReq chan ZeusTx
 	*ZeusGlobal
-	object ZeusMap
-	Commit ZeusCommit
-	Local  map[KEY]*ZeusState
-	Me     PeerId
-	await  map[int32]*BlockedTx
+	Replica ZeusMap
+	Commit  ZeusCommit
+	Local   map[KEY]*ZeusState
+	Me      PeerId
+	Await   map[int32]*BlockedTx
 }
 
 type BlockedTx struct {
-	waiting map[int32]KEY
-	Req     *ZeusTx
+	Waiting int
+	Req     ZeusTx
 }
 
 const (
 	REQ = iota
+	ACK
 	NACK
+	INV
+	VAL
 )
 
 type ZeusMessage struct {
@@ -88,23 +95,37 @@ type ZeusMessage struct {
 	Coordinator PeerId
 }
 
-type ZeusTx struct {
-	Key      []KEY
-	Params   cbor.RawMessage
-	OnCommit func()
+type ZeusTx interface {
+	Keys() []KEY
+	OnCommit(objects []ZeusObject) []byte
 }
 
 func (z *ZeusNode) Run() {
 	var next = int32(0)
-	exec := func(tx *ZeusTx) {
-
+	exec := func(tx ZeusTx, objects []ZeusObject) {
+		// make ourselves the owner of the objects
+		tx.OnCommit(objects)
 	}
-	peer := func(msg []byte) {
-
+	peer := func(v ZeusMessage) {
+		switch v.Op {
+		case REQ:
+			panic("directory only")
+		case ACK:
+			// when we get all the acks we can commit
+			tx, ok := z.Await[v.Id]
+			if !ok {
+				return
+			}
+			tx.Waiting--
+			if tx.Waiting == 0 {
+				exec(tx.Req, nil)
+			}
+		}
 	}
-	client := func(tx *ZeusTx) {
+	client := func(tx ZeusTx) {
+
 		var need []KEY // not owner, or not even replica
-		for _, k := range tx.Key {
+		for _, k := range tx.Keys() {
 			v, ok := z.Local[k]
 			if !ok {
 				need = append(need, k)
@@ -137,7 +158,12 @@ func (z *ZeusNode) Run() {
 				z.ClusterSend(driver, b)
 			}
 		} else {
-			exec(tx)
+			var v []ZeusObject
+			for _, k := range tx.Keys() {
+				o, _ := z.Replica.Pin(k)
+				v = append(v, o)
+			}
+			exec(tx, v)
 		}
 	}
 
@@ -168,7 +194,7 @@ func (z *ZeusDir) Run() {
 		switch v.Op {
 		case REQ:
 			obj := z.dir[v.KEY]
-			// object doesn't exist.
+			// object doesn't exist, create it all the arbiters
 			if obj == nil {
 				obj = &ZeusState{
 					O_state:    O_request,
@@ -178,11 +204,14 @@ func (z *ZeusDir) Run() {
 				}
 				z.dir[v.KEY] = obj
 			}
+			tn := time.Now().UnixNano()
+			obj.O_ts = Tstamp{tn, obj.O_ts.PeerId}
+
 		}
 	}
 }
 
-func (z *ZeusNode) Send(data []byte) error {
+func (z *ZeusNode) Send(data ZeusMessage) error {
 	z.Req <- data
 	return nil
 }
