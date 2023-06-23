@@ -21,6 +21,7 @@ To recover, a machine should first recover from its own wal.
 Then, like Craq, it should insert itself and start copying tails.
 How to sync though? All updates should be in a peer wal. The only thing we need to add is that we only trim at the least checkpoint of the cluster instead of our greatest checkpoint.
 
+To incorporate websocket signaling we have a "signal" command { to: DeviceId }
 
 
 
