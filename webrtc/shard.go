@@ -1,103 +1,44 @@
 package main
 
 import (
-	"bufio"
 	"encoding/binary"
-	"net"
 
 	"github.com/datagrove/mangrove/push"
+	"github.com/fxamacker/cbor/v2"
 )
 
-// each shard should allow its own ip address
-type Cluster struct {
-	// send  net.Conn
-	// recv  net.Conn
-	shard []Shard
-	peer  []net.Conn
+type LogId = int64
+type PeerId = int64
+type ShardId = int64
+type DeviceId = int64
+
+type State struct {
+	Cluster
+	push *push.NotifyDb
+
+	// state is a sharded hash table
+	shard []*LogShard
+
+	// pages are a shared resource or allocated per shard?
+}
+type LogShard struct {
+	client    chan []byte // client messages are routed to a target LogId without parsing.
+	lowClient chan []byte // we may want to depriortize some logs
+	inp       chan []byte
+	sync      chan LogId
+	out       chan Io
+	capped    map[LogId]bool
+	obj       map[LogId]*LogState
+	pause     map[LogId][]TxPeer
+
+	GroupCommit [][]byte
+	io          chan IoMsg
 }
 
-// there is a tcp connection between the same shard on each machine
-func NewCluster(me int, peer []string, shard []Shard) (*Cluster, error) {
-	pcn := make([]net.Conn, len(peer))
-	listener, err := net.Listen("tcp", peer[me])
-	if err != nil {
-		panic(err)
-	}
-	defer listener.Close()
+var _ Shard = (*LogShard)(nil)
 
-	// Accept incoming connections and handle them in separate goroutines
-	go func() {
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				// Handle the error
-				continue
-			}
-			go func(conn net.Conn) {
-				reader := bufio.NewReader(conn)
-				b := make([]byte, 1)
-				reader.Read(b)
-				pcn[b[0]] = conn
-
-				for {
-					// Read the length of the message
-					lengthBytes, err := reader.Peek(4)
-					if err != nil {
-						panic(err)
-					}
-					length := int32(lengthBytes[0])<<24 | int32(lengthBytes[1])<<16 | int32(lengthBytes[2])<<8 | int32(lengthBytes[3])
-
-					// Read the message payload
-					payload := make([]byte, length)
-					_, err = reader.Read(payload)
-					if err != nil {
-						panic(err)
-					}
-				}
-
-			}(conn)
-		}
-	}()
-
-	for i, p := range peer {
-
-	}
-	return &Cluster{
-		peer:  pcn,
-		shard: shard,
-	}, nil
-}
-
-func (cl *Cluster) Send(PeerId, []byte) {
-	panic("implement me")
-}
-
-type Shard interface {
-	Recv(PeerId, []byte)
-}
-
-func (cl *Cluster) epochChange() {
-	panic("implement me")
-}
-
-// messages should be 32 bits of length, then 64 bits of logid
-func (cl *Cluster) Run() {
-	reader := bufio.NewReader(cl.conn)
-
-	len := 0
-	for {
-
-		// Read the incoming connection into the buffer. does this block?
-		reqLen, err := cl.recv.Read(buf)
-		if err != nil {
-			cl.epochChange()
-		}
-		if len > 0 {
-
-			packet = append(packet, buf[:reqLen]...)
-		}
-
-	}
+func (sh *LogShard) Recv(id PeerId, data []byte) {
+	sh.inp <- data
 }
 
 // each shard will have its own ring
@@ -110,24 +51,6 @@ type Header struct {
 	// increment the ack count for the sender when the message reaches its final target. we can remove the message and send in the header of the next one, or in a heartbeat if there is no available message. (latency though?)
 	ackCount []uint64
 	payload  []byte
-}
-
-// will put on ring, but will be extracted by the target
-func (cl *Cluster) Send(PeerId, []byte) {
-	// start with length, then logid
-	// we need to a bit to indicate if it is a broadcast or not
-	// if its a broadcast we need to know where it started so we can replace it with an ack.
-
-}
-
-// will be ordered on the ring, then upcall
-
-func (cl *Cluster) Broadcast(data []byte, fn func()) {
-
-}
-
-func (cl *Cluster) SendToPrimary(LogId, []byte) {
-
 }
 
 // another tail latency issue with pargo style servers is that we have constant gc pressure?
@@ -181,9 +104,10 @@ const (
 type TxBase struct {
 	Id int64 // used in replies, acks etc. unique nonce
 	LogId
-	Op   int8
-	At   int64
-	Data []byte
+	StreamId int32 // maybe 24 bits
+	Op       int8
+	At       int64
+	Data     []byte
 }
 
 type TxClient struct {
@@ -219,40 +143,15 @@ const (
 type Io struct {
 }
 
-func (io *Io) Invalidate(tx *Tx1) {
-}
-func (io *Io) Validate(tx *Tx1) {
-}
-
 // each log shard manages it's own group commit
 // each group commit must force certain pages to flush so that we don't write them twice
 // record locks are expensive; they require io. Is it too expensive? should we force webrtc?
 // we can cache, but if its not in memory that doesn't tell us anything.
-type LogShard struct {
-	client    chan []byte // client messages are routed to a target LogId without parsing.
-	lowClient chan []byte // we may want to depriortize some logs
-	inp       chan TxPeer
-	sync      chan LogId
-	out       chan Io
-	obj       map[LogId]*LogState
-	pause     map[LogId][]TxPeer
 
-	GroupCommit [][]byte
-	io          chan IoMsg
-}
 type IoMsg struct {
 }
-type State struct {
-	Cluster
-	push *push.NotifyDb
 
-	// state is a sharded hash table
-	shard []LogShard
-
-	// pages are a shared resource or allocated per shard?
-}
-
-func NewState(home string) (*State, error) {
+func NewState(home string, shards int) (*State, error) {
 	// send to anyone online
 	send := func(int64, []byte) error {
 		return nil
@@ -261,29 +160,42 @@ func NewState(home string) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &State{
+	r := &State{
 		Cluster: Cluster{},
 		push:    db,
-		shard:   make([]LogShard, 16),
-	}, nil
+		shard:   make([]*LogShard, shards),
+	}
+	for i := range r.shard {
+		b, e := NewShard(r, i)
+		if e != nil {
+			panic(e)
+		}
+		r.shard[i] = b
+	}
+
+	return r, nil
 }
 
-func Run(st *State, lg *LogShard) {
+func NewShard(st *State, id int) (*LogShard, error) {
 
-	ackToClient := func(tx Tx1) {
-	}
-	nackToClient := func(tx Tx1) {
-	}
+	sh := LogShard{}
 
-	invalToPeers := func(tx Tx1) {
-	}
-	valToPeers := func(tx Tx1) {
-		// not enough information here?
-		st.push.LogAppend(tx.LogId, tx.Data)
-	}
+	fromPeer := func(tx TxPeer) {
+		// sending invalidate to peers could simply be the same packet
+		ackToClient := func(tx *TxPeer) {
+		}
+		nackToClient := func(tx *TxPeer) {
+		}
 
-	for tx := range lg.inp {
+		invalToPeers := func(tx *TxPeer) {
+		}
+		valToPeers := func(tx *TxPeer) {
+			// not enough information here?
+			st.push.LogAppend(tx.LogId, tx.Data)
+		}
+
 		// is it worth sorting by key, timestamp etc?
+		cbor.Unmarshal(b, &tx)
 		obj, ok := lg.obj[tx.LogId]
 		if !ok {
 			lg.pause[tx.LogId] = append(lg.pause[tx.LogId], tx)
@@ -324,6 +236,17 @@ func Run(st *State, lg *LogShard) {
 
 	}
 
+	go func() {
+		for {
+			select {
+			case <-st.ctx.Done():
+				return
+			case tx := <-sh.fromPeer:
+				fromPeer(tx)
+			}
+		}
+	}()
+	return &sh, nil
 }
 
 type ClientState struct {
