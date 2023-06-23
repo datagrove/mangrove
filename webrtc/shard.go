@@ -1,21 +1,65 @@
 package main
 
-import ()
+import (
+	"encoding/binary"
+	"net"
+)
 
 type Cluster struct {
+	send net.Conn
+	recv net.Conn
+}
+
+func (cl *Cluster) epochChange() {
+	panic("implement me")
+}
+
+// messages should be 32 bits of length, then 64 bits of logid
+func (cl *Cluster) Run() {
+	buf := make([]byte, 128*1024)
+
+	packet := make([]byte, 0, 128*1024)
+	len := 0
+	for {
+
+		// Read the incoming connection into the buffer.
+		reqLen, err := cl.recv.Read(buf)
+		if err != nil {
+			cl.epochChange()
+		}
+		if len > 0 {
+
+			packet = append(packet, buf[:reqLen]...)
+		}
+
+	}
 }
 
 // each shard will have its own ring
 // each machine in the group will send to the next machine in the ring
 
+type Header struct {
+	length  int32
+	logid   uint64
+	sender  PeerId
+	payload []byte
+}
+
 // will put on ring, but will be extracted by the target
 func (cl *Cluster) Send(PeerId, []byte) {
+	// start with length, then logid
+	// we need to a bit to indicate if it is a broadcast or not
+	// if its a broadcast we need to know where it started so we can replace it with an ack.
 
 }
 
 // will be ordered on the ring, then upcall
 
 func (cl *Cluster) Broadcast(data []byte, fn func()) {
+
+}
+
+func (cl *Cluster) SendToPrimary(LogId, []byte) {
 
 }
 
@@ -94,6 +138,7 @@ type LogShard struct {
 	pause map[LogId][]Tx1
 }
 type State struct {
+	Cluster
 	// state is a sharded hash table
 	shard []LogShard
 
@@ -127,5 +172,16 @@ func Run(st *State, lg *LogShard) {
 
 		}
 		lg.out <- o
+	}
+}
+
+type ClientState struct {
+}
+
+// each transaction should begin with 8 byte LogId, so we don't need to parse it multiple times.
+func (g *State) ProcessClient(cs *ClientState, data []byte) {
+	if len(data) >= 8 {
+		logid := binary.LittleEndian.Uint64(data[:8])
+		g.SendToPrimary(LogId(logid), data)
 	}
 }
