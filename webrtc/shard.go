@@ -8,10 +8,64 @@ import (
 	"github.com/datagrove/mangrove/push"
 )
 
+// each shard should allow its own ip address
 type Cluster struct {
-	send  net.Conn
-	recv  net.Conn
+	// send  net.Conn
+	// recv  net.Conn
 	shard []Shard
+	peer  []net.Conn
+}
+
+// there is a tcp connection between the same shard on each machine
+func NewCluster(me int, peer []string, shard []Shard) (*Cluster, error) {
+	pcn := make([]net.Conn, len(peer))
+	listener, err := net.Listen("tcp", peer[me])
+	if err != nil {
+		panic(err)
+	}
+	defer listener.Close()
+
+	// Accept incoming connections and handle them in separate goroutines
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				// Handle the error
+				continue
+			}
+			go func(conn net.Conn) {
+				reader := bufio.NewReader(conn)
+				b := make([]byte, 1)
+				reader.Read(b)
+				pcn[b[0]] = conn
+
+				for {
+					// Read the length of the message
+					lengthBytes, err := reader.Peek(4)
+					if err != nil {
+						panic(err)
+					}
+					length := int32(lengthBytes[0])<<24 | int32(lengthBytes[1])<<16 | int32(lengthBytes[2])<<8 | int32(lengthBytes[3])
+
+					// Read the message payload
+					payload := make([]byte, length)
+					_, err = reader.Read(payload)
+					if err != nil {
+						panic(err)
+					}
+				}
+
+			}(conn)
+		}
+	}()
+
+	for i, p := range peer {
+
+	}
+	return &Cluster{
+		peer:  pcn,
+		shard: shard,
+	}, nil
 }
 
 func (cl *Cluster) Send(PeerId, []byte) {
@@ -32,19 +86,6 @@ func (cl *Cluster) Run() {
 
 	len := 0
 	for {
-		// Read the length of the message
-		lengthBytes, err := reader.Peek(4)
-		if err != nil {
-			panic(err)
-		}
-		length := int32(lengthBytes[0])<<24 | int32(lengthBytes[1])<<16 | int32(lengthBytes[2])<<8 | int32(lengthBytes[3])
-
-		// Read the message payload
-		payload := make([]byte, length)
-		_, err = reader.Read(payload)
-		if err != nil {
-			panic(err)
-		}
 
 		// Read the incoming connection into the buffer. does this block?
 		reqLen, err := cl.recv.Read(buf)
