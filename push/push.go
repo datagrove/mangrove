@@ -12,7 +12,7 @@ import (
 )
 
 type LogId int64
-type DeviceId int64
+type DeviceId = int64
 type UserId int64
 
 // The idea is that his is one per node
@@ -80,9 +80,7 @@ type QueryResult struct {
 	Length []int64
 }
 
-type SenderFn func(DeviceId, data []byte) error
-
-func NewNotifier(path string, fn SenderFn) (*NotifyDb, error) {
+func NewNotifyDb(path string, fn func(device int64, data []byte) error) (*NotifyDb, error) {
 	sql, e := sql.Open("sqlite3", path)
 	if e != nil {
 		return nil, e

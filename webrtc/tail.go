@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sync"
 
 	"github.com/datagrove/mangrove/rpc"
 
@@ -19,7 +18,7 @@ import (
 // each node in the cluster is responsible for a shard of devices. It publishes to those devices either over direct connection or push.
 // one node is primary for each file. Reads go to secondary devices. This arrangement allows a node to be replaced quickly. The primary node, if its empty, can read files as it goes from a random machine in the cluster, spreading the recovery load
 
-type DeviceId int64
+type DeviceId = int64
 type UserId int64
 type LogId int64
 type PeerId int64

@@ -1,15 +1,25 @@
 package main
 
 import (
-	"github.com/datagrove/mangrove/push"
+	"bufio"
 	"encoding/binary"
-	"github.com/fxamacker/cbor/v2"
 	"net"
+
+	"github.com/datagrove/mangrove/push"
 )
 
 type Cluster struct {
-	send net.Conn
-	recv net.Conn
+	send  net.Conn
+	recv  net.Conn
+	shard []Shard
+}
+
+func (cl *Cluster) Send(PeerId, []byte) {
+	panic("implement me")
+}
+
+type Shard interface {
+	Recv(PeerId, []byte)
 }
 
 func (cl *Cluster) epochChange() {
@@ -18,11 +28,23 @@ func (cl *Cluster) epochChange() {
 
 // messages should be 32 bits of length, then 64 bits of logid
 func (cl *Cluster) Run() {
-	buf := make([]byte, 128*1024)
+	reader := bufio.NewReader(cl.conn)
 
-	packet := make([]byte, 0, 128*1024)
 	len := 0
 	for {
+		// Read the length of the message
+		lengthBytes, err := reader.Peek(4)
+		if err != nil {
+			panic(err)
+		}
+		length := int32(lengthBytes[0])<<24 | int32(lengthBytes[1])<<16 | int32(lengthBytes[2])<<8 | int32(lengthBytes[3])
+
+		// Read the message payload
+		payload := make([]byte, length)
+		_, err = reader.Read(payload)
+		if err != nil {
+			panic(err)
+		}
 
 		// Read the incoming connection into the buffer. does this block?
 		reqLen, err := cl.recv.Read(buf)
@@ -79,14 +101,14 @@ type LogState struct {
 	Oldest          uint32
 	At              uint32
 	OldestUnflushed uint32
-	BytesToday	  int64
-	ByteCap 	   int64
+	BytesToday      int64
+	ByteCap         int64
 	// cold is a blob store
 	ColdLength int64
 	// which nodes have a copy of the warm data
 	WarmReplica []int64
 
-	Listener map[DeviceId]int32
+	Listener  map[DeviceId]int32
 	Watermark int
 	// ephemeral, use to not spam updates to the user.
 	Sent map[DeviceId]Sent
@@ -114,20 +136,28 @@ const (
 )
 
 // we can get this tx back after sending it to our peers.
+
+type TxBase struct {
+	Id int64 // used in replies, acks etc. unique nonce
+	LogId
+	Op   int8
+	At   int64
+	Data []byte
+}
+
 type TxClient struct {
-	
+	TxBase
+	Handle int64
+	Author DeviceId   // reply to, saves latency? not necessary?
+	PushTo []DeviceId // @joe, @jane, @bob, doesn't need to be replicated.
 }
 type TxPeer struct {
-
-	LogId
-	Op       int8
-	At       int64   // should rarely fail since we have a leader. Can it ever fail? 0 = don't care
-	Data     []byte
+	TxBase
 	// locks are too expensive here, and in the common case are not needed.
 	//Locks    []int64
 	Continue bool
-	PushTo  []DeviceId   // @joe, @jane, @bob
 }
+
 // the push is encrypted on client, we can't read it.
 // we still need to write this to the log, for backup.
 // type TxPush struct {
@@ -158,12 +188,13 @@ func (io *Io) Validate(tx *Tx1) {
 // record locks are expensive; they require io. Is it too expensive? should we force webrtc?
 // we can cache, but if its not in memory that doesn't tell us anything.
 type LogShard struct {
-	inp   chan Tx1
-	low   chan Tx1
-	sync  chan LogId
-	out   chan Io
-	obj   map[LogId]*LogState
-	pause map[LogId][]Tx1
+	client    chan []byte // client messages are routed to a target LogId without parsing.
+	lowClient chan []byte // we may want to depriortize some logs
+	inp       chan TxPeer
+	sync      chan LogId
+	out       chan Io
+	obj       map[LogId]*LogState
+	pause     map[LogId][]TxPeer
 
 	GroupCommit [][]byte
 	io          chan IoMsg
@@ -177,34 +208,23 @@ type State struct {
 	// state is a sharded hash table
 	shard []LogShard
 
-	
 	// pages are a shared resource or allocated per shard?
 }
-func NewState() *State {
-	hm := hashmap.New[DeviceId,bool]()
+
+func NewState(home string) (*State, error) {
+	// send to anyone online
+	send := func(int64, []byte) error {
+		return nil
+	}
+	db, err := push.NewNotifyDb(home, send)
+	if err != nil {
+		return nil, err
+	}
 	return &State{
-	}
-}
-
-func Sync(st *State, shard LogShard) {
-	for logid := range shard.sync {
-		obj, ok := shard.obj[logid]
-		if !ok {
-			// we should probably look to swap back in here, then rechannel the logid
-			continue
-		}
-		type SyncCbor struct {
-			Method string
-			Params []int64
-		}
-		msg, _ := cbor.Marshal(SyncCbor{
-			Method: "sync",
-			Params: []int64{int64(logid), obj.Length},
-		})
-		for _, l := obj.Listener {
-
-		}
-	}
+		Cluster: Cluster{},
+		push:    db,
+		shard:   make([]LogShard, 16),
+	}, nil
 }
 
 func Run(st *State, lg *LogShard) {
@@ -217,7 +237,7 @@ func Run(st *State, lg *LogShard) {
 	invalToPeers := func(tx Tx1) {
 	}
 	valToPeers := func(tx Tx1) {
-		// not enough information here? 
+		// not enough information here?
 		st.push.LogAppend(tx.LogId, tx.Data)
 	}
 
