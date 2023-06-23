@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/datagrove/mangrove/push"
 	"encoding/binary"
 	"github.com/fxamacker/cbor/v2"
 	"net"
@@ -113,15 +114,28 @@ const (
 )
 
 // we can get this tx back after sending it to our peers.
-type Tx1 struct {
-	LogId
-	DeviceId
-	Op       int8
-	At       int64
-	Data     []byte
-	Locks    []int64
-	Continue bool
+type TxClient struct {
+	
 }
+type TxPeer struct {
+
+	LogId
+	Op       int8
+	At       int64   // should rarely fail since we have a leader. Can it ever fail? 0 = don't care
+	Data     []byte
+	// locks are too expensive here, and in the common case are not needed.
+	//Locks    []int64
+	Continue bool
+	PushTo  []DeviceId   // @joe, @jane, @bob
+}
+// the push is encrypted on client, we can't read it.
+// we still need to write this to the log, for backup.
+// type TxPush struct {
+// 	LogId     // use for permissions? generally is logid of the dm channel
+// 	From DeviceId  // use to filter out sender. don't alert sender
+// 	DeviceId  // 0 = everyone, too annoying?
+// 	Payload   []byte
+// }
 
 // a hypervariable that maintains a buffer for each thread
 const (
@@ -158,6 +172,8 @@ type IoMsg struct {
 }
 type State struct {
 	Cluster
+	push *push.NotifyDb
+
 	// state is a sharded hash table
 	shard []LogShard
 
@@ -201,6 +217,8 @@ func Run(st *State, lg *LogShard) {
 	invalToPeers := func(tx Tx1) {
 	}
 	valToPeers := func(tx Tx1) {
+		// not enough information here? 
+		st.push.LogAppend(tx.LogId, tx.Data)
 	}
 
 	for tx := range lg.inp {
