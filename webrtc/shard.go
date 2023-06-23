@@ -161,7 +161,13 @@ type State struct {
 	// state is a sharded hash table
 	shard []LogShard
 
+	
 	// pages are a shared resource or allocated per shard?
+}
+func NewState() *State {
+	hm := hashmap.New[DeviceId,bool]()
+	return &State{
+	}
 }
 
 func Sync(st *State, shard LogShard) {

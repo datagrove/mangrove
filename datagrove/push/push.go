@@ -9,7 +9,53 @@ import (
 
 	firebase "firebase.google.com/go"
 	"firebase.google.com/go/messaging"
+	"github.com/cornelk/hashmap"
+
+	"database/sql"
+
+	_ "github.com/mattn/go-sqlite3"
 )
+
+type LogId int64
+
+type Settings struct {
+}
+type LogChange struct {
+	LogId  int64
+	Length int64
+}
+type Subscribe struct {
+	LogId  int64
+	Length int64
+}
+
+// how hard is this to restore after losing a node?
+type NotifyDb struct {
+	qu     *sql.DB
+	online *hashmap.Map[UserId, *User]
+
+	settings chan Settings
+	log      chan LogChange
+}
+type UserId int64
+type User struct {
+	length map[LogId]int64
+	mute   map[LogId]bool
+}
+
+func NewNotifier(path string) (*NotifyDb, error) {
+	sql, e := sql.Open("sqlite3", path)
+	if e != nil {
+		return nil, e
+	}
+	hm := hashmap.New[UserId, *User]()
+	r := &NotifyDb{
+		qu:     sql,
+		online: hm,
+	}
+
+	return r, nil
+}
 
 // typically you might publish to a topic, and retrieve the subscribers to that topic
 // but you also need wild cards and mute? data leaking here of course
@@ -24,13 +70,13 @@ type NotifySettings struct {
 }
 
 // how do we rate limit?
-func (s *Server) Can(sess *Session, sid int64, cap int) bool {
+func (s *NotifyDb) Can(sess *Session, sid int64, cap int) bool {
 	return true
 }
 
 var errNoPermission = errors.New("no permission")
 
-func (s *Server) SendPush(v *Notify, data []byte) {
+func (s *NotifyDb) SendPush(v *Notify, data []byte) {
 	o := &messaging.Notification{
 		Title:    v.Subject,
 		Body:     v.Message,
@@ -38,7 +84,7 @@ func (s *Server) SendPush(v *Notify, data []byte) {
 	}
 	_ = o
 }
-func (s *Server) Notify(sess *Session, v *Notify) error {
+func (s *NotifyDb) Notify(sess *Session, v *Notify) error {
 	if !s.Can(sess, v.Sid, 1) {
 		return errNoPermission
 	}
