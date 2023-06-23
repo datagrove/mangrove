@@ -8,33 +8,81 @@ import (
 	"sync"
 
 	"github.com/datagrove/mangrove/rpc"
-	main "github.com/datagrove/mangrove/webrtc"
 
+	"github.com/cornelk/hashmap"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/gorilla/websocket"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 )
 
+// Log states are always replicated to the entire cluster.
+// each node in the cluster is responsible for a shard of devices. It publishes to those devices either over direct connection or push.
+// one node is primary for each file. Reads go to secondary devices. This arrangement allows a node to be replaced quickly. The primary node, if its empty, can read files as it goes from a random machine in the cluster, spreading the recovery load
+
 type DeviceId int64
 type UserId int64
 type LogId int64
+type PeerId int64
 
-type LogState struct {
-	mu sync.Mutex
+type Pair struct {
 	LogId
-	WriteKey    []byte // people with
-	ReadKey     []byte
-	DeviceOwner DeviceId // connect using webrtc.
-	Length      int64
-	Newest      uint32 // when it fills, assign next, increment unflushed
-	// when we want to claim pages we start with the oldest
-	Oldest          uint32
-	At              uint32
-	OldestUnflushed uint32
-	// cold is a blob store
-	ColdLength int64
-	// which nodes have a copy of the warm data
-	WarmReplica []int64
+	LogState
+}
+type Peer interface {
+	Send([]byte)
+}
+type ClusterPeer struct {
+	Node []Peer
+	Dir  []Peer // a subset of node, there are only 3 directory nodes in the cluster (or world?)
+}
+
+type RemoteWrite struct {
+	// reply back through established connection
+	// reply is only yes/no, the replication data is
+
+	From  DeviceId // enough to direct the error to the peer.
+	At    int64
+	LogId LogId
+	Data  []byte // also indicates a write, otherwise its a read.
+}
+
+type GlobalState struct {
+	Me        PeerId
+	Object    hashmap.Map[LogId, *LogState]
+	Cooling   []LogState
+	Replicate chan *LogState
+	Unflushed chan *LogState
+	ClusterPeer
+	Home     string
+	TokenKey jwk.Key
+	// we need multiple device shards on different ip addresses so we don't run out of ports.
+	DeviceShard []DeviceShard
+	Peer        []Peer
+	// do we need a cache of log objects other than what we read from zeus key store?
+	Mem  []byte
+	Next []uint32 // point to previous page
+
+	msg chan RemoteWrite
+}
+
+func (g *GlobalState) Run1() {
+
+	for x := range g.msg {
+		obj, ok := g.Object.Get(x.LogId)
+		if !ok {
+			// restore from disk or another node
+		}
+		// reply immediately without going through the replication queue?
+		// the submitter will need to update their known length to allow read your writes, but is that a thing? the writer already has their writes.
+		// we can unblock the writer by replying immediately, but this doesn't buy much either since they can buffer their writes.
+
+		obj.mu.Lock()
+		ok = true
+
+		obj.mu.Unlock()
+		// replicate will also manage flushing
+		g.Replicate <- obj
+	}
 }
 
 // we can scale this by splitting the sites to different servers
@@ -79,8 +127,6 @@ func (*DeviceShard) Pin(main.KEY) (any, bool) {
 	panic("unimplemented")
 }
 
-var _ ZeusMap = (*DeviceShard)(nil)
-
 func (dev *DeviceShard) AllocateLog() LogId {
 	return LogId(0)
 }
@@ -111,20 +157,6 @@ type WebsockSession struct {
 	Nonce  int64
 	// authorization hash, this session has proved its authority on these logs
 	Handle map[LogId]bool // map site.log -> read/write
-}
-
-type GlobalState struct {
-	Unflushed  chan *LogState
-	ZeusGlobal *ZeusGlobal
-	Home       string
-	TokenKey   jwk.Key
-	// we need multiple device shards on different ip addresses so we don't run out of ports.
-	DeviceShard []DeviceShard
-	Peer        []Peer
-	// do we need a cache of log objects other than what we read from zeus key store?
-	Mem  []byte
-	Next []uint32 // point to previous page
-
 }
 
 // we only write to disk files that are homed in this shard. We only write to R2 files that are primary to this shard

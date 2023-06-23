@@ -1,4 +1,51 @@
 
+
+
+Group commit, btree, checkpoints, aries
+
+write pages to the page file.
+
+Critical to not cut our performance in half on large writes; we must allow full pages to be flushed directly to disk. The client can make this happen by first writing all the pages, collecting pointers, then writing the pointers to the btree. This temporarily leaves pages in the log that are not tied to the tree, but this seems lesser of evils.
+
+the wal will be trimmable, the page file will be trimmable, checkpointable.
+
+distributed hermes/craq/LCR
+each write has a primary shard based on the most recent group membership. This is the coordinator for the log write. When it applies the write, it sends invalid+data to the ring. 
+
+LCR allows us to completely order the transactions, does that solve anything here?
+Once the write is acknowledged, it can be returned to the client. Then a second round of ack can allow the replicas to mark it valid for reads. 
+
+The LCR "log" is not what we want to store though, since it won't carry the btree information, etc.
+
+To recover, a machine should first recover from its own wal.
+Then, like Craq, it should insert itself and start copying tails.
+How to sync though? All updates should be in a peer wal. The only thing we need to add is that we only trim at the least checkpoint of the cluster instead of our greatest checkpoint.
+
+
+
+
+
+
+Devices have a natural sharding because of the Ip ports, but 
+
+Consider pargo style global processing?
+
+log state | client state  | client_input (include client state change) | peer_input | io_contributions | io_deletions
+
+-> client_operations
+
+
+A big potential problem of pargo style vs faster style is tail latency caused by os scheduling. Even one thread going away is going to spike latency. unclear that we care for logs?
+
+input can potentially be filtered by the io thread to delay for resources not in memory. 
+
+Pargo style could still be used with hash tables, chained hash would work best. we simply fork join over the entire array.
+
+
+
+
+
+
 Maybe server becomes authorization only and this becomes the performance critical signaling server. Can we make them linkable into a single monolith for ease of deployment though?
 
 each shard can keep a list of free and available pages. eventually there will only be available.

@@ -75,8 +75,9 @@ type ZeusGlobal struct {
 	Object  hashmap.Map[KEY, *ZeusObj]
 	Cooling []ZeusObject
 	// some peers are on the same machine, some are on websocket connections
-	Slow   chan Pair
-	Commit ZeusCommit1
+	Slow      chan Pair
+	Commit    ZeusCommit1
+	Replicate chan *ZeusObj
 }
 type Pair struct {
 	KEY
