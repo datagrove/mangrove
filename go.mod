@@ -118,6 +118,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.33.1
 	github.com/cloudflare/circl v1.1.0 // indirect
 	github.com/cloudflare/cloudflare-go v0.68.0
+	github.com/cornelk/hashmap v1.0.8
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/go-test/deep v1.1.0
 	github.com/google/uuid v1.3.0

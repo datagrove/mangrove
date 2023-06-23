@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"sync"
 
 	"github.com/datagrove/mangrove/rpc"
+	main "github.com/datagrove/mangrove/webrtc"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/gorilla/websocket"
@@ -15,6 +18,24 @@ import (
 type DeviceId int64
 type UserId int64
 type LogId int64
+
+type LogState struct {
+	mu sync.Mutex
+	LogId
+	WriteKey    []byte // people with
+	ReadKey     []byte
+	DeviceOwner DeviceId // connect using webrtc.
+	Length      int64
+	Newest      uint32 // when it fills, assign next, increment unflushed
+	// when we want to claim pages we start with the oldest
+	Oldest          uint32
+	At              uint32
+	OldestUnflushed uint32
+	// cold is a blob store
+	ColdLength int64
+	// which nodes have a copy of the warm data
+	WarmReplica []int64
+}
 
 // we can scale this by splitting the sites to different servers
 // potentially if we needed to we could also split the site to different servers sharded by the user. if the users are sharded there would be one primary and then secondary servers would call the primary for that site.
@@ -35,7 +56,39 @@ type DeviceShard struct {
 	global *GlobalState
 	ZeusNode
 	Session map[DeviceId]*WebsockSession // map device -> conn
+	// allocation of pages to logs
+	Page     []LogId
+	Free     int32
+	Mem      []int32
+	LogState []LogState // randomly evict
+	Cooling  uint32
 }
+
+// Copy implements ZeusMap.
+func (*DeviceShard) Copy(node int, key main.KEY) {
+	panic("unimplemented")
+}
+
+// Create implements ZeusMap.
+func (*DeviceShard) Create(main.KEY) main.ZeusObject {
+	panic("unimplemented")
+}
+
+// Pin implements ZeusMap.
+func (*DeviceShard) Pin(main.KEY) (any, bool) {
+	panic("unimplemented")
+}
+
+var _ ZeusMap = (*DeviceShard)(nil)
+
+func (dev *DeviceShard) AllocateLog() LogId {
+	return LogId(0)
+}
+func (dev *DeviceShard) FreeLog(l LogId, out *LogState) error {
+	return
+}
+
+// eventually we should trim the out objects if they aren't homed here.
 
 func (dev *DeviceShard) ReadLogState(l LogId, out *LogState) error {
 	return nil
@@ -61,6 +114,7 @@ type WebsockSession struct {
 }
 
 type GlobalState struct {
+	Unflushed  chan *LogState
 	ZeusGlobal *ZeusGlobal
 	Home       string
 	TokenKey   jwk.Key
@@ -68,6 +122,36 @@ type GlobalState struct {
 	DeviceShard []DeviceShard
 	Peer        []Peer
 	// do we need a cache of log objects other than what we read from zeus key store?
+	Mem  []byte
+	Next []uint32 // point to previous page
+
+}
+
+// we only write to disk files that are homed in this shard. We only write to R2 files that are primary to this shard
+func (d *DeviceShard) LogAffinity(l LogId) int {
+	return int(l) % len(d.global.DeviceShard)
+}
+
+const PAGESIZE = 4096
+
+func (g *GlobalState) Flush() {
+	for {
+		// only flush homed objects, R2 objects that are
+		n := <-g.Unflushed
+		if n.OldestUnflushed != n.Newest {
+			f, e := os.OpenFile(fmt.Sprintf("%s%d", g.Home+"/log/", n.LogId), os.O_CREATE|os.O_WRONLY, 0644)
+			if e != nil {
+				continue
+			}
+			for n.OldestUnflushed != n.Newest {
+				pg := n.OldestUnflushed
+
+				f.WriteAt(g.Mem[pg*PAGESIZE:pg*(PAGESIZE+1)], int64(n.At)*PAGESIZE)
+				n.At++
+				n.OldestUnflushed = g.Next[n.OldestUnflushed]
+			}
+		}
+	}
 }
 
 func (g *GlobalState) BroadCast(device []DeviceId, m []byte) {
@@ -252,17 +336,9 @@ func Init(home string, m *rpc.ApiMap) (*GlobalState, error) {
 
 // adapt Zeus
 
-type LogState struct {
-	WriteKey    []byte // people with
-	ReadKey     []byte
-	DeviceOwner DeviceId // connect using webrtc.
-	Length      int64
-	Tail        []byte
-	// cold is a blob store
-	ColdLength int64
-	// which nodes have a copy of the warm data
-	WarmReplica []int64
-}
+// first replicate the tail state. start an async process to fsync to disk, then trim
+
+// each DeviceShard has a buffer with linked entries it int.
 
 const (
 	ZtxRead = iota

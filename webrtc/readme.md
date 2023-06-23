@@ -1,6 +1,9 @@
 
 Maybe server becomes authorization only and this becomes the performance critical signaling server. Can we make them linkable into a single monolith for ease of deployment though?
 
+each shard can keep a list of free and available pages. eventually there will only be available.
+
+
 Getting an name:
 1. To claim an unused name, ask datagrove to sign the name/id pair.
 2. To assign the name to a new device, use the existing device to sign the name/id pair.

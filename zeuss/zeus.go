@@ -1,10 +1,19 @@
-package main
+package seuss
 
 import (
-	"time"
-
+	"github.com/cornelk/hashmap"
 	"github.com/fxamacker/cbor/v2"
+	"sort"
+	"sync"
+	"time"
 )
+
+// single key specialization. using a single key we can shard them and not worry about locks.
+// note that they need to be shuffled to get to a key shard from a device shard and back.
+// alternately we can just try to execute them as fast as we get them as long as they are owned (common case)
+// we can queue them to an owner ship thread if they are not.
+// we need the objects on an entire machine to be seen as having the same state (owned, invalid, etc)
+// commit protocol can be a little different.
 
 type KEY int64
 type ZeusObject any
@@ -33,20 +42,63 @@ const (
 	O_drive
 )
 
+// directories can shard directly on the key, like mica
 type ZeusState struct {
 	O_state int8 // valid, invalid, state, drive
 	O_ts    Tstamp
 	// Paper suggests a bit vector here
 	O_replicas []PeerId
 	O_owner    PeerId
+	mu         sync.Mutex
+}
+type ZeusObj struct {
+	ZeusState
+	Obj any
 }
 
-type ZeusCommit func(ZeusTx, []any) []byte
+type hashable interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr | ~float32 | ~float64 | ~string
+}
 
-type ZeusGlobal struct {
-	// some peers are on the same machine, some are on websocket connections
+type ZeusCommit1 func(KEY, any) []byte
+
+type ZeusPeer struct {
 	node []Peer
 	dir  []Peer // a subset of node, there are only 3 directory nodes in the cluster (or world?)
+}
+type ZeusGlobalDir struct {
+	ZeusPeer
+}
+type ZeusGlobal struct {
+	ZeusPeer
+	Me      PeerId
+	Object  hashmap.Map[KEY, *ZeusObj]
+	Cooling []ZeusObject
+	// some peers are on the same machine, some are on websocket connections
+	Slow   chan Pair
+	Commit ZeusCommit1
+}
+type Pair struct {
+	KEY
+	any
+}
+
+func (g *ZeusGlobal) Run1(k KEY, m any) {
+	obj, ok := g.Object.Get(k)
+	if ok && obj.O_owner == g.Me {
+		obj.mu.Lock()
+		g.Commit(k, obj)
+		obj.mu.Unlock()
+		g.Replicate <- obj
+	} else {
+		g.Slow <- Pair{k, m}
+	}
+}
+
+type ZeusNode struct {
+	Req       chan ZeusMessage
+	ClientReq chan ZeusTx
+	Await     map[int32]*BlockedTx
 }
 
 func (z *ZeusGlobal) ClusterSend(id PeerId, data []byte) {
@@ -59,20 +111,8 @@ func (z *ZeusGlobal) DriverFor(id PeerId) PeerId {
 type ZeusDir struct {
 	Req chan []byte
 	// map log to state in directory
-	dir map[KEY]*ZeusState
-}
-
-// not sure if we need this?
-
-type ZeusNode struct {
-	Req       chan ZeusMessage
-	ClientReq chan ZeusTx
-	*ZeusGlobal
-	Replica ZeusMap
-	Commit  ZeusCommit
-	Local   map[KEY]*ZeusState
-	Me      PeerId
-	Await   map[int32]*BlockedTx
+	dir   map[KEY]*ZeusState
+	notMe []PeerId
 }
 
 type BlockedTx struct {
@@ -100,7 +140,7 @@ type ZeusTx interface {
 	OnCommit(objects []ZeusObject) []byte
 }
 
-func (z *ZeusNode) Run() {
+func (g *ZeusGlobal) Run(z *ZeusNode) {
 	var next = int32(0)
 	exec := func(tx ZeusTx, objects []ZeusObject) {
 		// make ourselves the owner of the objects
@@ -123,13 +163,18 @@ func (z *ZeusNode) Run() {
 		}
 	}
 	client := func(tx ZeusTx) {
-
+		sort.Slice(tx.Keys(), func(i, j int) bool {
+			return tx.Keys()[i] < tx.Keys()[j]
+		})
 		var need []KEY // not owner, or not even replica
 		for _, k := range tx.Keys() {
-			v, ok := z.Local[k]
+			v, ok := g.Object.Get(k)
 			if !ok {
+				z.global.Object.Set(k, &ZeusState{})
 				need = append(need, k)
-			} else if z.Me != v.O_owner {
+			}
+
+			if g.Me != v.O_owner {
 				need = append(need, k)
 				//state = append(have, Zeus)
 			} else {
@@ -140,7 +185,7 @@ func (z *ZeusNode) Run() {
 					O_replicas: nil,
 					O_owner:    z.Me,
 				}
-				z.Local[k] = o
+				z.global.Object.Set(k, o)
 			}
 		}
 		// we need to get ownership of the objects
@@ -158,6 +203,7 @@ func (z *ZeusNode) Run() {
 				z.ClusterSend(driver, b)
 			}
 		} else {
+			// sort the objects by key so that we can't deadlock
 			var v []ZeusObject
 			for _, k := range tx.Keys() {
 				o, _ := z.Replica.Pin(k)
@@ -194,18 +240,30 @@ func (z *ZeusDir) Run() {
 		switch v.Op {
 		case REQ:
 			obj := z.dir[v.KEY]
-			// object doesn't exist, create it all the arbiters
+			to := z.notMe
+
+			// load from sqlite or create
 			if obj == nil {
 				obj = &ZeusState{
 					O_state:    O_request,
 					O_ts:       Tstamp{0, v.Coordinator},
 					O_replicas: []PeerId{v.Coordinator},
-					O_owner:    NoPeer,
+					O_owner:    v.Coordinator,
 				}
 				z.dir[v.KEY] = obj
+			} else {
+				to = append(to, obj.O_owner)
 			}
-			tn := time.Now().UnixNano()
-			obj.O_ts = Tstamp{tn, obj.O_ts.PeerId}
+			obj.O_state = O_drive
+			obj.O_ts = Tstamp{time.Now().UnixNano(), obj.O_ts.PeerId}
+			msg := ZeusMessage{
+				Id:          v.Id,
+				Coordinator: v.Coordinator,
+				Op:          INV,
+				KEY:         v.KEY,
+			}
+
+			// send to other dirs and the owner if there is one
 
 		}
 	}
