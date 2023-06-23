@@ -5,6 +5,7 @@ import (
 
 	"github.com/datagrove/mangrove/push"
 	"github.com/fxamacker/cbor/v2"
+	"github.com/lesismal/nbio/nbhttp/websocket"
 )
 
 type LogId = int64
@@ -33,14 +34,16 @@ type LogShard struct {
 
 	GroupCommit [][]byte
 	io          chan IoMsg
+
+	Client map[DeviceId]*websocket.Conn
 }
+
+var _ Shard = (*LogShard)(nil)
 
 // ClientRecv implements Shard.
 func (sh *LogShard) ClientRecv(data []byte) {
 	sh.client <- data
 }
-
-var _ Shard = (*LogShard)(nil)
 
 func (sh *LogShard) Recv(id PeerId, data []byte) {
 	sh.inp <- data
@@ -194,6 +197,7 @@ func NewShard(st *State, id int) (*LogShard, error) {
 		nackToClient := func(tx *TxPeer) {
 		}
 
+		// invalidate both gives the peer the data and tells them not to use it. We'll follup with a validate
 		invalToPeers := func(tx *TxPeer) {
 			st.Broadcast(data)
 		}
