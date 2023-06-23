@@ -29,10 +29,15 @@ type LogShard struct {
 	out       chan Io
 	capped    map[LogId]bool
 	obj       map[LogId]*LogState
-	pause     map[LogId][]TxPeer
+	pause     map[LogId][]*TxPeer
 
 	GroupCommit [][]byte
 	io          chan IoMsg
+}
+
+// ClientRecv implements Shard.
+func (sh *LogShard) ClientRecv(data []byte) {
+	sh.client <- data
 }
 
 var _ Shard = (*LogShard)(nil)
@@ -178,9 +183,11 @@ func NewState(home string, shards int) (*State, error) {
 
 func NewShard(st *State, id int) (*LogShard, error) {
 
-	sh := LogShard{}
+	lg := LogShard{}
 
-	fromPeer := func(tx TxPeer) {
+	fromPeer := func(data []byte) {
+		var tx TxPeer
+		cbor.Unmarshal(data, &tx)
 		// sending invalidate to peers could simply be the same packet
 		ackToClient := func(tx *TxPeer) {
 		}
@@ -188,26 +195,28 @@ func NewShard(st *State, id int) (*LogShard, error) {
 		}
 
 		invalToPeers := func(tx *TxPeer) {
+			st.Broadcast(data)
 		}
 		valToPeers := func(tx *TxPeer) {
 			// not enough information here?
-			st.push.LogAppend(tx.LogId, tx.Data)
+
+		}
+		ioLoad := func(tx *TxPeer) {
+			lg.pause[tx.LogId] = append(lg.pause[tx.LogId], tx)
 		}
 
-		// is it worth sorting by key, timestamp etc?
-		cbor.Unmarshal(b, &tx)
 		obj, ok := lg.obj[tx.LogId]
+		_ = obj
 		if !ok {
-			lg.pause[tx.LogId] = append(lg.pause[tx.LogId], tx)
-
-			continue
+			ioLoad(&tx)
+			return
 		}
 		isPrimary := true
 		if isPrimary {
 			if tx.Continue {
 				// tx is acknowledged by peers, now we can ack to client
-				valToPeers(tx)
-				ackToClient(tx)
+				valToPeers(&tx)
+				ackToClient(&tx)
 				// publish to listeners
 
 			} else {
@@ -218,15 +227,9 @@ func NewShard(st *State, id int) (*LogShard, error) {
 					// we need to create
 					ok := false
 					if !ok {
-						nackToClient(tx)
+						nackToClient(&tx)
 					} else {
-						invalToPeers(tx)
-					}
-
-				case Aclient_ack:
-					// we can get away with only caching this in memory since there is little downside in extra sync messages
-					if tx.At > obj.Listener[tx.DeviceId] {
-						obj.Listener[tx.DeviceId] = tx.At
+						invalToPeers(&tx)
 					}
 
 				case Aflush_ack:
@@ -236,17 +239,25 @@ func NewShard(st *State, id int) (*LogShard, error) {
 
 	}
 
+	fromClient := func(data []byte) {
+		var tx TxClient
+		cbor.Unmarshal(data, &tx)
+
+	}
+
 	go func() {
 		for {
 			select {
-			case <-st.ctx.Done():
-				return
-			case tx := <-sh.fromPeer:
+			// case <-st.ctx.Done():
+			// 	return
+			case tx := <-lg.client:
+				fromClient(tx)
+			case tx := <-lg.inp:
 				fromPeer(tx)
 			}
 		}
 	}()
-	return &sh, nil
+	return &lg, nil
 }
 
 type ClientState struct {

@@ -14,7 +14,12 @@ func NewTestCluster() {
 			panic(e)
 		}
 
-		NewCluster(i, host, st.shards)
+		shard := make([]Shard, 10)
+		for i := range shard {
+			shard[i] = st.shard[i]
+		}
+
+		NewCluster(i, host, shard)
 	}
 
 	// send some client messages

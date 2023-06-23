@@ -1,6 +1,7 @@
 package push
 
 import (
+	"encoding/json"
 	"time"
 
 	"firebase.google.com/go/messaging"
@@ -116,7 +117,8 @@ func NewNotifyDb(path string, fn func(device int64, data []byte) error) (*Notify
 		for {
 			select {
 			case s := <-r.settings:
-				sql.Exec("insert or replace into settings (user, log, mute, device) values (?, ?, ?, ?)", s.UserId, s.LogId, s.Mute, s.Device)
+				b, _ := json.Marshal(s)
+				sql.Exec("insert or replace into settings (user, json) values (?)", s.UserId, b)
 			case l := <-r.log:
 				// update log
 				sql.Exec("insert or replace into log (log, length) values (?, ?, ?)", l.LogId, l.Length)
@@ -132,10 +134,10 @@ func NewNotifyDb(path string, fn func(device int64, data []byte) error) (*Notify
 
 			default:
 
-				o := &messaging.Notification{
-					Title:    v.Subject,
-					Body:     v.Message,
-					ImageURL: v.ImageURL,
+				o := &messaging.Message{
+					Data: map[string]string{
+						"score": "850",
+					},
 				}
 				_ = o
 

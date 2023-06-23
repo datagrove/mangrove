@@ -25,7 +25,7 @@ func (cl *Cluster) log2Shard(logid LogId) int {
 	return int(logid) % len(cl.shard)
 }
 
-func (cl *Cluster) Broadcast(data []byte, fn func()) {
+func (cl *Cluster) Broadcast(data []byte) {
 	for i := 0; i < len(cl.peer); i++ {
 		if i == cl.me {
 			continue
