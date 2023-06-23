@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"github.com/fxamacker/cbor/v2"
 	"net"
 )
 
@@ -77,12 +78,15 @@ type LogState struct {
 	Oldest          uint32
 	At              uint32
 	OldestUnflushed uint32
+	BytesToday	  int64
+	ByteCap 	   int64
 	// cold is a blob store
 	ColdLength int64
 	// which nodes have a copy of the warm data
 	WarmReplica []int64
 
-	Listener map[DeviceId]int64
+	Listener map[DeviceId]int32
+	Watermark int
 	// ephemeral, use to not spam updates to the user.
 	Sent map[DeviceId]Sent
 }
@@ -135,11 +139,22 @@ func (io *Io) Invalidate(tx *Tx1) {
 func (io *Io) Validate(tx *Tx1) {
 }
 
+// each log shard manages it's own group commit
+// each group commit must force certain pages to flush so that we don't write them twice
+// record locks are expensive; they require io. Is it too expensive? should we force webrtc?
+// we can cache, but if its not in memory that doesn't tell us anything.
 type LogShard struct {
 	inp   chan Tx1
+	low   chan Tx1
+	sync  chan LogId
 	out   chan Io
 	obj   map[LogId]*LogState
 	pause map[LogId][]Tx1
+
+	GroupCommit [][]byte
+	io          chan IoMsg
+}
+type IoMsg struct {
 }
 type State struct {
 	Cluster
@@ -149,7 +164,38 @@ type State struct {
 	// pages are a shared resource or allocated per shard?
 }
 
+func Sync(st *State, shard LogShard) {
+	for logid := range shard.sync {
+		obj, ok := shard.obj[logid]
+		if !ok {
+			// we should probably look to swap back in here, then rechannel the logid
+			continue
+		}
+		type SyncCbor struct {
+			Method string
+			Params []int64
+		}
+		msg, _ := cbor.Marshal(SyncCbor{
+			Method: "sync",
+			Params: []int64{int64(logid), obj.Length},
+		})
+		for _, l := obj.Listener {
+
+		}
+	}
+}
+
 func Run(st *State, lg *LogShard) {
+
+	ackToClient := func(tx Tx1) {
+	}
+	nackToClient := func(tx Tx1) {
+	}
+
+	invalToPeers := func(tx Tx1) {
+	}
+	valToPeers := func(tx Tx1) {
+	}
 
 	for tx := range lg.inp {
 		// is it worth sorting by key, timestamp etc?
@@ -162,14 +208,26 @@ func Run(st *State, lg *LogShard) {
 		isPrimary := true
 		if isPrimary {
 			if tx.Continue {
-				// we
+				// tx is acknowledged by peers, now we can ack to client
+				valToPeers(tx)
+				ackToClient(tx)
+				// publish to listeners
+
 			} else {
 				switch tx.Op {
 				case Awrite:
 					// client write to the object
-					// this will generate sync to all the listeners
+					// we can write to the object, but cannot acknowledge to client until peers have acked
 					// we need to create
+					ok := false
+					if !ok {
+						nackToClient(tx)
+					} else {
+						invalToPeers(tx)
+					}
+
 				case Aclient_ack:
+					// we can get away with only caching this in memory since there is little downside in extra sync messages
 					if tx.At > obj.Listener[tx.DeviceId] {
 						obj.Listener[tx.DeviceId] = tx.At
 					}
