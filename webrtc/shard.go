@@ -22,7 +22,7 @@ func (cl *Cluster) Run() {
 	len := 0
 	for {
 
-		// Read the incoming connection into the buffer.
+		// Read the incoming connection into the buffer. does this block?
 		reqLen, err := cl.recv.Read(buf)
 		if err != nil {
 			cl.epochChange()
@@ -39,10 +39,12 @@ func (cl *Cluster) Run() {
 // each machine in the group will send to the next machine in the ring
 
 type Header struct {
-	length  int32
-	logid   uint64
-	sender  PeerId
-	payload []byte
+	length int32
+	logid  uint64
+	sender PeerId
+	// increment the ack count for the sender when the message reaches its final target. we can remove the message and send in the header of the next one, or in a heartbeat if there is no available message. (latency though?)
+	ackCount []uint64
+	payload  []byte
 }
 
 // will put on ring, but will be extracted by the target
@@ -106,13 +108,15 @@ const (
 	AInval_ack // acks an invalidation, when we get all of them we can send Aval
 )
 
+// we can get this tx back after sending it to our peers.
 type Tx1 struct {
 	LogId
 	DeviceId
-	Op    int8
-	At    int64
-	Data  []byte
-	Locks []int64
+	Op       int8
+	At       int64
+	Data     []byte
+	Locks    []int64
+	Continue bool
 }
 
 // a hypervariable that maintains a buffer for each thread
@@ -132,8 +136,8 @@ func (io *Io) Validate(tx *Tx1) {
 }
 
 type LogShard struct {
-	inp   chan []Tx1
-	out   chan []Io
+	inp   chan Tx1
+	out   chan Io
 	obj   map[LogId]*LogState
 	pause map[LogId][]Tx1
 }
@@ -147,32 +151,36 @@ type State struct {
 
 func Run(st *State, lg *LogShard) {
 
-	for p := range lg.inp {
-		o := make([]Io, 0, 100)
-		for _, tx := range p {
-			// is it worth sorting by key, timestamp etc?
-			obj, ok := lg.obj[tx.LogId]
-			if !ok {
-				lg.pause[tx.LogId] = append(lg.pause[tx.LogId], tx)
+	for tx := range lg.inp {
+		// is it worth sorting by key, timestamp etc?
+		obj, ok := lg.obj[tx.LogId]
+		if !ok {
+			lg.pause[tx.LogId] = append(lg.pause[tx.LogId], tx)
 
-				continue
-			}
-			switch tx.Op {
-			case Awrite:
-				// client write to the object
-				// this will generate sync to all the listeners
-				// we need to create
-			case Aclient_ack:
-				if tx.At > obj.Listener[tx.DeviceId] {
-					obj.Listener[tx.DeviceId] = tx.At
-				}
-
-			case Aflush_ack:
-			}
-
+			continue
 		}
-		lg.out <- o
+		isPrimary := true
+		if isPrimary {
+			if tx.Continue {
+				// we
+			} else {
+				switch tx.Op {
+				case Awrite:
+					// client write to the object
+					// this will generate sync to all the listeners
+					// we need to create
+				case Aclient_ack:
+					if tx.At > obj.Listener[tx.DeviceId] {
+						obj.Listener[tx.DeviceId] = tx.At
+					}
+
+				case Aflush_ack:
+				}
+			}
+		}
+
 	}
+
 }
 
 type ClientState struct {
