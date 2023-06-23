@@ -17,16 +17,28 @@ import (
 )
 
 type LogId int64
+type DeviceId int64
+type UserId int64
 
 type Settings struct {
+	UserId
+	LogId 
+	Mute []int64
+	Device []DeviceId
 }
 type LogChange struct {
 	LogId  int64
 	Length int64
 }
 type Subscribe struct {
-	LogId  int64
-	Length int64
+	UserId 
+	LogId  
+	Length int64  // -1 to unsubscribe
+}
+type Online struct {
+	UserId
+	DeviceId
+	
 }
 
 // how hard is this to restore after losing a node?
@@ -37,7 +49,8 @@ type NotifyDb struct {
 	settings chan Settings
 	log      chan LogChange
 }
-type UserId int64
+func (n *NotifyDb) Run() {
+
 type User struct {
 	length map[LogId]int64
 	mute   map[LogId]bool
