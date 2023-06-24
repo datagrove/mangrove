@@ -1,14 +1,10 @@
 package main
 
 import (
-	"encoding/binary"
-
 	"github.com/datagrove/mangrove/push"
-	"github.com/fxamacker/cbor/v2"
-	"github.com/lesismal/nbio/nbhttp/websocket"
 )
 
-type LogId = int64
+type FileId = int64
 type PeerId = int64
 type ShardId = int64
 type DeviceId = int64
@@ -22,27 +18,39 @@ type State struct {
 
 	// pages are a shared resource or allocated per shard?
 }
+type Packet struct {
+	conn ClientConn
+	data []byte
+}
 type LogShard struct {
-	client    chan []byte // client messages are routed to a target LogId without parsing.
+	client    chan Packet // client messages are routed to a target LogId without parsing.
 	lowClient chan []byte // we may want to depriortize some logs
 	inp       chan []byte
-	sync      chan LogId
+	sync      chan FileId
 	out       chan Io
-	capped    map[LogId]bool
-	obj       map[LogId]*LogState
-	pause     map[LogId][]*TxPeer
+	capped    map[FileId]bool
+	obj       map[FileId]*FileState
+	pause     map[FileId][]*TxPeer
 
-	GroupCommit [][]byte
-	io          chan IoMsg
-
-	Client map[DeviceId]*websocket.Conn
+	GroupCommit    [][]byte
+	io             chan IoMsg
+	txid           int64
+	ClientByDevice map[DeviceId]*Client
+	ClientByConn   map[ClientConn]*Client
+	cluster        *ClusterShard
+}
+type Client struct {
+	challenge [16]byte
+	conn      ClientConn
+	handle    map[FileId]bool
+	state     int8
 }
 
 var _ Shard = (*LogShard)(nil)
 
 // ClientRecv implements Shard.
-func (sh *LogShard) ClientRecv(data []byte) {
-	sh.client <- data
+func (sh *LogShard) ClientRecv(conn ClientConn, data []byte) {
+	sh.client <- Packet{conn, data}
 }
 
 func (sh *LogShard) Recv(id PeerId, data []byte) {
@@ -62,8 +70,8 @@ type Header struct {
 }
 
 // another tail latency issue with pargo style servers is that we have constant gc pressure?
-type LogState struct {
-	LogId
+type FileState struct {
+	FileId
 	WriteKey    []byte // people with
 	ReadKey     []byte
 	DeviceOwner DeviceId // connect using webrtc.
@@ -109,40 +117,6 @@ const (
 
 // we can get this tx back after sending it to our peers.
 
-// client will send op +
-const (
-	TxOpen = iota
-	TxWrite
-)
-
-type TxClient struct {
-	Op     int8
-	Id     int64 // used in replies, acks etc. unique nonce
-	Params cbor.RawMessage
-}
-type TxOpen struct {
-	LogId1 int32
-	LogId2 int32
-	Mode   int8
-}
-type TxWrite struct {
-	Handle int64
-	Data   []byte
-	Author DeviceId   // reply to, saves latency? not necessary?
-	PushTo []DeviceId // @joe, @jane, @bob, doesn't need to be replicated.
-}
-type TxPeer struct {
-	Id int64 // used in replies, acks etc. unique nonce
-	LogId
-	StreamId int32 // maybe 24 bits
-	Op       int8
-	At       int64
-	Data     []byte
-	// locks are too expensive here, and in the common case are not needed.
-	//Locks    []int64
-	Continue bool
-}
-
 // the push is encrypted on client, we can't read it.
 // we still need to write this to the log, for backup.
 // type TxPush struct {
@@ -151,25 +125,6 @@ type TxPeer struct {
 // 	DeviceId  // 0 = everyone, too annoying?
 // 	Payload   []byte
 // }
-
-// a hypervariable that maintains a buffer for each thread
-const (
-	Opeer_send = iota
-	Oclient_send
-	Oflush_req
-	Oread_log
-)
-
-type Io struct {
-}
-
-// each log shard manages it's own group commit
-// each group commit must force certain pages to flush so that we don't write them twice
-// record locks are expensive; they require io. Is it too expensive? should we force webrtc?
-// we can cache, but if its not in memory that doesn't tell us anything.
-
-type IoMsg struct {
-}
 
 func NewState(home string, shards int) (*State, error) {
 	// send to anyone online
@@ -196,95 +151,13 @@ func NewState(home string, shards int) (*State, error) {
 	return r, nil
 }
 
-// header can be 8 bytes, 4 for length, 2 for cpu, 2 for epoch
-// zeus uses timestamp to decide races. here there are no races, other than potentially epoch.
-// converting to
-type Invalid struct {
-	TxId  int64 // used to ack
-	LogId int64
-	At    int64
-	Data  []byte
+func (lg *LogShard) Connect(cl *ClusterShard) {
+	lg.cluster = cl
 }
-type Valid struct {
-	TxId  int64
-	LogId int64
-	At    int64
-}
-
 func NewShard(st *State, id int) (*LogShard, error) {
-
 	lg := LogShard{}
 
-	fromPeer := func(data []byte) {
-		var tx TxPeer
-		cbor.Unmarshal(data, &tx)
-		// sending invalidate to peers could simply be the same packet
-		ackToClient := func(tx *TxPeer) {
-		}
-		nackToClient := func(tx *TxPeer) {
-		}
-
-		// invalidate both gives the peer the data and tells them not to use it. We'll follup with a validate
-		invalToPeers := func(tx *TxPeer) {
-			i := Invalid{
-				TxId:  tx.Id,
-				LogId: tx.LogId,
-				At:    tx.At,
-				Data:  tx.Data,
-			}
-			data, _ := cbor.Marshal(i)
-			st.Broadcast(data)
-		}
-		valToPeers := func(tx *TxPeer) {
-			// not enough information here?
-
-		}
-		ioLoad := func(tx *TxPeer) {
-			lg.pause[tx.LogId] = append(lg.pause[tx.LogId], tx)
-		}
-
-		obj, ok := lg.obj[tx.LogId]
-		_ = obj
-		if !ok {
-			ioLoad(&tx)
-			return
-		}
-		isPrimary := true
-		if isPrimary {
-			if tx.Continue {
-				// tx is acknowledged by peers, now we can ack to client
-				valToPeers(&tx)
-				ackToClient(&tx)
-				// publish to listeners
-
-			} else {
-				switch tx.Op {
-				case Awrite:
-					// client write to the object
-					// we can write to the object, but cannot acknowledge to client until peers have acked
-					// we need to create
-					ok := false
-					if !ok {
-						nackToClient(&tx)
-					} else {
-						invalToPeers(&tx)
-					}
-
-				case Aflush_ack:
-				}
-			}
-		}
-
-	}
-
-	txid := int64(0)
-	fromClient := func(data []byte) {
-		var tx TxClient
-		cbor.Unmarshal(data, &tx)
-
-		// pick a unique tx id.
-
-	}
+	// will need some database opening and recovery here
 
 	go func() {
 		for {
@@ -292,9 +165,9 @@ func NewShard(st *State, id int) (*LogShard, error) {
 			// case <-st.ctx.Done():
 			// 	return
 			case tx := <-lg.client:
-				fromClient(tx)
+				lg.fromWs(tx.conn, tx.data)
 			case tx := <-lg.inp:
-				fromPeer(tx)
+				lg.fromPeer(tx)
 			}
 		}
 	}()
@@ -302,12 +175,4 @@ func NewShard(st *State, id int) (*LogShard, error) {
 }
 
 type ClientState struct {
-}
-
-// each transaction should begin with 8 byte LogId, so we don't need to parse it multiple times.
-func (g *State) ProcessClient(cs *ClientState, data []byte) {
-	if len(data) >= 8 {
-		logid := binary.LittleEndian.Uint64(data[:8])
-		g.SendToPrimary(LogId(logid), data)
-	}
 }

@@ -1,0 +1,85 @@
+package main
+
+import (
+	"crypto/rand"
+
+	"github.com/fxamacker/cbor/v2"
+)
+
+// the websock proxy is going to suck a lot of energy.
+//
+
+// client will send op +
+const (
+	OpOpen = iota
+	OpWrite
+)
+
+type TxClient struct {
+	Op     int8
+	Id     int64 // used in replies, acks etc. unique nonce
+	Params cbor.RawMessage
+}
+type TxOpen struct {
+	LogId1 int32
+	LogId2 int32
+	Mode   int8
+}
+type TxWrite struct {
+	Handle int64
+	Data   []byte
+	Author DeviceId   // reply to, saves latency? not necessary?
+	PushTo []DeviceId // @joe, @jane, @bob, doesn't need to be replicated.
+}
+type TxPeer struct {
+	Id int64 // used in replies, acks etc. unique nonce
+	FileId
+	StreamId int32 // maybe 24 bits
+	Op       int8
+	At       int64
+	Data     []byte
+	// locks are too expensive here, and in the common case are not needed.
+	//Locks    []int64
+	Continue bool
+}
+
+func (lg *LogShard) ClientConnect(conn ClientConn) {
+	cx := &Client{
+		conn:   conn,
+		handle: map[int64]bool{},
+	}
+
+	_, err := rand.Read(cx.challenge[:])
+	if err != nil {
+		panic(err)
+	}
+	conn.Send(cx.challenge[:])
+	lg.ClientByConn[conn] = cx
+}
+
+func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
+	c, ok := lg.ClientByConn[conn]
+	if !ok {
+		conn.Close()
+		return
+	}
+	if c.state == 0 {
+		// data must be an answer to the challenge
+
+	}
+	var tx TxClient
+	cbor.Unmarshal(data, &tx)
+
+	// pick a unique tx id.
+	tx.Id = lg.txid
+	lg.txid++
+
+	switch tx.Op {
+	case OpOpen:
+		var open TxOpen
+		cbor.Unmarshal(tx.Params, &open)
+	case OpWrite:
+		var write TxWrite
+		cbor.Unmarshal(tx.Params, &write)
+	}
+}

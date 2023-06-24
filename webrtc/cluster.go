@@ -2,36 +2,81 @@ package main
 
 import (
 	"bufio"
-	"context"
+	"crypto/rand"
 	"encoding/binary"
-	"flag"
 	"fmt"
 	"net"
-	"net/http"
-	"os"
-	"os/signal"
-	"time"
+	"strconv"
+	"sync"
 
 	"github.com/cornelk/hashmap"
-	"github.com/lesismal/nbio/nbhttp"
 	"github.com/lesismal/nbio/nbhttp/websocket"
 )
 
-type ClusterConfig struct {
-	Me    int
-	Peer  []string
-	Shard []Shard
+// each shard will only talk to the same shard on its peers.
+// messages that need to cross shards will done on the source system
 
-	Ws           string // base address
-	WsStart      int
-	PortPerShard int
-	hashmap.Map[DeviceId, *websocket.Conn]
+type ClientConn interface {
+	Send(data []byte)
+	Close()
 }
 
-func (cl *Cluster) ClientSend(id DeviceId, data []byte) {
+type ClusterConfig struct {
+	Me           int
+	Peer         []string // ip address, different port for each shard.
+	ShardStart   int      //
+	Ws           string   // base address with %d for ports we use.
+	WsStart      int
+	PortPerShard int
+	Shard        []Shard
+}
+
+func (cfg *ClusterConfig) NumShards() int {
+	return len(cfg.Shard)
+}
+
+// Use the high bits to divide files by peer and by shard
+// we can use 8 bits for each. (256 shards should be plenty, we can use multiple cores per shard, and will block on the number of parallel streams to disk)
+// even 4 bits would be enough for peers, unlikely this would grow beyond 16.
+
+// this allows files with prefixes to be sorted together
+// [database:32][:device] 32 bits for database, 32 bits for device
+
+// the lower bits of the logid pick a shard.
+// so if there are 30 shards among 3 peers
+// then the first 10 shards are on the first peer
+// the next 10 are on the second peer, etc.
+func (cl *Cluster) log2Shard(logid FileId) int {
+	return int(logid>>48) & 255
+}
+func (cl *Cluster) id2Peer(logid FileId) int {
+	return int(logid >> 56)
+}
+
+// each shard should allow its own ip address
+// how do we communicate to the client w
+type Cluster struct {
+	// send  net.Conn
+	// recv  net.Conn
+	*ClusterConfig
+	// tcp is two-way, so we only need to connect i<j
+	// the listener will take one byte to identify the caller.
+	shard []*ClusterShard
+}
+
+// maintains a connection to the same shard in every other peer
+type ClusterShard struct {
+	thisShard int
+	*Cluster
+	hashmap.Map[DeviceId, *websocket.Conn]
+	peer []net.Conn
+}
+
+// if the device id is on another shard, we need to switch this message to that shard
+// this is done mostly for low priority/low volume messages like websock signaling
+func (cl *ClusterShard) ClientSend(id DeviceId, data []byte) {
 	// to send to another client we first need to send to the client's host computer
 	// we need to put the DeviceId in the header so that we can route it to the correct shard.
-
 	peerid := cl.id2Peer(id)
 	if peerid == cl.Me {
 		o, ok := cl.Get(id)
@@ -47,98 +92,7 @@ func (cl *Cluster) ClientSend(id DeviceId, data []byte) {
 	}
 }
 
-// each shard should allow its own ip address
-// how do we communicate to the client w
-type Cluster struct {
-	// send  net.Conn
-	// recv  net.Conn
-	*ClusterConfig
-	// tcp is two-way, so we only need to connect i<j
-	// the listener will take one byte to identify the caller.
-	peer []net.Conn
-}
-
-var (
-	onDataFrame      = flag.Bool("UseOnDataFrame", false, "Server will use OnDataFrame api instead of OnMessage")
-	errBeforeUpgrade = flag.Bool("error-before-upgrade", false, "return an error on upgrade with body")
-)
-
-func newUpgrader() *websocket.Upgrader {
-	u := websocket.NewUpgrader()
-	if *onDataFrame {
-		u.OnDataFrame(func(c *websocket.Conn, messageType websocket.MessageType, fin bool, data []byte) {
-			// echo
-			c.WriteFrame(messageType, true, fin, data)
-		})
-	} else {
-		u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
-			// echo
-			c.WriteMessage(messageType, data)
-		})
-	}
-
-	u.OnClose(func(c *websocket.Conn, err error) {
-		fmt.Println("OnClose:", c.RemoteAddr().String(), err)
-	})
-	return u
-}
-
-func StartWs(address []string, fn func(u websocket.Upgrader)) {
-
-	onWebsocket := func(w http.ResponseWriter, r *http.Request) {
-		if *errBeforeUpgrade {
-			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte("returning an error"))
-			return
-		}
-		// time.Sleep(time.Second * 5)
-		upgrader := newUpgrader()
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			panic(err)
-		}
-		conn.SetReadDeadline(time.Time{})
-
-	}
-
-	flag.Parse()
-	mux := &http.ServeMux{}
-	mux.HandleFunc("/ws", onWebsocket)
-
-	svr := nbhttp.NewServer(nbhttp.Config{
-		Network: "tcp",
-		Addrs:   address,
-		Handler: mux,
-	})
-
-	err := svr.Start()
-	if err != nil {
-		fmt.Printf("nbio.Start failed: %v\n", err)
-		return
-	}
-
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt)
-	<-interrupt
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	svr.Shutdown(ctx)
-}
-
-func (cl *Cluster) SendClient()
-
-// the lower bits of the logid pick a shard.
-// so if there are 30 shards among 3 peers
-// then the first 10 shards are on the first peer
-// the next 10 are on the second peer, etc.
-func (cl *Cluster) log2Shard(logid LogId) int {
-	return int(logid) % len(cl.Shard)
-}
-func (cl *Cluster) id2Peer(logid LogId) int {
-	return int(logid) / len(cl.Shard)
-}
-
-func (cl *Cluster) Broadcast(data []byte) {
+func (cl *ClusterShard) Broadcast(data []byte) {
 	for i := 0; i < len(cl.peer); i++ {
 		if i == cl.Me {
 			continue
@@ -146,13 +100,13 @@ func (cl *Cluster) Broadcast(data []byte) {
 		cl.peer[i].Write(data)
 	}
 }
-func (cl *Cluster) Send(p PeerId, data []byte) {
+func (cl *ClusterShard) Send(p PeerId, data []byte) {
 	cl.peer[p].Write(data)
 }
 
 // this can also be used to send to a device or file shard.
 // devices connect to the shard that contains their profile database.
-func (cl *Cluster) SendToPrimary(id int64, data []byte) {
+func (cl *ClusterShard) SendToPrimary(id int64, data []byte) {
 	// could be me
 	p64 := id % int64(len(cl.Shard)*len(cl.peer))
 	p := int(p64 / int64(len(cl.Shard)))
@@ -165,8 +119,38 @@ func (cl *Cluster) SendToPrimary(id int64, data []byte) {
 
 // there is a tcp connection between the same shard on each machine
 func NewCluster(cfg *ClusterConfig) (*Cluster, error) {
+
+	r := &Cluster{
+		ClusterConfig: cfg,
+	}
+
+	// build the shards
+	r.shard = make([]*ClusterShard, cfg.NumShards())
+	var wg sync.WaitGroup
+	wg.Add(cfg.NumShards())
+	for i := 0; i < cfg.NumShards(); i++ {
+		go func(i int) {
+			sh, e := NewClusterShard(r, i)
+			if e != nil {
+				panic(e)
+			}
+			r.shard = append(r.shard, sh)
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	return r, nil
+}
+
+func NewClusterShard(cfg *Cluster, shard int) (*ClusterShard, error) {
+	r := &ClusterShard{
+		Cluster:   cfg,
+		thisShard: shard,
+	}
+
 	pcn := make([]net.Conn, len(cfg.Peer))
-	listener, err := net.Listen("tcp", cfg.Peer[cfg.Me])
+	port := strconv.Itoa(cfg.ShardStart + shard)
+	listener, err := net.Listen("tcp", cfg.Peer[cfg.Me]+":"+port)
 	if err != nil {
 		panic(err)
 	}
@@ -181,18 +165,13 @@ func NewCluster(cfg *ClusterConfig) (*Cluster, error) {
 		pcn[i] = conn
 		conn.Write(id)
 	}
-	r := &Cluster{
-		peer:          pcn,
-		ClusterConfig: cfg,
-	}
+
 	recv := func(data []byte) {
 		logid := binary.LittleEndian.Uint64(data[4:12])
-		shard := r.log2Shard(LogId(logid))
-		r.Shard[shard].Recv(LogId(logid), data[12:])
+		shard := r.log2Shard(FileId(logid))
+		r.Shard[shard].Recv(FileId(logid), data[12:])
 	}
-	clientrecv := func(i int, data []byte) {
-		r.Shard[i].ClientRecv(data)
-	}
+
 	// Accept incoming connections and handle them in separate goroutines
 	go func() {
 		for {
@@ -229,8 +208,8 @@ func NewCluster(cfg *ClusterConfig) (*Cluster, error) {
 	}()
 
 	// maybe not all these will open? can we just skip some? makes it hard on the clients.
-	wsport := cfg.WsStart + cfg.Me*cfg.PortPerShard*len(cfg.Shard)
-	for i := 0; i < len(cfg.Shard); i++ {
+	wsport := cfg.WsStart + cfg.Me*cfg.PortPerShard*cfg.NumShards()
+	for i := 0; i < cfg.NumShards(); i++ {
 		addr := make([]string, cfg.PortPerShard)
 		for k := 0; k < cfg.PortPerShard; k++ {
 			addr[k] = fmt.Sprintf("%s:%d", cfg.Ws, wsport)
@@ -238,8 +217,21 @@ func NewCluster(cfg *ClusterConfig) (*Cluster, error) {
 		}
 
 		StartWs(addr, func(u websocket.Upgrader) {
+			u.OnOpen(func(c *websocket.Conn) {
+				randomBytes := [16]byte{}
+				_, err := rand.Read(randomBytes[:])
+				if err != nil {
+					panic(err)
+				}
+				cx := &WebsocketConn{
+					conn: c,
+				}
+				c.SetSession(cx)
+
+			})
+
 			u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
-				clientrecv(i, data)
+				r.Shard[i].ClientRecv(c.Session().(ClientConn), data)
 			})
 		})
 	}
@@ -249,8 +241,10 @@ func NewCluster(cfg *ClusterConfig) (*Cluster, error) {
 }
 
 type Shard interface {
+	Connect(cl *ClusterShard)
 	Recv(PeerId, []byte)
-	ClientRecv([]byte)
+	ClientConnect(ClientConn)
+	ClientRecv(ClientConn, []byte)
 }
 
 // a membership change starts when a peer fails.

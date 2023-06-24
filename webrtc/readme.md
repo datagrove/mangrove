@@ -1,5 +1,9 @@
 
 
+Send messages as 
+headerlength: 16
+payload: 32
+shard: 16
 
 Group commit, btree, checkpoints, aries
 
