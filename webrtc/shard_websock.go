@@ -103,6 +103,9 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 		}
 		c.state = 1
 		c.did = []byte(login.Did)
+
+		// notify the push engine that the device is online
+
 		return
 	}
 	var tx TxClient
@@ -137,7 +140,7 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 		if !ok {
 			// defer to the io thread
 			lg.io <- func() {
-				lg.db.Exec()
+
 				lg.fromWs(conn, data)
 				return
 			}

@@ -1,8 +1,9 @@
 package main
 
 import (
+	"strconv"
+
 	"github.com/datagrove/mangrove/push"
-	"github.com/datagrove/mangrove/sqlite/dglite"
 )
 
 type FileId = int64
@@ -11,6 +12,7 @@ type ShardId = int64
 type DeviceId = int64
 
 type State struct {
+	home string
 	Cluster
 	push *push.NotifyDb
 
@@ -45,6 +47,8 @@ type LogShard struct {
 	ClientByDevice map[DeviceId]*Client
 	ClientByConn   map[ClientConn]*Client
 	cluster        *ClusterShard
+
+	db *LogDb
 }
 
 var _ Shard = (*LogShard)(nil)
@@ -138,6 +142,7 @@ func NewState(home string, shards int) (*State, error) {
 		return nil, err
 	}
 	r := &State{
+		home:    home,
 		Cluster: Cluster{},
 		push:    db,
 		shard:   make([]*LogShard, shards),
@@ -157,7 +162,14 @@ func (lg *LogShard) Connect(cl *ClusterShard) {
 	lg.cluster = cl
 }
 func NewShard(st *State, id int) (*LogShard, error) {
-	lg := LogShard{}
+	p := st.home + "." + strconv.Itoa(id)
+	db, err := NewLogDb(p)
+	if err != nil {
+		return nil, err
+	}
+	lg := LogShard{
+		db: db,
+	}
 
 	// will need some database opening and recovery here
 
@@ -177,9 +189,4 @@ func NewShard(st *State, id int) (*LogShard, error) {
 }
 
 type ClientState struct {
-}
-
-func GetFile(lg *LogState, id FileId) *FileState {
-	dglite.Queries.
-	return lg.obj[id]
 }

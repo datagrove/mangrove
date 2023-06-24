@@ -1,4 +1,8 @@
 
+works as an incremental join between online users and recently changed files
+managed by the shard for the file
+
+
 
 background fetch is different from push.
 
