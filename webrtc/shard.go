@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/datagrove/mangrove/push"
+	"github.com/datagrove/mangrove/sqlite/dglite"
 )
 
 type FileId = int64
@@ -28,22 +29,22 @@ type LogShard struct {
 	inp       chan []byte
 	sync      chan FileId
 	out       chan Io
-	capped    map[FileId]bool
-	obj       map[FileId]*FileState
-	pause     map[FileId][]*TxPeer
+
+	// maybe it's users we should cap
+	// do we need to identify the user or just the device?
+	// generally our ucan will be dba -> user -> device
+	// should we capture that user did?
+	capped map[FileId]bool
+
+	obj   map[FileId]*FileState
+	pause map[FileId][]*TxPeer
 
 	GroupCommit    [][]byte
-	io             chan IoMsg
+	io             chan func()
 	txid           int64
 	ClientByDevice map[DeviceId]*Client
 	ClientByConn   map[ClientConn]*Client
 	cluster        *ClusterShard
-}
-type Client struct {
-	challenge [16]byte
-	conn      ClientConn
-	handle    map[FileId]bool
-	state     int8
 }
 
 var _ Shard = (*LogShard)(nil)
@@ -72,11 +73,12 @@ type Header struct {
 // another tail latency issue with pargo style servers is that we have constant gc pressure?
 type FileState struct {
 	FileId
-	WriteKey    []byte // people with
-	ReadKey     []byte
-	DeviceOwner DeviceId // connect using webrtc.
-	Length      int64
-	Newest      uint32 // when it fills, assign next, increment unflushed
+	PublicRights int
+	WriteKey     []byte // people with
+	ReadKey      []byte
+	DeviceOwner  DeviceId // connect using webrtc.
+	Length       int64
+	Newest       uint32 // when it fills, assign next, increment unflushed
 	// when we want to claim pages we start with the oldest
 	Oldest          uint32
 	At              uint32
@@ -175,4 +177,9 @@ func NewShard(st *State, id int) (*LogShard, error) {
 }
 
 type ClientState struct {
+}
+
+func GetFile(lg *LogState, id FileId) *FileState {
+	dglite.Queries.
+	return lg.obj[id]
 }

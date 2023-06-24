@@ -32,9 +32,6 @@ type Io struct {
 // record locks are expensive; they require io. Is it too expensive? should we force webrtc?
 // we can cache, but if its not in memory that doesn't tell us anything.
 
-type IoMsg struct {
-}
-
 func (lg *LogShard) fromPeer(data []byte) {
 	var tx TxPeer
 	cbor.Unmarshal(data, &tx)
