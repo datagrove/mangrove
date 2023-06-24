@@ -24,6 +24,8 @@ How to sync though? All updates should be in a peer wal. The only thing we need 
 To incorporate websocket signaling we have a "signal" command { to: DeviceId }
 
 
+3 way merge + log ordering
+3 way merge is not convergent, but is when done in strict order.
 
 
 

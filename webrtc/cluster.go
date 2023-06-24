@@ -12,40 +12,9 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/cornelk/hashmap"
 	"github.com/lesismal/nbio/nbhttp"
 	"github.com/lesismal/nbio/nbhttp/websocket"
 )
-
-type ClusterConfig struct {
-	Me    int
-	Peer  []string
-	Shard []Shard
-
-	Ws           string // base address
-	WsStart      int
-	PortPerShard int
-	hashmap.Map[DeviceId, *websocket.Conn]
-}
-
-func (cl *Cluster) ClientSend(id DeviceId, data []byte) {
-	// to send to another client we first need to send to the client's host computer
-	// we need to put the DeviceId in the header so that we can route it to the correct shard.
-
-	peerid := cl.id2Peer(id)
-	if peerid == cl.Me {
-		o, ok := cl.Get(id)
-		if ok {
-			o.WriteMessage(websocket.BinaryMessage, data)
-		}
-	} else {
-		var header = make([]byte, 12)
-		binary.LittleEndian.PutUint32(header[0:4], uint32(len(data)+12))
-		binary.LittleEndian.PutUint64(header[4:12], uint64(id))
-		cl.peer[peerid].Write(header)
-		cl.peer[peerid].Write(data)
-	}
-}
 
 // each shard should allow its own ip address
 // how do we communicate to the client w
@@ -253,6 +222,8 @@ type Shard interface {
 	ClientRecv([]byte)
 }
 
+// a membership change starts when a peer fails.
+// eventually we could support something like jump hashing to allow running when down a peer, but strategy for now s to spin up a replacement
 func (cl *Cluster) epochChange() {
 	panic("implement me")
 }

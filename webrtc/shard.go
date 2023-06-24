@@ -109,23 +109,35 @@ const (
 
 // we can get this tx back after sending it to our peers.
 
-type TxBase struct {
+// client will send op +
+const (
+	TxOpen = iota
+	TxWrite
+)
+
+type TxClient struct {
+	Op     int8
+	Id     int64 // used in replies, acks etc. unique nonce
+	Params cbor.RawMessage
+}
+type TxOpen struct {
+	LogId1 int32
+	LogId2 int32
+	Mode   int8
+}
+type TxWrite struct {
+	Handle int64
+	Data   []byte
+	Author DeviceId   // reply to, saves latency? not necessary?
+	PushTo []DeviceId // @joe, @jane, @bob, doesn't need to be replicated.
+}
+type TxPeer struct {
 	Id int64 // used in replies, acks etc. unique nonce
 	LogId
 	StreamId int32 // maybe 24 bits
 	Op       int8
 	At       int64
 	Data     []byte
-}
-
-type TxClient struct {
-	TxBase
-	Handle int64
-	Author DeviceId   // reply to, saves latency? not necessary?
-	PushTo []DeviceId // @joe, @jane, @bob, doesn't need to be replicated.
-}
-type TxPeer struct {
-	TxBase
 	// locks are too expensive here, and in the common case are not needed.
 	//Locks    []int64
 	Continue bool
@@ -184,6 +196,21 @@ func NewState(home string, shards int) (*State, error) {
 	return r, nil
 }
 
+// header can be 8 bytes, 4 for length, 2 for cpu, 2 for epoch
+// zeus uses timestamp to decide races. here there are no races, other than potentially epoch.
+// converting to
+type Invalid struct {
+	TxId  int64 // used to ack
+	LogId int64
+	At    int64
+	Data  []byte
+}
+type Valid struct {
+	TxId  int64
+	LogId int64
+	At    int64
+}
+
 func NewShard(st *State, id int) (*LogShard, error) {
 
 	lg := LogShard{}
@@ -199,6 +226,13 @@ func NewShard(st *State, id int) (*LogShard, error) {
 
 		// invalidate both gives the peer the data and tells them not to use it. We'll follup with a validate
 		invalToPeers := func(tx *TxPeer) {
+			i := Invalid{
+				TxId:  tx.Id,
+				LogId: tx.LogId,
+				At:    tx.At,
+				Data:  tx.Data,
+			}
+			data, _ := cbor.Marshal(i)
 			st.Broadcast(data)
 		}
 		valToPeers := func(tx *TxPeer) {
@@ -243,9 +277,12 @@ func NewShard(st *State, id int) (*LogShard, error) {
 
 	}
 
+	txid := int64(0)
 	fromClient := func(data []byte) {
 		var tx TxClient
 		cbor.Unmarshal(data, &tx)
+
+		// pick a unique tx id.
 
 	}
 
