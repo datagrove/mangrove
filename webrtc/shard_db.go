@@ -28,6 +28,6 @@ func install() error {
 	}
 	q := dglite.New(db)
 
-	q.GetFile(ctx, 1)
+	a, b := q.GetFile(ctx, 1)
 
 }

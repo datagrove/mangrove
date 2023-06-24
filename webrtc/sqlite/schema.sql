@@ -1,5 +1,3 @@
-
-
 create table file (
     id INTEGER PRIMARY KEY,
     type text, 

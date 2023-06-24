@@ -1,9 +1,7 @@
--- file: GetDb :one
-select * from file where id=?
 
--- block: GetBlock :many
--- inclusive range
+
+-- name: Block :many
 select * from block where id between ? and ?
 
-
-
+-- name: Db :one
+select * from file where id=?
