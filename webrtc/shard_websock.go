@@ -21,6 +21,7 @@ type Client struct {
 const (
 	OpOpen = iota
 	OpWrite
+	OpRead
 )
 
 type TxClient struct {
@@ -29,11 +30,19 @@ type TxClient struct {
 	Params cbor.RawMessage
 }
 
+// this is a kind of invalidation message, the file is then validated.
+type RtxCreate struct {
+	Txid int64
+	FileId
+}
+
 // log id's are 32 bit database id + 32 bit serial number
 // all of these share the same security, so we only need to open once.
 type TxOpen struct {
-	Id   FileId
+	FileId
 	Ucan string
+	// create a file in one step
+	Params cbor.RawMessage
 }
 type TxWrite struct {
 	Handle int64
@@ -79,8 +88,72 @@ type Login struct {
 	Signature []byte
 }
 
-func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
+func (lg *LogShard) reply(d DeviceId, id int64, result any) {
+	c, ok := lg.ClientByDevice[d]
+	if !ok {
+		return
+	}
+	type Reply struct {
+		Id     int64
+		Result any
+	}
+	b, _ := cbor.Marshal(&Reply{id, result})
+	c.conn.Send(b)
+}
 
+func (lg *LogShard) fail(d DeviceId, id int64, err string) {
+	c, ok := lg.ClientByDevice[d]
+	if !ok {
+		return
+	}
+	type Fail struct {
+		Id  int64
+		Err string
+	}
+	b, _ := cbor.Marshal(&Fail{id, err})
+	c.conn.Send(b)
+}
+
+func asByte[T any](struct_value T) []byte {
+	const sz = int(unsafe.SizeOf(Struct{}))
+	var asByteSlice []byte = (*(*[sz]byte)(unsafe.Pointer(&struct_value)))[:]
+	return asByteSlice
+}
+
+// run read in their own thread since they may block on io.
+func (lg *LogShard) RunRead() {
+	for tx := range lg.read {
+		// look up the database
+		a, ok := lg.obj[open.Id]
+		if !ok {
+			// defer to the io thread
+			lg.io <- func() {
+
+				lg.fromWs(conn, data)
+				return
+			}
+			return
+		}
+		if a.PublicRights != 0 {
+			payload, e := ucan.DecodeUcan(open.Ucan)
+			if e != nil {
+				fail(e.Error())
+			}
+			// the ucan must be valid to open this file in this mode
+			// the file may be an cache or not
+			if len(payload.Grant) != 1 {
+				fail("invalid ucan")
+			}
+			// payload.Grant[0].With
+			// payload.Grant[0].Can
+			// ok for now
+		}
+		handle := 1
+		reply(handle)
+	}
+}
+
+func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 	c, ok := lg.ClientByConn[conn]
 	if !ok {
 		conn.Close()
@@ -115,57 +188,18 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 	tx.Id = lg.txid
 	lg.txid++
 
-	reply := func(result any) {
-		type Reply struct {
-			Id     int64
-			Result any
-		}
-		b, _ := cbor.Marshal(&Reply{tx.Id, result})
-		conn.Send(b)
-	}
-	fail := func(err string) {
-		type Fail struct {
-			Id  int64
-			Err string
-		}
-		b, _ := cbor.Marshal(&Fail{tx.Id, err})
-		conn.Send(b)
-	}
 	switch tx.Op {
-	case OpOpen:
-		var open TxOpen
-		cbor.Unmarshal(tx.Params, &open)
-		// look up the database
-		a, ok := lg.obj[open.Id]
-		if !ok {
-			// defer to the io thread
-			lg.io <- func() {
-
-				lg.fromWs(conn, data)
-				return
-			}
-			return
-		}
-		if a.PublicRights != 0 {
-			payload, e := ucan.DecodeUcan(open.Ucan)
-			if e != nil {
-				fail(e.Error())
-			}
-			// the ucan must be valid to open this file in this mode
-			// the file may be an cache or not
-			if len(payload.Grant) != 1 {
-				fail("invalid ucan")
-			}
-			// payload.Grant[0].With
-			// payload.Grant[0].Can
-			// ok for now
-		}
-		handle := 1
-		reply(handle)
+	case OpOpen, OpRead:
+		lg.read <- tx
 
 	case OpWrite:
 		var write TxWrite
 		cbor.Unmarshal(tx.Params, &write)
+		if !c.handle[write.Handle] { return }
+		// don't write to the database yet, since we don't know the position.
+		shard := 
+		lg.cluster.SendTo(
+		// we can read on any shard since they all have the same data
 	}
 }
 

@@ -47,6 +47,8 @@ type LogShard struct {
 	ClientByDevice map[DeviceId]*Client
 	ClientByConn   map[ClientConn]*Client
 	cluster        *ClusterShard
+	// for now rely on sqlite's cache.
+	read chan TxClient
 
 	db *LogDb
 	WatchJoin
