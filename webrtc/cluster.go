@@ -31,8 +31,14 @@ type ClusterConfig struct {
 	Shard        []Shard
 }
 
-func (cfg *ClusterConfig) NumShards() int {
+func (cfg *ClusterConfig) ShardsPerPeer() int {
 	return len(cfg.Shard)
+}
+func (cfg *ClusterConfig) NumPeers() int {
+	return len(cfg.Peer)
+}
+func (cfg *ClusterConfig) NumShards() int {
+	return len(cfg.Shard) * len(cfg.Peer)
 }
 
 // Use the high bits to divide files by peer and by shard
@@ -70,6 +76,10 @@ type ClusterShard struct {
 	*Cluster
 	hashmap.Map[DeviceId, *websocket.Conn]
 	peer []net.Conn
+}
+
+func (cl *ClusterShard) GlobalShard() int {
+	return cl.thisShard + cl.Me*cl.NumPeers()
 }
 
 // if the device id is on another shard, we need to switch this message to that shard
@@ -125,10 +135,10 @@ func NewCluster(cfg *ClusterConfig) (*Cluster, error) {
 	}
 
 	// build the shards
-	r.shard = make([]*ClusterShard, cfg.NumShards())
+	r.shard = make([]*ClusterShard, cfg.ShardsPerPeer())
 	var wg sync.WaitGroup
-	wg.Add(cfg.NumShards())
-	for i := 0; i < cfg.NumShards(); i++ {
+	wg.Add(cfg.ShardsPerPeer())
+	for i := 0; i < cfg.ShardsPerPeer(); i++ {
 		go func(i int) {
 			sh, e := NewClusterShard(r, i)
 			if e != nil {
@@ -208,8 +218,8 @@ func NewClusterShard(cfg *Cluster, shard int) (*ClusterShard, error) {
 	}()
 
 	// maybe not all these will open? can we just skip some? makes it hard on the clients.
-	wsport := cfg.WsStart + cfg.Me*cfg.PortPerShard*cfg.NumShards()
-	for i := 0; i < cfg.NumShards(); i++ {
+	wsport := cfg.WsStart + cfg.Me*cfg.PortPerShard*cfg.ShardsPerPeer()
+	for i := 0; i < cfg.ShardsPerPeer(); i++ {
 		addr := make([]string, cfg.PortPerShard)
 		for k := 0; k < cfg.PortPerShard; k++ {
 			addr[k] = fmt.Sprintf("%s:%d", cfg.Ws, wsport)

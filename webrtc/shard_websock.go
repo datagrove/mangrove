@@ -2,7 +2,9 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 
+	"github.com/datagrove/mangrove/ucan"
 	"github.com/fxamacker/cbor/v2"
 )
 
@@ -57,6 +59,11 @@ func (lg *LogShard) ClientConnect(conn ClientConn) {
 	lg.ClientByConn[conn] = cx
 }
 
+type Login struct {
+	Did       string
+	Signature []byte
+}
+
 func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 	c, ok := lg.ClientByConn[conn]
 	if !ok {
@@ -64,8 +71,22 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 		return
 	}
 	if c.state == 0 {
-		// data must be an answer to the challenge
-
+		var login Login
+		cbor.Unmarshal(data, &login)
+		hsha2 := sha256.Sum256([]byte(login.Did))
+		// data must be an answer to the challenge. The Did must be valid for this shard
+		x := int(hsha2[0]) % lg.cluster.NumShards()
+		if x != lg.cluster.GlobalShard() {
+			conn.Close()
+			return
+		}
+		ok := ucan.VerifyDid(c.challenge[:], login.Did, login.Signature)
+		if !ok {
+			conn.Close()
+			return
+		}
+		c.state = 1
+		return
 	}
 	var tx TxClient
 	cbor.Unmarshal(data, &tx)

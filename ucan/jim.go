@@ -108,3 +108,11 @@ func DecodeDid(keystr string) (ed25519.PublicKey, error) {
 	}
 	return ed25519.PublicKey(data[n:]), nil
 }
+
+func VerifyDid(h []byte, did string, signature []byte) bool {
+	x, e := DecodeDid(did)
+	if e != nil {
+		return false
+	}
+	return ed25519.Verify(x, h, signature)
+}
