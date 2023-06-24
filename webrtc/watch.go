@@ -1,16 +1,16 @@
-package push
+package main
 
 // watch triggers need to travel back to their device shard
 type WatchJoin struct {
-	recent map[LogId]map[DeviceId]bool
+	recent map[FileId]map[DeviceId]bool
 	online map[DeviceId]bool
 
-	mtime map[LogId]int64
+	mtime map[FileId]int64
 
 	oldest int64
 }
 
-func (w *WatchJoin) Online(u DeviceId, sub []LogId, b bool) {
+func (w *WatchJoin) Online(u DeviceId, sub []FileId, b bool) {
 	for _, l := range sub {
 		if b {
 			w.recent[l][u] = true
@@ -22,12 +22,12 @@ func (w *WatchJoin) Online(u DeviceId, sub []LogId, b bool) {
 }
 
 // background update
-func (w *WatchJoin) UpdatedSince(u DeviceId, sub []LogId, read int64) []LogId {
+func (w *WatchJoin) UpdatedSince(u DeviceId, sub []FileId, read int64) []FileId {
 	if read < w.oldest {
 		return sub
 	}
 	w.online[u] = true
-	r := make([]LogId, 0)
+	r := make([]FileId, 0)
 	for _, l := range sub {
 		if w.mtime[l] > read {
 			r = append(r, l)
@@ -36,7 +36,7 @@ func (w *WatchJoin) UpdatedSince(u DeviceId, sub []LogId, read int64) []LogId {
 	return r
 }
 
-func (w *WatchJoin) Update(l LogId, mtime int64) []DeviceId {
+func (w *WatchJoin) Update(l FileId, mtime int64) []DeviceId {
 	w.mtime[l] = mtime
 	a, ok := w.recent[l]
 	if !ok {

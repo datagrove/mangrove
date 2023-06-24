@@ -49,6 +49,7 @@ type LogShard struct {
 	cluster        *ClusterShard
 
 	db *LogDb
+	WatchJoin
 }
 
 var _ Shard = (*LogShard)(nil)

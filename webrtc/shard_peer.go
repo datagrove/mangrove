@@ -10,6 +10,10 @@ const (
 	Oread_log
 )
 
+// if we get a file read, we can read it. If we get a file write, we first forward to the correct shard
+// that shard will broadcast an invalidation (with the data) to all other shards.
+// the owning shard will then send a validation with the correct position to all the shards.
+
 // header can be 8 bytes, 4 for length, 2 for cpu, 2 for epoch
 // zeus uses timestamp to decide races. here there are no races, other than potentially epoch.
 // converting to
