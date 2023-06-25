@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"fmt"
 	"sync"
 
 	"github.com/cornelk/hashmap"
@@ -28,71 +27,6 @@ type Client struct {
 	state     int8
 }
 
-// client will send op +
-const (
-	OpOpen = iota
-	OpCommit
-	OpRead
-	OpWatch
-)
-
-type RpcClient struct {
-	Op     byte
-	Id     int64 // used in replies, acks etc. unique nonce
-	Params cbor.RawMessage
-}
-
-// log id's are 32 bit database id + 32 bit serial number
-// all of these share the same security, so we only need to open once.
-type TxOpen struct {
-	FileId // put in header so we can route without finishing the parsing.
-	Ucan   string
-	Mode   byte
-	// create a file in one step
-}
-type TxPush struct {
-	FileId            // put in header so we can route without finishing the parsing.
-	Rowid  int64      // needed for a link to the original write
-	Data   []byte     // not necessarily the tuple, probably a summary.
-	PushTo []DeviceId // @joe, @jane, @bob, doesn't need to be replicated.
-}
-
-// we don't care about rifl here, because the version will be bumped so a repeat will fail. the client will merge, and see its the same and not send.
-type TxCommit struct {
-	FileId
-	// row id of 0 means to insert and return a new row id
-	Read    []int64
-	RowId   []int64
-	Version []int64
-	Data    [][]byte
-	// if all versions are trimmed, the tuple is deleted
-	Trim []int64
-}
-type TxResult struct {
-	error string
-	Read  [][]byte
-	RowId []int64
-}
-
-func (lg *LogShard) ClientConnect(conn ClientConn) {
-	cx := &Client{
-		conn:   conn,
-		handle: hashmap.Map[FileId, byte]{},
-	}
-
-	_, err := rand.Read(cx.challenge[:])
-	if err != nil {
-		panic(err)
-	}
-	conn.Send(cx.challenge[:])
-	lg.ClientByConn[conn] = cx
-}
-
-type Login struct {
-	Did       string
-	Signature []byte
-}
-
 func (c *Client) reply(id int64, result any) {
 	type Reply struct {
 		Id     int64
@@ -111,38 +45,57 @@ func (c *Client) fail(id int64, err string) {
 	c.conn.Send(b)
 }
 
-// change these to fork and lock for database reads
-// run read in their own thread since they may block on io.
-func (lg *LogShard) Read(fid int64, rid int64) ([][]byte, error) {
-	key := fmt.Sprintf("%d:%d", fid, rid)
-	tp, ok := lg.tuple.Get(key)
-	if ok {
-		return tp.data, nil
-	}
-	// read from the database, get ownership first
-	return nil, nil
+// client will send op +
+const (
+	OpOpen = iota
+	OpCommit
+	OpRead
+	OpWatch
+)
+
+type RpcClient struct {
+	Op     byte
+	Id     int64 // used in replies, acks etc. unique nonce
+	Params cbor.RawMessage
 }
 
 func (lg *LogShard) ApproveConnection(c *Client, data []byte) bool {
+	type Login struct {
+		Did       string `json:"did,omitempty"`
+		Signature []byte `json:"signature,omitempty"`
+	}
 	var login Login
 	cbor.Unmarshal(data, &login)
 	hsha2 := sha256.Sum256([]byte(login.Did))
 	// data must be an answer to the challenge. The Did must be valid for this shard
 	x := int(hsha2[0]) % lg.cluster.NumShards()
 	if x != lg.cluster.GlobalShard() {
-		conn.Close()
+		return false
 	}
 	ok := ucan.VerifyDid(c.challenge[:], login.Did, login.Signature)
 	if !ok {
 		return false
 	}
-	c.state = 1
 	c.did = []byte(login.Did)
 	return true
 	// notify the push engine that the device is online
 }
 
+func (lg *LogShard) ClientConnect(conn ClientConn) {
+	cx := &Client{
+		conn:   conn,
+		handle: hashmap.Map[FileId, byte]{},
+	}
+
+	_, err := rand.Read(cx.challenge[:])
+	if err != nil {
+		panic(err)
+	}
+	conn.Send(cx.challenge[:])
+	lg.ClientByConn[conn] = cx
+}
 func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
+	// note this exists because we created it in connect.
 	c, ok := lg.ClientByConn[conn]
 	if !ok {
 		conn.Close()
@@ -152,38 +105,17 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 		if !lg.ApproveConnection(c, data) {
 			conn.Close()
 		}
+		c.state = 1
 		return
 	}
 	var tx RpcClient
 	cbor.Unmarshal(data, &tx)
-
 	switch tx.Op {
-
-	// open can be pipelined.
-	case OpOpen:
-		var op = &ExecOpen{conn, lg}
+	case OpOpen: // open can be pipelined.
+		var op = &ExecOpen{lg, c, &tx}
 		op.Exec()
 	case OpCommit:
-		var write TxCommit
-		cbor.Unmarshal(tx.Params, &write)
-		txe := &TxExecution{lg, tx.Id, &write}
+		txe := &TxExecution{lg, tx.Id, &tx}
 		txe.Exec()
 	}
 }
-
-// type Payload struct {
-// 	With struct {
-// 		Scheme string
-// 		HierPart string
-// 	}
-// 	Can struct {
-// 		Namespace string
-// 		Segments []string
-// 	}
-// }
-
-// with: { scheme: "mailto", hierPart: "boris@fission.codes" },
-
-// // `can` is an ability, which always has a namespace and optional segments.
-// // → "msg/SEND"
-// can: { namespace: "msg", segments: [ "SEND" ] }

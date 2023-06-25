@@ -7,8 +7,33 @@ import (
 
 type ExecOpen struct {
 	*LogShard
-	c  Client
-	tx RpcClient
+	c  *Client
+	tx *RpcClient
+}
+
+// type Payload struct {
+// 	With struct {
+// 		Scheme string
+// 		HierPart string
+// 	}
+// 	Can struct {
+// 		Namespace string
+// 		Segments []string
+// 	}
+// }
+
+// with: { scheme: "mailto", hierPart: "boris@fission.codes" },
+
+// // `can` is an ability, which always has a namespace and optional segments.
+// // → "msg/SEND"
+// can: { namespace: "msg", segments: [ "SEND" ] }
+// log id's are 32 bit database id + 32 bit serial number
+// all of these share the same security, so we only need to open once.
+type TxOpen struct {
+	FileId // put in header so we can route without finishing the parsing.
+	Ucan   string
+	Mode   byte
+	// create a file in one step
 }
 
 func (ex *ExecOpen) Exec() {

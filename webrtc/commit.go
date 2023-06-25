@@ -3,16 +3,49 @@ package main
 import (
 	"fmt"
 	"sync"
+
+	"github.com/fxamacker/cbor/v2"
 )
 
 // can we make it easier to restart by using this, or just add memory pressure?
 type TxExecution struct {
 	*LogShard
 	Id  int64
-	txc *TxCommit
+	rpc *RpcClient
+}
+
+// we don't care about rifl here, because the version will be bumped so a repeat will fail. the client will merge, and see its the same and not send.
+type TxCommit struct {
+	FileId
+	// row id of 0 means to insert and return a new row id
+	Read    []int64
+	RowId   []int64
+	Version []int64
+	Data    [][]byte
+	// if all versions are trimmed, the tuple is deleted
+	Trim []int64
+}
+type TxResult struct {
+	error string
+	Read  [][]byte
+	RowId []int64
+}
+
+// change these to fork and lock for database reads
+// run read in their own thread since they may block on io.
+func (lg *LogShard) Read(fid int64, rid int64) ([][]byte, error) {
+	key := fmt.Sprintf("%d:%d", fid, rid)
+	tp, ok := lg.tuple.Get(key)
+	if ok {
+		return tp.data, nil
+	}
+	// read from the database, get ownership first
+	return nil, nil
 }
 
 func (ex *TxExecution) Exec() {
+	var write TxCommit
+	cbor.Unmarshal(ex.rpc.Params, &write)
 
 	// pick a unique tx id.
 	tx.Id = lg.txid
