@@ -14,7 +14,7 @@
 
 -- this still needs to be replicated, so that we can recover from a crash.
 -- we can't rely on sqlite to generate it because they would overlap on the nodes
--- what about being unique to shards? 
+-- what about being unique to shards? we have no upper limit on number of crashes, so 16 bit distinguisher doesn't seem like enough.
 create table counter(
     counterid INTEGER PRIMARY KEY,
     count INTEGER
