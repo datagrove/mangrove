@@ -5,12 +5,6 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
-type ExecOpen struct {
-	*LogShard
-	c  *Client
-	tx *RpcClient
-}
-
 // type Payload struct {
 // 	With struct {
 // 		Scheme string
@@ -36,12 +30,10 @@ type TxOpen struct {
 	// create a file in one step
 }
 
-func (ex *ExecOpen) Exec() {
+func ExecOpen(lg *LogShard, c *Client, tx *RpcClient) {
 	// unmarshal the params
 	var open TxOpen
-	c := ex.c
-	tx := ex.tx
-	lg := ex.LogShard
+
 	cbor.Unmarshal(tx.Params, &open)
 
 	canu := func(f *FileMeta, mode byte, did []byte) bool {

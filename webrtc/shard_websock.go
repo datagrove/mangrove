@@ -112,10 +112,8 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 	cbor.Unmarshal(data, &tx)
 	switch tx.Op {
 	case OpOpen: // open can be pipelined.
-		var op = &ExecOpen{lg, c, &tx}
-		op.Exec()
+		ExecOpen(lg, c, &tx)
 	case OpCommit:
-		txe := &TxExecution{lg, tx.Id, &tx}
-		txe.Exec()
+		ExecTx(lg, c, &tx)
 	}
 }

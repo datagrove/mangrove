@@ -10,8 +10,32 @@ import (
 // can we make it easier to restart by using this, or just add memory pressure?
 type TxExecution struct {
 	*LogShard
-	Id  int64
-	rpc *RpcClient
+	*RpcClient
+
+	Id    int64
+	wg    sync.WaitGroup
+	write TxCommit
+}
+
+func ExecTx(lg *LogShard, c *Client, rpc *RpcClient) {
+	ex := &TxExecution{
+		LogShard:  lg,
+		RpcClient: rpc,
+	}
+	cbor.Unmarshal(rpc.Params, &ex.write)
+	// pick a unique tx id.
+	ex.Id = lg.txid
+	lg.txid++
+	if ex.tryAgain() {
+		go func() {
+			ex.wg.Wait()
+			// can we do better than start completely over here?
+			// maybe we can grow the lockset?
+			for ex.tryAgain() {
+				ex.wg.Wait()
+			}
+		}()
+	}
 }
 
 // we don't care about rifl here, because the version will be bumped so a repeat will fail. the client will merge, and see its the same and not send.
@@ -47,29 +71,28 @@ func (ex *TxExecution) Exec() {
 	var write TxCommit
 	cbor.Unmarshal(ex.rpc.Params, &write)
 
-	lg := ex.LogShard
-
 	// pick a unique tx id.
-	id := lg.txid
-	_ = id
+	tx.Id = lg.txid
 	lg.txid++
 
 	var wg sync.WaitGroup
 	var wait bool
+	var ok bool
+	write := lg.write
 
 	// we get ownership all the versions of the tuple
 	getOwnership := func(fileid FileId, rowid int64, tpl *TupleState) {
 		wait = true
-		wg.Add(1)
+		lg.wg.Add(1)
 		go func() {
-			wg.Done()
+			lg.wg.Done()
 		}()
 	}
 	getValid := func(fileid FileId, rowid int64, tpl *TupleState) {
 		wait = true
-		wg.Add(1)
+		lg.wg.Add(1)
 		go func() {
-			wg.Done()
+			lg.wg.Done()
 		}()
 	}
 
@@ -116,9 +139,8 @@ func (ex *TxExecution) Exec() {
 		go func() {
 			wg.Wait()
 			// can we do better than start completely over here?
-			// maybe we can grow the lockset? how should we deal with deadlocks?
-			// pins and evicts?
-			//lg.client <- Packet{c.conn, data}
+			// maybe we can grow the lockset?
+			lg.client <- Packet{conn, data}
 		}()
 	} else {
 		// if no waits then we alread own all the tuples we need
