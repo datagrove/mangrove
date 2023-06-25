@@ -1,4 +1,38 @@
 
+special files
+
+fid:ns,rid:vs, data
+
+ns = update | tuple
+
+update:
+rid = time
+vs = peer
+
+tuple:
+rid = row id
+vs = version
+data = delta
+
+fid = 0 -> Directory
+rid = fileid
+data = readkey,writekey etc.
+
+fid = [peer] -> Sequence generator
+rid = 
+
+
+The update log is replicated per machine, then reads are interleaved during sync.
+The sync can provide a vector clock[3] to make sure that it's getting all the updates.
+This allows each peer to own its own log, otherwise access to a a database would be serialized and ping/ponged across the cluster.
+
+we can manage this in the normal tuple store by taking a few bits of the file id 
+[fileid:shard:time]
+we can probably gain back some resolution by rotating the time at snapshots.
+easier to use a covering index.
+
+
+
 Every database has n~3 replicas. directory can keep their location
 Every tuple has a current owner, directory keeps that.
 Every proxy has a current set of clients, directory keeps that.

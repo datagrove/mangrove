@@ -27,16 +27,11 @@ create table counter(
 -- how does push work anyway if clients can attach to any proxy?
 
 -- update and tuple are replicated on every node.
-create table update(
-    fileid INTEGER,
-    txid integer,
-    data BLOB
-)
 
 create table tuple (
-    id INTEGER PRIMARY KEY,
-    version integer,
+    fid INTEGER PRIMARY KEY,
+    rid integer,
     data BLOB
-    primary key (id, version)
     );
 
+create index tv on tuple(fid,rid,data)
