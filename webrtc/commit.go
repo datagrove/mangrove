@@ -47,8 +47,11 @@ func (ex *TxExecution) Exec() {
 	var write TxCommit
 	cbor.Unmarshal(ex.rpc.Params, &write)
 
+	lg := ex.LogShard
+
 	// pick a unique tx id.
-	tx.Id = lg.txid
+	id := lg.txid
+	_ = id
 	lg.txid++
 
 	var wg sync.WaitGroup
@@ -71,7 +74,7 @@ func (ex *TxExecution) Exec() {
 	}
 
 	var tpl []*TupleState = make([]*TupleState, len(write.RowId))
-
+	var ok bool
 	for i, rowid := range write.Read {
 		key := fmt.Sprintf("%d:%d", write.FileId, rowid)
 		tpl[i], ok = lg.tuple.Get(key)
@@ -113,8 +116,9 @@ func (ex *TxExecution) Exec() {
 		go func() {
 			wg.Wait()
 			// can we do better than start completely over here?
-			// maybe we can grow the lockset?
-			lg.client <- Packet{conn, data}
+			// maybe we can grow the lockset? how should we deal with deadlocks?
+			// pins and evicts?
+			//lg.client <- Packet{c.conn, data}
 		}()
 	} else {
 		// if no waits then we alread own all the tuples we need
