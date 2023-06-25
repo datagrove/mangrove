@@ -1,4 +1,28 @@
 
+to swap in:
+1. get ownership, but leave invalid
+if evict needed, pick a slot that we own.
+broadcast evict
+2. read db
+3. validate
+
+negative rid indicates admin record. read/write if it is -device or admin.
+
+oauth/passkey - login sends request to existing device, or creates new account.
+
+the low 16 bits of rid are used for deltas. we can accomodate even more than 64K deltas by combining them logrithmically
+
+eviction:
+pick a slot that we own.
+invalidate it with "evict" for data
+
+write through cache:
+normal zeus write
+during validation, asychronously write disk
+
+if a system crashes 
+
+
 special files
 
 fid:ns,rid:vs, data

@@ -1,0 +1,12 @@
+
+type TxCreate struct {
+	FileId // put in header so we can route without finishing the parsing.
+	// we already know the owner did. we might need in the rx version
+	Data []byte
+}
+
+type TxWrite struct {
+	FileId // put in header so we can route without finishing the parsing.
+	Rowid  int64
+	Data   []byte
+}

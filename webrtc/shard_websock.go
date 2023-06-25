@@ -50,17 +50,6 @@ type TxOpen struct {
 	Mode   byte
 	// create a file in one step
 }
-type TxCreate struct {
-	FileId // put in header so we can route without finishing the parsing.
-	// we already know the owner did. we might need in the rx version
-	Data []byte
-}
-
-type TxWrite struct {
-	FileId // put in header so we can route without finishing the parsing.
-	Rowid  int64
-	Data   []byte
-}
 type TxPush struct {
 	FileId            // put in header so we can route without finishing the parsing.
 	Rowid  int64      // needed for a link to the original write
@@ -78,6 +67,11 @@ type TxCommit struct {
 	Data    [][]byte
 	// if all versions are trimmed, the tuple is deleted
 	Trim []int64
+}
+type TxResult struct {
+	error string
+	Read  [][]byte
+	RowId []int64
 }
 
 func (lg *LogShard) ClientConnect(conn ClientConn) {
@@ -125,7 +119,8 @@ func (lg *LogShard) Read(fid int64, rid int64) ([][]byte, error) {
 	if ok {
 		return tp.data, nil
 	}
-
+	// read from the database, get ownership first
+	return nil, nil
 }
 
 func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
@@ -164,7 +159,7 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 	tx.Id = lg.txid
 	lg.txid++
 
-	canu := func(f *File, mode byte, did []byte) bool {
+	canu := func(f *FileMeta, mode byte, did []byte) bool {
 		return true
 	}
 
@@ -179,7 +174,7 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 		a, ok := lg.State.obj.Get(open.FileId)
 		if !ok {
 			go func() {
-				f, e := lg.Read(0, open.FileId)
+				f, e := lg.db.GetFile(open.FileId)
 				if e != nil {
 					c.fail(tx.Id, e.Error())
 					return
@@ -223,6 +218,14 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 		var write TxCommit
 		cbor.Unmarshal(tx.Params, &write)
 		var tpl []*TupleState = make([]*TupleState, len(write.RowId))
+
+		for i, rowid := range write.Read {
+			key := fmt.Sprintf("%d:%d", write.FileId, rowid)
+			tpl[i], ok = lg.tuple.Get(key)
+			if !ok {
+				getOwnership(write.FileId, rowid)
+			}
+		}
 
 		for i, rowid := range write.RowId {
 			if rowid == 0 {
