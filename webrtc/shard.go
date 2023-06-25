@@ -6,7 +6,6 @@ import (
 
 	"github.com/cornelk/hashmap"
 	"github.com/datagrove/mangrove/push"
-	"github.com/fxamacker/cbor/v2"
 )
 
 type FileId = int64
@@ -113,7 +112,7 @@ type Header struct {
 }
 type TxClientP struct {
 	*Client
-	*TxClient
+	*RpcClient
 }
 
 // another tail latency issue with pargo style servers is that we have constant gc pressure?
@@ -241,14 +240,8 @@ func NewShard(st *State, id int) (*LogShard, error) {
 			case tx := <-lg.client:
 				lg.fromWs(tx.conn, tx.data)
 			case tx := <-lg.inp:
-				switch tx[0] {
-
-				}
-			case tx := <-lg.clientP:
-				var o TxWrite
-				cbor.Unmarshal(tx.Params, &o)
-				var v RtxInvalidate
-				lg.cluster.Broadcast(tx.Op, v.toBytes(), o.Data)
+				// peer?
+				_ = tx
 			}
 		}
 	}()
