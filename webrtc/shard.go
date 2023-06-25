@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sync"
 	"unsafe"
 
 	"github.com/cornelk/hashmap"
@@ -22,16 +23,46 @@ type State struct {
 	shard []*LogShard
 	db    *LogDb
 	obj   hashmap.Map[FileId, FileState]
+
+	tuple hashmap.Map[string, *TupleState]
 	// pages are a shared resource or allocated per shard?
+}
+
+const (
+	O_valid = iota
+	O_invalid
+	O_request
+	O_drive
+)
+
+type OwnerTimestamp = uint64 // 32 bit object version + 32 bit timestamp
+type TupleState struct {
+	mu      sync.Mutex
+	o_ts    OwnerTimestamp
+	o_state int8
+	// o_replicas, for now all nodes are considered replicas
+	data [][]byte // this wouldn't be in directory node, but here converged owner.
 }
 type Packet struct {
 	conn ClientConn
 	data []byte
 }
-type LogShard struct {
+type Key = string // composite file+rowid
+type DirRpc struct {
+	key   Key
+	reply func([]byte)
+}
+type Directory struct {
 	*State
-	WatchJoin
 	cluster *ClusterShard
+	rpc     chan DirRpc
+}
+
+// shards can act as directories, stores, or proxies
+type LogShard struct {
+	Directory
+
+	WatchJoin
 
 	client    chan Packet    // client messages are routed to a target LogId without parsing.
 	clientP   chan TxClientP // txclient sent to the designated shard
@@ -53,6 +84,9 @@ type LogShard struct {
 	//GroupCommit [][]byte
 
 	// high 2 bytes indicating global shard id
+
+	NextRowId int64
+	LastRowId int64 // we get id's in a block from the database, when we run out we get more, prevents reuse in a crash.
 }
 
 var _ Shard = (*LogShard)(nil)
@@ -178,7 +212,23 @@ func (lg *LogShard) Connect(cl *ClusterShard) {
 func NewShard(st *State, id int) (*LogShard, error) {
 
 	lg := LogShard{
-		State: st,
+		Directory: Directory{
+			State:   st,
+			cluster: &ClusterShard{},
+			rpc:     make(chan DirRpc),
+		},
+		WatchJoin:      WatchJoin{},
+		client:         make(chan Packet),
+		clientP:        make(chan TxClientP),
+		lowClient:      make(chan []byte),
+		inp:            make(chan []byte),
+		sync:           make(chan int64),
+		txid:           0,
+		ClientByDevice: map[int64]*Client{},
+		ClientByConn:   map[ClientConn]*Client{},
+		replyTo:        map[int64]int64{},
+		NextRowId:      0,
+		LastRowId:      0,
 	}
 
 	// will need some database opening and recovery here

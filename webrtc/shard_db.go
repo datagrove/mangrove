@@ -37,35 +37,40 @@ func NewLogDb(path string) (*LogDb, error) {
 }
 
 type File struct {
-	Type string
+	Type     string
+	ReadKey  string
+	WriteKey string
 }
 
-func (db *LogDb) Open(id int64) (*File, error) {
-	res, err := db.db.Query("select data from block where id =?;", id)
-	if err != nil {
-		return nil, err
-	}
-	if !res.Next() {
-		return nil, nil
-	}
-	var d File
-	if err := res.Scan(&d.Type); err != nil {
-		return nil, err
-	}
-	return &d, nil
-}
-func (db *LogDb) Insert(f *File) (int, error) {
-	res, err := db.db.Exec("INSERT INTO file(type) VALUES(?);", f.Type)
-	if err != nil {
-		return 0, err
+/*
+	func (db *LogDb) OpenFile(id int64) (*File, error) {
+		res, err := db.db.Query("select data from block where id =?;", id)
+		if err != nil {
+			return nil, err
+		}
+		if !res.Next() {
+			return nil, nil
+		}
+		var d File
+		if err := res.Scan(&d.Type); err != nil {
+			return nil, err
+		}
+		return &d, nil
 	}
 
-	var id int64
-	if id, err = res.LastInsertId(); err != nil {
-		return 0, err
+	func (db *LogDb) CreateFile(f *File) (int, error) {
+		res, err := db.db.Exec("INSERT INTO file(type) VALUES(?);", f.Type)
+		if err != nil {
+			return 0, err
+		}
+
+		var id int64
+		if id, err = res.LastInsertId(); err != nil {
+			return 0, err
+		}
+		return int(id), nil
 	}
-	return int(id), nil
-}
+*/
 func (db *LogDb) Write(id int64, data []byte) error {
 	_, err := db.db.Exec("insert or replace into block(id,data) VALUES(?);", id, data)
 	return err

@@ -13,6 +13,10 @@ import (
 	"github.com/lesismal/nbio/nbhttp/websocket"
 )
 
+//  Each membership update is tagged with
+// a monotonically increasing epoch id (𝑒_𝑖𝑑) and is performed
+// across the deployment only after all node leases have expired
+
 // each shard will only talk to the same shard on its peers.
 // messages that need to cross shards will done on the source system
 
@@ -62,12 +66,22 @@ func (cl *Cluster) id2Peer(logid FileId) int {
 // each shard should allow its own ip address
 // how do we communicate to the client w
 type Cluster struct {
+	Epoch  int64 // zeus paper says we just drop packets from past and future? shouldn't future packet force us to try to join?
+	shadow bool  // follow write, but don't take clients
+
+	// we should probably let this grow, instead of taking in the config?
+	Member []bool
 	// send  net.Conn
 	// recv  net.Conn
-	*ClusterConfig
+	*ClusterConfig // do we update this epochs?
 	// tcp is two-way, so we only need to connect i<j
 	// the listener will take one byte to identify the caller.
 	shard []*ClusterShard
+}
+
+func (c *Cluster) Join() {
+	// try to connect to all peers
+
 }
 
 // maintains a connection to the same shard in every other peer
@@ -75,7 +89,8 @@ type ClusterShard struct {
 	thisShard int
 	*Cluster
 	hashmap.Map[DeviceId, *websocket.Conn]
-	peer []net.Conn
+	peer  []net.Conn
+	Lease []int64 // update on messages
 }
 
 func (cl *ClusterShard) GlobalShard() int {

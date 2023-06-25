@@ -3,12 +3,19 @@ package main
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"fmt"
 	"sync"
 
 	"github.com/cornelk/hashmap"
 	"github.com/datagrove/mangrove/ucan"
 	"github.com/fxamacker/cbor/v2"
 )
+
+// is it faster to get ownership from a shard on the same peer? zeus says it uses locking locally to get ownership
+func (lg *LogShard) NewRowId() int64 {
+	lg.NextRowId++
+	return lg.NextRowId
+}
 
 // the websock proxy is going to suck a lot of energy.
 // we should try a goroutine per connection? that would give us single threaded access without locking.
@@ -24,38 +31,53 @@ type Client struct {
 // client will send op +
 const (
 	OpOpen = iota
-	OpCreate
-	OpWrite
+	OpCommit
 	OpRead
-	OpDelete
 	OpWatch
 )
 
 type TxClient struct {
 	Op     byte
 	Id     int64 // used in replies, acks etc. unique nonce
-	FileId       // put in header so we can route without finishing the parsing.
 	Params cbor.RawMessage
 }
-
-// this is a kind of invalidation message, the file is then validated.
 
 // log id's are 32 bit database id + 32 bit serial number
 // all of these share the same security, so we only need to open once.
 type TxOpen struct {
-	Ucan string
-	Mode byte
+	FileId // put in header so we can route without finishing the parsing.
+	Ucan   string
+	Mode   byte
 	// create a file in one step
 }
 type TxCreate struct {
+	FileId // put in header so we can route without finishing the parsing.
 	// we already know the owner did. we might need in the rx version
 	Data []byte
 }
 
 type TxWrite struct {
+	FileId // put in header so we can route without finishing the parsing.
+	Rowid  int64
 	Data   []byte
-	Author DeviceId   // reply to, saves latency? not necessary?
+}
+type TxPush struct {
+	FileId            // put in header so we can route without finishing the parsing.
+	Rowid  int64      // needed for a link to the original write
+	Data   []byte     // not necessarily the tuple, probably a summary.
 	PushTo []DeviceId // @joe, @jane, @bob, doesn't need to be replicated.
+}
+
+// we don't care about rifl here, because the version will be bumped so a repeat will fail. the client will merge, and see its the same and not send.
+type TxCommit struct {
+	FileId
+	// row id of 0 means to insert and return a new row id
+	Read    []int64
+	RowId   []int64
+	Version []int64
+	Data    [][]byte
+	// if all versions are trimmed, the tuple is deleted
+	Trim []int64
 }
 
 func (lg *LogShard) ClientConnect(conn ClientConn) {
@@ -99,6 +121,7 @@ func (c *Client) fail(id int64, err string) {
 // run read in their own thread since they may block on io.
 
 func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
+
 	c, ok := lg.ClientByConn[conn]
 	if !ok {
 		conn.Close()
@@ -145,10 +168,10 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 		var open TxOpen
 		cbor.Unmarshal(tx.Params, &open)
 		// look up the database
-		a, ok := lg.State.obj.Get(tx.FileId)
+		a, ok := lg.State.obj.Get(open.FileId)
 		if !ok {
 			go func() {
-				f, e := lg.db.Open(tx.FileId)
+				f, e := lg.db.Open(open.FileId)
 				if e != nil {
 					c.fail(tx.Id, e.Error())
 					return
@@ -157,7 +180,7 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 					c.fail(tx.Id, "permission denied")
 					return
 				}
-				c.reply(tx.Id, tx.FileId)
+				c.reply(tx.Id, open.FileId)
 			}()
 			return
 		}
@@ -175,19 +198,54 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 			// payload.Grant[0].Can
 			// ok for now
 		}
-		c.reply(tx.Id, tx.FileId)
-
-	case OpCreate, OpWrite, OpDelete:
-		m, ok := c.handle.Get(tx.FileId)
-		if !ok || m == 0 {
-			c.fail(tx.Id, "invalid handle")
-			return
+		c.reply(tx.Id, open.FileId)
+	case OpCommit:
+		var wg sync.WaitGroup
+		var wait bool
+		getOwnership := func(fileid FileId, rowid int64) {
+			wait = true
+			wg.Add(1)
+			go func() {
+				wg.Done()
+			}()
 		}
 
-		// don't write to the database yet, since we don't know the position.
-		shard := lg.cluster.log2Shard(tx.FileId)
-		lg.shard[shard].clientP <- TxClientP{c, &tx}
-		// we can read on any shard since they all have the same data
+		var write TxCommit
+		cbor.Unmarshal(tx.Params, &write)
+		var tpl []*TupleState = make([]*TupleState, len(write.RowId))
+
+		for i, rowid := range write.RowId {
+			if rowid == 0 {
+				rowid = lg.NewRowId()
+				key := fmt.Sprintf("%d:%d", write.FileId, rowid)
+				tpl[i] = &TupleState{
+					o_state: O_valid,
+				}
+				lg.tuple.Set(key, tpl[i])
+			} else {
+				key := fmt.Sprintf("%d:%d", write.FileId, rowid)
+				tpl[i], ok = lg.tuple.Get(key)
+				if !ok {
+					// since we are also a directory, if the key is not in our cache, then it's not in any peer's cache. We can get it out of the database and own it. If it doesn't exist, we can create it. We can send invalidate/validate to all the directories to ensure that we own it. We might need to evict another tuple to make room for this one.
+					tpl[i] = &TupleState{
+						o_state: O_valid,
+					}
+					lg.tuple.Set(key, tpl[i])
+					claimOwnership(write.FileId, rowid)
+				} else {
+					getOwnership(write.FileId, rowid)
+				}
+			}
+		}
+		if wait {
+			go func() {
+				wg.Wait()
+				lg.client <- Packet{conn, data}
+			}()
+		} else {
+			// if no waits then we alread own all the tuples we need
+
+		}
 	}
 }
 
