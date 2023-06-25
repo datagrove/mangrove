@@ -102,12 +102,18 @@ func (cl *ClusterShard) ClientSend(id DeviceId, data []byte) {
 	}
 }
 
-func (cl *ClusterShard) Broadcast(data []byte) {
+// send to every peer in the same shard
+func (cl *ClusterShard) Broadcast(op byte, header []byte, payload []byte) {
 	for i := 0; i < len(cl.peer); i++ {
 		if i == cl.Me {
 			continue
 		}
-		cl.peer[i].Write(data)
+		var ol = make([]byte, 5)
+		binary.LittleEndian.PutUint32(ol, uint32(len(header)+len(payload)+1))
+		ol[4] = op
+		cl.peer[i].Write([]byte{op})
+		cl.peer[i].Write(header)
+		cl.peer[i].Write(payload)
 	}
 }
 func (cl *ClusterShard) Send(p PeerId, data []byte) {

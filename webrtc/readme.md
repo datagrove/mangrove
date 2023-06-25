@@ -1,4 +1,24 @@
 
+Every database has n~3 replicas. directory can keep their location
+Every tuple has a current owner, directory keeps that.
+Every proxy has a current set of clients, directory keeps that.
+
+rifl:
+write(rowid, device,lsn, value, readver) -> ts -> ack(rowid,device,lsn)
+
+rifl: 
+rpc (device,lsn) {
+    rowid, readversion, update
+    ...
+
+}
+
+is every tuple a log or a database? do the element ids get exposed? do they get owned?
+
+does this mean every tuple would have the last write by every client? deleting the ack is the way.
+maybe this returns to racing on version? racing on range of versions (possibly 1)
+
+
 
 Send messages as 
 headerlength: 16
@@ -26,6 +46,24 @@ Then, like Craq, it should insert itself and start copying tails.
 How to sync though? All updates should be in a peer wal. The only thing we need to add is that we only trim at the least checkpoint of the cluster instead of our greatest checkpoint.
 
 To incorporate websocket signaling we have a "signal" command { to: DeviceId }
+
+when to increase epoch? how to re-establish membership?
+if timeout/retry doesn't work, send to next{e} to every member.
+
+how do we keep from duplicating a message? rifl? hash chain? "at"? force reader to check? vector clock?
+
+write rpc.id->location atomically with the append.
+
+write(log, client,lsn, value) -> pos -> ack(log,rpcid)
+
+create table (log,client, lsn); check that lsn = lsnprev+1. we can keep this cached.
+
+watermarks solve the problem, but add latency. the 1.5 rt only tells you the write succeeded, but not it's position.
+what about the inv-ack though? it's timestamp can serve as a watermark? as long as the received time is less than the inv.ack time (lamport clock?) then order should be established by that. on recovery 
+
+
+lookup (log,rpcid) 
+
 
 what about moving the file? what about eliminating the extra inval copy?
 

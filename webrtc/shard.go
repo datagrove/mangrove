@@ -1,9 +1,11 @@
 package main
 
 import (
-	"strconv"
+	"unsafe"
 
+	"github.com/cornelk/hashmap"
 	"github.com/datagrove/mangrove/push"
+	"github.com/fxamacker/cbor/v2"
 )
 
 type FileId = int64
@@ -18,7 +20,8 @@ type State struct {
 
 	// state is a sharded hash table
 	shard []*LogShard
-
+	db    *LogDb
+	obj   hashmap.Map[FileId, FileState]
 	// pages are a shared resource or allocated per shard?
 }
 type Packet struct {
@@ -26,32 +29,30 @@ type Packet struct {
 	data []byte
 }
 type LogShard struct {
-	client    chan Packet // client messages are routed to a target LogId without parsing.
-	lowClient chan []byte // we may want to depriortize some logs
+	*State
+	WatchJoin
+	cluster *ClusterShard
+
+	client    chan Packet    // client messages are routed to a target LogId without parsing.
+	clientP   chan TxClientP // txclient sent to the designated shard
+	lowClient chan []byte    // we may want to depriortize some logs
 	inp       chan []byte
 	sync      chan FileId
-	out       chan Io
+	txid      int64
+
+	ClientByDevice map[DeviceId]*Client
+	ClientByConn   map[ClientConn]*Client
+	// remember the client writer device so we can notify them of completed writes
+	replyTo map[int64]DeviceId
 
 	// maybe it's users we should cap
 	// do we need to identify the user or just the device?
 	// generally our ucan will be dba -> user -> device
 	// should we capture that user did?
-	capped map[FileId]bool
+	//capped map[FileId]bool
+	//GroupCommit [][]byte
 
-	obj   map[FileId]*FileState
-	pause map[FileId][]*TxPeer
-
-	GroupCommit    [][]byte
-	io             chan func()
-	txid           int64
-	ClientByDevice map[DeviceId]*Client
-	ClientByConn   map[ClientConn]*Client
-	cluster        *ClusterShard
-	// for now rely on sqlite's cache.
-	read chan TxClient
-
-	db *LogDb
-	WatchJoin
+	// high 2 bytes indicating global shard id
 }
 
 var _ Shard = (*LogShard)(nil)
@@ -75,6 +76,10 @@ type Header struct {
 	// increment the ack count for the sender when the message reaches its final target. we can remove the message and send in the header of the next one, or in a heartbeat if there is no available message. (latency though?)
 	ackCount []uint64
 	payload  []byte
+}
+type TxClientP struct {
+	*Client
+	*TxClient
 }
 
 // another tail latency issue with pargo style servers is that we have constant gc pressure?
@@ -144,10 +149,16 @@ func NewState(home string, shards int) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
+	p := home + "/log.sqlite"
+	dbx, err := NewLogDb(p)
+	if err != nil {
+		return nil, err
+	}
 	r := &State{
 		home:    home,
 		Cluster: Cluster{},
 		push:    db,
+		db:      dbx,
 		shard:   make([]*LogShard, shards),
 	}
 	for i := range r.shard {
@@ -165,13 +176,9 @@ func (lg *LogShard) Connect(cl *ClusterShard) {
 	lg.cluster = cl
 }
 func NewShard(st *State, id int) (*LogShard, error) {
-	p := st.home + "." + strconv.Itoa(id)
-	db, err := NewLogDb(p)
-	if err != nil {
-		return nil, err
-	}
+
 	lg := LogShard{
-		db: db,
+		State: st,
 	}
 
 	// will need some database opening and recovery here
@@ -184,7 +191,14 @@ func NewShard(st *State, id int) (*LogShard, error) {
 			case tx := <-lg.client:
 				lg.fromWs(tx.conn, tx.data)
 			case tx := <-lg.inp:
-				lg.fromPeer(tx)
+				switch tx[0] {
+
+				}
+			case tx := <-lg.clientP:
+				var o TxWrite
+				cbor.Unmarshal(tx.Params, &o)
+				var v RtxInvalidate
+				lg.cluster.Broadcast(tx.Op, v.toBytes(), o.Data)
 			}
 		}
 	}()
@@ -192,4 +206,25 @@ func NewShard(st *State, id int) (*LogShard, error) {
 }
 
 type ClientState struct {
+}
+
+// what about a replace owner operation? what about key rotation?
+// read the file ids from a -2 page?
+type RtxInvalidate struct {
+	Txid int64
+	FileId
+	At int64 // -1 means append
+	// data is not in the header, but is the payoad
+}
+
+// validate will trigger a reply on the peer that initiated the write.
+type RtxValidate struct {
+	Txid int64
+	At   int64
+}
+
+func (v RtxInvalidate) toBytes() []byte {
+	const sz = int(unsafe.Sizeof(RtxInvalidate{}))
+	var asByteSlice []byte = (*(*[sz]byte)(unsafe.Pointer(&v)))[:]
+	return asByteSlice
 }

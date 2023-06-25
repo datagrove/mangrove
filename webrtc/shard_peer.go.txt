@@ -1,14 +1,29 @@
 package main
 
-import "github.com/fxamacker/cbor/v2"
-
-// a hypervariable that maintains a buffer for each thread
-const (
-	Opeer_send = iota
-	Oclient_send
-	Oflush_req
-	Oread_log
+import (
+	"unsafe"
 )
+
+// what about a replace owner operation? what about key rotation?
+// read the file ids from a -2 page?
+type RtxInvalidate struct {
+	Txid int64
+	FileId
+	At int64 // -1 means append
+	// data is not in the header, but is the payoad
+}
+
+// validate will trigger a reply on the peer that initiated the write.
+type RtxValidate struct {
+	Txid int64
+	At   int64
+}
+
+func (v RtxInvalidate) toBytes() []byte {
+	const sz = int(unsafe.Sizeof(RtxInvalidate{}))
+	var asByteSlice []byte = (*(*[sz]byte)(unsafe.Pointer(&v)))[:]
+	return asByteSlice
+}
 
 // if we get a file read, we can read it. If we get a file write, we first forward to the correct shard
 // that shard will broadcast an invalidation (with the data) to all other shards.
@@ -17,25 +32,12 @@ const (
 // header can be 8 bytes, 4 for length, 2 for cpu, 2 for epoch
 // zeus uses timestamp to decide races. here there are no races, other than potentially epoch.
 // converting to
-type Invalid struct {
-	TxId  int64 // used to ack
-	LogId int64
-	At    int64
-	Data  []byte
-}
-type Valid struct {
-	TxId  int64
-	LogId int64
-	At    int64
-}
-type Io struct {
-}
 
 // each log shard manages it's own group commit
 // each group commit must force certain pages to flush so that we don't write them twice
 // record locks are expensive; they require io. Is it too expensive? should we force webrtc?
 // we can cache, but if its not in memory that doesn't tell us anything.
-
+/*
 func (lg *LogShard) fromPeer(data []byte) {
 	var tx TxPeer
 	cbor.Unmarshal(data, &tx)
@@ -54,22 +56,13 @@ func (lg *LogShard) fromPeer(data []byte) {
 			Data:  tx.Data,
 		}
 		data, _ := cbor.Marshal(i)
-		lg.cluster.Broadcast(data)
+		_ = data
 	}
 	valToPeers := func(tx *TxPeer) {
 		// not enough information here?
 
 	}
-	ioLoad := func(tx *TxPeer) {
-		lg.pause[tx.FileId] = append(lg.pause[tx.FileId], tx)
-	}
 
-	obj, ok := lg.obj[tx.FileId]
-	_ = obj
-	if !ok {
-		ioLoad(&tx)
-		return
-	}
 	isPrimary := true
 	if isPrimary {
 		if tx.Continue {
@@ -97,3 +90,4 @@ func (lg *LogShard) fromPeer(data []byte) {
 	}
 
 }
+*/
