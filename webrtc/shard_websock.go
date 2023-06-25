@@ -119,6 +119,14 @@ func (c *Client) fail(id int64, err string) {
 
 // change these to fork and lock for database reads
 // run read in their own thread since they may block on io.
+func (lg *LogShard) Read(fid int64, rid int64) ([][]byte, error) {
+	key := fmt.Sprintf("%d:%d", fid, rid)
+	tp, ok := lg.tuple.Get(key)
+	if ok {
+		return tp.data, nil
+	}
+
+}
 
 func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 
@@ -171,7 +179,7 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 		a, ok := lg.State.obj.Get(open.FileId)
 		if !ok {
 			go func() {
-				f, e := lg.db.Open(open.FileId)
+				f, e := lg.Read(0, open.FileId)
 				if e != nil {
 					c.fail(tx.Id, e.Error())
 					return
@@ -202,6 +210,8 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 	case OpCommit:
 		var wg sync.WaitGroup
 		var wait bool
+
+		// we get ownership all the versions of the tuple
 		getOwnership := func(fileid FileId, rowid int64) {
 			wait = true
 			wg.Add(1)
@@ -231,7 +241,8 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 						o_state: O_valid,
 					}
 					lg.tuple.Set(key, tpl[i])
-					claimOwnership(write.FileId, rowid)
+
+					getOwnership(write.FileId, rowid)
 				} else {
 					getOwnership(write.FileId, rowid)
 				}
