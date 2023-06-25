@@ -67,15 +67,7 @@ func (lg *LogShard) Read(fid int64, rid int64) ([][]byte, error) {
 	return nil, nil
 }
 
-func (ex *TxExecution) Exec() {
-	var write TxCommit
-	cbor.Unmarshal(ex.rpc.Params, &write)
-
-	// pick a unique tx id.
-	tx.Id = lg.txid
-	lg.txid++
-
-	var wg sync.WaitGroup
+func (lg *TxExecution) tryAgain() bool {
 	var wait bool
 	var ok bool
 	write := lg.write
@@ -97,7 +89,7 @@ func (ex *TxExecution) Exec() {
 	}
 
 	var tpl []*TupleState = make([]*TupleState, len(write.RowId))
-	var ok bool
+
 	for i, rowid := range write.Read {
 		key := fmt.Sprintf("%d:%d", write.FileId, rowid)
 		tpl[i], ok = lg.tuple.Get(key)
@@ -135,15 +127,5 @@ func (ex *TxExecution) Exec() {
 			}
 		}
 	}
-	if wait {
-		go func() {
-			wg.Wait()
-			// can we do better than start completely over here?
-			// maybe we can grow the lockset?
-			lg.client <- Packet{conn, data}
-		}()
-	} else {
-		// if no waits then we alread own all the tuples we need
-
-	}
+	return wait
 }
