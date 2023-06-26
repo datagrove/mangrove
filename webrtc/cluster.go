@@ -21,6 +21,12 @@ import (
 // each shard will only talk to the same shard on its peers.
 // messages that need to cross shards will done on the source system
 
+const (
+	Cl_ack = iota
+	Cl_inv
+	Cl_val
+)
+
 type ClientConn interface {
 	Send(data []byte)
 	Close()
@@ -87,6 +93,10 @@ func (c *Cluster) Join() {
 
 }
 
+type ClusterRpc interface {
+	Continue(data []byte)
+}
+
 // maintains a connection to the same shard in every other peer
 type ClusterShard struct {
 	thisShard int
@@ -95,6 +105,11 @@ type ClusterShard struct {
 	peer  []net.Conn
 	Lease []int64 // update on messages
 	id    int64
+
+	mu    sync.Mutex
+	await map[int64]ClusterRpc
+
+	method []func(data []byte)
 }
 
 func (cl *ClusterShard) nextId() int64 {
@@ -106,7 +121,26 @@ func (cl *ClusterShard) GlobalShard() int {
 }
 
 func (cl *ClusterShard) Recv(peerid PeerId, data []byte) {
-
+	// some messages here are replies, we need to unblock their reponse
+	// first 4 bytes are the length
+	// then we have 8 bytes of id
+	// then we have 1 byte op, this will be 0 if this is a reply, otherwise it will be a method indicator.
+	if len(data) < 13 {
+		return
+	}
+	method := data[12]
+	if method == 0 {
+		// register methods here to
+		cl.method[data[12]](data[13:])
+		return
+	}
+	id := binary.LittleEndian.Uint64(data[4:12])
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	if rpc, ok := cl.await[int64(id)]; ok {
+		delete(cl.await, int64(id))
+		rpc.Continue(data[12:])
+	}
 }
 
 // if the device id is on another shard, we need to switch this message to that shard
@@ -130,10 +164,6 @@ func (cl *ClusterShard) ClientSend(id DeviceId, data []byte) {
 		cl.peer[peerid].Write(header)
 		cl.peer[peerid].Write(data)
 	}
-}
-
-func (cl *ClusterShard) GetMessage() {
-
 }
 
 // send to every peer in the same shard. Wait for acks

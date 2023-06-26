@@ -211,6 +211,15 @@ func NewState(home string, shards int) (*State, error) {
 
 func (lg *LogShard) Connect(cl *ClusterShard) {
 	lg.cluster = cl
+	cl.method[Cl_ack] = func(data []byte) {
+		// I don't think I need this, this should be a reply to the r-inv
+	}
+	cl.method[Cl_inv] = func(data []byte) {
+
+	}
+	cl.method[Cl_val] = func(data []byte) {
+
+	}
 }
 func NewShard(st *State, id int) (*LogShard, error) {
 
