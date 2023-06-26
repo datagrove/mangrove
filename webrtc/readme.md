@@ -1,4 +1,21 @@
 
+key -> string
+string = 8 byte length + up to 1024-8 bytes
+longer than 1016 bytes move to overflow pages 
+(fileid, tupleid, offset, more )
+
+val -> CopyInstructions
+
+copy -> (note length is already implied. would be good to have some compression here? not necessary though)
+  literal length data
+  copy start, end
+
+this doesn't prevent other operations from client's perspective, like append 
+some types operations might be hard to optimize dynamically? It would be good to identify if we needed a structure that would allow sparsity or even reindexing like splice.
+
+
+
+
 to swap in:
 1. get ownership, but leave invalid
 if evict needed, pick a slot that we own.

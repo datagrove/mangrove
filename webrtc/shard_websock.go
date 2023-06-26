@@ -11,10 +11,6 @@ import (
 )
 
 // is it faster to get ownership from a shard on the same peer? zeus says it uses locking locally to get ownership
-func (lg *LogShard) NewRowId() int64 {
-	lg.NextRowId++
-	return lg.NextRowId
-}
 
 // the websock proxy is going to suck a lot of energy.
 // we should try a goroutine per connection? that would give us single threaded access without locking.

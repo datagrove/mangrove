@@ -19,7 +19,17 @@ type DeviceId = int64
 // We always need the FileId. There is a small namespace bit vector, but irrelevant here. Some fileids are reserved. Some tupleids are reserved to indicate a message specific to a device (like a rekey notification).
 
 type Gkey struct {
-	data [16]byte
+	data []byte
+}
+
+func (g *Gkey) FileId() FileId {
+	return FileId(binary.BigEndian.Uint64(g.data[0:8]))
+}
+func (g *Gkey) Insert() bool {
+	return len(g.data) == 4 // only specifies file id.
+}
+func (g *Gkey) Null() bool {
+	return len(g.data) == 0
 }
 
 // the last 16 bits are used to indicate a sequence of deltas modifying the tuple.
@@ -112,6 +122,9 @@ type LogShard struct {
 
 func (lg *LogShard) NextTxId() int64 {
 	return atomic.AddInt64(&lg._txid, 1)
+}
+func (lg *LogShard) NewRowId(f FileId) Gkey {
+	return gkey(f, atomic.AddInt64(&lg.NextRowId, 1))
 }
 
 var _ Shard = (*LogShard)(nil)
