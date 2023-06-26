@@ -36,7 +36,7 @@ const (
 
 type OwnerTimestamp = uint64 // 32 bit object version + 32 bit timestamp
 type TupleState struct {
-	mu      sync.Mutex
+	mu      sync.RWMutex
 	o_ts    OwnerTimestamp
 	o_state int8
 	// o_replicas, for now all nodes are considered replicas
@@ -226,7 +226,6 @@ func NewShard(st *State, id int) (*LogShard, error) {
 		lowClient:      make(chan []byte),
 		inp:            make(chan []byte),
 		sync:           make(chan int64),
-		txid:           0,
 		ClientByDevice: map[int64]*Client{},
 		ClientByConn:   map[ClientConn]*Client{},
 		replyTo:        map[int64]int64{},

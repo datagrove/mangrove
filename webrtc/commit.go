@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"unsafe"
 
@@ -63,12 +64,15 @@ func ExecTx(lg *LogShard, c *Client, rpc *RpcClient) {
 type TxCommit struct {
 	FileId
 	// row id of 0 means to insert and return a new row id
-	Read    []int64
-	RowId   []int64
-	Version []int64
-	Data    [][]byte
+	Op []TxOp
+}
+type TxOp struct {
+	RowId   int64
+	Version int64
+	Data    []byte
 	// if all versions are trimmed, the tuple is deleted
-	Trim []int64
+	Trim int64
+	Op   int8
 }
 type TxResult struct {
 	error string
@@ -110,9 +114,12 @@ func (lg *TxExecution) tryAgain() bool {
 		}()
 	}
 
-	var tpl []*TupleState = make([]*TupleState, len(write.RowId))
+	sort.Slice(write.Op, func(i, j int) bool {
+		return write.Op[i].RowId < write.Op[j].RowId
+	})
+	var tpl []*TupleState = make([]*TupleState, len(write.Op))
 
-	for i, rowid := range write.Read {
+	for i, rowid := range write.Op {
 		key := fmt.Sprintf("%d:%d", write.FileId, rowid)
 		tpl[i], ok = lg.tuple.Get(key)
 		if !ok {
@@ -148,6 +155,10 @@ func (lg *TxExecution) tryAgain() bool {
 				getOwnership(write.FileId, rowid, tpl[i])
 			}
 		}
+	}
+	if !wait {
+		// combine and sort the keys to avoid deadlock
+		keys = append()
 	}
 	return wait
 }

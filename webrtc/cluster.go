@@ -137,16 +137,16 @@ func (cl *ClusterShard) Send(p PeerId, data []byte) {
 
 // this can also be used to send to a device or file shard.
 // devices connect to the shard that contains their profile database.
-func (cl *ClusterShard) SendToPrimary(id int64, data []byte) {
-	// could be me
-	p64 := id % int64(len(cl.Shard)*len(cl.peer))
-	p := int(p64 / int64(len(cl.Shard)))
-	if p == cl.Me {
-		cl.Shard[cl.log2Shard(id)].Recv(id, data)
-	} else {
-		cl.peer[p].Write(data)
-	}
-}
+// func (cl *ClusterShard) SendToPrimary(id int64, data []byte) {
+// 	// could be me
+// 	p64 := id % int64(len(cl.Shard)*len(cl.peer))
+// 	p := int(p64 / int64(len(cl.Shard)))
+// 	if p == cl.Me {
+// 		cl.Shard[cl.log2Shard(id)].Recv(id, data)
+// 	} else {
+// 		cl.peer[p].Write(data)
+// 	}
+// }
 
 // there is a tcp connection between the same shard on each machine
 func NewCluster(cfg *ClusterConfig) (*Cluster, error) {
