@@ -57,12 +57,12 @@ func (cfg *ClusterConfig) NumShards() int {
 // so if there are 30 shards among 3 peers
 // then the first 10 shards are on the first peer
 // the next 10 are on the second peer, etc.
-func (cl *Cluster) log2Shard(logid FileId) int {
-	return int(logid>>48) & 255
-}
-func (cl *Cluster) id2Peer(logid FileId) int {
-	return int(logid >> 56)
-}
+// func (cl *Cluster) log2Shard(logid FileId) int {
+// 	return int(logid>>48) & 255
+// }
+// func (cl *Cluster) id2Peer(logid FileId) int {
+// 	return int(logid >> 56)
+// }
 
 // each shard should allow its own ip address
 // how do we communicate to the client w
@@ -78,6 +78,8 @@ type Cluster struct {
 	// tcp is two-way, so we only need to connect i<j
 	// the listener will take one byte to identify the caller.
 	shard []*ClusterShard
+
+	id2Peer hashmap.Map[DeviceId, PeerId]
 }
 
 func (c *Cluster) Join() {
@@ -103,12 +105,19 @@ func (cl *ClusterShard) GlobalShard() int {
 	return cl.thisShard + cl.Me*cl.NumPeers()
 }
 
+func (cl *ClusterShard) Recv(peerid PeerId, data []byte) {
+
+}
+
 // if the device id is on another shard, we need to switch this message to that shard
 // this is done mostly for low priority/low volume messages like websock signaling
 func (cl *ClusterShard) ClientSend(id DeviceId, data []byte) {
 	// to send to another client we first need to send to the client's host computer
 	// we need to put the DeviceId in the header so that we can route it to the correct shard.
-	peerid := cl.id2Peer(id)
+	peerid, ok := cl.id2Peer.Get(id)
+	if !ok {
+		return
+	}
 	if peerid == cl.Me {
 		o, ok := cl.Get(id)
 		if ok {
@@ -123,23 +132,37 @@ func (cl *ClusterShard) ClientSend(id DeviceId, data []byte) {
 	}
 }
 
-// send to every peer in the same shard. Wait for acks
-func (cl *ClusterShard) Brpc(op byte, header []byte, payload []byte) {
+func (cl *ClusterShard) GetMessage() {
 
 }
-func (cl *ClusterShard) Broadcast(op byte, header []byte, payload []byte) {
+
+// send to every peer in the same shard. Wait for acks
+func (cl *ClusterShard) Brpc(op byte, payload ...[]byte) {
+	// register promise
+	var id = cl.nextId()
+	cl.Broadcast(op, id, payload...)
+}
+func (cl *ClusterShard) Breply() {
+
+}
+func (cl *ClusterShard) Broadcast(op byte, id int64, payload ...[]byte) {
 	for i := 0; i < len(cl.peer); i++ {
 		if i == cl.Me {
 			continue
 		}
-		var ol = make([]byte, 9)
-		var id = cl.nextId()
-		binary.LittleEndian.PutUint32(ol, uint32(len(header)+len(payload)+13))
-		ol[4] = op
-		binary.LittleEndian.PutUint64(ol[5:13], uint64(id))
+
+		sl := 0
+		for _, p := range payload {
+			sl += len(p)
+		}
+		var ol = make([]byte, 13)
+		binary.LittleEndian.PutUint32(ol, uint32(sl+5))
+		binary.LittleEndian.PutUint64(ol[4:12], uint64(id))
+		ol[12] = op
 		cl.peer[i].Write(ol)
-		cl.peer[i].Write(header)
-		cl.peer[i].Write(payload)
+		for _, p := range payload {
+			cl.peer[i].Write(p)
+		}
 	}
 }
 func (cl *ClusterShard) Send(p PeerId, data []byte) {
@@ -189,6 +212,25 @@ func NewClusterShard(cfg *Cluster, shard int) (*ClusterShard, error) {
 		Cluster:   cfg,
 		thisShard: shard,
 	}
+	read := func(peerid PeerId, conn net.Conn) {
+		reader := bufio.NewReader(conn)
+		for {
+			// Read the length of the message
+			lengthBytes, err := reader.Peek(4)
+			if err != nil {
+				panic(err)
+			}
+			length := int32(lengthBytes[0])<<24 | int32(lengthBytes[1])<<16 | int32(lengthBytes[2])<<8 | int32(lengthBytes[3])
+
+			// Read the message payload
+			payload := make([]byte, length)
+			_, err = reader.Read(payload)
+			if err != nil {
+				panic(err)
+			}
+			r.Recv(peerid, payload)
+		}
+	}
 
 	pcn := make([]net.Conn, len(cfg.Peer))
 	port := strconv.Itoa(cfg.ShardStart + shard)
@@ -206,12 +248,7 @@ func NewClusterShard(cfg *Cluster, shard int) (*ClusterShard, error) {
 		}
 		pcn[i] = conn
 		conn.Write(id)
-	}
-
-	recv := func(data []byte) {
-		logid := binary.LittleEndian.Uint64(data[4:12])
-		shard := r.log2Shard(FileId(logid))
-		r.Shard[shard].Recv(FileId(logid), data[12:])
+		read(i, conn)
 	}
 
 	// Accept incoming connections and handle them in separate goroutines
@@ -227,23 +264,7 @@ func NewClusterShard(cfg *Cluster, shard int) (*ClusterShard, error) {
 				b := make([]byte, 1)
 				reader.Read(b)
 				pcn[b[0]] = conn
-
-				for {
-					// Read the length of the message
-					lengthBytes, err := reader.Peek(4)
-					if err != nil {
-						panic(err)
-					}
-					length := int32(lengthBytes[0])<<24 | int32(lengthBytes[1])<<16 | int32(lengthBytes[2])<<8 | int32(lengthBytes[3])
-
-					// Read the message payload
-					payload := make([]byte, length)
-					_, err = reader.Read(payload)
-					if err != nil {
-						panic(err)
-					}
-					recv(payload)
-				}
+				read(int(b[0]), conn)
 
 			}(conn)
 		}

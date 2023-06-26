@@ -9,7 +9,7 @@ import (
 )
 
 type FileId = int64
-type PeerId = int64
+type PeerId = int
 type ShardId = int64
 type DeviceId = int64
 
