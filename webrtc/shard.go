@@ -24,6 +24,7 @@ type Gkey struct {
 
 // the last 16 bits are used to indicate a sequence of deltas modifying the tuple.
 // is there a better way to do this though? Maybe not using the key, but the value.
+// can the value be a radix tree like a file? maybe somewhat extending the idea of the german style 16 byte string.
 func (g *Gkey) String() string {
 	return string(g.data[:14])
 }
