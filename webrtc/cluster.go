@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/cornelk/hashmap"
 	"github.com/lesismal/nbio/nbhttp/websocket"
@@ -91,6 +92,11 @@ type ClusterShard struct {
 	hashmap.Map[DeviceId, *websocket.Conn]
 	peer  []net.Conn
 	Lease []int64 // update on messages
+	id    int64
+}
+
+func (cl *ClusterShard) nextId() int64 {
+	return atomic.AddInt64(&cl.id, 1)
 }
 
 func (cl *ClusterShard) GlobalShard() int {
@@ -117,16 +123,21 @@ func (cl *ClusterShard) ClientSend(id DeviceId, data []byte) {
 	}
 }
 
-// send to every peer in the same shard
+// send to every peer in the same shard. Wait for acks
+func (cl *ClusterShard) Brpc(op byte, header []byte, payload []byte) {
+
+}
 func (cl *ClusterShard) Broadcast(op byte, header []byte, payload []byte) {
 	for i := 0; i < len(cl.peer); i++ {
 		if i == cl.Me {
 			continue
 		}
-		var ol = make([]byte, 5)
-		binary.LittleEndian.PutUint32(ol, uint32(len(header)+len(payload)+1))
+		var ol = make([]byte, 9)
+		var id = cl.nextId()
+		binary.LittleEndian.PutUint32(ol, uint32(len(header)+len(payload)+13))
 		ol[4] = op
-		cl.peer[i].Write([]byte{op})
+		binary.LittleEndian.PutUint64(ol[5:13], uint64(id))
+		cl.peer[i].Write(ol)
 		cl.peer[i].Write(header)
 		cl.peer[i].Write(payload)
 	}
