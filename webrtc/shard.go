@@ -2,7 +2,7 @@ package main
 
 import (
 	"sync"
-	"unsafe"
+	"sync/atomic"
 
 	"github.com/cornelk/hashmap"
 	"github.com/datagrove/mangrove/push"
@@ -68,7 +68,7 @@ type LogShard struct {
 	lowClient chan []byte    // we may want to depriortize some logs
 	inp       chan []byte
 	sync      chan FileId
-	txid      int64
+	_txid     int64
 
 	ClientByDevice map[DeviceId]*Client
 	ClientByConn   map[ClientConn]*Client
@@ -86,6 +86,10 @@ type LogShard struct {
 
 	NextRowId int64
 	LastRowId int64 // we get id's in a block from the database, when we run out we get more, prevents reuse in a crash.
+}
+
+func (lg *LogShard) NextTxId() int64 {
+	return atomic.AddInt64(&lg._txid, 1)
 }
 
 var _ Shard = (*LogShard)(nil)
@@ -246,28 +250,4 @@ func NewShard(st *State, id int) (*LogShard, error) {
 		}
 	}()
 	return &lg, nil
-}
-
-type ClientState struct {
-}
-
-// what about a replace owner operation? what about key rotation?
-// read the file ids from a -2 page?
-type RtxInvalidate struct {
-	Txid int64
-	FileId
-	At int64 // -1 means append
-	// data is not in the header, but is the payoad
-}
-
-// validate will trigger a reply on the peer that initiated the write.
-type RtxValidate struct {
-	Txid int64
-	At   int64
-}
-
-func (v RtxInvalidate) toBytes() []byte {
-	const sz = int(unsafe.Sizeof(RtxInvalidate{}))
-	var asByteSlice []byte = (*(*[sz]byte)(unsafe.Pointer(&v)))[:]
-	return asByteSlice
 }

@@ -3,9 +3,31 @@ package main
 import (
 	"fmt"
 	"sync"
+	"unsafe"
 
 	"github.com/fxamacker/cbor/v2"
 )
+
+// what about a replace owner operation? what about key rotation?
+// read the file ids from a -2 page?
+type RtxInvalidate struct {
+	Txid int64
+	FileId
+	At int64 // -1 means append
+	// data is not in the header, but is the payoad
+}
+
+// validate will trigger a reply on the peer that initiated the write.
+type RtxValidate struct {
+	Txid int64
+	At   int64
+}
+
+func (v RtxInvalidate) toBytes() []byte {
+	const sz = int(unsafe.Sizeof(RtxInvalidate{}))
+	var asByteSlice []byte = (*(*[sz]byte)(unsafe.Pointer(&v)))[:]
+	return asByteSlice
+}
 
 // can we make it easier to restart by using this, or just add memory pressure?
 type TxExecution struct {
@@ -24,8 +46,7 @@ func ExecTx(lg *LogShard, c *Client, rpc *RpcClient) {
 	}
 	cbor.Unmarshal(rpc.Params, &ex.write)
 	// pick a unique tx id.
-	ex.Id = lg.txid
-	lg.txid++
+	ex.Id = lg.NextTxId()
 	if ex.tryAgain() {
 		go func() {
 			ex.wg.Wait()
@@ -73,6 +94,7 @@ func (lg *TxExecution) tryAgain() bool {
 	write := lg.write
 
 	// we get ownership all the versions of the tuple
+	// to get ownership we need to use the directory
 	getOwnership := func(fileid FileId, rowid int64, tpl *TupleState) {
 		wait = true
 		lg.wg.Add(1)
