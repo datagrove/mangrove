@@ -21,12 +21,6 @@ import (
 // each shard will only talk to the same shard on its peers.
 // messages that need to cross shards will done on the source system
 
-const (
-	Cl_ack = iota
-	Cl_inv
-	Cl_val
-)
-
 type ClientConn interface {
 	Send(data []byte)
 	Close()
@@ -109,11 +103,12 @@ type ClusterShard struct {
 	mu    sync.Mutex
 	await map[int64]ClusterRpc
 
-	method []func(data []byte)
+	method []func(peerid int, data []byte)
 }
 
 func (cl *ClusterShard) nextId() int64 {
-	return atomic.AddInt64(&cl.id, 1)
+	b := atomic.AddInt64(&cl.id, 1)
+	return (int64(cl.Me) << int64(56)) | b
 }
 
 func (cl *ClusterShard) GlobalShard() int {
@@ -131,7 +126,7 @@ func (cl *ClusterShard) Recv(peerid PeerId, data []byte) {
 	method := data[12]
 	if method == 0 {
 		// register methods here to
-		cl.method[data[12]](data[13:])
+		cl.method[data[12]](peerid, data[13:])
 		return
 	}
 	id := binary.LittleEndian.Uint64(data[4:12])
@@ -172,32 +167,39 @@ func (cl *ClusterShard) Brpc(op byte, payload ...[]byte) {
 	var id = cl.nextId()
 	cl.Broadcast(op, id, payload...)
 }
-func (cl *ClusterShard) Breply() {
-
+func (cl *ClusterShard) Breply(id int64, payload ...[]byte) {
+	peerid := int(id >> 56)
+	cl.send(peerid, 0, id, payload...)
 }
+
+func (cl *ClusterShard) send(peerid PeerId, op byte, id int64, payload ...[]byte) {
+	sl := 0
+	for _, p := range payload {
+		sl += len(p)
+	}
+	var ol = make([]byte, 13)
+	binary.LittleEndian.PutUint32(ol, uint32(sl+5))
+	binary.LittleEndian.PutUint64(ol[4:12], uint64(id))
+	ol[12] = op
+	cl.peer[peerid].Write(ol)
+	for _, p := range payload {
+		cl.peer[peerid].Write(p)
+	}
+}
+
+// the first byte of the id can be the sending peer, which will make it easier to return
 func (cl *ClusterShard) Broadcast(op byte, id int64, payload ...[]byte) {
 	for i := 0; i < len(cl.peer); i++ {
 		if i == cl.Me {
 			continue
 		}
-
-		sl := 0
-		for _, p := range payload {
-			sl += len(p)
-		}
-		var ol = make([]byte, 13)
-		binary.LittleEndian.PutUint32(ol, uint32(sl+5))
-		binary.LittleEndian.PutUint64(ol[4:12], uint64(id))
-		ol[12] = op
-		cl.peer[i].Write(ol)
-		for _, p := range payload {
-			cl.peer[i].Write(p)
-		}
+		cl.send(i, op, id, payload...)
 	}
 }
-func (cl *ClusterShard) Send(p PeerId, data []byte) {
-	cl.peer[p].Write(data)
-}
+
+// func (cl *ClusterShard) Send(p PeerId, data []byte) {
+// 	cl.peer[p].Write(data)
+// }
 
 // this can also be used to send to a device or file shard.
 // devices connect to the shard that contains their profile database.

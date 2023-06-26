@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"sync"
 	"sync/atomic"
 
@@ -9,9 +10,29 @@ import (
 )
 
 type FileId = int64
+type TupleId = int64
 type PeerId = int
 type ShardId = int64
 type DeviceId = int64
+
+// key material is complex, we want to "own" a prefix, is it always first 48 bits?
+// We always need the FileId. There is a small namespace bit vector, but irrelevant here. Some fileids are reserved. Some tupleids are reserved to indicate a message specific to a device (like a rekey notification).
+
+type Gkey struct {
+	data [16]byte
+}
+
+// the last 16 bits are used to indicate a sequence of deltas modifying the tuple.
+// is there a better way to do this though? Maybe not using the key, but the value.
+func (g *Gkey) String() string {
+	return string(g.data[:14])
+}
+func gkey(fileid FileId, tupleid TupleId) Gkey {
+	var g Gkey
+	binary.BigEndian.PutUint64(g.data[0:8], uint64(fileid))
+	binary.BigEndian.PutUint64(g.data[8:16], uint64(tupleid))
+	return g
+}
 
 type State struct {
 	home string
@@ -209,15 +230,37 @@ func NewState(home string, shards int) (*State, error) {
 	return r, nil
 }
 
+type Invalidate struct {
+	FileId
+	TupleId
+
+	Data []byte
+}
+
+const (
+	Cl_ack = iota
+	Cl_inv
+	Cl_val
+
+	// for now Cl_req is not used, because every peer is already a directory
+)
+
+func (lg *LogShard) Req(tid TupleId) {
+
+}
+
 func (lg *LogShard) Connect(cl *ClusterShard) {
 	lg.cluster = cl
-	cl.method[Cl_ack] = func(data []byte) {
+	cl.method = make([]func(int, []byte), 256)
+	cl.method[Cl_ack] = func(peerid int, data []byte) {
 		// I don't think I need this, this should be a reply to the r-inv
 	}
-	cl.method[Cl_inv] = func(data []byte) {
+	cl.method[Cl_inv] = func(peerid int, data []byte) {
+		// invalidate tells the file/tuple 128 bit id we are invalidating and the data that invalidates it. we want to be able to append, and to use logrithmic coallescing if necessary.
+		// the object has already been updated when this message is sent, but not visible until we get the ack of the inv.
 
 	}
-	cl.method[Cl_val] = func(data []byte) {
+	cl.method[Cl_val] = func(peerid int, data []byte) {
 
 	}
 }
