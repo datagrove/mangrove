@@ -28,11 +28,16 @@ create table toast (
 create index tv on tuple(fid,rid,data)
 `
 
+type UserId = uint64
 type Tuple struct {
 	Rid    uint64
 	Pid    uint64
 	Length uint64
 }
+
+// the sync tree is sorted [date,files]
+// we can use the subscriber record to find all the subscribed files that have changed when background sync is called.
+// how is this sharded? duplicate the update tree on each peer. using a join tree we can use multiple cores if we want. one batch to update.
 
 // high 48 bits are the RID
 // the low 16 bits hold left-full trees of the sequence records

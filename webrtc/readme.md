@@ -1,4 +1,7 @@
 
+what if we stored opens? we would have to invalidate when keys changed. we would require database hits rather than signature checks.
+potentially better approach is that approve( )-> jwt, then open jwt.
+
 key -> string
 string = 8 byte length + up to 1024-8 bytes
 longer than 1016 bytes move to overflow pages 

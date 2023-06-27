@@ -69,6 +69,7 @@ const (
 	T_update
 	T_delete
 	T_append
+	T_push
 )
 
 // a Functor is a byte packed edit instruction for the tuple bytes or blind append.
@@ -76,6 +77,11 @@ type TxOp struct {
 	Gkey // FileId for inserts, RowId for updates
 	Data []byte
 	Op   byte
+}
+type TxPush struct {
+	UserId `json:"user_id,omitempty"` // put in header so we can route without finishing the parsing.
+	Rid    int64                      `json:"rid,omitempty"`  // needed for a link to the original write
+	Data   []byte                     `json:"data,omitempty"` // not necessarily the tuple, probably a summary.
 }
 
 // we can varint length bit vector 1=copy, 0=literal
@@ -125,7 +131,7 @@ func (te *TxExecution) tryAgain() bool {
 	})
 	var tpl []*TupleState = make([]*TupleState, len(write.Op))
 	for i, op := range write.Op {
-		if op.Gkey == 0 {
+		if op.Op == T_insert {
 			// it's not necessary to claim ownership because the id is already unique
 			rowid := lg.NewRowId(op.Gkey)
 			tpl[i] = &TupleState{
