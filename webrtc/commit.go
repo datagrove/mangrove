@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sort"
 	"time"
 
@@ -61,7 +60,6 @@ func ExecTx(lg *LogShard, c *Client, rpc *RpcClient) {
 
 // we don't care about rifl here, because the version will be bumped so a repeat will fail. the client will merge, and see its the same and not send.
 type TxCommit struct {
-	FileId
 	// row id of 0 means to insert and return a new row id
 	Op []TxOp
 }
@@ -103,18 +101,18 @@ type TxResult struct {
 // 	return nil, nil
 // }
 
-func (lg *ClusterShard) getOwnership(fileid FileId, rowid int64, tpl *TupleState) {
+func (lg *LogShard) getOwnership(gkey Gkey, tpl *TupleState) {
 
 }
-func (lg *ClusterShard) getValid(fileid FileId, rowid int64, tpl *TupleState) {
+func (lg *LogShard) getValid(gkey Gkey, tpl *TupleState) {
 
 }
 
 // we can retry the entire transaction if we fail on a key.
-func (lg *TxExecution) tryAgain() bool {
+func (te *TxExecution) tryAgain() bool {
 	var wait bool
 	var ok bool
-	write := lg.write
+	write := te.write
 
 	// we get ownership all the versions of the tuple
 	// to get ownership we need to use the directory
@@ -128,33 +126,22 @@ func (lg *TxExecution) tryAgain() bool {
 	var need []Gkey = make([]Gkey, 0)
 	for i, op := range write.Op {
 		if op.Gkey.Insert() {
-			rowid := lg.NewRowId(op.FileId())
+			// it's not necessary to claim ownership because the id is already unique
+			rowid := te.NewRowId(op.FileId())
 			tpl[i] = &TupleState{
 				o_state: O_valid,
 			}
-			lg.tuple.Set(rowid.String(), tpl[i])
+			te.tuple.Set(rowid.String(), tpl[i])
 		} else {
-			key := fmt.Sprintf("%d:%d", write.FileId, op.RowId)
-			tpl[i], ok = lg.tuple.Get(key)
+			tpl[i], ok = te.tuple.Get(op.Gkey.String())
 			if !ok {
 				// we need ownership so we can swap the tuple in.
-				lg.getOwnership(write.FileId, op.RowId, nil)
+				te.LogShard.getOwnership(op.Gkey, nil)
 			}
 			// we need the tuple to be valid
 			if tpl[i].o_state != O_valid {
-				lg.getValid(write.FileId, op.RowId, tpl[i])
+				te.getValid(op.Gkey, tpl[i])
 			}
-		}
-
-		key := fmt.Sprintf("%d:%d", write.FileId, op.RowId)
-		tpl[i], ok = lg.tuple.Get(key)
-		if !ok {
-			// we need ownership so we can swap the tuple in.
-			lg.getOwnership(write.FileId, op.RowId, nil)
-		}
-		// we need the tuple to be valid
-		if tpl[i].o_state != O_valid {
-			lg.getValid(write.FileId, op.RowId, tpl[i])
 		}
 	}
 

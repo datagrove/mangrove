@@ -11,10 +11,14 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// pid is a pointer id, from a tuple it points to a stream, from a stream it points to the security group
+// rids use the top byte to indicate peer and core, 48 bits are time, but incremented to ensure uniqueness.
+// the msb = 255 is reserved for system records.
+// system records are security groups, streams, devices, users
 const ddl = `
 create table tuple (
-    fid INTEGER PRIMARY KEY,
-    rid integer,
+    rid INTEGER PRIMARY KEY,
+    pid integer,
     data BLOB
     );
 

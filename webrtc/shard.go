@@ -115,16 +115,26 @@ type LogShard struct {
 	//GroupCommit [][]byte
 
 	// high 2 bytes indicating global shard id
+	start int64
+	end   int64
+}
 
-	NextRowId int64
-	LastRowId int64 // we get id's in a block from the database, when we run out we get more, prevents reuse in a crash.
+// lock is not needed because its per shard, and we do not need it in retries.
+// these need to be taken from a sequence generator, or perhaps it would be faster to choose randomly and then retry if we have to?
+// a bloom filter would guarantee no collisions but then we have to commit the bloom filter which is worse than a sequence generator.
+// we need to do here, not in database, so preserved over crashes.
+// each shard can still have its own sequence generator that it owns so ownershp always succeeds and no locks.
+func (s *LogShard) NextRowId() int64 {
+	if s.start == s.end {
+
+	}
+	r := s.start
+	s.start++
+	return r
 }
 
 func (lg *LogShard) NextTxId() int64 {
 	return atomic.AddInt64(&lg._txid, 1)
-}
-func (lg *LogShard) NewRowId(f FileId) Gkey {
-	return gkey(f, atomic.AddInt64(&lg.NextRowId, 1))
 }
 
 var _ Shard = (*LogShard)(nil)
