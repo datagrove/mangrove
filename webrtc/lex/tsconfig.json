@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "experimentalDecorators": true,
+    "strict": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "noEmit": true,
+    "isolatedModules": true,
+    "paths": {
+      "@datagrove/ui": [
+          "../../../packages/ui/src"
+      ],
+  },
+  },
+
+  "includes": [
+    "src/*.tsx",
+    "src/*.ts"
+  ]
+}

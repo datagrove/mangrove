@@ -107,8 +107,8 @@ export function RichTextEditor(props: RteProps) {
       <Icon class='h-6 w-6' path={check} />
       <div class='flex-1 '></div>
       <div class='space-x-4 flex mr-2'>
-        <Icon class='h-6 w-6' path={undo} onClick={() => editor.dispatchCommand(UNDO_COMMAND)} />
-        <Icon class='h-6 w-6' path={redo} onClick={() => editor.dispatchCommand(REDO_COMMAND)} />
+        <Icon class='h-6 w-6' path={undo} onClick={() => editor.dispatchCommand(UNDO_COMMAND,null as any)} />
+        <Icon class='h-6 w-6' path={redo} onClick={() => editor.dispatchCommand(REDO_COMMAND,null as any)} />
         <Icon class='h-6 w-6' path={plus} />
         <Icon class='h-6 w-6' path={sparkles} />
         <Icon class='h-6 w-6' path={menu} /></div>

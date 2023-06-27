@@ -44,7 +44,7 @@ interface AsyncIterable {
 
 
 export async function uploadFiles(db: Db,files: FileList, path: string) {
-    const tx = db.begin()
+    const tx = db.begin("localhost")
 
     const pr = new Promise<void>((resolve, reject) => {
         let count = 0
