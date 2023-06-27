@@ -26,8 +26,8 @@ create index tv on tuple(fid,rid,data)
 `
 
 type Tuple struct {
-	Fid  int64
 	Rid  int64
+	Pid  int64
 	Data []byte
 }
 
