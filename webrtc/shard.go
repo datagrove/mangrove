@@ -54,7 +54,6 @@ type State struct {
 	shard []*LogShard
 	db    *LogDb
 	obj   hashmap.Map[FileId, FileState]
-
 	tuple hashmap.Map[string, *TupleState]
 	// pages are a shared resource or allocated per shard?
 }
