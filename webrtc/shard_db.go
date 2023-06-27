@@ -21,24 +21,32 @@ create table tuple (
     pid integer,
     length blob
     );
-create table toast (
+create table sequence (
 	block INTEGER PRIMARY KEY,
 	data blob
 );
+create  index watchbystream on watch(sid);
+`
+
+// problem? if we use special tables for watch, doesn't that make the ui harder?
+// doesn't it make replication harder? how can we map this to the core tables?
+
+// we can use the sequence to store subscriptions, do we also need the reverse?
+// we can use
+
+/*
 create table watch (
 	uid integer,
 	sid integer,
 	primary key (uid,sid)
-)
-crete table stream (
+);
+create table stream (
 	sid integer,
 	ts integer,
 	data blob,
 	primary key (sid,ts)
-)
-create  index watchbystream on watch(sid);
-
-`
+);
+*/
 
 type UserId = uint64
 type Tuple struct {
@@ -54,8 +62,8 @@ type Tuple struct {
 // high 48 bits are the RID
 // the low 16 bits hold left-full trees of the sequence records
 // note that they are only full conceptually; trims may reduce the range of actual bytes in the range to 0.
-type Toast struct {
-	Block uint64
+type Sequence struct {
+	Seqid uint64
 	Data  []byte
 }
 

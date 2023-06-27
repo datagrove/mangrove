@@ -69,9 +69,6 @@ type Directory struct {
 // shards can act as directories, stores, or proxies
 type LogShard struct {
 	Directory
-
-	WatchJoin
-
 	client    chan Packet    // client messages are routed to a target LogId without parsing.
 	clientP   chan TxClientP // txclient sent to the designated shard
 	lowClient chan []byte    // we may want to depriortize some logs
