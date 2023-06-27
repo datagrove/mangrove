@@ -64,16 +64,18 @@ type TxCommit struct {
 	Op []TxOp
 }
 
+const (
+	T_insert = iota
+	T_update
+	T_delete
+	T_append
+)
+
 // a Functor is a byte packed edit instruction for the tuple bytes or blind append.
 type TxOp struct {
-	Gkey
-	Functor []byte
-	Version int64 // optional, 0 = don't care
-}
-type Functor struct {
-	Literal  []bool
-	StartEnd []uint64
-	Data     []byte
+	Gkey // FileId for inserts, RowId for updates
+	Data []byte
+	Op   byte
 }
 
 // we can varint length bit vector 1=copy, 0=literal
@@ -113,27 +115,25 @@ func (te *TxExecution) tryAgain() bool {
 	var wait bool
 	var ok bool
 	write := te.write
+	lg := te.LogShard
 
 	// we get ownership all the versions of the tuple
 	// to get ownership we need to use the directory
 	// sorting avoids deadlock.
 	sort.Slice(write.Op, func(i, j int) bool {
-		return string(write.Op[i].Gkey.data[:]) < string(write.Op[j].Gkey.data[:])
+		return string(write.Op[i].Gkey) < string(write.Op[j].Gkey)
 	})
 	var tpl []*TupleState = make([]*TupleState, len(write.Op))
-
-	// first pass just try to lock; if any are not local then do a pass of getting ownership of needed keys
-	var need []Gkey = make([]Gkey, 0)
 	for i, op := range write.Op {
-		if op.Gkey.Insert() {
+		if op.Gkey == 0 {
 			// it's not necessary to claim ownership because the id is already unique
-			rowid := te.NewRowId(op.FileId())
+			rowid := lg.NewRowId(op.Gkey)
 			tpl[i] = &TupleState{
 				o_state: O_valid,
 			}
-			te.tuple.Set(rowid.String(), tpl[i])
+			te.tuple.Set(rowid, tpl[i])
 		} else {
-			tpl[i], ok = te.tuple.Get(op.Gkey.String())
+			tpl[i], ok = te.tuple.Get(op.Gkey)
 			if !ok {
 				// we need ownership so we can swap the tuple in.
 				te.LogShard.getOwnership(op.Gkey, nil)

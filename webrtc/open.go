@@ -36,7 +36,7 @@ func ExecOpen(lg *LogShard, c *Client, tx *RpcClient) {
 
 	cbor.Unmarshal(tx.Params, &open)
 
-	canu := func(f *FileMeta, mode byte, did []byte) bool {
+	canu := func(f *SecurityPartition, mode byte, did []byte) bool {
 		return true
 	}
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/binary"
 	"sync"
 	"sync/atomic"
 
@@ -9,7 +8,7 @@ import (
 	"github.com/datagrove/mangrove/push"
 )
 
-type FileId = int64
+type FileId = uint64
 type TupleId = int64
 type PeerId = int
 type ShardId = int64
@@ -18,32 +17,7 @@ type DeviceId = int64
 // key material is complex, we want to "own" a prefix, is it always first 48 bits?
 // We always need the FileId. There is a small namespace bit vector, but irrelevant here. Some fileids are reserved. Some tupleids are reserved to indicate a message specific to a device (like a rekey notification).
 
-type Gkey struct {
-	data []byte
-}
-
-func (g *Gkey) FileId() FileId {
-	return FileId(binary.BigEndian.Uint64(g.data[0:8]))
-}
-func (g *Gkey) Insert() bool {
-	return len(g.data) == 4 // only specifies file id.
-}
-func (g *Gkey) Null() bool {
-	return len(g.data) == 0
-}
-
-// the last 16 bits are used to indicate a sequence of deltas modifying the tuple.
-// is there a better way to do this though? Maybe not using the key, but the value.
-// can the value be a radix tree like a file? maybe somewhat extending the idea of the german style 16 byte string.
-func (g *Gkey) String() string {
-	return string(g.data[:14])
-}
-func gkey(fileid FileId, tupleid TupleId) Gkey {
-	var g Gkey
-	binary.BigEndian.PutUint64(g.data[0:8], uint64(fileid))
-	binary.BigEndian.PutUint64(g.data[8:16], uint64(tupleid))
-	return g
-}
+type Gkey = uint64
 
 type State struct {
 	home string
@@ -54,7 +28,7 @@ type State struct {
 	shard []*LogShard
 	db    *LogDb
 	obj   hashmap.Map[FileId, FileState]
-	tuple hashmap.Map[string, *TupleState]
+	tuple hashmap.Map[Gkey, *TupleState]
 	// pages are a shared resource or allocated per shard?
 }
 
@@ -114,22 +88,18 @@ type LogShard struct {
 	//GroupCommit [][]byte
 
 	// high 2 bytes indicating global shard id
-	start int64
-	end   int64
+	start uint64
+	end   uint64
 }
 
-// lock is not needed because its per shard, and we do not need it in retries.
-// these need to be taken from a sequence generator, or perhaps it would be faster to choose randomly and then retry if we have to?
-// a bloom filter would guarantee no collisions but then we have to commit the bloom filter which is worse than a sequence generator.
-// we need to do here, not in database, so preserved over crashes.
-// each shard can still have its own sequence generator that it owns so ownershp always succeeds and no locks.
-func (s *LogShard) NextRowId() int64 {
+// each core has its own sequence generator that it owns so ownershp always succeeds and no locks.
+func (s *LogShard) NewRowId(f FileId) Gkey {
 	if s.start == s.end {
 
 	}
 	r := s.start
 	s.start++
-	return r
+	return Gkey(r)
 }
 
 func (lg *LogShard) NextTxId() int64 {
@@ -290,22 +260,18 @@ func (lg *LogShard) Connect(cl *ClusterShard) {
 func NewShard(st *State, id int) (*LogShard, error) {
 
 	lg := LogShard{
-		Directory: Directory{
-			State:   st,
-			cluster: &ClusterShard{},
-			rpc:     make(chan DirRpc),
-		},
+		Directory:      Directory{State: st, cluster: &ClusterShard{}, rpc: make(chan DirRpc)},
 		WatchJoin:      WatchJoin{},
 		client:         make(chan Packet),
 		clientP:        make(chan TxClientP),
 		lowClient:      make(chan []byte),
 		inp:            make(chan []byte),
-		sync:           make(chan int64),
+		_txid:          0,
 		ClientByDevice: map[int64]*Client{},
 		ClientByConn:   map[ClientConn]*Client{},
 		replyTo:        map[int64]int64{},
-		NextRowId:      0,
-		LastRowId:      0,
+		start:          0,
+		end:            0,
 	}
 
 	// will need some database opening and recovery here

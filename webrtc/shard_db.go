@@ -19,21 +19,43 @@ const ddl = `
 create table tuple (
     rid INTEGER PRIMARY KEY,
     pid integer,
-    data BLOB
+    length blob
     );
-
+create table toast (
+	sid INTEGER PRIMARY KEY,
+	data blob
+);
 create index tv on tuple(fid,rid,data)
 `
 
 type Tuple struct {
-	Rid  int64
-	Pid  int64
+	Rid    uint64
+	Pid    uint64
+	Length uint64
+}
+
+// high 48 bits are the RID
+// the low 16 bits hold left-full trees of the sequence records
+// note that they are only full conceptually; trims may reduce the range of actual bytes in the range to 0.
+type Toast struct {
+	Sid  uint64
 	Data []byte
 }
 
-type Partial = map[string]any
+// Trim is lazy, a record will be returned even if it has been trimmed, it may return the former data, or 0's.
+type Trim struct {
+	Rid uint64
+	At  uint64
+}
 
-type FileMeta struct {
+const (
+	M_security_partition = iota
+	M_stream
+	M_device
+	M_user
+)
+
+type SecurityPartition struct {
 	FileId
 	PublicRights int
 	Name         string
@@ -43,34 +65,6 @@ type FileMeta struct {
 	ReadKey  []byte
 	AdminKey []byte // right to change keys, other things in this record.
 }
-
-func update(f *FileMeta, upd Partial) {
-	b, _ := cbor.Marshal(f)
-	var asKeys = map[string]any{}
-	cbor.Unmarshal(b, &asKeys)
-	for k, v := range upd {
-		asKeys[k] = v
-	}
-	b, _ = cbor.Marshal(asKeys)
-	cbor.Unmarshal(b, f)
-}
-
-// fid:ns,rid:vs, data
-
-// ns = update | tuple
-
-// update:
-// rid = time
-// vs = peer
-
-// tuple:
-// rid = row id
-// vs = version
-// data = delta
-
-// fid = 0 -> Directory
-// rid = fileid
-// data = readkey,writekey etc.
 
 type LogDb struct {
 	db *sql.DB
@@ -96,8 +90,8 @@ func NewLogDb(path string) (*LogDb, error) {
 }
 
 // read
-func (db *LogDb) Read(fid int64, rid int64) ([]byte, error) {
-	res, err := db.db.Query("select data from tuple where fid=? and rid=?;", fid, rid)
+func (db *LogDb) Read(rid uint64) ([]byte, error) {
+	res, err := db.db.Query("select data from tuple where rid=?;", rid)
 	if err != nil {
 		return nil, err
 	}
@@ -110,19 +104,20 @@ func (db *LogDb) Read(fid int64, rid int64) ([]byte, error) {
 	}
 	return d, nil
 }
-func (db *LogDb) Scan(fid int64, from, to int64, limit int64, offset int64) ([]byte, error) {
-	res, err := db.db.Query("select data from tuple where fid=? and rid between ? and ? limit ? offset ?;", fid, from, to, limit, offset)
+func (db *LogDb) Scan(rid int64, from, to int64, limit int64, offset int64) ([][]byte, error) {
+	res, err := db.db.Query("select data from toast where fid=? and rid between ? and ? limit ? offset ?;", rid, from, to, limit, offset)
 	if err != nil {
 		return nil, err
 	}
-	if !res.Next() {
-		return nil, nil
-	}
+	var o [][]byte
 	var d []byte
-	if err := res.Scan(&d); err != nil {
-		return nil, err
+	for res.Next() {
+		if err := res.Scan(&d); err != nil {
+			return nil, err
+		}
+		o = append(o, d)
 	}
-	return d, nil
+	return o, nil
 }
 
 type Tx struct {
@@ -147,12 +142,12 @@ func (db *Tx) Commit() error {
 }
 
 // files are
-func (db *LogDb) GetFile(id int64) (*FileMeta, error) {
-	res, err := db.Read(0, id)
+func (db *LogDb) GetFile(id uint64) (*SecurityPartition, error) {
+	res, err := db.Read(id)
 	if err != nil {
 		return nil, err
 	}
-	var d FileMeta
+	var d SecurityPartition
 	cbor.Unmarshal(res, &d)
 	return &d, nil
 }
