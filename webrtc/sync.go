@@ -5,17 +5,15 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
-// we should probably
-
 type StreamId = uint64
-type SyncEvent struct {
+type WatchStream struct {
 	DeviceId
 	StreamId
 	Ts int64
 }
 
 // outbound message, device id is implied.
-type SyncNotify struct {
+type StreamUpdateTime struct {
 	StreamId
 	Ts int64
 }
@@ -24,27 +22,27 @@ type SyncNotify struct {
 // we could stream if too big for one message
 type SyncToClient struct {
 	Method string
-	Params []SyncNotify // return the timestamp helps if the device is part way through a sync.
+	Params []StreamUpdateTime // return the timestamp helps if the device is part way through a sync.
 }
 
 type SyncState struct {
 	stream hashmap.Map[StreamId, StreamState]
 	// this might be better as a linked list? channels can fill up and block.
-	query chan []SyncEvent
-	in    chan []SyncEvent
-	out   chan []SyncEvent
-	upd   chan SyncEvent
+	query        chan []WatchStream
+	subscribe    chan []WatchStream
+	unsubscribe  chan []WatchStream
+	streamChange chan StreamUpdateTime
 }
 type StreamState struct {
 	latest int64
 	watch  map[DeviceId]bool
 }
 
-func (st *State) dv(dx DeviceId, ts int64) []SyncEvent {
-	var res []SyncEvent
+func (st *State) dv(dx DeviceId, ts int64) []WatchStream {
+	var res []WatchStream
 	sub := st.db.GetWatch(dx)
 	for _, s := range sub {
-		res = append(res, SyncEvent{dx, s, ts})
+		res = append(res, WatchStream{dx, s, ts})
 	}
 
 	return res
@@ -54,10 +52,10 @@ func (st *State) addQuery(d DeviceId, ts int64) {
 	st.query <- st.dv(d, ts)
 }
 func (st *State) addWatch(d DeviceId, ts int64) {
-	st.in <- st.dv(d, ts)
+	st.subscribe <- st.dv(d, ts)
 }
 func (st *State) removeWatch(d DeviceId) {
-	st.out <- st.dv(d, 0)
+	st.unsubscribe <- st.dv(d, 0)
 }
 
 // keep a replica of every stream in memory? is that practical?
@@ -66,14 +64,14 @@ func (st *State) removeWatch(d DeviceId) {
 func (st *State) Update() {
 
 	upd := func(
-		appendEvent []SyncEvent,
-		openWatch []SyncEvent,
-		closeWatch []SyncEvent,
-		query []SyncEvent,
+		appendEvent []StreamUpdateTime,
+		openWatch []WatchStream,
+		closeWatch []WatchStream,
+		query []WatchStream,
 	) {
-		var notify map[DeviceId][]SyncNotify
+		var notify map[DeviceId][]StreamUpdateTime
 		note := func(d DeviceId, s StreamId, ts int64) {
-			notify[d] = append(notify[d], SyncNotify{s, ts})
+			notify[d] = append(notify[d], StreamUpdateTime{s, ts})
 		}
 		// maybe for queries we can do one pass insert, then one pass remove?
 		// use phase hash?
@@ -131,9 +129,9 @@ func (st *State) Update() {
 
 	// subscriptions - special table, or packed into vector?
 
-	in := getVecFlat(st.in)
-	out := getVecFlat(st.out)
-	se := getVec(st.upd)
+	in := getVecFlat(st.subscribe)
+	out := getVecFlat(st.unsubscribe)
+	se := getVec(st.streamChange)
 	q := getVecFlat(st.query)
 	upd(se, in, out, q)
 }

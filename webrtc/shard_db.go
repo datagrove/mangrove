@@ -22,10 +22,22 @@ create table tuple (
     length blob
     );
 create table toast (
-	sid INTEGER PRIMARY KEY,
+	block INTEGER PRIMARY KEY,
 	data blob
 );
-create index tv on tuple(fid,rid,data)
+create table watch (
+	uid integer,
+	sid integer,
+	primary key (uid,sid)
+)
+crete table stream (
+	sid integer,
+	ts integer,
+	data blob,
+	primary key (sid,ts)
+)
+create  index watchbystream on watch(sid);
+
 `
 
 type UserId = uint64
@@ -43,8 +55,8 @@ type Tuple struct {
 // the low 16 bits hold left-full trees of the sequence records
 // note that they are only full conceptually; trims may reduce the range of actual bytes in the range to 0.
 type Toast struct {
-	Sid  uint64
-	Data []byte
+	Block uint64
+	Data  []byte
 }
 
 // Trim is lazy, a record will be returned even if it has been trimmed, it may return the former data, or 0's.
