@@ -1,79 +1,55 @@
 package main
 
 import (
-	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
-	"sync"
-
-	"github.com/rs/cors"
 )
 
-// type Message struct {
-// 	Type string          `json:"type"`
-// 	Data json.RawMessage `json:"data"`
-// }
+// in addition to the cluster we want to start an embedded web server that is the editor.
+// the editor should have access to other clusters as well as its home cluster
 
-// var upgrader = websocket.Upgrader{}
+func StartPeer(home string, i int, outof int, core int) {
 
-// var waiting []*websocket.Conn = make([]*websocket.Conn, 0)
-// var sg sync.WaitGroup
-// var mu sync.Mutex
+	host := make([]string, outof)
+	for i := 0; i < len(host); i++ {
+		host = append(host, fmt.Sprintf(":809%d", i))
+	}
 
-// type SiteMap struct {
-// 	mu     sync.Mutex
-// 	site   sync.Map // map[int64]*Site
-// 	device sync.Map // map[int64]*Device
-// }
+	cfg := &ClusterConfig{
+		Me:           0,
+		Peer:         []string{},
+		Shard:        make([]Shard, core),
+		Ws:           "",
+		WsStart:      9000,
+		PortPerShard: 0,
+	}
+	st, e := NewState(fmt.Sprintf("test%d", i), 10)
+	if e != nil {
+		panic(e)
+	}
 
-// var siteMap *SiteMap
+	shard := make([]Shard, 10)
+	for i := range shard {
+		shard[i] = st.shard[i]
+	}
+	cfg.Me = i
+	cfg.Shard = shard
 
-// type Site struct {
-// 	sync.Mutex
-// 	lessee *websocket.Conn
-// }
+	NewCluster(cfg)
+}
 
 // build a cluster
 func main() {
 
-	siteMap = &SiteMap{
-		mu:     mu,
-		site:   sync.Map{},
-		device: sync.Map{},
-	}
+}
 
-	// Create a new CORS handler
-	c := cors.AllowAll()
-	sg.Add(2)
+func ServeHttps() {
+
 	// Create a new HTTP handler with the CORS middleware
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ws", handleWebSocket)
-	handler := c.Handler(mux)
 
 	// Start the server
 	log.Printf("listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", handler))
 }
-
-type Rpc struct {
-	Method string          `json:"method,omitempty"`
-	Id     int64           `json:"id,omitempty"`
-	Params json.RawMessage `json:"params,omitempty"`
-}
-
-type RpcReply struct {
-	Id     int64  `json:"id,omitempty"`
-	Result any    `json:"result,omitempty"`
-	Error  string `json:"error,omitempty"`
-}
-
-// defer conn.Close()
-// mu.Lock()
-// waiting = append(waiting, conn)
-// x := len(waiting) - 1
-// mu.Unlock()
-// sg.Done()
-// sg.Wait()
-// cx := waiting[(x+1)%2]
-// log.Printf("sending: %s,%d", message, x)
-// cx.WriteMessage(websocket.TextMessage, message)

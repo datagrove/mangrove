@@ -310,8 +310,7 @@ func NewClusterShard(cfg *Cluster, shard int) (*ClusterShard, error) {
 			addr[k] = fmt.Sprintf("%s:%d", cfg.Ws, wsport)
 			wsport++
 		}
-
-		StartWs(addr, func(u websocket.Upgrader) {
+		cn := func(u websocket.Upgrader) {
 			u.OnOpen(func(c *websocket.Conn) {
 				randomBytes := [16]byte{}
 				_, err := rand.Read(randomBytes[:])
@@ -328,7 +327,8 @@ func NewClusterShard(cfg *Cluster, shard int) (*ClusterShard, error) {
 			u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
 				r.Shard[i].ClientRecv(c.Session().(ClientConn), data)
 			})
-		})
+		}
+		StartWs(addr, cn)
 	}
 	// make it a little easier on the test server
 

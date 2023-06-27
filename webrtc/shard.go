@@ -261,7 +261,6 @@ func NewShard(st *State, id int) (*LogShard, error) {
 
 	lg := LogShard{
 		Directory:    Directory{State: st, cluster: &ClusterShard{}, rpc: make(chan DirRpc)},
-		WatchJoin:    WatchJoin{},
 		client:       make(chan Packet),
 		clientP:      make(chan TxClientP),
 		lowClient:    make(chan []byte),

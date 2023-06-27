@@ -1,6 +1,8 @@
 package main
 
-import "github.com/fxamacker/cbor/v2"
+import (
+	"github.com/fxamacker/cbor/v2"
+)
 
 type Partial = map[string]any
 
@@ -14,4 +16,16 @@ func mergeStruct[T any](f *T, upd Partial) {
 	}
 	b, _ = cbor.Marshal(asKeys)
 	cbor.Unmarshal(b, f)
+}
+
+type Rpc struct {
+	Method string          `json:"method,omitempty"`
+	Id     int64           `json:"id,omitempty"`
+	Params cbor.RawMessage `json:"params,omitempty"`
+}
+
+type RpcReply struct {
+	Id     int64  `json:"id,omitempty"`
+	Result any    `json:"result,omitempty"`
+	Error  string `json:"error,omitempty"`
 }

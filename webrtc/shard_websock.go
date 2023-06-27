@@ -3,16 +3,23 @@ package main
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/json"
-	"log"
 	"net/http"
-	"strconv"
 	"sync"
 
 	"github.com/cornelk/hashmap"
 	"github.com/datagrove/mangrove/ucan"
 	"github.com/fxamacker/cbor/v2"
-	"github.com/gorilla/websocket"
+
+	"context"
+	"flag"
+	"fmt"
+
+	"os"
+	"os/signal"
+	"time"
+
+	"github.com/lesismal/nbio/nbhttp"
+	"github.com/lesismal/nbio/nbhttp/websocket"
 )
 
 // is it faster to get ownership from a shard on the same peer? zeus says it uses locking locally to get ownership
@@ -126,6 +133,7 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 	}
 }
 
+/*
 // this needs to send it to the the other connection
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Upgrade the HTTP connection to a WebSocket connection
@@ -232,21 +240,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			// }
 		}
 	}
-}
-package main
-
-import (
-	"context"
-	"flag"
-	"fmt"
-	"net/http"
-	"os"
-	"os/signal"
-	"time"
-
-	"github.com/lesismal/nbio/nbhttp"
-	"github.com/lesismal/nbio/nbhttp/websocket"
-)
+}*/
 
 type WebsocketConn struct {
 	conn *websocket.Conn
