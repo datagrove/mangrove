@@ -119,37 +119,3 @@ func (lg *LogShard) fromWs(conn ClientConn, data []byte) {
 		ExecTx(lg, c, &tx)
 	}
 }
-
-type StreamId = uint64
-type SyncQuery struct {
-	StreamId
-	UserId
-	LastSync int64
-}
-type SyncWatch struct {
-	DeviceId
-	StreamId
-}
-type SyncEvent struct {
-	StreamId
-	Ts int64
-}
-type SyncState struct {
-}
-
-func (lg *SyncState) Update(s []SyncEvent) {
-
-}
-
-func ExecSync(lg *LogShard, c *Client, rpcClient *RpcClient) {
-	// read a file with stream ids in it. join it with the update tree compared to a date. batch.
-}
-
-func OpenWatch(lg *LogShard, c *Client, rpcClient *RpcClient) {
-	// broadcast to peers: each reads a file with stream ids in it
-	// added to the directory to
-}
-func CloseWatch(lg *LogShard, c *Client, rpcClient *RpcClient) {
-	// broadcast to peers: each reads a file with stream ids in it
-	// added to the directory to
-}

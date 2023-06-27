@@ -20,6 +20,7 @@ type DeviceId = int64
 type Gkey = uint64
 
 type State struct {
+	SyncState
 	home string
 	Cluster
 	push *push.NotifyDb
@@ -30,6 +31,9 @@ type State struct {
 	obj   hashmap.Map[FileId, FileState]
 	tuple hashmap.Map[Gkey, *TupleState]
 	// pages are a shared resource or allocated per shard?
+
+	// devices connected to this peer
+	ClientByDevice hashmap.Map[DeviceId, Client]
 }
 
 const (
@@ -75,8 +79,7 @@ type LogShard struct {
 	sync      chan FileId
 	_txid     int64
 
-	ClientByDevice map[DeviceId]*Client
-	ClientByConn   map[ClientConn]*Client
+	ClientByConn map[ClientConn]*Client
 	// remember the client writer device so we can notify them of completed writes
 	replyTo map[int64]DeviceId
 
@@ -260,18 +263,17 @@ func (lg *LogShard) Connect(cl *ClusterShard) {
 func NewShard(st *State, id int) (*LogShard, error) {
 
 	lg := LogShard{
-		Directory:      Directory{State: st, cluster: &ClusterShard{}, rpc: make(chan DirRpc)},
-		WatchJoin:      WatchJoin{},
-		client:         make(chan Packet),
-		clientP:        make(chan TxClientP),
-		lowClient:      make(chan []byte),
-		inp:            make(chan []byte),
-		_txid:          0,
-		ClientByDevice: map[int64]*Client{},
-		ClientByConn:   map[ClientConn]*Client{},
-		replyTo:        map[int64]int64{},
-		start:          0,
-		end:            0,
+		Directory:    Directory{State: st, cluster: &ClusterShard{}, rpc: make(chan DirRpc)},
+		WatchJoin:    WatchJoin{},
+		client:       make(chan Packet),
+		clientP:      make(chan TxClientP),
+		lowClient:    make(chan []byte),
+		inp:          make(chan []byte),
+		_txid:        0,
+		ClientByConn: map[ClientConn]*Client{},
+		replyTo:      map[int64]int64{},
+		start:        0,
+		end:          0,
 	}
 
 	// will need some database opening and recovery here

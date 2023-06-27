@@ -30,11 +30,6 @@ type SiteMap struct {
 
 var siteMap *SiteMap
 
-type Device struct {
-	sync.Mutex
-	*websocket.Conn
-}
-
 type Site struct {
 	sync.Mutex
 	lessee *websocket.Conn
@@ -95,7 +90,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	n, _ := strconv.Atoi(id)
 
-	device := &Device{Conn: conn}
+	device := &ClientConn{Conn: conn}
 	siteMap.device.Store(n, device)
 
 	for {

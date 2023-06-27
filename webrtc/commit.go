@@ -78,7 +78,7 @@ type TxOp struct {
 	Data []byte
 	Op   byte
 }
-type TxPush struct {
+type TxPushData struct {
 	UserId `json:"user_id,omitempty"` // put in header so we can route without finishing the parsing.
 	Rid    int64                      `json:"rid,omitempty"`  // needed for a link to the original write
 	Data   []byte                     `json:"data,omitempty"` // not necessarily the tuple, probably a summary.
