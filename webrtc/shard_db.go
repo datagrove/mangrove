@@ -75,6 +75,10 @@ type LogDb struct {
 	db *sql.DB
 }
 
+func (db *LogDb) GetWatch(d DeviceId) []StreamId {
+	return nil
+}
+
 func NewLogDb(path string) (*LogDb, error) {
 	_, e := os.Stat(path)
 	ctx := context.Background()

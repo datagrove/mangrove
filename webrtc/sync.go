@@ -5,6 +5,8 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
+// we should probably
+
 type StreamId = uint64
 type SyncQuery struct {
 	StreamId
@@ -31,15 +33,37 @@ func (st *State) Notify(d DeviceId, s []StreamId) {
 // we could stream if too big for one message
 type SyncToClient struct {
 	Method string
-	Params []StreamId
+	Params []SyncEvent // return the timestamp helps if the device is part way through a sync.
 }
 
 type SyncState struct {
 	stream hashmap.Map[StreamId, StreamState]
 	// this might be better as a linked list? channels can fill up and block.
-	in  chan DeviceId
-	out chan DeviceId
-	upd chan SyncEvent
+	query chan []SyncWatch
+	in    chan []SyncWatch
+	out   chan []SyncWatch
+	upd   chan SyncEvent
+}
+
+func (st *State) dv(dx []DeviceId) []WatchEvent {
+	var res []WatchEvent
+	for _, d := range dx {
+		sub := st.db.GetWatch(d)
+		for _, s := range sub {
+			res = append(res, WatchEvent{d, s})
+		}
+	}
+	return res
+}
+
+func (st *State) addQuery(d DeviceId) {
+
+}
+func (st *State) addWatch(d DeviceId) {
+
+}
+func (st *State) removeWatch(d DeviceId) {
+
 }
 
 // keep a replica of every stream in memory? is that practical?
@@ -106,11 +130,37 @@ func (st *State) Update() {
 		// we do join merge where we can flow down the tree, cutting off old branches.
 	}
 	// pick up all the updates, grab the subscribe list for new devices and leaving devices.
-	var in []DeviceId
-	var out []DeviceId
 
+	// subscriptions - special table, or packed into vector?
+
+	in := getVecFlat(st.in)
+	out := getVecFlat(st.out)
+	se := getVec(st.upd)
+	upd(se, in, out)
 }
 
+func getVecFlat[T any](from chan []T) []T {
+	var res []T
+	for {
+		select {
+		case v := <-from:
+			res = append(res, v...)
+		default:
+			return res
+		}
+	}
+}
+func getVec[T any](from chan T) []T {
+	var res []T
+	for {
+		select {
+		case v := <-from:
+			res = append(res, v)
+		default:
+			return res
+		}
+	}
+}
 func ExecSync(lg *LogShard, c *Client, rpcClient *RpcClient) {
 	// read a file with stream ids in it. join it with the update tree compared to a date. batch.
 }
