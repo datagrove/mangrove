@@ -8,95 +8,93 @@ import (
 // we should probably
 
 type StreamId = uint64
-type SyncQuery struct {
-	StreamId
-	UserId
-	LastSync int64
-}
-type SyncWatch struct {
-	DeviceId
-	StreamId
-	LastRead int64 // -1 close?
-}
-
 type SyncEvent struct {
+	DeviceId
 	StreamId
 	Ts int64
 }
 
-// calculated by the owner and sent to
-
-func (st *State) Notify(d DeviceId, s []StreamId) {
+// outbound message, device id is implied.
+type SyncNotify struct {
+	StreamId
+	Ts int64
 }
 
 // doesn't need rpc id, this is global thing.
 // we could stream if too big for one message
 type SyncToClient struct {
 	Method string
-	Params []SyncEvent // return the timestamp helps if the device is part way through a sync.
+	Params []SyncNotify // return the timestamp helps if the device is part way through a sync.
 }
 
 type SyncState struct {
 	stream hashmap.Map[StreamId, StreamState]
 	// this might be better as a linked list? channels can fill up and block.
-	query chan []SyncWatch
-	in    chan []SyncWatch
-	out   chan []SyncWatch
+	query chan []SyncEvent
+	in    chan []SyncEvent
+	out   chan []SyncEvent
 	upd   chan SyncEvent
 }
-
-func (st *State) dv(dx []DeviceId) []WatchEvent {
-	var res []WatchEvent
-	for _, d := range dx {
-		sub := st.db.GetWatch(d)
-		for _, s := range sub {
-			res = append(res, WatchEvent{d, s})
-		}
-	}
-	return res
-}
-
-func (st *State) addQuery(d DeviceId) {
-
-}
-func (st *State) addWatch(d DeviceId) {
-
-}
-func (st *State) removeWatch(d DeviceId) {
-
-}
-
-// keep a replica of every stream in memory? is that practical?
-// we could keep a cutoff for old streams, so if its not in memory then it hasn't been updated.
-
 type StreamState struct {
 	latest int64
 	watch  map[DeviceId]bool
 }
 
-type NotifyEvent struct {
-	DeviceId
-	StreamId
+func (st *State) dv(dx DeviceId, ts int64) []SyncEvent {
+	var res []SyncEvent
+	sub := st.db.GetWatch(dx)
+	for _, s := range sub {
+		res = append(res, SyncEvent{dx, s, ts})
+	}
+
+	return res
 }
-type WatchEvent = NotifyEvent
+
+func (st *State) addQuery(d DeviceId, ts int64) {
+	st.query <- st.dv(d, ts)
+}
+func (st *State) addWatch(d DeviceId, ts int64) {
+	st.in <- st.dv(d, ts)
+}
+func (st *State) removeWatch(d DeviceId) {
+	st.out <- st.dv(d, 0)
+}
+
+// keep a replica of every stream in memory? is that practical?
+// we could keep a cutoff for old streams, so if its not in memory then it hasn't been updated.
 
 func (st *State) Update() {
 
-	upd := func(s []SyncEvent, openWatch []WatchEvent, closeWatch []WatchEvent) {
-		var notify map[DeviceId][]StreamId
-		note := func(d DeviceId, s StreamId) {
-			notify[d] = append(notify[d], s)
+	upd := func(
+		appendEvent []SyncEvent,
+		openWatch []SyncEvent,
+		closeWatch []SyncEvent,
+		query []SyncEvent,
+	) {
+		var notify map[DeviceId][]SyncNotify
+		note := func(d DeviceId, s StreamId, ts int64) {
+			notify[d] = append(notify[d], SyncNotify{s, ts})
 		}
 		// maybe for queries we can do one pass insert, then one pass remove?
 		// use phase hash?
-		for _, e := range s {
+		for _, e := range appendEvent {
 			// each stream id is in a cluster shard
 			ss, ok := st.stream.Get(e.StreamId)
 			if ok {
-				ss.latest = e.Ts
-				for k := range ss.watch {
-					note(k, e.StreamId)
+				if e.Ts > ss.latest {
+					ss.latest = e.Ts
+					for k := range ss.watch {
+						note(k, e.StreamId, ss.latest)
+					}
 				}
+			}
+		}
+		// there is a bug here, that we need to get the file from disk if it's not in memory. we should do that before this loop though.
+		// we need a set read streams to update our set, and stream evictions to balance.
+		for _, e := range query {
+			ss, ok := st.stream.Get(e.StreamId)
+			if ok && ss.latest > e.Ts {
+				note(e.DeviceId, e.StreamId, ss.latest)
 			}
 		}
 		for _, e := range openWatch {
@@ -136,7 +134,8 @@ func (st *State) Update() {
 	in := getVecFlat(st.in)
 	out := getVecFlat(st.out)
 	se := getVec(st.upd)
-	upd(se, in, out)
+	q := getVecFlat(st.query)
+	upd(se, in, out, q)
 }
 
 func getVecFlat[T any](from chan []T) []T {

@@ -78,6 +78,7 @@ func (lg *LogShard) ApproveConnection(c *Client, data []byte) bool {
 	// notify the push engine that the device is online
 }
 
+// we should have a special flag to connect for background update
 func (lg *LogShard) ClientConnect(conn ClientConn) {
 	cx := &Client{
 		conn:   conn,
