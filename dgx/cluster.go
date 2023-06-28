@@ -259,8 +259,8 @@ func (cl *Cluster) Run() error {
 
 	go s.Run()
 	if false {
-		log.Printf("listening on %s", s.Addrs[0])
-		log.Fatal(http.ListenAndServe(s.Addrs[0], s.Mux))
+		log.Printf("listening on %s", s.Http[0])
+		log.Fatal(http.ListenAndServe(s.Http[0], s.Mux))
 	}
 
 	//go log.Fatal(http.ListenAndServe(x, sx.Mux))
@@ -274,14 +274,10 @@ func (cl *Cluster) Run() error {
 }
 
 // there is a tcp connection between the same shard on each machine
-func NewCluster(cfg *ClusterConfig) (*Cluster, error) {
-
-	r := &Cluster{
-		ClusterConfig: cfg,
-	}
-
+func (cfg *Cluster) Init() (*Cluster, error) {
+	r := cfg
 	// build the shards
-	r.shard = make([]*ClusterShard, cfg.ShardsPerPeer())
+	cfg.shard = make([]*ClusterShard, cfg.ShardsPerPeer())
 	var wg sync.WaitGroup
 	wg.Add(cfg.ShardsPerPeer())
 	for i := 0; i < cfg.ShardsPerPeer(); i++ {

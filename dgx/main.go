@@ -65,15 +65,7 @@ func main() {
 			if e != nil {
 				panic(e)
 			}
-			_ = st
-
-			cfg.Me = 0
-
-			a, e := NewCluster(cfg)
-			if e != nil {
-				panic(e)
-			}
-			a.Run()
+			st.Run()
 		},
 	}
 	var join = &cobra.Command{
