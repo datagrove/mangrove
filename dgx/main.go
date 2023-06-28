@@ -3,42 +3,15 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // in addition to the cluster we want to start an embedded web server that is the editor.
 // the editor should have access to other clusters as well as its home cluster
-
-func StartPeer(home string, i int, outof int, core int) {
-
-	host := make([]string, outof)
-	for i := 0; i < len(host); i++ {
-		host = append(host, fmt.Sprintf(":809%d", i))
-	}
-
-	cfg := &ClusterConfig{
-		Me:           0,
-		Peer:         []string{},
-		Shard:        make([]Shard, core),
-		Ws:           "",
-		WsStart:      9000,
-		PortPerShard: 0,
-	}
-	st, e := NewState(fmt.Sprintf("test%d", i), 10)
-	if e != nil {
-		panic(e)
-	}
-
-	shard := make([]Shard, 10)
-	for i := range shard {
-		shard[i] = st.shard[i]
-	}
-	cfg.Me = i
-	cfg.Shard = shard
-
-	NewCluster(cfg)
-}
 
 // build a cluster
 func main() {
@@ -51,19 +24,50 @@ func main() {
 		When restarting a cluster, you need enough nodes of the original cluster to recover the state. Any node of the cluster can be used as the start.`,
 	}
 	var start = &cobra.Command{
-		Use:   "join",
-		Short: "join cluster",
+		Use:   "start",
+		Short: "start cluster",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			home := "."
+			if len(args) > 0 {
+				home = args[0]
+			}
 			cfg := &ClusterConfig{
 				Me:           0,
-				Peer:         []string{},
 				ShardStart:   0,
-				Ws:           "",
-				WsStart:      0,
-				PortPerShard: 0,
-				Shard:        []Shard{},
+				Ws:           "localhost",
+				WsStart:      9000,
+				PortPerShard: 1,
 			}
+			viper.SetConfigName(path.Join(home, "dgx")) // name of config file (without extension)
+			err := viper.ReadInConfig()                 // Find and read the config file
+			if err != nil {                             // Handle errors reading the config file
+				// create a default config
+			}
+			config := func() {
+
+			}
+			viper.OnConfigChange(func(e fsnotify.Event) {
+				config()
+			})
+			viper.WatchConfig()
+			config()
+			// we can watch the configuration directory and restart if it changes, but for a cluster that's going to hurt
+			// what does it mean if this changes in a cluster? does everyone change? viper will read from etcd, consul etc, so that's interesting
+			// read the home director to see if this is a restart
+
+			st, e := NewState(fmt.Sprintf("test%d", i), 10)
+			if e != nil {
+				panic(e)
+			}
+
+			shard := make([]Shard, 10)
+			for i := range shard {
+				shard[i] = st.shard[i]
+			}
+			cfg.Me = i
+			cfg.Shard = shard
+
 			a, e := NewCluster(cfg)
 			if e != nil {
 				panic(e)

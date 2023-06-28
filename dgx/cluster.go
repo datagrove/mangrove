@@ -39,11 +39,8 @@ type ClusterConfig struct {
 	Ws           string // base address with %d for ports we use.
 	WsStart      int
 	PortPerShard int
-	Shard        []Shard
-}
-
-func (cfg *ClusterConfig) ShardsPerPeer() int {
-	return len(cfg.Shard)
+	Http         []string // http address for serving the ui.
+	//Shard        []Shard
 }
 
 // Use the high bits to divide files by peer and by shard
@@ -89,11 +86,15 @@ type Cluster struct {
 	id2Peer hashmap.Map[DeviceId, PeerId]
 }
 
+func (cfg *Cluster) ShardsPerPeer() int {
+	return len(cfg.shard)
+}
+
 func (cfg *Cluster) NumPeers() int {
 	return len(cfg.Peer)
 }
 func (cfg *Cluster) NumShards() int {
-	return len(cfg.Shard) * len(cfg.Peer)
+	return len(cfg.shard) * len(cfg.Peer)
 }
 func (c *Cluster) Join() {
 	// try to connect to all peers
