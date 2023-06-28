@@ -21,6 +21,7 @@ import (
 	"github.com/lesismal/nbio/nbhttp/websocket"
 	"github.com/markbates/goth"
 
+	"github.com/datagrove/mangrove/push"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/rs/cors"
 )
@@ -262,11 +263,11 @@ func NewServer(optc *Config) (*Server, error) {
 	svr := &Server{
 		Config: optc,
 		Db:     db,
-		fcm: &FcmBuffer{
-			fcmClient:        &messaging.Client{},
-			dispatchInterval: 0,
-			batchCh:          make(chan *messaging.Message),
-			wg:               sync.WaitGroup{},
+		fcm: &push.FcmBuffer{
+			FcmClient:        &messaging.Client{},
+			DispatchInterval: 0,
+			BatchCh:          make(chan *messaging.Message),
+			Wg:               sync.WaitGroup{},
 		},
 		Mux:          mmux,
 		Home:         "",

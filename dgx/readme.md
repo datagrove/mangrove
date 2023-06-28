@@ -1,4 +1,23 @@
 
+startup:
+
+ideally the first one to start will allow the others to connect with a secret 
+when the first one starts it should know the entire configuration which will mostly be R2 secrets.
+
+3 Directory nodes, and for each Data shard 3 r2 proxies. Data shards are as in Ram cloud able to move around and have a maximum size of 64 gb. This speeds recovery. Keys are placed by hash into the data shards. Data shards are assigned to storage nodes using copysets. (for < 3 nodes there is one copyset)
+
+Secondary indices are managed as values in tuples, this is similar to how Cicada build btrees in its 2-layer array. we should investigate scalestore approach as a possible alternative. 
+
+
+
+
+
+
+
+
+
+
+
 what if we stored opens? we would have to invalidate when keys changed. we would require database hits rather than signature checks.
 potentially better approach is that approve( )-> jwt, then open jwt.
 

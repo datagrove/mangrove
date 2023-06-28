@@ -5,13 +5,20 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"net"
+	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
 	"sync"
 	"sync/atomic"
 
 	"github.com/cornelk/hashmap"
+	"github.com/gorilla/mux"
+	"github.com/lesismal/nbio/nbhttp"
 	"github.com/lesismal/nbio/nbhttp/websocket"
+	"github.com/skip2/go-qrcode"
 )
 
 //  Each membership update is tagged with
@@ -28,9 +35,8 @@ type ClientConn interface {
 
 type ClusterConfig struct {
 	Me           int
-	Peer         []string // ip address, different port for each shard.
-	ShardStart   int      //
-	Ws           string   // base address with %d for ports we use.
+	ShardStart   int    //
+	Ws           string // base address with %d for ports we use.
 	WsStart      int
 	PortPerShard int
 	Shard        []Shard
@@ -38,12 +44,6 @@ type ClusterConfig struct {
 
 func (cfg *ClusterConfig) ShardsPerPeer() int {
 	return len(cfg.Shard)
-}
-func (cfg *ClusterConfig) NumPeers() int {
-	return len(cfg.Peer)
-}
-func (cfg *ClusterConfig) NumShards() int {
-	return len(cfg.Shard) * len(cfg.Peer)
 }
 
 // Use the high bits to divide files by peer and by shard
@@ -67,6 +67,13 @@ func (cfg *ClusterConfig) NumShards() int {
 // each shard should allow its own ip address
 // how do we communicate to the client w
 type Cluster struct {
+	Mux  *mux.Router //*http.ServeMux
+	Home string
+	Nbio *nbhttp.Server
+
+	// this will grow
+	Peer []string // ip address, different port for each shard.
+
 	Epoch  int64 // zeus paper says we just drop packets from past and future? shouldn't future packet force us to try to join?
 	shadow bool  // follow write, but don't take clients
 
@@ -82,6 +89,12 @@ type Cluster struct {
 	id2Peer hashmap.Map[DeviceId, PeerId]
 }
 
+func (cfg *Cluster) NumPeers() int {
+	return len(cfg.Peer)
+}
+func (cfg *Cluster) NumShards() int {
+	return len(cfg.Shard) * len(cfg.Peer)
+}
 func (c *Cluster) Join() {
 	// try to connect to all peers
 
@@ -213,6 +226,50 @@ func (cl *ClusterShard) Broadcast(op byte, id int64, payload ...[]byte) {
 // 		cl.peer[p].Write(data)
 // 	}
 // }
+
+func (cl *Cluster) Run() error {
+	e := cl.Nbio.Start()
+	if e != nil {
+		return e
+	}
+	defer cl.Nbio.Stop()
+
+	s := cl
+
+	//s.Mux.NotFoundHandler = s.EmbedHandler
+	s.Mux.HandleFunc("/wss", s.WsHandler)
+	s.Mux.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
+	})
+	//s.Mux.Handle("/", s.EmbedHandler)
+
+	// generate a QR from a url
+	s.Mux.HandleFunc("/api/qr/", func(w http.ResponseWriter, r *http.Request) {
+		data := r.URL.Path[8:]
+		qr, e := qrcode.New(string(data), qrcode.Medium)
+		if e != nil {
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.WriteHeader(200)
+		qr.Write(256, w)
+	})
+
+	go s.Run()
+	if false {
+		log.Printf("listening on %s", s.Addrs[0])
+		log.Fatal(http.ListenAndServe(s.Addrs[0], s.Mux))
+	}
+
+	//go log.Fatal(http.ListenAndServe(x, sx.Mux))
+	//log.Fatal(http.ListenAndServeTLS(sx.Https, sx.Cert, sx.Key, sx.Mux))
+	//certmagic.HTTPS([]string{"example.com"}, mux)
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
+	<-interrupt
+	log.Println("exit")
+	return nil
+}
 
 // there is a tcp connection between the same shard on each machine
 func NewCluster(cfg *ClusterConfig) (*Cluster, error) {

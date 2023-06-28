@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"sync"
 
+	"github.com/datagrove/mangrove/push"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/gorilla/mux"
 	"github.com/kardianos/service"
@@ -28,7 +29,7 @@ type Rpcf = func(a *Rpcp) (any, error)
 type Server struct {
 	*Config
 	*Db
-	fcm *FcmBuffer
+	fcm *push.FcmBuffer
 	//*FileWatcher
 	Mux  *mux.Router //*http.ServeMux
 	Home string

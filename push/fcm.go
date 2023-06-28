@@ -25,10 +25,10 @@ type NotifySettings struct {
 
 // FcmBuffer batches all incoming push messages and send them periodically.
 type FcmBuffer struct {
-	fcmClient        *messaging.Client
-	dispatchInterval time.Duration
-	batchCh          chan *messaging.Message
-	wg               sync.WaitGroup
+	FcmClient        *messaging.Client
+	DispatchInterval time.Duration
+	BatchCh          chan *messaging.Message
+	Wg               sync.WaitGroup
 }
 
 func NewFcmBuffer() (*FcmBuffer, error) {
@@ -54,21 +54,21 @@ func NewFcmBuffer() (*FcmBuffer, error) {
 		return nil, err
 	}
 	return &FcmBuffer{
-		fcmClient:        fcmClient,
-		dispatchInterval: 5 * time.Second,
-		batchCh:          make(chan *messaging.Message, 1000),
+		FcmClient:        fcmClient,
+		DispatchInterval: 5 * time.Second,
+		BatchCh:          make(chan *messaging.Message, 1000),
 	}, nil
 }
 
 func (b *FcmBuffer) SendPush(msg *messaging.Message) {
-	b.batchCh <- msg
+	b.BatchCh <- msg
 }
 
 func (b *FcmBuffer) sender() {
-	defer b.wg.Done()
+	defer b.Wg.Done()
 
 	// set your interval
-	t := time.NewTicker(b.dispatchInterval)
+	t := time.NewTicker(b.DispatchInterval)
 
 	// we can send up to 500 messages per call to Firebase
 	messages := make([]*messaging.Message, 0, 500)
@@ -84,7 +84,7 @@ func (b *FcmBuffer) sender() {
 
 	for {
 		select {
-		case m, ok := <-b.batchCh:
+		case m, ok := <-b.BatchCh:
 			if !ok {
 				return
 			}
@@ -98,20 +98,20 @@ func (b *FcmBuffer) sender() {
 }
 
 func (b *FcmBuffer) Run() {
-	b.wg.Add(1)
+	b.Wg.Add(1)
 	go b.sender()
 }
 
 func (b *FcmBuffer) Stop() {
-	close(b.batchCh)
-	b.wg.Wait()
+	close(b.BatchCh)
+	b.Wg.Wait()
 }
 
 func (b *FcmBuffer) sendMessages(messages []*messaging.Message) {
 	if len(messages) == 0 {
 		return
 	}
-	batchResp, err := b.fcmClient.SendAll(context.TODO(), messages)
+	batchResp, err := b.FcmClient.SendAll(context.TODO(), messages)
 	log.Printf("batch response: %+v, err: %s \n", batchResp, err)
 }
 
