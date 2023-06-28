@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"runtime"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
@@ -38,6 +39,7 @@ func main() {
 				Ws:           "localhost",
 				WsStart:      9000,
 				PortPerShard: 1,
+				cores:        runtime.NumCPU(),
 			}
 			viper.SetConfigName(path.Join(home, "dgx")) // name of config file (without extension)
 			err := viper.ReadInConfig()                 // Find and read the config file
@@ -45,6 +47,9 @@ func main() {
 				// create a default config
 			}
 			config := func() {
+				if err := viper.Unmarshal(cfg); err != nil {
+					panic(err)
+				}
 
 			}
 			viper.OnConfigChange(func(e fsnotify.Event) {
@@ -56,17 +61,13 @@ func main() {
 			// what does it mean if this changes in a cluster? does everyone change? viper will read from etcd, consul etc, so that's interesting
 			// read the home director to see if this is a restart
 
-			st, e := NewState(fmt.Sprintf("test%d", i), 10)
+			st, e := NewState(home, cfg)
 			if e != nil {
 				panic(e)
 			}
+			_ = st
 
-			shard := make([]Shard, 10)
-			for i := range shard {
-				shard[i] = st.shard[i]
-			}
-			cfg.Me = i
-			cfg.Shard = shard
+			cfg.Me = 0
 
 			a, e := NewCluster(cfg)
 			if e != nil {

@@ -40,6 +40,7 @@ type ClusterConfig struct {
 	WsStart      int
 	PortPerShard int
 	Http         []string // http address for serving the ui.
+	cores        int
 	//Shard        []Shard
 }
 

@@ -191,7 +191,7 @@ const (
 // 	Payload   []byte
 // }
 
-func NewState(home string, shards int) (*State, error) {
+func NewState(home string, cfg *ClusterConfig) (*State, error) {
 	// send to anyone online
 	send := func(int64, []byte) error {
 		return nil
@@ -205,12 +205,13 @@ func NewState(home string, shards int) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	r := &State{
 		home:    home,
 		Cluster: Cluster{},
 		push:    db,
 		db:      dbx,
-		shard:   make([]*LogShard, shards),
+		shard:   make([]*LogShard, cfg.cores),
 	}
 	for i := range r.shard {
 		b, e := NewShard(r, i)
@@ -219,7 +220,11 @@ func NewState(home string, shards int) (*State, error) {
 		}
 		r.shard[i] = b
 	}
-
+	shard := make([]Shard, 10)
+	for i := range shard {
+		shard[i] = r.shard[i]
+	}
+	r.Cluster.Init(shard, cfg)
 	return r, nil
 }
 
