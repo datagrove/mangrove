@@ -30,7 +30,7 @@ import (
 
 // can we make it easier to restart by using this, or just add memory pressure?
 type TxExecution struct {
-	*LogShard
+	*Core
 	*RpcClient
 
 	Id      int64
@@ -38,9 +38,9 @@ type TxExecution struct {
 	backoff time.Duration
 }
 
-func ExecTx(lg *LogShard, c *Client, rpc *RpcClient) {
+func ExecTx(lg *Core, c *Client, rpc *RpcClient) {
 	ex := &TxExecution{
-		LogShard:  lg,
+		Core:      lg,
 		RpcClient: rpc,
 	}
 	cbor.Unmarshal(rpc.Params, &ex.write)
@@ -109,10 +109,10 @@ type TxResult struct {
 // 	return nil, nil
 // }
 
-func (lg *LogShard) getOwnership(gkey Gkey, tpl *TupleState) {
+func (lg *Core) getOwnership(gkey Gkey, tpl *TupleState) {
 
 }
-func (lg *LogShard) getValid(gkey Gkey, tpl *TupleState) {
+func (lg *Core) getValid(gkey Gkey, tpl *TupleState) {
 
 }
 
@@ -121,7 +121,7 @@ func (te *TxExecution) tryAgain() bool {
 	var wait bool
 	var ok bool
 	write := te.write
-	lg := te.LogShard
+	lg := te.Core
 
 	// we get ownership all the versions of the tuple
 	// to get ownership we need to use the directory
@@ -142,7 +142,7 @@ func (te *TxExecution) tryAgain() bool {
 			tpl[i], ok = te.tuple.Get(op.Gkey)
 			if !ok {
 				// we need ownership so we can swap the tuple in.
-				te.LogShard.getOwnership(op.Gkey, nil)
+				te.Core.getOwnership(op.Gkey, nil)
 			}
 			// we need the tuple to be valid
 			if tpl[i].o_state != O_valid {

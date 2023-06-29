@@ -476,3 +476,18 @@ type Shard interface {
 func (cl *Cluster) epochChange() {
 	panic("implement me")
 }
+
+type WebsocketConn struct {
+	conn *websocket.Conn
+}
+
+// Close implements ClientConn.
+func (w *WebsocketConn) Close() {
+	w.conn.Close()
+}
+
+var _ ClientConn = (*WebsocketConn)(nil)
+
+func (c *WebsocketConn) Send(data []byte) {
+	c.conn.Write(data)
+}

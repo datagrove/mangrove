@@ -1,12 +1,19 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
 	"sync"
 	"sync/atomic"
 
 	"github.com/cornelk/hashmap"
 	"github.com/datagrove/mangrove/push"
+	"github.com/datagrove/mangrove/ucan"
+	"github.com/fxamacker/cbor/v2"
 )
+
+// each peer is a store, divided into copysets
+// copysets are taken from failure domains (try to get 3 pcs in different racks)
 
 type FileId = uint64
 type TupleId = int64
@@ -28,7 +35,7 @@ type State struct {
 	push *push.NotifyDb
 
 	// state is a sharded hash table
-	shard []*LogShard
+	shard []*Core
 	db    *LogDb
 	obj   hashmap.Map[FileId, FileState]
 	tuple hashmap.Map[Gkey, *TupleState]
@@ -69,7 +76,7 @@ type Directory struct {
 }
 
 // shards can act as directories, stores, or proxies
-type LogShard struct {
+type Core struct {
 	Directory
 	client    chan Packet    // client messages are routed to a target LogId without parsing.
 	clientP   chan TxClientP // txclient sent to the designated shard
@@ -95,7 +102,7 @@ type LogShard struct {
 }
 
 // each core has its own sequence generator that it owns so ownershp always succeeds and no locks.
-func (s *LogShard) NewRowId(f FileId) Gkey {
+func (s *Core) NewRowId(f FileId) Gkey {
 	if s.start == s.end {
 
 	}
@@ -104,18 +111,18 @@ func (s *LogShard) NewRowId(f FileId) Gkey {
 	return Gkey(r)
 }
 
-func (lg *LogShard) NextTxId() int64 {
+func (lg *Core) NextTxId() int64 {
 	return atomic.AddInt64(&lg._txid, 1)
 }
 
-var _ Shard = (*LogShard)(nil)
+var _ Shard = (*Core)(nil)
 
 // ClientRecv implements Shard.
-func (sh *LogShard) ClientRecv(conn ClientConn, data []byte) {
+func (sh *Core) ClientRecv(conn ClientConn, data []byte) {
 	sh.client <- Packet{conn, data}
 }
 
-func (sh *LogShard) Recv(id PeerId, data []byte) {
+func (sh *Core) Recv(id PeerId, data []byte) {
 	sh.inp <- data
 }
 
@@ -213,7 +220,7 @@ func NewState(home string, cfg *ClusterConfig) (*State, error) {
 		Cluster: Cluster{},
 		push:    db,
 		db:      dbx,
-		shard:   make([]*LogShard, cfg.Cores),
+		shard:   make([]*Core, cfg.Cores),
 	}
 	for i := range r.shard {
 		b, e := NewShard(r, i)
@@ -246,11 +253,11 @@ const (
 	// for now Cl_req is not used, because every peer is already a directory
 )
 
-func (lg *LogShard) Req(tid TupleId) {
+func (lg *Core) Req(tid TupleId) {
 
 }
 
-func (lg *LogShard) Connect(cl *ClusterShard) {
+func (lg *Core) Connect(cl *ClusterShard) {
 	lg.cluster = cl
 	cl.method = make([]func(int, []byte), 256)
 	cl.method[Cl_ack] = func(peerid int, data []byte) {
@@ -265,9 +272,9 @@ func (lg *LogShard) Connect(cl *ClusterShard) {
 
 	}
 }
-func NewShard(st *State, id int) (*LogShard, error) {
+func NewShard(st *State, id int) (*Core, error) {
 
-	lg := LogShard{
+	lg := Core{
 		Directory:    Directory{State: st, cluster: &ClusterShard{}, rpc: make(chan DirRpc)},
 		client:       make(chan Packet),
 		clientP:      make(chan TxClientP),
@@ -296,4 +303,115 @@ func NewShard(st *State, id int) (*LogShard, error) {
 		}
 	}()
 	return &lg, nil
+}
+
+// is it faster to get ownership from a shard on the same peer? zeus says it uses locking locally to get ownership
+
+// the websock proxy is going to suck a lot of energy.
+// we should try a goroutine per connection? that would give us single threaded access without locking.
+type Client struct {
+	sync.Mutex
+	challenge [16]byte
+	did       []byte
+	conn      ClientConn
+	handle    hashmap.Map[FileId, byte]
+	state     int8
+}
+
+func (c *Client) reply(id int64, result any) {
+	type Reply struct {
+		Id     int64
+		Result any
+	}
+	b, _ := cbor.Marshal(&Reply{id, result})
+	c.conn.Send(b)
+}
+
+func (c *Client) fail(id int64, err string) {
+	type Fail struct {
+		Id  int64
+		Err string
+	}
+	b, _ := cbor.Marshal(&Fail{id, err})
+	c.conn.Send(b)
+}
+
+// client will send op +
+const (
+	OpOpen = iota
+	OpCommit
+	OpRead
+	OpWatch
+	OpSync
+)
+
+type RpcClient struct {
+	Op     byte
+	Id     int64 // used in replies, acks etc. unique nonce
+	Params cbor.RawMessage
+}
+
+func (lg *Core) ApproveConnection(c *Client, data []byte) bool {
+	type Login struct {
+		Did       string `json:"did,omitempty"`
+		Signature []byte `json:"signature,omitempty"`
+	}
+	var login Login
+	cbor.Unmarshal(data, &login)
+	hsha2 := sha256.Sum256([]byte(login.Did))
+	// data must be an answer to the challenge. The Did must be valid for this shard
+	x := int(hsha2[0]) % lg.cluster.NumShards()
+	if x != lg.cluster.GlobalShard() {
+		return false
+	}
+	ok := ucan.VerifyDid(c.challenge[:], login.Did, login.Signature)
+	if !ok {
+		return false
+	}
+	c.did = []byte(login.Did)
+	return true
+	// notify the push engine that the device is online
+}
+
+// we should have a special flag to connect for background update
+func (lg *Core) ClientConnect(conn ClientConn) {
+	cx := &Client{
+		conn:   conn,
+		handle: hashmap.Map[FileId, byte]{},
+	}
+
+	_, err := rand.Read(cx.challenge[:])
+	if err != nil {
+		panic(err)
+	}
+	conn.Send(cx.challenge[:])
+	lg.ClientByConn[conn] = cx
+}
+func (lg *Core) fromWs(conn ClientConn, data []byte) {
+	// note this exists because we created it in connect.
+	c, ok := lg.ClientByConn[conn]
+	if !ok {
+		conn.Close()
+		return
+	}
+	if c.state == 0 {
+		if !lg.ApproveConnection(c, data) {
+			conn.Close()
+		}
+		c.state = 1
+		return
+	}
+	var tx RpcClient
+	cbor.Unmarshal(data, &tx)
+	switch tx.Op {
+	// this could be a read only transaction.
+	case OpOpen: // open can be pipelined. it loads the file into the approved map. each tuple accessed in a commit checks this map.
+		ExecOpen(lg, c, &tx)
+	case OpWatch:
+		OpenWatch(lg, c, &tx)
+	case OpSync:
+		ExecSync(lg, c, &tx)
+	case OpCommit:
+		ExecTx(lg, c, &tx)
+	}
 }

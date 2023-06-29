@@ -30,7 +30,7 @@ type TxOpen struct {
 	// create a file in one step
 }
 
-func ExecOpen(lg *LogShard, c *Client, tx *RpcClient) {
+func ExecOpen(lg *Core, c *Client, tx *RpcClient) {
 	// unmarshal the params
 	var open TxOpen
 

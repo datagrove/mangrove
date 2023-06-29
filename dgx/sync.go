@@ -158,15 +158,15 @@ func getVec[T any](from chan T) []T {
 		}
 	}
 }
-func ExecSync(lg *LogShard, c *Client, rpcClient *RpcClient) {
+func ExecSync(lg *Core, c *Client, rpcClient *RpcClient) {
 	// read a file with stream ids in it. join it with the update tree compared to a date. batch.
 }
 
-func OpenWatch(lg *LogShard, c *Client, rpcClient *RpcClient) {
+func OpenWatch(lg *Core, c *Client, rpcClient *RpcClient) {
 	// broadcast to peers: each reads a file with stream ids in it
 	// added to the directory to
 }
-func CloseWatch(lg *LogShard, c *Client, rpcClient *RpcClient) {
+func CloseWatch(lg *Core, c *Client, rpcClient *RpcClient) {
 	// broadcast to peers: each reads a file with stream ids in it
 	// added to the directory to
 }
