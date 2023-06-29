@@ -1,3 +1,10 @@
+membership protocol.
+within an epoch we need every peer to respond
+to start an epoch we need at least one storage peer for every copyset (or data is lost)
+to start an epoch we need at least enough previous members to deprive previous leader of votes.
+to continue an epoch we need the leader and half the original membership?
+
+
 
 startup:
 
