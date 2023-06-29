@@ -15,6 +15,15 @@ when the first one starts it should know the entire configuration which will mos
 
 Secondary indices are managed as values in tuples, this is similar to how Cicada build btrees in its 2-layer array. we should investigate scalestore approach as a possible alternative. 
 
+stores could be s3 write caches? could be subscribers to the replicas?
+two copies? three? no storage tier?
+
+what if we have each peer write its log to s3 then separately write each log to s3
+
+value = inline | manifest
+
+if manifest then potentially radix tree writing into a joint log?
+pointers could point to all the peers?
 
 
 
