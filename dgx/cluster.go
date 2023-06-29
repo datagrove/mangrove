@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"crypto/rand"
+
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/cornelk/hashmap"
 	"github.com/gorilla/mux"
+	"github.com/lesismal/llib/std/crypto/tls"
 	"github.com/lesismal/nbio/nbhttp"
 	"github.com/lesismal/nbio/nbhttp/websocket"
 	"github.com/skip2/go-qrcode"
@@ -35,14 +37,43 @@ type ClientConn interface {
 }
 
 type ClusterConfig struct {
-	Me           int
-	ShardStart   int    //
-	Ws           string // base address with %d for ports we use.
-	WsStart      int
-	PortPerShard int
-	Http         []string // http address for serving the ui.
-	cores        int
+	Me         int
+	ShardStart int    //
+	Ws         string // ip address for serving websockets. use ports starting at WsStart
+	WsStart    int
+
+	Http        []string // http address for serving the ui.
+	Cores       int
+	PortPerCore int
+
 	//Shard        []Shard
+	RsaCertPEM []byte
+	RsaKeyPEM  []byte
+}
+
+func (c *ClusterConfig) TlsConfig() *tls.Config {
+	// should this be a wild card? there's no such
+	cert, err := tls.X509KeyPair(c.RsaCertPEM, c.RsaKeyPEM)
+	if err != nil {
+		log.Fatalf("tls.X509KeyPair failed: %v", err)
+	}
+	tlsConfig := &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		InsecureSkipVerify: true,
+	}
+	tlsConfig.BuildNameToCertificate()
+	return tlsConfig
+}
+
+// normal nbio doesn't direct websockets to a specific core, is this a problem?
+func (cfg *ClusterConfig) Addrs() []string {
+	wsport := cfg.WsStart
+	addr := make([]string, cfg.PortPerCore*cfg.Cores)
+	for k := 0; k < cfg.PortPerCore; k++ {
+		addr[k] = fmt.Sprintf("%s:%d", cfg.Ws, wsport)
+		wsport++
+	}
+	return addr
 }
 
 // Use the high bits to divide files by peer and by shard
@@ -231,6 +262,7 @@ func (cl *ClusterShard) Broadcast(op byte, id int64, payload ...[]byte) {
 // 	}
 // }
 
+// nbio doesn't distinguish websockets going to a core, but we can assign a new websocket randomly to a core, or if we have a connection for that device already we can switch to that, or tell them to go use that. We don't need a  database per device, so we need some protocol for peers to own devices.
 func onWebsocket(w http.ResponseWriter, r *http.Request) {
 	u := websocket.NewUpgrader()
 	u.CheckOrigin = func(r *http.Request) bool { return true }
@@ -248,19 +280,18 @@ func (cl *Cluster) Run() error {
 	mux := &http.ServeMux{}
 	mux.HandleFunc("/wss", onWebsocket)
 
-	svr = nbhttp.NewServer(nbhttp.Config{
+	svr := nbhttp.NewServer(nbhttp.Config{
 		Network:                 "tcp",
-		AddrsTLS:                addrs,
-		TLSConfig:               tlsConfig,
+		AddrsTLS:                cl.ClusterConfig.Addrs(),
+		TLSConfig:               cl.TlsConfig(),
 		MaxLoad:                 1000000,
 		ReleaseWebsocketPayload: true,
 		Handler:                 mux,
 	})
 
-	err = svr.Start()
+	err := svr.Start()
 	if err != nil {
-		fmt.Printf("nbio.Start failed: %v\n", err)
-		return
+		return err
 	}
 	defer svr.Stop()
 
@@ -314,8 +345,22 @@ func (r *Cluster) Init(sh []Shard, cfg *ClusterConfig) (*Cluster, error) {
 	r.ClusterConfig = cfg
 	r.Shard = sh
 
-	// build the shards
+	// build the cores
 	r.shard = make([]*ClusterShard, r.ShardsPerPeer())
+	for i := 0; i < r.ShardsPerPeer(); i++ {
+		r.shard = append(r.shard, &ClusterShard{
+			Cluster:   r,
+			thisShard: i,
+		})
+	}
+	return r, nil
+}
+
+// join the cluster, rebuild the connections that we need to.
+// starting an epoch requires a quorum of peers, this prevents split brain.
+// we can use flexible quorums to make a sensible choice with even numbers of machines. We could also just require all N machines, then we can continue as long as any machine is running? We need the quorum to intersect with previous quorum to prevent split brain.
+func (r *Cluster) JoinEpoch() error {
+
 	var wg sync.WaitGroup
 	wg.Add(r.ShardsPerPeer())
 	for i := 0; i < r.ShardsPerPeer(); i++ {
@@ -333,10 +378,16 @@ func (r *Cluster) Init(sh []Shard, cfg *ClusterConfig) (*Cluster, error) {
 }
 
 func NewClusterShard(cfg *Cluster, shard int) (*ClusterShard, error) {
-	r := &ClusterShard{
-		Cluster:   cfg,
-		thisShard: shard,
+
+	pcn := make([]net.Conn, len(cfg.Peer))
+	port := strconv.Itoa(cfg.ShardStart + shard)
+	listener, err := net.Listen("tcp", cfg.Peer[cfg.Me]+":"+port)
+	if err != nil {
+		panic(err)
 	}
+	defer listener.Close()
+
+	// read from the peer connections
 	read := func(peerid PeerId, conn net.Conn) {
 		reader := bufio.NewReader(conn)
 		for {
@@ -356,15 +407,6 @@ func NewClusterShard(cfg *Cluster, shard int) (*ClusterShard, error) {
 			r.Recv(peerid, payload)
 		}
 	}
-
-	pcn := make([]net.Conn, len(cfg.Peer))
-	port := strconv.Itoa(cfg.ShardStart + shard)
-	listener, err := net.Listen("tcp", cfg.Peer[cfg.Me]+":"+port)
-	if err != nil {
-		panic(err)
-	}
-	defer listener.Close()
-
 	for i := 0; i < cfg.Me; i++ {
 		id := []byte{byte(cfg.Me)}
 		conn, e := net.Dial("tcp", cfg.Peer[i])
@@ -396,13 +438,9 @@ func NewClusterShard(cfg *Cluster, shard int) (*ClusterShard, error) {
 	}()
 
 	// maybe not all these will open? can we just skip some? makes it hard on the clients.
-	wsport := cfg.WsStart + cfg.Me*cfg.PortPerShard*cfg.ShardsPerPeer()
+
 	for i := 0; i < cfg.ShardsPerPeer(); i++ {
-		addr := make([]string, cfg.PortPerShard)
-		for k := 0; k < cfg.PortPerShard; k++ {
-			addr[k] = fmt.Sprintf("%s:%d", cfg.Ws, wsport)
-			wsport++
-		}
+
 		cn := func(u websocket.Upgrader) {
 			u.OnOpen(func(c *websocket.Conn) {
 				randomBytes := [16]byte{}
@@ -421,7 +459,6 @@ func NewClusterShard(cfg *Cluster, shard int) (*ClusterShard, error) {
 				r.Shard[i].ClientRecv(c.Session().(ClientConn), data)
 			})
 		}
-		StartWs(addr, cn)
 	}
 	// make it a little easier on the test server
 

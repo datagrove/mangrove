@@ -213,7 +213,7 @@ func NewState(home string, cfg *ClusterConfig) (*State, error) {
 		Cluster: Cluster{},
 		push:    db,
 		db:      dbx,
-		shard:   make([]*LogShard, cfg.cores),
+		shard:   make([]*LogShard, cfg.Cores),
 	}
 	for i := range r.shard {
 		b, e := NewShard(r, i)

@@ -34,12 +34,12 @@ func main() {
 				home = args[0]
 			}
 			cfg := &ClusterConfig{
-				Me:           0,
-				ShardStart:   0,
-				Ws:           "localhost",
-				WsStart:      9000,
-				PortPerShard: 1,
-				cores:        runtime.NumCPU(),
+				Me:          0,
+				ShardStart:  0,
+				Ws:          "localhost",
+				WsStart:     9000,
+				PortPerCore: 1,
+				Cores:       runtime.NumCPU(),
 			}
 			viper.SetConfigName(path.Join(home, "dgx")) // name of config file (without extension)
 			err := viper.ReadInConfig()                 // Find and read the config file

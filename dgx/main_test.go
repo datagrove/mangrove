@@ -1,27 +1,12 @@
 package main
 
 import (
-	"crypto/tls"
-	"log"
 	"testing"
 )
 
 // the point of this is to make a cluster all in the same process to see if it helps us debug
 func Test_main(t *testing.T) {
 	main()
-}
-func certs() *tls.Config {
-	// should this be a wild card? there's no such
-	cert, err := tls.X509KeyPair(rsaCertPEM, rsaKeyPEM)
-	if err != nil {
-		log.Fatalf("tls.X509KeyPair failed: %v", err)
-	}
-	tlsConfig := &tls.Config{
-		Certificates:       []tls.Certificate{cert},
-		InsecureSkipVerify: true,
-	}
-	tlsConfig.BuildNameToCertificate()
-	return tlsConfig
 }
 
 var rsaCertPEM = []byte(`-----BEGIN CERTIFICATE-----
