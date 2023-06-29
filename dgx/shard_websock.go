@@ -10,7 +10,6 @@ import (
 	"github.com/fxamacker/cbor/v2"
 
 	"flag"
-	"fmt"
 
 	"github.com/lesismal/nbio/nbhttp/websocket"
 )
@@ -255,25 +254,25 @@ var (
 	errBeforeUpgrade = flag.Bool("error-before-upgrade", false, "return an error on upgrade with body")
 )
 
-func newUpgrader() *websocket.Upgrader {
-	u := websocket.NewUpgrader()
-	if *onDataFrame {
-		u.OnDataFrame(func(c *websocket.Conn, messageType websocket.MessageType, fin bool, data []byte) {
-			// echo
-			c.WriteFrame(messageType, true, fin, data)
-		})
-	} else {
-		u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
-			// echo
-			c.WriteMessage(messageType, data)
-		})
-	}
+// func newUpgrader() *websocket.Upgrader {
+// 	u := websocket.NewUpgrader()
+// 	if *onDataFrame {
+// 		u.OnDataFrame(func(c *websocket.Conn, messageType websocket.MessageType, fin bool, data []byte) {
+// 			// echo
+// 			c.WriteFrame(messageType, true, fin, data)
+// 		})
+// 	} else {
+// 		u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
+// 			// echo
+// 			c.WriteMessage(messageType, data)
+// 		})
+// 	}
 
-	u.OnClose(func(c *websocket.Conn, err error) {
-		fmt.Println("OnClose:", c.RemoteAddr().String(), err)
-	})
-	return u
-}
+// 	u.OnClose(func(c *websocket.Conn, err error) {
+// 		fmt.Println("OnClose:", c.RemoteAddr().String(), err)
+// 	})
+// 	return u
+// }
 
 // start one websocket server per shard
 // start on an array of ports to support 1M connections per shard.

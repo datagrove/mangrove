@@ -360,7 +360,6 @@ func (r *Cluster) Init(sh []Shard, cfg *ClusterConfig) (*Cluster, error) {
 // starting an epoch requires a quorum of peers, this prevents split brain.
 // we can use flexible quorums to make a sensible choice with even numbers of machines. We could also just require all N machines, then we can continue as long as any machine is running? We need the quorum to intersect with previous quorum to prevent split brain.
 func (r *Cluster) JoinEpoch() error {
-
 	var wg sync.WaitGroup
 	wg.Add(r.ShardsPerPeer())
 	for i := 0; i < r.ShardsPerPeer(); i++ {
@@ -374,7 +373,7 @@ func (r *Cluster) JoinEpoch() error {
 		}(i)
 	}
 	wg.Wait()
-	return r, nil
+	return nil
 }
 
 func NewClusterShard(cfg *Cluster, shard int) (*ClusterShard, error) {
