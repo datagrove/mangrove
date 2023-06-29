@@ -3,22 +3,15 @@ package main
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"net/http"
 	"sync"
 
 	"github.com/cornelk/hashmap"
 	"github.com/datagrove/mangrove/ucan"
 	"github.com/fxamacker/cbor/v2"
 
-	"context"
 	"flag"
 	"fmt"
 
-	"os"
-	"os/signal"
-	"time"
-
-	"github.com/lesismal/nbio/nbhttp"
 	"github.com/lesismal/nbio/nbhttp/websocket"
 )
 
@@ -284,44 +277,44 @@ func newUpgrader() *websocket.Upgrader {
 
 // start one websocket server per shard
 // start on an array of ports to support 1M connections per shard.
-func StartWs(address []string, fn func(u websocket.Upgrader)) {
+// func StartWs(address []string, fn func(u websocket.Upgrader)) {
 
-	onWebsocket := func(w http.ResponseWriter, r *http.Request) {
-		if *errBeforeUpgrade {
-			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte("returning an error"))
-			return
-		}
-		// time.Sleep(time.Second * 5)
-		upgrader := newUpgrader()
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			panic(err)
-		}
-		conn.SetReadDeadline(time.Time{})
+// 	onWebsocket := func(w http.ResponseWriter, r *http.Request) {
+// 		if *errBeforeUpgrade {
+// 			w.WriteHeader(http.StatusForbidden)
+// 			w.Write([]byte("returning an error"))
+// 			return
+// 		}
+// 		// time.Sleep(time.Second * 5)
+// 		upgrader := newUpgrader()
+// 		conn, err := upgrader.Upgrade(w, r, nil)
+// 		if err != nil {
+// 			panic(err)
+// 		}
+// 		conn.SetReadDeadline(time.Time{})
 
-	}
+// 	}
 
-	flag.Parse()
-	mux := &http.ServeMux{}
-	mux.HandleFunc("/ws", onWebsocket)
+// 	flag.Parse()
+// 	mux := &http.ServeMux{}
+// 	mux.HandleFunc("/ws", onWebsocket)
 
-	svr := nbhttp.NewServer(nbhttp.Config{
-		Network: "tcp",
-		Addrs:   address,
-		Handler: mux,
-	})
+// 	svr := nbhttp.NewServer(nbhttp.Config{
+// 		Network: "tcp",
+// 		Addrs:   address,
+// 		Handler: mux,
+// 	})
 
-	err := svr.Start()
-	if err != nil {
-		fmt.Printf("nbio.Start failed: %v\n", err)
-		return
-	}
+// 	err := svr.Start()
+// 	if err != nil {
+// 		fmt.Printf("nbio.Start failed: %v\n", err)
+// 		return
+// 	}
 
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt)
-	<-interrupt
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	svr.Shutdown(ctx)
-}
+// 	interrupt := make(chan os.Signal, 1)
+// 	signal.Notify(interrupt, os.Interrupt)
+// 	<-interrupt
+// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+// 	defer cancel()
+// 	svr.Shutdown(ctx)
+// }

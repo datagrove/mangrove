@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/cornelk/hashmap"
 	"github.com/gorilla/mux"
@@ -230,7 +231,7 @@ func (cl *ClusterShard) Broadcast(op byte, id int64, payload ...[]byte) {
 // 	}
 // }
 
-func newUpgrader2() *websocket.Upgrader {
+func onWebsocket(w http.ResponseWriter, r *http.Request) {
 	u := websocket.NewUpgrader()
 	u.CheckOrigin = func(r *http.Request) bool { return true }
 	u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
@@ -238,15 +239,31 @@ func newUpgrader2() *websocket.Upgrader {
 	})
 	u.OnClose(func(c *websocket.Conn, err error) {
 	})
-	return u
-}
-func onWebsocket(w http.ResponseWriter, r *http.Request) {
 	// time.Sleep(time.Second * 5)
-	upgrader := newUpgrader()
-	conn, _ := upgrader.Upgrade(w, r, nil)
+	conn, _ := u.Upgrade(w, r, nil)
+	conn.SetReadDeadline(time.Time{})
 	_ = conn
 }
 func (cl *Cluster) Run() error {
+	mux := &http.ServeMux{}
+	mux.HandleFunc("/wss", onWebsocket)
+
+	svr = nbhttp.NewServer(nbhttp.Config{
+		Network:                 "tcp",
+		AddrsTLS:                addrs,
+		TLSConfig:               tlsConfig,
+		MaxLoad:                 1000000,
+		ReleaseWebsocketPayload: true,
+		Handler:                 mux,
+	})
+
+	err = svr.Start()
+	if err != nil {
+		fmt.Printf("nbio.Start failed: %v\n", err)
+		return
+	}
+	defer svr.Stop()
+
 	e := cl.Nbio.Start()
 	if e != nil {
 		return e
