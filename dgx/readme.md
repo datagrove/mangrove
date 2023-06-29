@@ -18,6 +18,8 @@ Secondary indices are managed as values in tuples, this is similar to how Cicada
 
 
 
+
+
 what if we stored opens? we would have to invalidate when keys changed. we would require database hits rather than signature checks.
 potentially better approach is that approve( )-> jwt, then open jwt.
 

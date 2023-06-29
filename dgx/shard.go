@@ -17,6 +17,8 @@ type DeviceId = int64
 // key material is complex, we want to "own" a prefix, is it always first 48 bits?
 // We always need the FileId. There is a small namespace bit vector, but irrelevant here. Some fileids are reserved. Some tupleids are reserved to indicate a message specific to a device (like a rekey notification).
 
+// 32 bits partition id, 32 bits object id
+// a large database can be partitioned into multiple files.
 type Gkey = uint64
 
 type State struct {
@@ -225,6 +227,7 @@ func NewState(home string, cfg *ClusterConfig) (*State, error) {
 		shard[i] = r.shard[i]
 	}
 	r.Cluster.Init(shard, cfg)
+
 	return r, nil
 }
 

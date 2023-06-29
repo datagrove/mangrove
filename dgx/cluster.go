@@ -83,6 +83,7 @@ type Cluster struct {
 	// tcp is two-way, so we only need to connect i<j
 	// the listener will take one byte to identify the caller.
 	shard []*ClusterShard
+	Shard []Shard
 
 	id2Peer hashmap.Map[DeviceId, PeerId]
 }
@@ -229,6 +230,22 @@ func (cl *ClusterShard) Broadcast(op byte, id int64, payload ...[]byte) {
 // 	}
 // }
 
+func newUpgrader2() *websocket.Upgrader {
+	u := websocket.NewUpgrader()
+	u.CheckOrigin = func(r *http.Request) bool { return true }
+	u.OnMessage(func(c *websocket.Conn, messageType websocket.MessageType, data []byte) {
+
+	})
+	u.OnClose(func(c *websocket.Conn, err error) {
+	})
+	return u
+}
+func onWebsocket(w http.ResponseWriter, r *http.Request) {
+	// time.Sleep(time.Second * 5)
+	upgrader := newUpgrader()
+	conn, _ := upgrader.Upgrade(w, r, nil)
+	_ = conn
+}
 func (cl *Cluster) Run() error {
 	e := cl.Nbio.Start()
 	if e != nil {
@@ -239,7 +256,9 @@ func (cl *Cluster) Run() error {
 	s := cl
 
 	//s.Mux.NotFoundHandler = s.EmbedHandler
-	s.Mux.HandleFunc("/wss", s.WsHandler)
+	// should I be handling websocket here? do they have their own nbio server since they are are on a different domain?
+	s.Mux.HandleFunc("/wss", onWebsocket)
+
 	s.Mux.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
 	})
@@ -274,13 +293,15 @@ func (cl *Cluster) Run() error {
 }
 
 // there is a tcp connection between the same shard on each machine
-func (cfg *Cluster) Init() (*Cluster, error) {
-	r := cfg
+func (r *Cluster) Init(sh []Shard, cfg *ClusterConfig) (*Cluster, error) {
+	r.ClusterConfig = cfg
+	r.Shard = sh
+
 	// build the shards
-	cfg.shard = make([]*ClusterShard, cfg.ShardsPerPeer())
+	r.shard = make([]*ClusterShard, r.ShardsPerPeer())
 	var wg sync.WaitGroup
-	wg.Add(cfg.ShardsPerPeer())
-	for i := 0; i < cfg.ShardsPerPeer(); i++ {
+	wg.Add(r.ShardsPerPeer())
+	for i := 0; i < r.ShardsPerPeer(); i++ {
 		go func(i int) {
 			sh, e := NewClusterShard(r, i)
 			if e != nil {

@@ -127,7 +127,7 @@ func (te *TxExecution) tryAgain() bool {
 	// to get ownership we need to use the directory
 	// sorting avoids deadlock.
 	sort.Slice(write.Op, func(i, j int) bool {
-		return string(write.Op[i].Gkey) < string(write.Op[j].Gkey)
+		return write.Op[i].Gkey < write.Op[j].Gkey
 	})
 	var tpl []*TupleState = make([]*TupleState, len(write.Op))
 	for i, op := range write.Op {
