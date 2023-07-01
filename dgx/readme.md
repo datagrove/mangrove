@@ -1,5 +1,43 @@
 This is the central nervous system of datagrove. It builds a Viewstamped Replication cluster for registering failover leases and recording the current signaling/turn servers. The signaling/turn servers each exchange logs to build a complete list of the user accounts. Each group commit is replicated to at least two other nodes before returning as committed to prevent loss. The log segments are gossiped to the entire cluster as a vector clock similar to bayou (each peer has a prefix of every other peer's log). The vector clock is essentially gossiped around as part of a heartbeat/failure detection. The Leader of the VSR ring is used to ensure that screen names are globally unique.
 
+billing is not compatible with anononymous access!
+also many forms of authentication are not anonymous.
+
+new files are  id-random | version | data
+new users are did's
+capabilities are file | hash(key)|key|file|operation   // could be sequential id, could be file:lsn.
+operation = edit | append | subscribe | grant-*
+
+key passing: file | did | encrypted-key
+
+did | recovery information | billing information
+
+
+it's possible for the database above to also connect with webrtc.
+there could be a limit on turn access for some tiers.
+
+then the dg database is for signaling
+database-uuid | peer | active/backup | lease-ends  primary key database-did, peer
+
+database-uuid | funding-account | billing-status 
+
+funding-uuid |  | minutes-used
+
+
+
+users would connect, ask to webrtc to a database id.
+
+
+
+
+
+
+
+
+
+
+
+
 membership protocol.
 within an epoch we need every peer to respond
 to start an epoch we need at least one storage peer for every copyset (or data is lost)
