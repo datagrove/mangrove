@@ -17,10 +17,29 @@ it's possible for the database above to also connect with webrtc.
 there could be a limit on turn access for some tiers.
 
 then the dg database is for signaling
+
 database-uuid | peer | active/backup | lease-ends  primary key database-did, peer
 
-database-uuid | funding-account | billing-status 
 
+global configuration would identify a database-uuid responsible for billing.
+
+when a user connects it provides
+  database-uuid, capability, offer
+
+The capability is transferred to the target database. If the target database approves the connection, it returns 
+  offer, funding-capability
+
+The funding-capability is transferred to the billing database. It returns TURN status: ok, limited, none.
+
+interesting idea: instead of websockets, negotiate (WHIP/WHEP) a data channel. Data channel potentially takes less resources on the server, and potentially can be swapped to disk. TCP for a websocket is going to occupy kernel space and all kinds of os resources. Heartbeat is a potential issue, but clients going away and reconnecting is not the worst thing. There could be a connection puzzle to solve when server is under duress. DataChannel can potentially allow the server to be upgraded without disconnecting (which could be a lot more painful in tcp).
+
+The only reason to use this datachannel is for hosts. Clients don't need to stay connected.
+
+
+
+
+
+database-uuid | funding-account | billing-status 
 funding-uuid |  | minutes-used
 
 

@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    h1 {
+      @apply text-2xl dark:text-white
+    }
+    h2 {
+      @apply text-xl;
+    }
+    bg-tool {
+      @apply dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 
+    }
+  }

@@ -86,6 +86,21 @@ require (
 	github.com/multiformats/go-base32 v0.0.3 // indirect
 	github.com/multiformats/go-base36 v0.1.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
+	github.com/pion/datachannel v1.5.5 // indirect
+	github.com/pion/dtls/v2 v2.2.7 // indirect
+	github.com/pion/ice/v2 v2.3.8 // indirect
+	github.com/pion/interceptor v0.1.17 // indirect
+	github.com/pion/logging v0.2.2 // indirect
+	github.com/pion/mdns v0.0.7 // indirect
+	github.com/pion/randutil v0.1.0 // indirect
+	github.com/pion/rtcp v1.2.10 // indirect
+	github.com/pion/rtp v1.7.13 // indirect
+	github.com/pion/sctp v1.8.7 // indirect
+	github.com/pion/sdp/v3 v3.0.6 // indirect
+	github.com/pion/srtp/v2 v2.0.15 // indirect
+	github.com/pion/stun v0.6.0 // indirect
+	github.com/pion/transport/v2 v2.2.1 // indirect
+	github.com/pion/turn/v2 v2.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/spf13/afero v1.9.3 // indirect
@@ -135,6 +150,7 @@ require (
 	github.com/lestrrat-go/jwx/v2 v2.0.11
 	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/o1egl/paseto v1.0.0
+	github.com/pion/webrtc/v3 v3.2.11
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/sftp v1.13.5
 	github.com/pquerna/otp v1.4.0
