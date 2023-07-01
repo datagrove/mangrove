@@ -1,9 +1,48 @@
+This is the central nervous system of datagrove. It builds a Viewstamped Replication cluster for registering failover leases and recording the current signaling/turn servers. The signaling/turn servers each exchange logs to build a complete list of the user accounts. Each group commit is replicated to at least two other nodes before returning as committed to prevent loss. The log segments are gossiped to the entire cluster as a vector clock similar to bayou (each peer has a prefix of every other peer's log). The vector clock is essentially gossiped around as part of a heartbeat/failure detection. The Leader of the VSR ring is used to ensure that screen names are globally unique.
+
 membership protocol.
 within an epoch we need every peer to respond
 to start an epoch we need at least one storage peer for every copyset (or data is lost)
 to start an epoch we need at least enough previous members to deprive previous leader of votes.
 to continue an epoch we need the leader and half the original membership?
 
+Uses vsr to manage the directory group.
+
+should we place the replicas via copy sets (tiered? what would that mean?). In most cases I expect it will be one copy set, but maybe we should support growth. Does the owner stay as a replica for a while, then relinquish?
+
+leanstore:
+execute; use stdin to ring bell. use shared memory to pass data.
+
+
+
+we could be in two different clusters? multiple scalestore clusters? typically cluster management though tries to use <5 peers to manage. So we might take a few pc's from each cluster to join the management ring.
+
+
+1. use mdns or lease manager  to form cluster. app -in "dg1" -linked "scalestore" -fault "rack1". mdns has a better view of the local network.
+2. (future) use mdns to gather mini-clusters for use with scalestore.
+3. create a vsr ring of up to 7, maximizing coverage of fault zones.
+
+A global lease manager serves as a witness to pick the active server for a site-set. When a lease gets stale, it notifies a backup to prepare. When it expires, it allows the backup to take over.
+
+per-page force option added to lean store.
+
+tuple logs are btree roots. Btrees allow us to support sparsity and insertions.
+
+webrtc signaling
+mostly this is a database task, closely related to dns. 
+a, b connect on websocket with did
+a calls b with b's did.
+b decides to answer based on a's did
+messages are shuffled back and forth.
+
+shared database:
+did -> ip
+That's pretty much it. doesn't need to be persisted, doesn't need transactions
+
+Maybe need a database for credentials though (turn isn't free). This does need storage, doesn't need transactions. Potentially some locality; people move around; but low use, low size. Potentially we simply replicate all the accounts to all the machines with log shipping? Can we N-N exchange logs like this? Would we want to? We might want some additional information that accumulates like bytes burned.
+
+failover leases
+1. cluster 
 
 
 startup:
@@ -25,6 +64,19 @@ value = inline | manifest
 if manifest then potentially radix tree writing into a joint log?
 pointers could point to all the peers?
 
+
+what if every peer is in a caspaxos register, and then we agree on the epoch/membership? failure causes the peer to try to write a new group to the register and concurrently advises everyone else to read the register. we don't need everyone even, maybe just the directory.
+
+every proposal must include a majority of the previous epoch.
+
+what if when we get the proposal, we simply ok it? hard because 
+
+
+there a special state that we advance: working/recovering/working?
+
+Another idea would be to 
+
+one problem with using caspaxos is that being leaderless, it doesn't care which peer is down; we can't use its list of acceptors directly.
 
 
 
