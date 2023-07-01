@@ -21,6 +21,7 @@ import { DropModal, NewModal, PickGroupModal, pickNewFile, uploadFiles } from ".
 import { HSplitterButton } from "./viewer/splitter";
 import { TabState, useDg } from "../db";
 
+const debug = false
 const builtinTools: { [key: string]: Tool } = {
   "edit": {
     icon: () => <FloatIcon path={pencil} />,
@@ -229,7 +230,9 @@ export function LoggedIn2() {
         </Switch>
       }
       }</For>
-      <DarkButton />
+      <Show when={debug} >
+        <DarkButton />
+        </Show>
       <Show when={!online()}>
         <RoundIcon class='text-red-500' path={signalSlash} />
       </Show>

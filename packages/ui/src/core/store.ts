@@ -4,7 +4,7 @@ import { createWs } from "./socket";
 import { createWindowSize } from "@solid-primitives/resize-observer";
 
 const windowSize = createWindowSize();
-export const [online, setOnline] = createSignal(false)
+export const [online, setOnline] = createSignal(true)
 
 export const [left, setLeft] = createSignal(350)
 // layout state: split, allPanel, allContent. It's always manual if the screen is small
