@@ -75,12 +75,59 @@ export class RtcPeer {
 
 
 export function App() {
-    const ws = new WebSocket("ws://localhost:8080")
+    //const ws = new WebSocket("ws://localhost:8080")
     
+    const connect = ()=> {
+        const peerConnection = new RTCPeerConnection() // eslint-disable-line
+        const ch = peerConnection.createDataChannel('dataChannel')
+        ch.onopen = () => {
+            console.log('data channel open')
+        }
+        ch.onclose = () => {
+            console.log('data channel closed')
+        }
+        ch.onmessage = (e: MessageEvent) => {
+            console.log('data channel message', e.data)
+        }
+        ch.onerror = (e: any) => {
+            console.log('data channel error', e)
+        }
+    
+        peerConnection.createOffer().then(offer => {
+          peerConnection.setLocalDescription(offer)
+    
+          fetch('http:/localhost:8080/api/whap', {
+            method: 'POST',
+            body: offer.sdp,
+            headers: {
+              Authorization: `Bearer ${location.pathname.substring(1)}`,
+              'Content-Type': 'application/sdp'
+            }
+          }).then(r => {
+            // const parsedLinkHeader = parseLinkHeader(r.headers.get('Link'))
+            // setLayerEndpoint(`${window.location.protocol}//${parsedLinkHeader['urn:ietf:params:whep:ext:core:layer'].url}`)
+    
+            // const evtSource = new EventSource(`${window.location.protocol}//${parsedLinkHeader['urn:ietf:params:whep:ext:core:server-sent-events'].url}`)
+            // evtSource.onerror = err => evtSource.close();
+    
+            // evtSource.addEventListener("layers", event => {
+            //   const parsed = JSON.parse(event.data)
+            //   setVideoLayers(parsed['1']['layers'].map(l => l.encodingId))
+            // })
+            return r.text()
+          }).then(answer => {
+            peerConnection.setRemoteDescription({
+              sdp: answer,
+              type: 'answer'
+            })
+          })
+        })
+    
+
+    
+    }
     return <>
-        <button onClick={() => { }}>connect</button>
-        <input type="text" />
-        <button >send</button>
+        <button onClick={connect}>connect</button>
     </>
 }
 render(() => (<App />), document.getElementById("app")!)

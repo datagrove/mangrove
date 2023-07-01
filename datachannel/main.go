@@ -65,6 +65,29 @@ func logHTTPError(w http.ResponseWriter, err string, code int) {
 	http.Error(w, err, code)
 }
 
+func whapHandler(res http.ResponseWriter, r *http.Request) {
+	streamKey := r.Header.Get("Authorization")
+	if streamKey == "" {
+		logHTTPError(res, "Authorization was not set", http.StatusBadRequest)
+		return
+	}
+
+	offer, err := io.ReadAll(r.Body)
+	if err != nil {
+		logHTTPError(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	answer, err := WHAP(string(offer))
+	if err != nil {
+		logHTTPError(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	res.WriteHeader(http.StatusCreated)
+	fmt.Fprint(res, answer)
+}
+
 func whipHandler(res http.ResponseWriter, r *http.Request) {
 	streamKey := r.Header.Get("Authorization")
 	if streamKey == "" {
@@ -89,6 +112,7 @@ func whipHandler(res http.ResponseWriter, r *http.Request) {
 }
 
 // what should authorization be here? maybe a uuid identifying the database being offered? how do challenge this? I guess wait for the data channel to be established?
+
 func whepHandler(res http.ResponseWriter, req *http.Request) {
 	streamKey := req.Header.Get("Authorization")
 	if streamKey == "" {
@@ -174,13 +198,15 @@ func main() {
 		log.Fatal(e)
 	}
 	mux := http.NewServeMux()
-	mux.Handle("/", h)
+
+	mux.HandleFunc("/api/whap", corsHandler(whapHandler))
 	mux.HandleFunc("/api/whep", corsHandler(whepHandler))
 
 	mux.HandleFunc("/api/whip", corsHandler(whipHandler))
 	mux.HandleFunc("/api/status", corsHandler(statusHandler))
 	mux.HandleFunc("/api/sse/", corsHandler(whepServerSentEventsHandler))
 	mux.HandleFunc("/api/layer/", corsHandler(whepLayerHandler))
+	mux.Handle("/", h)
 
 	log.Println("Running HTTP Server at `" + os.Getenv("HTTP_ADDRESS") + "`")
 
