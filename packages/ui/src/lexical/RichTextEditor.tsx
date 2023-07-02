@@ -104,7 +104,7 @@ export function RichTextEditor(props: RteProps) {
   const Menu = () => {
     const [editor] = useLexicalComposerContext();
     return <div class=' h-8 dark:bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
-      <button onClick={menuToggle}><Icon class='h-6 w-6' path={bars_3} /></button>
+      <button onClick={menuToggle}><Icon class='mx-2 h-6 w-6' path={bars_3} /></button>
       <div class='flex-1 '></div>
       <div class='space-x-4 flex mr-2'>
         <Icon class='h-6 w-6' path={undo} onClick={() => editor.dispatchCommand(UNDO_COMMAND,null as any)} />
