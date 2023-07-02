@@ -1,114 +1,24 @@
 
 
-import { For, JSXElement, Match, Show, Suspense, Switch, createContext, createEffect, createResource, createSignal, useContext } from "solid-js";
+import { For, JSXElement, Match, Show, Suspense, Switch, createEffect } from "solid-js";
 import { createWs } from "../core/socket";
 import { A, useLocation } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
 import { Icon, } from "solid-heroicons";
-import { squaresPlus as addTools, signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, map, plusCircle, circleStack } from "solid-heroicons/solid";
-import { ChatPanel, ChatViewer, DatabaseTool, DatabaseViewer } from "./viewer";
-import { SettingsViewer } from "./settings";
+import { signalSlash, clock as history, plusCircle } from "solid-heroicons/solid";
 import { DarkButton } from "../lib";
-import { SearchPanel, SearchViewer } from "./search";
-import { Settings } from "./settings";
-import { Graphic, SitePage, SitePageContext, Tool, left, login, editToggle, mobile, online, setLeft, showPanel, showTools, useUser, userState, contentRight } from "../core";
-import { EditTool, EditViewer } from "./edit";
-import { MapTool, MapViewer } from "./map";
+import { Graphic, SitePage, SitePageContext, left, login, online, setLeft, showPanel, userState, contentRight } from "../core";
 import { DropModal, NewModal, PickGroupModal, pickNewFile, uploadFiles } from "./new";
 
 //import { Db, createDb } from "../db";
 import { HSplitterButton } from "./viewer/splitter";
 import { TabState, useDg } from "../db";
+import { tools } from "./tools";
 
 const debug = false
-const builtinTools: { [key: string]: Tool } = {
-  "edit": {
-    icon: () => <FloatIcon path={pencil} />,
-    component: EditTool,
-    path: 'a/b/text',
-    viewer: EditViewer
-  },
-  // message home
-  // Message component is also used for the alerts - how?
-  "dm": {
-    icon: () => <FloatIcon path={friend} />,
-    component: () => <ChatPanel />,
-    path: 'a/b/chat',
-    viewer: ChatViewer
-  },
-  "watch": {
-    icon: () => <FloatIcon path={friend} />,
-    component: () => <ChatPanel />,
-    path: 'a/b/chat',
-    viewer: ChatViewer
-  },
-  "account": {
-    icon: () => <FloatIcon path={avatar} />,
-    component: Settings,
-    path: 'a/b/form',
-    viewer: SettingsViewer
-  },
-  "search": {
-    icon: () => <FloatIcon path={magnifyingGlass} />,
-    component: SearchPanel,
-    path: 'a/b/folder',
-    viewer: SearchViewer
-  },
-  "map": {
-    icon: () => <FloatIcon path={map} />,
-    component: MapTool,
-    path: 'a/b/text',
-    viewer: MapViewer
-  },
-  "db": {
-    icon: () => <FloatIcon path={circleStack} />,
-    component: DatabaseTool,
-    path: 'a/b/text',
-    viewer: DatabaseViewer
-  },
-  "tools": {
-    icon: () => <FloatIcon path={addTools} />,
-    component: () => <div>tools</div>,
-    path: 'a/b/text',
-    viewer: () => <div>tools</div>
-  },
-}
-
-// change when we install new tools? or when we change the active tool?
-export const [tools, setTools] = createSignal(builtinTools)
-
-
-// should restore the state the last time we were using DM?
-// this changes the viewer and the pane. 
-
-
-// pinned tools can change the viewer, e.g.
-export function PinnedTool() {
-  return <span class="relative inline-block">
-    <img class="h-8 w-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="" />
-    <span class="absolute right-0 top-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
-  </span>
-}
-
-
-
-// const userState: UserState = {
-//   settings: anon,
-//   counters: {}
-// }
-
-export function XX() {
-  const u = useUser()
-  return <div>{JSON.stringify(u)}</div>
-}
-
-// take flyout out of url? the argument for it in, is that we can bookmark it, send a link to it,. Out will leave as at the actual page though, and is more conventional.
-// owner / ln / branch / db  / viewpath  
-
 
 export function LoggedIn() {
-
   // pause here until we have a database
   return <TabState >
     <LoggedIn2 />
@@ -124,7 +34,7 @@ export function LoggedIn2() {
   let el: HTMLDivElement
 
   createEffect(async () => {
-    // this will happen after mounting, but not necessarily before the database is ready.
+    // this will happen after mounting, but not before the database is ready.
     if (db) {
       el.addEventListener('dragover', (event) => {
         event.preventDefault();
@@ -143,7 +53,10 @@ export function LoggedIn2() {
     }
   })
 
-  // page is things we can get sync, no fetch
+  // provide is things we can get sync, no fetch
+  // this value is for useSitePage()
+  // note we need the type of the content to be part of the url, so we know what it is before we fetch it.
+  // this is often done with extensions, but there is no difference
   const sitePage = () => {
     const p = loc.pathname.split("/")
     // [0] is empty,  [1] is ln
@@ -152,12 +65,13 @@ export function LoggedIn2() {
     const r: SitePage = {
       server: '', // default server, need a syntax for different ones, including webrtc ones.
       tool: ft,
-      path: p.slice(3).join("/"),
+      path: p.slice(3).join("/"),  // site/
       toolname: name
     }
     return r
   }
 
+  // old way, not used; give the content pane to the tool
   const ToolViewer: () => JSXElement = () => {
     return <>
       {false && <pre>{JSON.stringify({
@@ -168,21 +82,14 @@ export function LoggedIn2() {
     </>
   }
 
-
-
-
+  // we can get page information out of the location or the context. 
+  // before we had the site page pick a tool based on the tool in the path. now the tool is out of the path and we set the viewer based on the content of the page. the service worker is always going to send html as the mime type, 
+  // note that now the toolset will be picked by the content of the page.
   const PageViewer: () => JSXElement = () => {
     return <>
+           {sitePage() && sitePage().tool.viewer()}
     </>
   }
-
-  // const nav = (path: string) => {
-  //   onav("/"+ln().ln +"/" + path )
-  // }
-  // how do we display counters? how do we update them?
-  // when does clicking a tool change the viewer? always?
-
-  // sets the left of the main content, 
 
   const count = (i: number) => { return i == 1 ? 2 : 0 }
 
@@ -277,36 +184,6 @@ export function LoggedIn2() {
     </>
   }
 
-  // const HSplitterButton = () => {
-  //   const mousedown = (e: MouseEvent) => {
-  //     e.preventDefault()
-  //     const start = e.clientX - left()
-  //     const move = (e: MouseEvent) => {
-  //       setLeft(e.clientX - start)
-  //     }
-  //     const up = (e: MouseEvent) => {
-  //       window.removeEventListener("mousemove", move)
-  //       window.removeEventListener("mouseup", up)
-  //     }
-  //     window.addEventListener("mousemove", move)
-  //     window.addEventListener("mouseup", up)
-  //   }
-  //   return <div class={`fixed p-2  bg-neutral-900 rounded-tr-full rounded-br-full bottom-4 w-10 cursor-col-resize`} style={{
-  //     left: left()-56 + "px",
-  //     "z-index": '900'
-  //   }} onMouseDown={mousedown}>
-  //     <Icon path={eastWest} class='h-6 w-6 text-neutral-500' /></div>
-  // }
-  // how this is shown may depend on the tool
-  const MobileSearchButton = () => {
-    // we can have our status buttons here too, jump directly to new messages
-    return <div>
-      <div class='fixed left-4 bottom-4'>
-        <Seldiv toolname='search'><Icon class='w-6 h-6' path={magnifyingGlass}></Icon></Seldiv>
-      </div>
-    </div>
-  }
-
 
   return <>
     <SitePageContext.Provider value={sitePage()}>
@@ -365,7 +242,7 @@ export function Svg(props: { src: string }) {
   return <div class='w-6 h-6' innerHTML={props.src}></div>
 }
 
-
+// show green bubble if count > 0
 export function GraphicIcon(props: IconProps) {
   return <button onClick={props.onClick}>
     <div class={'relative ' + props.class ?? ""}>
