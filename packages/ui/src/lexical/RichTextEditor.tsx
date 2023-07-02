@@ -29,7 +29,7 @@ import { createContext, createEffect, createResource, onMount, useContext } from
 
 import { pencil } from "solid-heroicons/solid";
 import { useNavigate } from "@solidjs/router";
-import { SiteDocument, menuToggle, readAll, useDocument, usePage } from "../core";
+import { SiteDocument, editToggle, readAll, useDocument, usePage } from "../core";
 
 import { UNDO_COMMAND, REDO_COMMAND } from 'lexical';
 import { useLexicalComposerContext } from './lexical-solid/LexicalComposerContext';
@@ -104,14 +104,14 @@ export function RichTextEditor(props: RteProps) {
   const Menu = () => {
     const [editor] = useLexicalComposerContext();
     return <div class=' h-8 dark:bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
-      <button onClick={menuToggle}><Icon class='mx-2 h-6 w-6' path={bars_3} /></button>
+      <Icon class='mx-2 h-6 w-6' path={bars_3} />
       <div class='flex-1 '></div>
       <div class='space-x-4 flex mr-2'>
         <Icon class='h-6 w-6' path={undo} onClick={() => editor.dispatchCommand(UNDO_COMMAND,null as any)} />
         <Icon class='h-6 w-6' path={redo} onClick={() => editor.dispatchCommand(REDO_COMMAND,null as any)} />
         <Icon class='h-6 w-6' path={plus} />
         <Icon class='h-6 w-6' path={sparkles} />
-        <Icon class='h-6 w-6' path={menu} /></div>
+        <button onClick={editToggle}><Icon class='h-6 w-6' path={menu} /></button></div>
     </div>
   }
   

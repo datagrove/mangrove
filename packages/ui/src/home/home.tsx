@@ -6,13 +6,13 @@ import { A, useLocation } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
 import { Icon, } from "solid-heroicons";
-import { squaresPlus as addTools, signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, map, plusCircle , circleStack} from "solid-heroicons/solid";
+import { squaresPlus as addTools, signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, map, plusCircle, circleStack } from "solid-heroicons/solid";
 import { ChatPanel, ChatViewer, DatabaseTool, DatabaseViewer } from "./viewer";
 import { SettingsViewer } from "./settings";
 import { DarkButton } from "../lib";
 import { SearchPanel, SearchViewer } from "./search";
 import { Settings } from "./settings";
-import { Graphic, SitePage, SitePageContext, Tool, contentLeft, left, login, menuToggle, mobile, online, setLeft, showPanel, showTools, useUser, userState } from "../core";
+import { Graphic, SitePage, SitePageContext, Tool, left, login, editToggle, mobile, online, setLeft, showPanel, showTools, useUser, userState, contentRight } from "../core";
 import { EditTool, EditViewer } from "./edit";
 import { MapTool, MapViewer } from "./map";
 import { DropModal, NewModal, PickGroupModal, pickNewFile, uploadFiles } from "./new";
@@ -104,7 +104,7 @@ export function XX() {
 }
 
 // take flyout out of url? the argument for it in, is that we can bookmark it, send a link to it,. Out will leave as at the actual page though, and is more conventional.
-    // owner / ln / branch / db  / viewpath  
+// owner / ln / branch / db  / viewpath  
 
 
 export function LoggedIn() {
@@ -112,7 +112,7 @@ export function LoggedIn() {
   // pause here until we have a database
   return <TabState >
     <LoggedIn2 />
-    </TabState>
+  </TabState>
 
 }
 export function LoggedIn2() {
@@ -121,7 +121,7 @@ export function LoggedIn2() {
   const loc = useLocation()
   const ln = useLn()
 
-  let el : HTMLDivElement
+  let el: HTMLDivElement
 
   createEffect(async () => {
     // this will happen after mounting, but not necessarily before the database is ready.
@@ -145,27 +145,35 @@ export function LoggedIn2() {
 
   // page is things we can get sync, no fetch
   const sitePage = () => {
-      const p = loc.pathname.split("/")
-      // [0] is empty,  [1] is ln
-      const name = p[2]??"search"
-      let ft = tools()[name]??tools()["search"]
-      const r: SitePage =   {
-        server: '', // default server, need a syntax for different ones, including webrtc ones.
-        tool: ft,
-        path: p.slice(3).join("/"),
-        toolname: name
-      }
-      return r
+    const p = loc.pathname.split("/")
+    // [0] is empty,  [1] is ln
+    const name = p[2] ?? "search"
+    let ft = tools()[name] ?? tools()["search"]
+    const r: SitePage = {
+      server: '', // default server, need a syntax for different ones, including webrtc ones.
+      tool: ft,
+      path: p.slice(3).join("/"),
+      toolname: name
+    }
+    return r
   }
 
-  const ToolViewer : () => JSXElement = () => {
+  const ToolViewer: () => JSXElement = () => {
     return <>
-      {false &&<pre>{JSON.stringify({
+      {false && <pre>{JSON.stringify({
         login: login(),
         state: userState()
-      },null,2)}</pre>}
-      {sitePage()&&sitePage().tool.viewer()}
-      </>
+      }, null, 2)}</pre>}
+      {sitePage() && sitePage().tool.viewer()}
+    </>
+  }
+
+
+
+
+  const PageViewer: () => JSXElement = () => {
+    return <>
+    </>
   }
 
   // const nav = (path: string) => {
@@ -181,16 +189,16 @@ export function LoggedIn2() {
   // return a link that activates the tool, and may set the path.
   // some links in the tool pane are only active if the path matches as well.
 
- 
+
   // should include set active tool in this?
   const Seldiv = (props: {
     children: JSXElement,
     toolname: string,
     path?: string
   }) => {
-    
-    const p = ()=>loc.pathname.split("/").slice(3).join("/")
-    const href = () => "/" + ln().ln + "/" + props.toolname + (props.path?"/"+props.path:"")
+
+    const p = () => loc.pathname.split("/").slice(3).join("/")
+    const href = () => "/" + ln().ln + "/" + props.toolname + (props.path ? "/" + props.path : "")
     const sel = () => {
       if (props.path) {
         return props.toolname == sitePage()?.toolname && props.path == p()
@@ -208,17 +216,17 @@ export function LoggedIn2() {
   // or split to content
   // or maybe we should do what gmail does and just show a hamburger for that.
 
-  const newFile = async() => {
+  const newFile = async () => {
     const r = await pickNewFile()
   }
 
   // if they share things, then discussions will go with that.
   const watch = () => {
     return <For each={userState().watch}>
-        {(e, i) => {
-          return <Seldiv toolname='watch' path={e.path} ><GraphicIcon class={bl(true)} count={count(i())} graphic={e.icon} color={e.color} /></Seldiv>
-        }}
-      </For>
+      {(e, i) => {
+        return <Seldiv toolname='watch' path={e.path} ><GraphicIcon class={bl(true)} count={count(i())} graphic={e.icon} color={e.color} /></Seldiv>
+      }}
+    </For>
   }
 
   const Toolicons = () => {
@@ -238,11 +246,35 @@ export function LoggedIn2() {
       }</For>
       <Show when={debug} >
         <DarkButton />
-        </Show>
+      </Show>
       <Show when={!online()}>
         <RoundIcon class='text-red-500' path={signalSlash} />
       </Show>
     </div>
+  }
+
+   const ToolPane = () => {
+    return    <>
+          <Toolicons />       <div
+      class='absolute  dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden top-0 bottom-0'
+      style={{
+        left: "56px",
+        right: "0px",
+      }}
+    >
+      <div
+        class='h-full w-full overflow-auto top-0 left-0 right-0  '
+        style={{
+          bottom: "0px",
+        }}
+      >
+        <Suspense fallback={<div>waiting</div>}>
+          {sitePage().tool.component!()}
+        </Suspense>
+      </div>
+
+    </div>
+    </>
   }
 
   // const HSplitterButton = () => {
@@ -274,50 +306,43 @@ export function LoggedIn2() {
       </div>
     </div>
   }
+
+
   return <>
     <SitePageContext.Provider value={sitePage()}>
-    <NewModal/>
-    <DropModal/>
-    <PickGroupModal/>
-        <div ref={el!} class='flex h-screen w-screen fixed overflow-hidden'>
-          <Show when={showPanel()}>
-          <Toolicons />
-
+      <NewModal />
+      <DropModal />
+      <PickGroupModal />
+      <div ref={el!} class='flex h-screen w-screen fixed overflow-hidden'>
+                <div class='fixed' style={{
+          left: "0px",
+          right: contentRight() + "px",
+          top: "0px",
+          bottom: "0px"
+        }}>
+          <PageViewer />
+        </div>
+        
+        <Show when={showPanel()}>
           <HSplitterButton style={{
             "z-index": 10000,
-            left: left()+"px"
-        }} class='h-full w-1.5 absolute hover:bg-blue-500 hover:opacity-100 bg-blue-700 opacity-0 cursor-ns-resize' value={left} setValue={setLeft}/>
-
-            <div
-              class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden top-0 bottom-0'
-              style={{
-                left: "56px",
-                width: (left()-56)+ "px"
-              }}
-            >
-              <div
-                class='absolute overflow-auto top-0 left-0 right-0  '
-                style={{
-                  bottom: "0px",
-                }}
-              >
-                <Suspense fallback={<div>waiting</div>}>
-                  {sitePage().tool.component!()}
-                </Suspense>
-              </div>
-            </div>
-          </Show>
-          <div class='fixed' style={{
-            left: (contentLeft()) + "px",
-            right: "0px",
-            top: "0px",
-            bottom: "0px"
-          }}>
-            <ToolViewer />
+            left: left() + "px"
+          }} class='h-full w-1.5 absolute hover:bg-blue-500 hover:opacity-100 bg-blue-700 opacity-0 cursor-ns-resize' value={left} setValue={setLeft} />
+           <div class='fixed' style={{
+              left: left() + "px",
+              right: "0px",
+              top: "0px",
+              bottom: "0px"
+            }}>
+          
+          <ToolPane />
           </div>
-        </div>
 
-  </SitePageContext.Provider></>
+        </Show>
+
+      </div>
+
+    </SitePageContext.Provider></>
 
 }
 // <Splitter left={left} setLeft={setLeft}>
@@ -373,72 +398,3 @@ export function Tooltip(props: { text: string, children: JSXElement }) {
   </div>
 }
 
-/*
-///////////////////////////////////////
-// adaptive things - separate file?
-export enum ShowPagemap {
-  adaptive,  // adaptive -> click = toggle. so once its closed or open it can no longer be adaptive.
-  none,
-  display,
-}
-// display needs to be full screen if the screen is small enough.
-export enum ShowSitemap {
-  adaptive,
-  none,  // greater than 800 this is split
-  full,
-  split, // split is same as adaptive?
-}
-
-    const windowSize = createWindowSize();
-    if (mobile()) {
-      return sitemap() == ShowSitemap.none ? ShowSitemap.none : ShowSitemap.full
-    }
-    if (sitemap() == ShowSitemap.adaptive) {
-      return windowSize.width > 850 ? ShowSitemap.split : ShowSitemap.none
-    }
-    // we need to check if there's room for the  sitemap
-    // also need to allow the sitemap to shrink if window isn't wide enough.
-    return sitemap()
-
-const [sitemap, setSitemap] = createSignal(ShowSitemap.adaptive)
-export const [pagemap, setPagemap] = createSignal(ShowPagemap.adaptive)
-// does it matter where the splitter is? we also need to derive that.
-
-export const showToc = (): boolean => {
-  if (pagemap() == ShowPagemap.adaptive) {
-    return mobile() ? false : true
-  }
-  return pagemap() == ShowPagemap.display
-}
-export const toggleSitemap = () => {
-  console.log("no sitemap")
-  setSitemap(showSitemap() == ShowSitemap.none ? ShowSitemap.split : ShowSitemap.none)
-}
-export const togglePagemap = () => {
-  console.log("no pagemap")
-  // once flipped, it can't be adaptive again. Is there a a better approach?
-  setPagemap(showToc() ? ShowPagemap.none : ShowPagemap.display)
-}
-export const mobile = () => {
-  const windowSize = createWindowSize();
-  const r = windowSize.width < 650
-  //console.log("windowWidth", windowSize.width)
-  return r
-}
-
-
-
-
-const catchall = () => {
-    const nav = useNavigate()
-    const p = useParams()
-    const appname = p["app"]
-    //nav(`${prefix}/en/login`)
-
-
-
-    return <Show when={fn} fallback={<div>app {appname} not found</div>}>
-        {fn!()}
-        </Show>
-}
-*/

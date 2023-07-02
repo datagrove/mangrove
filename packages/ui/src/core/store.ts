@@ -5,19 +5,24 @@ import { createWindowSize } from "@solid-primitives/resize-observer";
 
 const windowSize = createWindowSize();
 export const [online, setOnline] = createSignal(true)
+export const mobile = () => windowSize.width < 640
 
-export const [left, setLeft] = createSignal(350)
+
+
+  // page view respects mode, so if you hit back to go to another page, you stay in edit or view mode.
+export const editMode = createSignal(false)
+
 // layout state: split, allPanel, allContent. It's always manual if the screen is small
 // panel states: none, partial, all
 // the default depends on the screen size.
 // if the screen is small then partial is always treated as all
-
-export const mobile = () => windowSize.width < 640
 export enum Layout {
   split,
   allPanel,  // always shows tools
   allContent
 }
+// left of the tools panel, only matters if Layout.split
+export const [left, setLeft] = createSignal(480)
 export const [layout, setLayout] = createSignal(windowSize.width > 640? Layout.split : Layout.allContent)
 
 export const showPanel = () => layout() == Layout.split || layout() == Layout.allPanel
@@ -29,7 +34,7 @@ createEffect(() => {
   if (layout()==Layout.split && windowSize.width < 640) setLayout(Layout.allContent)
 })
 
-export const  menuToggle = () => {
+export const  editToggle = () => {
   console.log("menuToggle")
   if (mobile()) {
     setLayout( layout()==Layout.allContent ? Layout.allPanel : Layout.allContent )
@@ -43,11 +48,10 @@ interface Login {
   did: string
 }
 
-
 // there is one more state? shouldn't we keep the tool icons as long as we are not mobile?
-export const contentLeft = () => {
+export const contentRight = () => {
     switch(layout()) {
-      case Layout.split: return left()
+      case Layout.split: return windowSize.width - left()
       case Layout.allPanel: return 0
       case Layout.allContent: return 0
     }
