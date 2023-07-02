@@ -1,5 +1,12 @@
 The job of host is to serve pages to the service worker installed for each subdomain. The pages maybe be change atomically which is handled by the service worker. host notes the change though, and any new sessions that are started are started with the new site.
 
+host sites are ssg+islands. clients can connect directly to nodes generate dynamic pages. The router then needs to be somewhat hybrid between ssg and ssr; in the mold of an mpa that's made up of spas. 
+
+every client is a database ( globally addressible) with bags of tuples. Each tuple has a place it wants to live, where it was born, and where it is now. sync transports tuples to where they want to go. host run webassembly routines and some hard coded stripe routines, but generally tries to do very little. 
+
+Each site has at least one primary that sets the order of operations. For high availability they may be multiple primary sites. Generally there would just be two, although each of these could be clustered using scalestore. The core VSR ring decides if the backup should take over, if the primary lease expires. replication is by log shipping. backup and primary can split sites in the expected state of both running.
+
+
 The pages are generated statically from a database. host will generate these in the background, but will pause requests to ensure that the correct page is served, so its a hybrid of ssg and ssr.
 
 It seems likely there will be some reverse proxy in front of this (cloudflare) which impacts our ability to offer atomic site changes. With a handful of cdn's we can probably find a manual invalidation for each. Not exactly atomic but best we can do?
@@ -25,3 +32,23 @@ authors write into datanodes and write to (each) host directly.
 readers execute apis directly on datanodes
 
 should host maintain the data nodes then?
+
+should I fork caddy? improve on it?
+
+what api's do we need to support?
+
+1. sftp? we could copy new versions, but probably have this already.
+2. create new site x.datagrove.com 
+
+/sites/owner/site/version/
+
+// keep a map of lastest version. keep in session for each user.
+create table site(
+  owner text,
+  site text,
+  version text,
+  primary key(owner, site, version)
+)
+
+// keep local cache, restore from r2 if needed.
+
