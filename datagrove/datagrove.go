@@ -15,6 +15,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+// I need a way to server html statically, then transition to a lexical editor
+// the html statically needs to be served from a service worker.
 var (
 	//go:embed ui/dist/**
 	Res embed.FS
