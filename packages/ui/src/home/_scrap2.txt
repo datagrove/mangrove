@@ -1,0 +1,16 @@
+      <Match when={true}>
+        <Switch>
+        <Match when={mobile()}>
+            {/* this appears in mobile it mainly needs to activate search*/}
+            <MobileSearchButton/>
+          
+          <ToolViewer/>
+        </Match>
+        <Match when={true}>
+          <div class='flex h-screen w-screen fixed overflow-hidden'>
+          <Toolicons/>
+          <ToolViewer/>
+          </div>
+          </Match>
+        </Switch>
+      </Match>

@@ -30,6 +30,7 @@ createEffect(() => {
 })
 
 export const  menuToggle = () => {
+  console.log("menuToggle")
   if (mobile()) {
     setLayout( layout()==Layout.allContent ? Layout.allPanel : Layout.allContent )
   } else {
@@ -48,7 +49,7 @@ export const contentLeft = () => {
     switch(layout()) {
       case Layout.split: return left()
       case Layout.allPanel: return 0
-      case Layout.allContent: return mobile()? 0 : 56
+      case Layout.allContent: return 0
     }
 }
 
@@ -77,12 +78,13 @@ export async function getUser(id: string) {
   setUserState( {
     tools: [
       //"home",
-      "search",
       "edit",
-      "dm",
-      "watch",  // alerts can be any path, not just a folder with conversations
-      "map",
-      "db",
+      "search",
+      "tools",
+      // "dm",
+      // "watch",  // alerts can be any path, not just a folder with conversations
+      // "map",
+      // "db",
       "account", // setting is similar to home database
       //"folder",
     ],

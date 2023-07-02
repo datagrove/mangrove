@@ -6,7 +6,7 @@ import { A, useLocation } from "@solidjs/router";
 import { useLn } from "../login/passkey_i18n";
 
 import { Icon, } from "solid-heroicons";
-import { signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, map, plusCircle , circleStack} from "solid-heroicons/solid";
+import { squaresPlus as addTools, signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, map, plusCircle , circleStack} from "solid-heroicons/solid";
 import { ChatPanel, ChatViewer, DatabaseTool, DatabaseViewer } from "./viewer";
 import { SettingsViewer } from "./settings";
 import { DarkButton } from "../lib";
@@ -66,6 +66,12 @@ const builtinTools: { [key: string]: Tool } = {
     component: DatabaseTool,
     path: 'a/b/text',
     viewer: DatabaseViewer
+  },
+  "tools": {
+    icon: () => <FloatIcon path={addTools} />,
+    component: () => <div>tools</div>,
+    path: 'a/b/text',
+    viewer: () => <div>tools</div>
   },
 }
 
@@ -206,22 +212,22 @@ export function LoggedIn2() {
     const r = await pickNewFile()
   }
 
+  // if they share things, then discussions will go with that.
+  const watch = () => {
+    return <For each={userState().watch}>
+        {(e, i) => {
+          return <Seldiv toolname='watch' path={e.path} ><GraphicIcon class={bl(true)} count={count(i())} graphic={e.icon} color={e.color} /></Seldiv>
+        }}
+      </For>
+  }
+
   const Toolicons = () => {
     return <div class='w-14 flex-col flex mt-4 items-center space-y-6'>
-      <RoundIcon path={menu} onClick={menuToggle} />
       <RoundIcon path={plusCircle} onClick={newFile} />
       <For each={userState().tools}>{(e, i) => {
         const tl = tools()[e]
         return <Switch>
-          <Match when={e == "watch"}>
-            <For each={userState().watch}>
-              {(e, i) => {
-                // show avatar if available
 
-                return <Seldiv toolname='watch' path={e.path} ><GraphicIcon class={bl(true)} count={count(i())} graphic={e.icon} color={e.color} /></Seldiv>
-              }}
-            </For>
-          </Match>
           <Match when={true}>
             <Show when={tl} fallback={<div>{e}</div>}>
               <Seldiv toolname={e}>{tl.icon()}</Seldiv>
@@ -273,13 +279,10 @@ export function LoggedIn2() {
     <NewModal/>
     <DropModal/>
     <PickGroupModal/>
-    <Switch>
-      <Match when={sitePage().tool.component}>  
         <div ref={el!} class='flex h-screen w-screen fixed overflow-hidden'>
-          <Show when={showTools()}>
-            <Toolicons />
-          </Show>
           <Show when={showPanel()}>
+          <Toolicons />
+
           <HSplitterButton style={{
             "z-index": 10000,
             left: left()+"px"
@@ -289,7 +292,7 @@ export function LoggedIn2() {
               class='absolute dark:bg-gradient-to-r dark:from-black dark:to-neutral-900 overflow-hidden top-0 bottom-0'
               style={{
                 left: "56px",
-                width: left() - 56 + "px"
+                width: (left()-56)+ "px"
               }}
             >
               <div
@@ -311,27 +314,9 @@ export function LoggedIn2() {
             bottom: "0px"
           }}>
             <ToolViewer />
-            <InfoBox />
           </div>
         </div>
-      </Match>
-      <Match when={true}>
-        <Switch>
-        <Match when={mobile()}>
-            {/* this appears in mobile it mainly needs to activate search*/}
-            <MobileSearchButton/>
-          
-          <ToolViewer/>
-        </Match>
-        <Match when={true}>
-          <div class='flex h-screen w-screen fixed overflow-hidden'>
-          <Toolicons/>
-          <ToolViewer/>
-          </div>
-          </Match>
-        </Switch>
-      </Match>
-    </Switch>
+
   </SitePageContext.Provider></>
 
 }
@@ -339,9 +324,7 @@ export function LoggedIn2() {
 // potentially a table of contents for current page
 
 // controlled by the mounting app?
-function InfoBox() {
-  return <div> </div>
-}
+
 
 function Nosite(props: {}) {
   return <div>Site not found</div>

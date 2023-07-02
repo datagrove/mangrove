@@ -20,7 +20,7 @@ import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 import { LexicalErrorBoundary } from "./lexical-solid/LexicalErrorBoundary";
 import { TextMenu } from "./menu";
 import { Icon } from "solid-heroicons";
-import { sparkles, ellipsisHorizontal as menu, check, arrowUturnLeft as undo, arrowUturnRight as redo, plus, } from "solid-heroicons/solid";
+import { bars_3, sparkles, ellipsisHorizontal as menu, check, arrowUturnLeft as undo, arrowUturnRight as redo, plus, } from "solid-heroicons/solid";
 //import { EmojiNode } from "./nodes/EmojiNode";
 //import EmoticonPlugin from "./plugins/EmoticonPlugin";
 
@@ -29,7 +29,7 @@ import { createContext, createEffect, createResource, onMount, useContext } from
 
 import { pencil } from "solid-heroicons/solid";
 import { useNavigate } from "@solidjs/router";
-import { SiteDocument, readAll, useDocument, usePage } from "../core";
+import { SiteDocument, menuToggle, readAll, useDocument, usePage } from "../core";
 
 import { UNDO_COMMAND, REDO_COMMAND } from 'lexical';
 import { useLexicalComposerContext } from './lexical-solid/LexicalComposerContext';
@@ -82,18 +82,18 @@ const editorConfig = {
 
 
 
-function Bottom() {
-  return <div class=' h-8 dark:bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
-    <Icon class='h-6 w-6' path={check} />
-    <div class='flex-1 '></div>
-    <div class='space-x-4 flex mr-2'>
-      <Icon class='h-6 w-6' path={undo} />
-      <Icon class='h-6 w-6' path={redo} />
-      <Icon class='h-6 w-6' path={plus} />
-      <Icon class='h-6 w-6' path={sparkles} />
-      <Icon class='h-6 w-6' path={menu} /></div>
-  </div>
-}
+// function Bottom() {
+//   return <div class=' h-8 dark:bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
+//     <button onClick={menuToggle}><Icon class='h-6 w-6' path={bars_3} /></button>
+//     <div class='flex-1 '></div>
+//     <div class='space-x-4 flex mr-2'>
+//       <Icon class='h-6 w-6' path={undo} />
+//       <Icon class='h-6 w-6' path={redo} />
+//       <Icon class='h-6 w-6' path={plus} />
+//       <Icon class='h-6 w-6' path={sparkles} />
+//       <Icon class='h-6 w-6' path={menu} /></div>
+//   </div>
+// }
 export interface RteProps {
   path?: string
   placeholder?: string
@@ -104,7 +104,7 @@ export function RichTextEditor(props: RteProps) {
   const Menu = () => {
     const [editor] = useLexicalComposerContext();
     return <div class=' h-8 dark:bg-neutral-900 bg-neutral-100 border-b border-neutral-200 flex items-center '>
-      <Icon class='h-6 w-6' path={check} />
+      <button onClick={menuToggle}><Icon class='h-6 w-6' path={bars_3} /></button>
       <div class='flex-1 '></div>
       <div class='space-x-4 flex mr-2'>
         <Icon class='h-6 w-6' path={undo} onClick={() => editor.dispatchCommand(UNDO_COMMAND,null as any)} />

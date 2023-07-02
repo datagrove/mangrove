@@ -48,6 +48,7 @@ export function usePointerInteractions() {
     return isPointerDown as () => boolean;
 }
 
+// all our menus need to begin with drawer hamburger menu
 export function TextMenu() {
     let el: HTMLDivElement
     const isPointerDown = usePointerInteractions();

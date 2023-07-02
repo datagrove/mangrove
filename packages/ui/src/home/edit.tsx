@@ -109,7 +109,7 @@ export function EditTool() {
     // use a header with a button
     return (
         <div class='flex flex-col w-full h-full'>
-            <div><BlueButton onClick={()=>closeall()}>CloseAll</BlueButton></div>
+            <div class='hidden'><BlueButton onClick={()=>closeall()}>CloseAll</BlueButton></div>
             <div class='flex-grow overflow-auto'>
         <Sortable idField="path" items={items} setItems={setItems} >
             {item => <FileEntry file={item} />}
