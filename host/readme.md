@@ -1,7 +1,20 @@
 The job of host is to serve pages to the service worker installed for each subdomain. The pages maybe be change atomically which is handled by the service worker. host notes the change though, and any new sessions that are started are started with the new site.
 
 
-Maybe the 
+what are going to do for seo? can we rely on the google executing the javascript? lighthouse scores may be a signal.
+
+possible solutions:
+
+ssg - we can render out a site periodically (nightly?) We could even serve this site initially. Host can try this when the user is not logged in any way, they might see an old version. There would have to be a force function or auto setting to allow it to run differently.
+
+So if we serve the static to newcomers (a good thing, arguably), then it could make sense to try to pull it from r2 directly instead of paying fly.io for egress. 
+
+One way to manage this is to put a copy of the site on ovh, but how do we direct the bots to scrape there? Maybe we should just go ovh straight up.
+
+what if we had a static web site server on ovh, and the moment someone logged in they were immediately transitioned to fly.io. Not clear this makes a difference.
+
+
+
 
 git's patch is closer to what we want then pack. pack in practice wants gobs of cpu, memory, and then gives you reverse deltas, we want forward deltas cheaply. (mercurial?)
 
