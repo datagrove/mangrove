@@ -51,4 +51,16 @@ create table site(
 )
 
 // keep local cache, restore from r2 if needed.
+Is it faster to pack pages into sets? Does this get in the way of incremental updates?
+Is there a sweet spot for size, esp. since reads cost but bytes don't?
+Should we use a root file to make the atomic commit? Probably poll it slowly, or?
+If the website has a chat feature this just works by connecting to the node with webrtc. the node could also tell them the website has changed.
+
+potentially the commit could be a tree, or delta of a tree, that maps names to hashes. That would let the service worker keep its cache valid. host could potentially cache the home page and the tree.
+
+
+
+
+
+
 
