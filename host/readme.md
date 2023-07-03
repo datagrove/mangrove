@@ -1,5 +1,7 @@
 The job of host is to serve pages to the service worker installed for each subdomain. The pages maybe be change atomically which is handled by the service worker. host notes the change though, and any new sessions that are started are started with the new site.
 
+
+
 host sites are ssg+islands. clients can connect directly to nodes generate dynamic pages. The router then needs to be somewhat hybrid between ssg and ssr; in the mold of an mpa that's made up of spas. 
 
 every client is a database ( globally addressible) with bags of tuples. Each tuple has a place it wants to live, where it was born, and where it is now. sync transports tuples to where they want to go. host run webassembly routines and some hard coded stripe routines, but generally tries to do very little. 
