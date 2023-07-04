@@ -1,4 +1,4 @@
-import { Peer, WorkerChannel } from '../abc/rpc';
+import { Peer, WorkerChannel } from '../../abc/src';
 import { Keyed, RangeSubscriber, ScanQuery, Tuple,  Txc,  rangeSubscriberApi } from './mvr_shared';
 const ctx = self as any;
 

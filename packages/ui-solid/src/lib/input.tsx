@@ -1,5 +1,5 @@
 import { Component, createSignal, JSX, JSXElement, onMount, Show } from "solid-js"
-import { Cell, CellOptions } from "../db"
+import { Cell, CellOptions } from "../../../datagrove/src"
 import { useLn } from '../../../i18n/src'
 import { BlueButton, Center, LightButton } from "./form"
 

@@ -9,6 +9,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "namespace": "@datagrove",
   "workspaces": [
     "packages/*",
     "datagrove/ui/*",

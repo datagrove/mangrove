@@ -1,7 +1,6 @@
 import { JSXElement } from "solid-js"
 import { render } from "solid-js/web"
-import { RangeSource } from "../db"
-import { ScanDiff } from "../db"
+import { RangeSource,ScanDiff } from "../../../datagrove/src"
 
 // this creates each row as a div.
 // the tradeoff here compared to cell as a div is that we make it harder to position columns

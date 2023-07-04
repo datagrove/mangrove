@@ -6,10 +6,13 @@ import { Datagrove } from "../../datagrove/src"
 import { Show, createSignal } from "solid-js"
 //import { getUser, login } from "../../../packages/ui/src/core"
 import { Route, Routes, useNavigate } from "@solidjs/router";
-import { SampleEditor } from "../../ui/src"
+import { SampleEditor } from "../../ui-solid/src"
 
 const [login, setLogin] = createSignal(true)
 
+export function CustomEditor() {
+    return <div>wtf</div>
+}
 export function App() {
     const nav = useNavigate()
     
@@ -19,7 +22,7 @@ export function App() {
 
     return <Show when={login()} fallback={<Signup/>}  >
             <Routes>
-                <Route path="*" component={SampleEditor} />
+                <Route path="*" component={CustomEditor} />
             </Routes>
           </Show>
 }

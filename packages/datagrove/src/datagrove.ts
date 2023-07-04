@@ -11,6 +11,7 @@ import LogWorker from './opfs_worker?worker'
 
 import { MvrServer } from './mvr_worker'
 
+// Db can work in cli/node, TabState is browser only
 export class TabStateBase extends Db {
     api!: Peer
     ps?: MvrServer
@@ -64,7 +65,7 @@ export class TabStateBase extends Db {
         this.ps.connect(new WorkerChannel(mc.port2))
       }
     
-      constructor(public loc: any) {
+      constructor() {
         super()
         this.makeLocal()
       }

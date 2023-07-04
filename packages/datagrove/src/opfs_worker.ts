@@ -1,4 +1,4 @@
-import { Channel, Peer, TransferableResult, WorkerChannel, apiListen } from "../abc/rpc"
+import { Channel, Peer, TransferableResult, WorkerChannel, apiListen } from "../../abc/src"
 import { get } from 'sortablejs';
 import { OpfsApi } from "./mvr_shared";
 

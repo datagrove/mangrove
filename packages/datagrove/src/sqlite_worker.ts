@@ -1,7 +1,7 @@
 // this must be in a worker to get opfs\
 // @ts-ignore
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
-import { Peer, WorkerChannel, apiListen } from '../abc/rpc';
+import { Peer, WorkerChannel, apiListen } from '../../abc/src';
 import { DbLiteApi } from './sqlite_api';
 const ctx = self as any;
 

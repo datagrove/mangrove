@@ -1,4 +1,4 @@
-import { Peer, apiCall } from "../abc/rpc";
+import { Peer, apiCall } from "../../abc/src";
 
 
 export interface DbLiteApi  {
