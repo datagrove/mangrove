@@ -3,17 +3,15 @@
 // autoLogin false until we resolve if we can automatically login
 
 import { createSignal } from "solid-js"
-import { createWs } from "../core/socket"
-import { bufferToHex } from "./encode"
-import * as bip39 from 'bip39'
-import * as ucans from "@ucans/ucans"
-import * as ed25519 from "@stablelib/ed25519"
-import { Buffer } from 'buffer'
-import { EdKeypair } from "@ucans/ucans"
-import { useNavigate } from "../core/dg"
 
-// @ts-ignore
-window.Buffer = Buffer;
+
+
+import { useNavigate } from "@solidjs/router"
+
+//import { EdKeypair } from "@ucans/ucans"
+//import * as ucans from "@ucans/ucans"
+
+
 
 export interface Site {
   name: string
@@ -154,84 +152,17 @@ export const isMobile: boolean = (navigator as any)?.userAgentData?.mobile ?? fa
 
 
 
-export async function AuthorizeDevice(keypair: EdKeypair, device: string) {
-  const ucan = await ucans.build({
-    audience: device, // recipient DID
-    issuer: keypair, // signing key
-    capabilities: [ // permissions for ucan
-      {
-        with: { scheme: "login", hierPart: keypair.did() },
-        can: { namespace: "login", segments: ["LOGIN"] }
-      },
-    ]
-  })
-  const token = ucans.encode(ucan) // base64 jwt-formatted auth token 
-  return token
-}
 
-// auto login uses a stored token to skip the signin button
-// there are lots of variations on this theme, "sign out of all tabs"
-export async function tryToLogin() {
-  let a = security()
-  if (a.deviceDid == "") {
-    await createDevice()
-  }
-  // else {
-  //   if (a.autoconnectUntil == 0 || a.autoconnectUntil > Date.now()) {
-  //     setLogin(true)
-  //   }
-  // }
-}
-tryToLogin()
+
+
 
 //         // we have our passphrase now, we can create a certificate and register it
 // then we could finish the setup with webauthn. we could even skip it
 //        const cert = ucanFromBip39(mn, sec!.did, await ws.did())
-export async function createDevice() {
-  const a = security()
-  const keypair = await ucans.EdKeypair.create({ exportable: true })
-  a.deviceName = keypair.did()
-  a.devicePrivate = await keypair.export("base58btc")
-  a.deviceDid = keypair.did()
-  setWelcome(true)
-  setSecurity(a)
-}
+
 // call createUser when we initialize a new device
 
 
-export const generatePassPhrase = () => bip39.generateMnemonic()
 
-// given a secret bip39, we can generate a user identity 
-export async function bip39seed(bip: string) {
-  return bip39.mnemonicToSeedSync(bip).subarray(0, 32)
-}
-export async function passwordSeed(password: string) {
-  return bip39.mnemonicToSeedSync(password).subarray(0, 32)
-}
 
-// we need to create the user deterministically from the seed
-export async function createUser(seed: string, bip39: boolean) {
-  const b = bip39 ? await bip39seed(seed.toString()) : await passwordSeed(seed.toString())
-  const kp = ed25519.generateKeyPairFromSeed(b)
-  const user = new EdKeypair(kp.secretKey, kp.publicKey, true)
-  const a = security()
-  const ucan = await ucans.build({
-    audience: a.deviceDid, // recipient DID
-    issuer: user, // signing key
-    capabilities: [ // permissions for ucan
-      {
-        with: "login://" + user.did() as any,
-        can: "*"
-      }
-    ]
-  })
 
-  a.user = {
-    name: 'Anonymous',
-    did: user.did(),
-    private: await user.export("base58btc"),
-    ucanLogin: ucans.encode(ucan),
-    bip39: bip39
-  }
-  setSecurity(a)
-}

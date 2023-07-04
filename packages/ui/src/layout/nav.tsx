@@ -7,7 +7,7 @@ import {
 } from 'solid-headless';
 import Dismiss from 'solid-dismiss'
 import { BlueButton } from '../lib/form'
-import { AnchorProps, A as Ar, useNavigate } from '../core/dg';
+import { AnchorProps, A as Ar, useNavigate } from '@solidjs/router';
 
 
 function classNames(...classes: (string | boolean | undefined)[]): string {

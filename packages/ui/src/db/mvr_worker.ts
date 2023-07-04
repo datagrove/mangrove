@@ -564,22 +564,24 @@ export class MvrServer implements Service {
             this.leader = api
             console.log("creating db")
             // this just transfers the ports back, we need to create peers for them here.
-            const [dbp,logp]:[MessagePort,MessagePort] = await this.leader.createDb()
-            dbp.start()
-            logp.start()
-            const pdb = new Peer(new WorkerChannel(dbp))
-            const plog = new Peer(new WorkerChannel(logp))
-            const db : DbLiteApi = dbLiteApi(pdb)
-            const log = opfsApi(plog)
+            // we are getting a value that's not an array here.
+            const x = await this.leader.createDb()
+            console.log("got db",x)
+            // dbp.start()
+            // logp.start()
+            // const pdb = new Peer(new WorkerChannel(dbp))
+            // const plog = new Peer(new WorkerChannel(logp))
+            // const db : DbLiteApi = dbLiteApi(pdb)
+            // const log = opfsApi(plog)
 
-            console.log("created db",db,log)
-            this.db = db
-            this.logApi = log
+            // console.log("created db",db,log)
+            // this.db = db
+            // this.logApi = log
 
-            const h = await log.open("test"+(nserver++))
-            await log.write(h, 0, new Uint8Array([1, 2, 3]))
-            const r = await log.read(h,0, 3)
-            console.log("BACK IN WORKER",r)
+            // const h = await log.open("test"+(nserver++))
+            // await log.write(h, 0, new Uint8Array([1, 2, 3]))
+            // const r = await log.read(h,0, 3)
+            // console.log("BACK IN WORKER",r)
         }
 
         return r

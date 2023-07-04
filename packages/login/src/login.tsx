@@ -6,11 +6,11 @@ import { BlueButton, P, TextDivider } from "../lib/form";
 import { Username, AddPasskey, GetSecret, ChallengeNotify, LoginInfo, PasskeyChoice } from "./passkey_add";
 import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { createWs } from "../core/socket";
-import { A, useNavigate } from "../core/dg";
 import { LoginWith } from "./login_with";
 import { Password } from "./password";
 import { SimplePage } from "./simplepage";
 import { setCoreLogin } from "../core";
+import { A, useNavigate } from "@solidjs/router";
 
 // I need a way to simplify the page when returning.
 

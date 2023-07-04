@@ -1,7 +1,7 @@
 import { Component, Match, Show, Switch, createSignal } from "solid-js"
 import { Ab } from "../layout/nav"
 import { BlueButton } from "../lib/form"
-import { generatePassPhrase, security } from "../lib/crypto"
+import {  security } from "../lib/crypto"
 import {
     get,
     parseRequestOptionsFromJSON,
@@ -9,9 +9,9 @@ import {
 
 import { createWs } from "../core/socket"
 import { useLn } from "./passkey_i18n"
-import { useNavigate } from "../core/dg";
 import { LoginInfo } from "./passkey_add";
 import { SimplePage } from "./simplepage";
+import { useNavigate } from "@solidjs/router";
 
 const [crox, setCrox] = createSignal<any>(null)
 // this blocks a promise waiting for the user to offer a passkey
@@ -149,21 +149,12 @@ export const LoginPasskey: Component<{ login?: boolean }> = (props) => {
     const ws = createWs()
     const nav = useNavigate()
     const [user, setUser] = createSignal("")
-    const [error, setError] = createSignal("")
 
-    const [bip39, setBip39] = createSignal(false)
 
     initPasskey().then((ok) => {
 
     })
 
-
-    // this is for a bip39 option
-    const [mn, setMn] = createSignal(generatePassPhrase())
-    const generate = (e: any) => {
-        e.preventDefault()
-        setMn(generatePassPhrase())
-    }
 
 
     const signin = async (e: SubmitEvent) => {

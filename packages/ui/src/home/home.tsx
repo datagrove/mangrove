@@ -1,38 +1,22 @@
 
 
-import { For, JSXElement, Match, Show, Suspense, Switch, createEffect } from "solid-js";
-import { createWs } from "../core/socket";
-import { A, useLocation } from "@solidjs/router";
-import { useLn } from "../login/passkey_i18n";
+import { For, JSXElement, Match, Show, Suspense, Switch } from "solid-js";
+import { A } from "@solidjs/router";
 
 import { Icon, } from "solid-heroicons";
 import { signalSlash, clock as history, plusCircle } from "solid-heroicons/solid";
 import { DarkButton } from "../lib";
 import { Graphic, SitePage, SitePageContext, left, login, online, setLeft, showPanel, userState, contentRight } from "../core";
-import { DropModal, NewModal, PickGroupModal, pickNewFile, uploadFiles } from "./new";
+import { DropModal, NewModal, PickGroupModal, pickNewFile } from "./new";
 
 //import { Db, createDb } from "../db";
 import { HSplitterButton } from "./viewer/splitter";
-import { TabState, useDg } from "../db";
+import { useDg } from "../db";
 import { tools } from "./tools";
 
 const debug = false
 
-export function LoggedIn() {
-  // pause here until we have a database
-  return <TabState >
-    <LoggedIn2 />
-  </TabState>
-
-}
-export function LoggedIn2() {
-  const db = useDg()!
-  const ws = createWs()
-  const loc = useLocation()
-  const ln = useLn()
-
-  let el: HTMLDivElement
-
+/*
   createEffect(async () => {
     // this will happen after mounting, but not before the database is ready.
     if (db) {
@@ -52,13 +36,23 @@ export function LoggedIn2() {
       });
     }
   })
+*/
+
+interface SampleEditorProps {
+}
+
+export const SampleEditor = (propb: SampleEditorProps) => {
+  const dg = useDg()
+
+  let el: HTMLDivElement
+
 
   // provide is things we can get sync, no fetch
   // this value is for useSitePage()
   // note we need the type of the content to be part of the url, so we know what it is before we fetch it.
   // this is often done with extensions, but there is no difference
   const sitePage = () => {
-    const p = loc.pathname.split("/")
+    const p = dg.loc.pathname.split("/")
     // [0] is empty,  [1] is ln
     const name = p[2] ?? "search"
     let ft = tools()[name] ?? tools()["search"]
@@ -104,8 +98,8 @@ export function LoggedIn2() {
     path?: string
   }) => {
 
-    const p = () => loc.pathname.split("/").slice(3).join("/")
-    const href = () => "/" + ln().ln + "/" + props.toolname + (props.path ? "/" + props.path : "")
+    const p = () => dg.loc.pathname.split("/").slice(3).join("/")
+    const href = () => "/" + "en" + "/" + props.toolname + (props.path ? "/" + props.path : "")
     const sel = () => {
       if (props.path) {
         return props.toolname == sitePage()?.toolname && props.path == p()

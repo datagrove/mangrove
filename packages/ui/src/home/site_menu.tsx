@@ -1,14 +1,9 @@
 
 
 import { Collapsible, NavItem } from "./site_menu_section";
-import { createSignal, Show, For, Component, createEffect, Signal, createResource, Suspense, Match, Switch } from "solid-js";
-import { useLocation, Location, useParams, useNavigate } from "../core/dg";
-import { Ab, Bb } from "../layout/nav";
-import { MenuEntry, getSitemap, usePage } from "../core";
-import { SegmentSwitch } from "../form";
-import { SearchBox } from "./search";
-import { chevronLeft} from 'solid-heroicons/solid'
-import { Icon } from "solid-heroicons";
+import { Show, For } from "solid-js";
+import { MenuEntry } from "../core";
+import { useLocation } from "@solidjs/router";
 
 const opt = [
   "Learn",

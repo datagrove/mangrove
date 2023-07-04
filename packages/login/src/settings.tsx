@@ -7,11 +7,11 @@ import { createWs } from "../core/socket";
 import { useLn } from "./passkey_i18n";
 import { Disclosure } from "solid-headless";
 import { Login } from "./login";
-import { useNavigate } from "../core/dg";
 import { Db, Dp, ButtonSet, Bs1, Bs } from "./settings2";
 import { SetStoreFunction,  createStore, produce, unwrap } from "solid-js/store";
 import { Input } from "../lib/input";
 import { SimplePage } from "./simplepage";
+import { useNavigate } from "@solidjs/router";
 
 // roleset limits what you can do, and what you can see
 // there is no limit on what the admin user sees.

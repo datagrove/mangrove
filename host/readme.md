@@ -7,7 +7,11 @@ directory: 3 chosen/trusted storage nodes. picked by leader.
 
 a storage node is 2 pc's in 2 regions with s3 backup.
 
-every client connects to a storage node. It creates files there; a backup is created on the backup region.
+every client connects to a storage node. It creates files there; a backup is created on the backup region. Writes are proxied to the owner
+
+The expectation is that eventually every "region" will be a scalestore cluster. This makes the issue of tiered replication moot.
+
+
 
 
 create(

@@ -66,7 +66,7 @@ const fake = () => {
             name: faker.system.fileName(),
             path: faker.system.filePath(),
             type: "code",
-            modified: faker.date.recent({ days: 7 }).toISOString(),
+            modified: faker.date.recent(7).toISOString(),
             size: 100
         })
     }

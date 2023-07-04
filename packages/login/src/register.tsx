@@ -6,7 +6,7 @@
 import { Component, JSX, Match, Switch, createSignal } from "solid-js"
 import { createWs } from "../core/socket"
 import { BlueButton, P, TextDivider } from "../lib/form"
-import { AddPasskey, InputLabel, PasskeyChoice, email, password, phone, user } from "./passkey_add"
+import { AddPasskey, InputLabel, PasskeyChoice, email, password, user } from "./passkey_add"
 import { useLn } from "./passkey_i18n"
 
 import { InputCell } from "../lib/input"
@@ -15,15 +15,11 @@ import { SimplePage } from "./simplepage"
 import { LoginWith } from "./login_with"
 import { Ab, H2 } from "../layout/nav"
 
-import * as bip39 from 'bip39'
 import { useNavigate } from "@solidjs/router"
 import {
     parseCreationOptionsFromJSON,
     create,
-    get,
-    parseRequestOptionsFromJSON,
 } from "@github/webauthn-json/browser-ponyfill";
-import { login } from "../lib/crypto"
 import { setCoreLogin } from "../core"
 
 // as cell is like a lens, do we need both?

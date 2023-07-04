@@ -15,6 +15,7 @@ import LogWorker from './opfs_worker?worker'
 
 import { MvrServer } from "./mvr_worker"
 import { DocBuffer } from "./mvr_sync"
+import { useLocation } from "@solidjs/router"
 
 export class RangeSource<Key, Tuple> {
   api: ScanApi
@@ -70,7 +71,11 @@ export class RangeSource<Key, Tuple> {
 export async function storeCredential(siteServer: string, credential: Uint8Array): Promise<void> {}
 
 export const TabStateContext = createContext<TabStateValue>()
-export function useDg() { return useContext(TabStateContext) }
+export function useDg() : TabStateValue { 
+  const r = useContext(TabStateContext) 
+  if (!r) throw "wrap with <Datagrove/>"
+  return r
+}
 
 // maybe there should be a site provider, and ask that for a transaction? or maybe as an argument to begin with default derived from the page?
 
@@ -131,7 +136,7 @@ export class TabStateValue extends Db {
     this.ps.connect(new WorkerChannel(mc.port2))
   }
 
-  constructor() {
+  constructor(public loc: any) {
     super()
     this.makeLocal()
   }
@@ -185,12 +190,14 @@ export class TabStateValue extends Db {
   }
 }
 
-export function TabState(props: { children: JSXElement }) {
-  const u = new TabStateValue()
-  return <TabStateContext.Provider value={u}>
-    {props.children}
-  </TabStateContext.Provider>
-}
+// export function Datagrove(props: { children: JSXElement }) {
+//   const loc = useLocation()
+//   const u = new TabStateValue(loc)
+//   return <TabStateContext.Provider value={u}>
+//     {props.children}
+//   </TabStateContext.Provider>
+// }
+
 
 export const SyncPathContext = createContext<DocBuffer>()
 export function useSyncPath() { return useContext(SyncPathContext) }

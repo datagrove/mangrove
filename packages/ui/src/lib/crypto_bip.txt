@@ -1,0 +1,22 @@
+import * as bip39 from 'bip39'
+
+import * as ed25519 from "@stablelib/ed25519"
+// given a secret bip39, we can generate a user identity 
+export async function bip39seed(bip: string) {
+  return bip39.mnemonicToSeedSync(bip).subarray(0, 32)
+}
+export async function passwordSeed(password: string) {
+  return bip39.mnemonicToSeedSync(password).subarray(0, 32)
+}
+export const generatePassPhrase = () => bip39.generateMnemonic()
+
+    // this is for a bip39 option
+    const [mn, setMn] = createSignal(generatePassPhrase())
+    const generate = (e: any) => {
+        e.preventDefault()
+        setMn(generatePassPhrase())
+    }
+
+import { Buffer } from 'buffer'
+// @ts-ignore
+window.Buffer = Buffer;

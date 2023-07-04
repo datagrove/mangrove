@@ -1,6 +1,7 @@
 
 import { JSX } from "solid-js/web/types/jsx"
-import { ln, useLocation } from "../core/dg"
+import { ln } from "../core/dg"
+import { useLocation } from "@solidjs/router"
 // interface Ln {
 //     signin: string
 //     register: string
