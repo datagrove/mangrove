@@ -8,7 +8,7 @@ import {
 } from "@github/webauthn-json/browser-ponyfill";
 
 import { createWs } from "../core/socket"
-import { useLn } from "./passkey_i18n"
+import { useLn } from "../../i18n/src/i18n"
 import { LoginInfo } from "./passkey_add";
 import { SimplePage } from "./simplepage";
 import { useNavigate } from "@solidjs/router";

@@ -4,7 +4,7 @@ import {  LoginInfo } from "./passkey_add"
 import { Bb, H2 } from "../layout/nav"
 
 import { createWs } from "../core/socket";
-import { useLn } from "./passkey_i18n";
+import { useLn } from "../../i18n/src/i18n";
 import { Disclosure } from "solid-headless";
 import { Login } from "./login";
 import { Db, Dp, ButtonSet, Bs1, Bs } from "./settings2";

@@ -7,7 +7,7 @@ import { Component, JSX, Match, Switch, createSignal } from "solid-js"
 import { createWs } from "../core/socket"
 import { BlueButton, P, TextDivider } from "../lib/form"
 import { AddPasskey, InputLabel, PasskeyChoice, email, password, user } from "./passkey_add"
-import { useLn } from "./passkey_i18n"
+import { useLn } from "../../i18n/src/i18n"
 
 import { InputCell } from "../lib/input"
 import { PasswordCell } from "./password"

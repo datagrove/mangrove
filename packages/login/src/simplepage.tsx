@@ -2,7 +2,7 @@ import { Component, JSXElement } from "solid-js"
 import { LanguageSelect } from "../i18n/i18"
 import { DarkButton } from "../lib"
 import { Center } from "../lib/form"
-import { useLn } from "./passkey_i18n"
+import { useLn } from "../../i18n/src/i18n"
 import { Ab } from "../layout/nav"
 
 export const SimplePage: Component<{ children: JSXElement }> = (props) => {

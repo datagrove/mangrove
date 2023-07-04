@@ -2,7 +2,7 @@ import { Icon } from "solid-heroicons";
 import { key } from "solid-heroicons/solid";
 import { Component, createEffect, createSignal, JSX, JSXElement, Match, onMount, Show, Switch } from "solid-js";
 import { Center, BlueButton, LightButton } from "../lib/form";
-import { Factor, _, factors, useLn } from "./passkey_i18n";
+import { Factor, _, factors, useLn } from "../../i18n/src/i18n";
 import { createWs } from "../core/socket";
 import {
     parseCreationOptionsFromJSON,
@@ -16,81 +16,6 @@ import { on } from "events";
 import { FactorSettings } from "./settings";
 import { Input, InputProps } from "../lib/input";
 // type InputProps = JSX.HTMLAttributes<HTMLInputElement> & { placeholder?: string, autofocus?: boolean, name?: string, autocomplete?: string, type?: string, value?: string, id?: string, required?: boolean }
-
-export const DirectiveText = (props: any) => {
-    return <div class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</div>
-}
-export const InputLabel = (props: any) => {
-    return <div><label {...props} class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{props.children}</label></div>
-}
-
-
-// for 1199 I can create a password and send it.
-export const user: CellOptions = {
-    name: "username",
-    autocomplete: "username webauthn",
-    autofocus: true,
-}
-export const password: CellOptions = {
-    name: "password",
-    type: "password",
-}
-export const phone: CellOptions = {
-    name: "phone",
-}
-
-export const email: CellOptions = {
-    name: "email",
-}
-
-export const Username: Component<InputProps> = (props) => {
-    const ln = useLn()
-
-    return <div >
-        <div class="flex items-center justify-between">
-            <InputLabel for="username" >{ln().username}</InputLabel>
-        </div>
-        <div  >
-            <Input {...props} placeholder={ln().enterUsername} id="username" name="username" type="text" autocomplete="username webauthn" />
-        </div>
-
-    </div>
-}
-
-export const InputSecret = (props: any) => {
-    return <Input {...props} placeholder='code' />
-}
-export const TotpInput = (props: any) => {
-    return <img src='/qrcode.png' />
-}
-export const CancelButton = (props: any) => {
-    return <div class='w-24'><LightButton {...props}  >Cancel</LightButton></div>
-}
-export const OkButton = (props: any) => {
-    return <div class='w-24'><BlueButton {...props}  >OK</BlueButton></div>
-}
-export const SendButton = (props: any) => {
-    return <div class='w-24'> <BlueButton>Send</BlueButton></div>
-}
-export const Dialog: Component<{ children: JSXElement }> = (props) => {
-    // this is full page overlay
-    return <div
-        class="fixed  inset-0 bg-gray-600 bg-opacity-0 overflow-y-auto h-full w-full"
-        id="my-modal"
-        //onClick={() => props.onChange({})}
-        role="presentation"
-    >
-        <Center>
-            {props.children}
-        </Center>
-    </div>
-}
-export const DialogPage: Component<any> = (props) => {
-    return <div class="mx-auto p-5 space-y-6 border w-96 shadow-lg rounded-md dark:bg-black bg-white h-1/2">{props.children}</div>
-}
-export const DialogActions: Component<any> = (props) => {
-    return <div class='flex space-x-2'>{props.children}</div>
-}
 
 export interface LoginInfo {
     home: string,

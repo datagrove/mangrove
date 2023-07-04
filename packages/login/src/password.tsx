@@ -3,7 +3,7 @@ import { Component, createSignal } from "solid-js"
 import { Cell } from "../db"
 import { Bb } from "../layout/nav"
 import { InputLabel } from "./passkey_add"
-import { useLn } from "./passkey_i18n"
+import { useLn } from "../../i18n/src/i18n"
 import { Input, InputCell, InputProps } from "../lib/input"
 
 

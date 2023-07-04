@@ -3,7 +3,7 @@ import { createWs } from "../core/socket"
 import { BlueButton } from "../lib/form"
 
 import { DirectiveText, email, password, phone, user } from "./passkey_add"
-import { useLn } from "./passkey_i18n"
+import { useLn } from "../../i18n/src/i18n"
 
 
 import { InputCell } from "../lib/input"

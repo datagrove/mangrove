@@ -1,6 +1,6 @@
 import "./index.css"
 import { Router } from "@solidjs/router"
-import { Datagrove, useDg } from "../../datagrove/src"
+import { Datagrove } from "../../datagrove/src"
 
 
 import { Show, createSignal } from "solid-js"
@@ -10,10 +10,8 @@ import { SampleEditor } from "../../ui/src"
 
 const [login, setLogin] = createSignal(true)
 
-
 export function App() {
     const nav = useNavigate()
-    const dg = useDg()
     
     const Signup = () => {
         return <div>Login!</div>

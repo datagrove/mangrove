@@ -1,5 +1,5 @@
 import { Component, JSX, Match, Show, Switch, createEffect, createSignal, onCleanup } from "solid-js";
-import { Factor, useLn } from "./passkey_i18n";
+
 import { Username, AddPasskey, GetSecret, ChallengeNotify, LoginInfo, PasskeyChoice } from "./passkey_add";
 import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { LoginWith } from "./login_with";
@@ -7,6 +7,30 @@ import { Password } from "./password";
 import { SimplePage } from "./simplepage";
 import { A, useNavigate } from "@solidjs/router";
 import { Ab, H2, P } from "packages/ui/src";
+
+type KeyValue = [number, string]
+
+// idea of bitmask is to allow a filter; not every client allows every factor
+export enum Factor {
+    kUnknown = 0,
+    kPasskey = 1,
+    kPasskeyp = 2,
+    kTotp = 3,
+    kMobile = 4,
+    kEmail = 5,
+    kApp = 6,
+    kVoice = 7,
+    kNone = 8,  // stop asking
+}
+export const factors: KeyValue[] = [
+    [Factor.kPasskey, "Passkey"],
+    //[Factor.kPasskeyp, "Passkey and Password"],
+    [Factor.kTotp, "Time Code"],
+    [Factor.kMobile, "Phone"],
+    [Factor.kEmail, "Email"],
+    //[Factor.kApp, "Phone App"],
+    //[Factor.kVoice, "Voice Call"],
+]
 
 // I need a way to simplify the page when returning.
 
