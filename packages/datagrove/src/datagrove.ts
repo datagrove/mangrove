@@ -1,6 +1,6 @@
 
 import { Peer, TransferableResult, WorkerChannel, apiListen } from '../../abc/src'
-import { Db, ScanApi, ScanQuery, ScanWatcherApi, TabStateApi, scanApi } from './mvr_shared'
+import { Db, DgElement, LensApi, ScanApi, ScanQuery, ScanWatcherApi, TabStateApi, ValuePointer, lensServerApi, scanApi } from './mvr_shared'
 
 // @ts-ignore
 import LocalState from './mvr_worker?sharedworker'
@@ -10,9 +10,10 @@ import DbWorker from './sqlite_worker?worker'
 import LogWorker from './opfs_worker?worker'
 
 import { MvrServer } from './mvr_worker'
+import { DocBuffer } from './mvr_sync'
 
 // Db can work in cli/node, TabState is browser only
-export class TabStateBase extends Db {
+export class DatagroveState extends Db {
     api!: Peer
     ps?: MvrServer
   
@@ -69,7 +70,46 @@ export class TabStateBase extends Db {
         super()
         this.makeLocal()
       }
-    
+        async scan(q: ScanQuery<any, any>): Promise<RangeSource<any, any>> {
+          const mc = new MessageChannel()
+          const json = await this.api.rpc<DgElement[] | string>("scan", [q, mc.port2], [mc.port2])
+          console.log("json", json)
+          const wc = new Peer(new WorkerChannel(mc.port1))
+          if (typeof json === "string") {
+            throw new Error(json)
+          }
+          const r = new RangeSource(mc.port1, q)
+          return r
+        }
+      
+        async load(url: string): Promise<DocBuffer> {
+          console.log("load", url)
+          const u = new URL(url)
+          // site can be in parameters or part of domain.
+          const site = u.searchParams.get("site")
+          const siteServer = site + u.hostname
+          //const sch =  await this.schema(siteServer)
+      
+          // the first part of path is ignored, it is used for the tool that uses the value.
+          const [tool, proc, ...value] = u.pathname.split("/")
+          return this.loadPointer([0, 0, 0, 0, 0])
+        }
+        async loadPointer(locator: ValuePointer): Promise<DocBuffer> {
+          const mc = new MessageChannel()
+          const json = await this.api.rpc<DgElement[] | string>("open", [locator, mc.port2], [mc.port2])
+          console.log("json", json)
+          const wc = new Peer(new WorkerChannel(mc.port1))
+          if (typeof json === "string") {
+            throw new Error(json)
+          }
+          const db = new DocBuffer(lensServerApi(wc), json)
+          const r: LensApi = {
+            update: db.updatex.bind(db),
+          }
+          apiListen<LensApi>(wc, r)
+          return db
+        }
+      
 }
 
 export class RangeSource<Key, Tuple> {
