@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-//go:embed templates/*
+//go:embed template/*
 var resources embed.FS
 
 var t = template.Must(template.ParseFS(resources, "templates/*"))

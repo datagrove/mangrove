@@ -1,3 +1,8 @@
+
+It's convenient to read a log by byte offset, but then we can have issues cleaning it. 
+When is it worth caching, and 
+
+
 This is the central nervous system of datagrove. It builds a Viewstamped Replication cluster for registering failover leases and recording the current signaling/turn servers. The signaling/turn servers each exchange logs to build a complete list of the user accounts. Each group commit is replicated to at least two other nodes before returning as committed to prevent loss. The log segments are gossiped to the entire cluster as a vector clock similar to bayou (each peer has a prefix of every other peer's log). The vector clock is essentially gossiped around as part of a heartbeat/failure detection. The Leader of the VSR ring is used to ensure that screen names are globally unique.
 
 billing is not compatible with anononymous access!

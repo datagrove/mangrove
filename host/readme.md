@@ -1,3 +1,54 @@
+
+
+
+etcdish
+
+directory: 3 chosen/trusted storage nodes. picked by leader.
+
+a storage node is 2 pc's in 2 regions with s3 backup.
+
+every client connects to a storage node. It creates files there; a backup is created on the backup region.
+
+
+create(
+  path: '',
+  serialized: true
+)
+grant(path: ' ', time: , read, write, grant) -> handle
+revoke(handle)
+
+open(path: ' ', watchafter: time) -> handle
+close(handle)
+
+begin()
+trim(handle, from, to) # needed?
+
+write(handle, data, after: []ts) -> ts
+
+# merge snapshots we need the client to rewrite?
+# strategies generally partition in key and time, and then merge those to clean
+# keyspace can 
+
+the encrypted store doesn't know where keys overlap, and sadly even if we make the merger work with this reduced information the store learns information about the keys. a purely time based merge like rose would not have this property.
+
+the prolly tree with a secure hash doesn't? sort of, because statisical expectations.
+but instead of splitting size we could split each time layer by the first key with 00.. prefix. 
+
+
+the job of the storage node is to allow timestamps to be monotonically increasing. If we pick an sstable committed to the log, it is not possible to ever have an sstable with a smaller timestamp (if we can read t2 we can read t1 < t2)
+
+we could accomplish this by using N writes of the log, with M invalidations/validations. We could also potentially just read all the nodes? this seems odd for scaling though. It seems an ok use of zeus to manage a billion counters that can updated by the owner, but read by any replica.
+
+We don't need to, but could certainly write the log entries to the owner/replica set. Unclear this is the right way to scatter the writes about though, vs say copysets. Another option is to write it directly to r2, and pipeline it. The "counter" could include the tail of the log (not large because this must pass with ownership and inval) and this could accumulate small writes.
+
+The public tree is a different thing where we
+1. Require that it be linear, not a graph. Publishers can race, but must rewrite when they lose.
+2. Each linear timestamp resolves the graph up to that point.
+3. We aggressively prune and merge to create an efficiently readable lsm tree. 
+
+ each write in the public log represents a time interval, we can easily merge them asynchronously to prune the number of segments.
+
+
 The job of host is to serve pages to the service worker installed for each subdomain. The pages maybe be change atomically which is handled by the service worker. host notes the change though, and any new sessions that are started are started with the new site.
 
 
