@@ -1,7 +1,6 @@
 import { Component, createSignal, JSX, onMount, Show } from "solid-js"
 import { Cell } from "../db"
-import { InputLabel } from "../login/passkey_add"
-import { useLn, _ } from "../login/passkey_i18n"
+import { useLn } from "../core/i18"
 
 export type InputProps = {
     reset?: () => string,   // should not be same signal as onInput

@@ -1,7 +1,6 @@
 import { ParentComponent, createSignal } from "solid-js"
 import { Icon } from "solid-heroicons";
 import { language } from "solid-heroicons/solid";
-import { useLn } from "../login/passkey_i18n";
 import { useNavigate } from "@solidjs/router";
 
 type Lang = { [key: string]: string }

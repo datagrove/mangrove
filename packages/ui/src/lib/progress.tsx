@@ -3,7 +3,7 @@
 // passkey email phone time app
 
 import { Component, For } from "solid-js"
-import { lx, useLn } from "../login/passkey_i18n"
+
 
 // we could combine email and phone? phone and voice
 

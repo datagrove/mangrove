@@ -3,7 +3,6 @@ import { Accessor, Component, For, JSX, JSXElement, ParentComponent, Show, Signa
 import { Bb } from "../layout/nav"
 import { SetStoreFunction, Store, produce } from "solid-js/store"
 import { BlobOptions } from "buffer"
-import { lx, useLn } from "../login/passkey_i18n"
 
 export const FieldSet: Component<{ children: JSXElement }> = (props) => {
     return <fieldset class="relative flex items-start ">
@@ -142,7 +141,6 @@ export const Segment: Component<{
     value: string,  // can't really be any, its used as key in a map
     onChange: (_: any) => void
 }> = (props) => {
-    const ln = useLn()
 
     const onClick = (k: string) => {
         console.log("click", k)

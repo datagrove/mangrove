@@ -5,7 +5,7 @@ import { Form, createForm, fcandy, fcell } from "../form"
 import { createCells } from "../db"
 import { Bb, H2, H3 } from "../layout/nav"
 import { useLocation, useNavigate } from "@solidjs/router"
-import { LanguageSelect } from "../i18n/i18"
+import { LanguageSelect } from "../core/i18"
 import { DarkButton } from "../lib"
 
 

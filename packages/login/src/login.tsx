@@ -1,16 +1,12 @@
-
-import { Ab, H2 } from "..";
 import { Component, JSX, Match, Show, Switch, createEffect, createSignal, onCleanup } from "solid-js";
 import { Factor, useLn } from "./passkey_i18n";
-import { BlueButton, P, TextDivider } from "../lib/form";
 import { Username, AddPasskey, GetSecret, ChallengeNotify, LoginInfo, PasskeyChoice } from "./passkey_add";
 import { abortController, initPasskey, webauthnLogin } from "./passkey";
-import { createWs } from "../core/socket";
 import { LoginWith } from "./login_with";
 import { Password } from "./password";
 import { SimplePage } from "./simplepage";
-import { setCoreLogin } from "../core";
 import { A, useNavigate } from "@solidjs/router";
+import { Ab, H2, P } from "packages/ui/src";
 
 // I need a way to simplify the page when returning.
 
@@ -76,12 +72,7 @@ export const Agl: Component<any> = (props) => {
     </A>
 }
 
-export interface LoginProps {
-    createAccount?: string
-    recoverUser?: string
-    recoverPassword?: string
-    afterLogin?: string
-}
+
 
 // we don't know who the user is in general, but if they have logged in before we can have local storage.
 export interface LocalSettings {
@@ -89,13 +80,22 @@ export interface LocalSettings {
     // if we expect a social login we can just try that login first.
     // we can make loginwith have fewer choices.
     ExpectPasskey?: boolean
+
+}
+
+export interface LoginProps {
+    createAccount?: string
+    recoverUser?: string
+    recoverPassword?: string
+    afterLogin?: string
+    setLogin: (sec: LoginInfo) => void
 }
 export const LoginPage: Component<LoginProps> = (props) => {
     const ln = useLn()
     const nav = useNavigate()
     const [suspense, Suspense] = createSignal(false)
     const finishLogin = (i: LoginInfo) => {
-        setCoreLogin({ did: "" })
+        props.setLogin(i)
         nav('../menu')
         return
         console.log("finish login", i)
@@ -139,7 +139,6 @@ export const Login: Component<LoginProps2> = (props) => {
         AddKey,
         Suspense
     }
-    const ws = createWs()
     const ln = useLn()
     const nav = useNavigate()
 
