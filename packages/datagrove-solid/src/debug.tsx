@@ -1,6 +1,6 @@
 import { For, Show, createEffect, createSignal } from "solid-js"
 import { useDg } from "./datagrove"
-import { DocState } from "packages/datagrove/src"
+import { DocState } from "../../datagrove/src"
 
 
 export function DbDebugger(props: { path?: string }) {

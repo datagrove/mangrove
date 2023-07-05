@@ -6,7 +6,7 @@ import { LoginWith } from "./login_with";
 import { Password } from "./password";
 import { SimplePage } from "./simplepage";
 import { A, useNavigate } from "@solidjs/router";
-import { Ab, H2, P } from "packages/ui/src";
+import { Ab, H2, P } from "../../ui-solid/src";
 
 type KeyValue = [number, string]
 

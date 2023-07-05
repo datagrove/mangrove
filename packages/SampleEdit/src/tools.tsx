@@ -3,12 +3,12 @@ import { Tool, Viewer } from "../../ui-solid/src";
 import { FloatIcon, Settings, SettingsViewer } from "../../composer-solid/src";
 //import { ChatPanel, ChatViewer, DatabaseTool, DatabaseViewer } from "./viewer";
 import { squaresPlus as addTools, signalSlash, bars_3 as menu, user as avatar, clock as history, pencil, chatBubbleBottomCenter as friend, magnifyingGlass, map, plusCircle, circleStack } from "solid-heroicons/solid";
-import { ChatPanel, ChatViewer } from "packages/chat-solid/src";
-import { CodeViewer, DatabaseTool, DatabaseViewer } from "packages/code-solid/src";
-import { MapTool, MapViewer } from "packages/map-solid/src";
-import { EditTool, EditViewer, TextEditor, TextViewer } from "packages/lexical-solid/src";
-import { SheetViewer } from "packages/sheet-solid/src";
-import { SearchPanel, SearchViewer } from "packages/composer-solid/src";
+import { ChatPanel, ChatViewer } from "../../chat-solid/src";
+import { CodeViewer, DatabaseTool, DatabaseViewer } from "../../code-solid/src";
+import { MapTool, MapViewer } from "../../map-solid/src";
+import { EditTool, EditViewer, TextEditor, TextViewer } from "../../lexical-solid/src";
+import { SheetViewer } from "../../sheet-solid/src";
+import { SearchPanel, SearchViewer } from "../../composer-solid/src";
 
 // the tools are a mix of defaults, site specific, and user specific.
 // overall the user should be in control though.

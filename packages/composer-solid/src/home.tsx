@@ -1,7 +1,7 @@
 
 
 import { For, JSXElement, Match, Show, Suspense, Switch } from "solid-js";
-import { A } from "@solidjs/router";
+import { A, useLocation } from "@solidjs/router";
 
 import { Icon, } from "solid-heroicons";
 import { signalSlash, clock as history, plusCircle } from "solid-heroicons/solid";
@@ -37,12 +37,13 @@ const debug = false
   })
 */
 
-interface SampleEditorProps {
+interface ComposerProps {
   tools: any
 }
 
-export const SampleEditor = (propb: SampleEditorProps) => {
+export const Composer = (propb: ComposerProps) => {
   const dg = useDg()
+  const loc = useLocation()
 
   let el: HTMLDivElement
 
@@ -52,7 +53,7 @@ export const SampleEditor = (propb: SampleEditorProps) => {
   // note we need the type of the content to be part of the url, so we know what it is before we fetch it.
   // this is often done with extensions, but there is no difference
   const sitePage = () => {
-    const p = dg.loc.pathname.split("/")
+    const p = loc.pathname.split("/")
     // [0] is empty,  [1] is ln
     const name = p[2] ?? "search"
     let ft = propb.tools[name] ??  propb.tools["search"]
@@ -98,7 +99,7 @@ export const SampleEditor = (propb: SampleEditorProps) => {
     path?: string
   }) => {
 
-    const p = () => dg.loc.pathname.split("/").slice(3).join("/")
+    const p = () =>loc.pathname.split("/").slice(3).join("/")
     const href = () => "/" + "en" + "/" + props.toolname + (props.path ? "/" + props.path : "")
     const sel = () => {
       if (props.path) {

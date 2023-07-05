@@ -14,11 +14,15 @@ import { TableNode, TableCellNode, TableRowNode } from "@lexical/table"
 import { EditorState, LexicalEditor, $getRoot, $getSelection, KEY_ENTER_COMMAND } from "lexical"
 import {$getHtmlContent} from '@lexical/clipboard'
 import { handThumbUp as reactionIcon , arrowUturnLeft as  replyIcon, hashtag as threadIcon, ellipsisHorizontal as dotsIcon} from 'solid-heroicons/solid'
-import { IconPath } from "../../composer-solid/src/home/search"
+import { IconPath } from "../../composer-solid/src"
 import { Icon } from "solid-heroicons"
-import { SectionNav } from "../../composer-solid/src/home/site_menu"
+import { SectionNav } from "../../composer-solid/src"
 import { Message } from "../../datagrove/src/editor_schema"
 import { useDg,ScanDiff } from "../../datagrove/src"
+import { AutoFocusPlugin, ContentEditable, HistoryPlugin, LexicalComposer, LexicalErrorBoundary, LinkPlugin, OnChangePlugin, RichTextPlugin, useLexicalComposerContext } from "../../lexical-solid/src"
+import CodeHighlightPlugin from "../../lexical-solid/src/CodeHighlightPlugin"
+import RichTextTheme from "../../lexical-solid/src/RichTextTheme"
+import { TextMenu } from "../../lexical-solid/src"
 
 //import { getUsage } from "../../db/range"
 // multiple messages close to each should be grouped

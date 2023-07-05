@@ -1,3 +1,6 @@
 export * from './RichTextEditor'
 export * from './CodeHighlightPlugin'
 export * from './edit'
+export * from './RichTextTheme'
+export * from './lexical-solid'
+export * from './menu'

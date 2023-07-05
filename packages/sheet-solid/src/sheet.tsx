@@ -1,7 +1,7 @@
 
 
-import { RichTextEditor } from 'packages/lexical-solid/src'
-import { BuilderFn, Column, EstimatorFn, Scroller, ScrollerProps, TableContext, TestDrag, enableColumnResizing } from 'packages/ui-solid/src'
+import { RichTextEditor } from '../../lexical-solid/src'
+import { BuilderFn, Column, EstimatorFn, Scroller, ScrollerProps, TableContext, TestDrag, enableColumnResizing } from '../../ui-solid/src'
 import { createEffect, onCleanup } from 'solid-js'
 
 import { createSignal, onMount } from 'solid-js'
