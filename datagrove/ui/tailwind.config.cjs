@@ -6,7 +6,7 @@ const colorScheme = colors.neutral
 
 module.exports = {
   mode: 'jit',
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}','../../packages/ui/src/**/*.{js,ts,jsx,tsx}'],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}','../../packages/**/*.{js,ts,jsx,tsx}'],
   darkMode: 'class', // or 'media' or 'class'
   theme: {
     extend: {

@@ -44,9 +44,7 @@ interface ComposerProps {
 export const Composer = (propb: ComposerProps) => {
   const dg = useDg()
   const loc = useLocation()
-
   let el: HTMLDivElement
-
 
   // provide is things we can get sync, no fetch
   // this value is for useSitePage()
@@ -55,8 +53,8 @@ export const Composer = (propb: ComposerProps) => {
   const sitePage = () => {
     const p = loc.pathname.split("/")
     // [0] is empty,  [1] is ln
-    const name = p[2] ?? "search"
-    let ft = propb.tools[name] ??  propb.tools["search"]
+    const name = p[2] ?? "edit"
+    let ft = propb.tools[name] ??  propb.tools["edit"]
     const r: SitePage = {
       server: '', // default server, need a syntax for different ones, including webrtc ones.
       tool: ft,
@@ -64,17 +62,6 @@ export const Composer = (propb: ComposerProps) => {
       toolname: name
     }
     return r
-  }
-
-  // old way, not used; give the content pane to the tool
-  const ToolViewer: () => JSXElement = () => {
-    return <>
-      {false && <pre>{JSON.stringify({
-        login: login(),
-        state: userState()
-      }, null, 2)}</pre>}
-      {sitePage() && sitePage().tool.viewer()}
-    </>
   }
 
   // we can get page information out of the location or the context. 

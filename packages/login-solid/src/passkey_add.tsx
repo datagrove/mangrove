@@ -48,7 +48,7 @@ export const GetSecret: Component<{
         e.preventDefault()
         props.validate(inp()).then(ok => {
             if (!ok) {
-                setError(ln().invalidCode)
+                setError(ln.invalidCode)
             } else {
                 props.onClose(false)
             }
@@ -111,17 +111,17 @@ export const AddPasskey: Component<{
     return <Dialog> <DialogPage >
         <div class="space-y-6 ">
             <Icon path={key} class="w-24 h-24 mx-auto" />
-            <p >{ln().addPasskey1}</p>
-            <p class='text-neutral-500'>{ln().addPasskey2}</p>
+            <p >{ln.addPasskey1}</p>
+            <p class='text-neutral-500'>{ln.addPasskey2}</p>
         </div>
         <div class='flex space-x-4'>
-            <div class='w-24'><BlueButton autofocus tabindex='0' ref={btnSaveEl!} onClick={add}>{ln().add}</BlueButton></div>
-            <div class='w-24'><LightButton tabindex='0' ref={btnNot!} onClick={notNow}>{ln().notNow}</LightButton></div>
-            <div class='w-24'><LightButton tabindex='0' onClick={notEver}>{ln().notEver}</LightButton></div>
+            <div class='w-24'><BlueButton autofocus tabindex='0' ref={btnSaveEl!} onClick={add}>{ln.add}</BlueButton></div>
+            <div class='w-24'><LightButton tabindex='0' ref={btnNot!} onClick={notNow}>{ln.notNow}</LightButton></div>
+            <div class='w-24'><LightButton tabindex='0' onClick={notEver}>{ln.notEver}</LightButton></div>
         </div>
         <div class=' flex'><Bb onClick={() => {
             //setMore(true)
-        }}>{ln().more2fa}</Bb></div></DialogPage> </Dialog>
+        }}>{ln.more2fa}</Bb></div></DialogPage> </Dialog>
 }
 
 

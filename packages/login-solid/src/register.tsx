@@ -2,28 +2,26 @@
 // for imis we should try to intercept the registration and just steal the password if it succeeds.
 // for 1199 we don't need registration at all; just a QR code for pat?
 // how does pat grant then?
-
 import { Component, JSX, Match, Switch, createSignal } from "solid-js"
-import { createWs } from "../core/socket"
-import { BlueButton, P, TextDivider } from "../lib/form"
-import { AddPasskey, InputLabel, PasskeyChoice, email, password, user } from "./passkey_add"
 import { useLn } from "../../i18n/src/i18n"
-
-import { InputCell } from "../lib/input"
 import { PasswordCell } from "./password"
 import { SimplePage } from "./simplepage"
 import { LoginWith } from "./login_with"
-import { Ab, H2 } from "../layout/nav"
-
 import { useNavigate } from "@solidjs/router"
 import {
     parseCreationOptionsFromJSON,
     create,
 } from "@github/webauthn-json/browser-ponyfill";
-import { setCoreLogin } from "../core"
+import { createCells } from "../../datagrove/src"
+import { InputLabel, email, password, setCoreLogin, H2, P, InputCell, BlueButton, Ab, TextDivider } from "../../ui-solid/src"
+import { createWs } from "../../ui-solid/src/core/socket"
+import { user } from "solid-heroicons/solid"
+import { PasskeyChoice, AddPasskey } from "./passkey_add"
+import { LoginProps } from "./login"
+
 
 // as cell is like a lens, do we need both?
-import { createCells } from "../db"
+
 
 export type DivProps = JSX.HTMLAttributes<HTMLDivElement>
 export function Error(props: DivProps) {
@@ -33,11 +31,11 @@ const Bip39Field: Component<{ code: string }> = (props) => {
     return <div ><InputLabel>Recovery Code</InputLabel><textarea rows='2' autocomplete='new-password' name='password' id='bip39' class='w-full  p-2 dark:bg-neutral-800 bg-neutral-200 rounded-md border border-neutral-500 '>{props.code}</textarea></div>
 }
 
-export const RegisterPage = () => <SimplePage><Register /></SimplePage>
+export const RegisterPage = (props:LoginProps) => <SimplePage><Register /></SimplePage>
 
 const Register = () => {
     const nav = useNavigate()
-    const ws = createWs()
+    //const ws = createWs()
     const ln = useLn()
     // registration is a transaction, but then we later want to be able to edit 
     const data = createCells({
@@ -74,13 +72,13 @@ const Register = () => {
         <Match when={true}>
 
             <form method='post' class='space-y-6' onSubmit={submit} >
-                <H2 class='mb-2'>{ln().register1}</H2>
-                <P class='mb-4'>{ln().register2} </P>
+                <H2 class='mb-2'>{ln.register1}</H2>
+                <P class='mb-4'>{ln.register2} </P>
                 <InputCell cell={data.user} />
                 <Error>{error()}</Error>
 
-                <BlueButton autofocus >{ln().register}</BlueButton>
-                <div class='mt-2'><Ab href='../register2'>{ln().recoverWithPhone}</Ab></div>
+                <BlueButton autofocus >{ln.register}</BlueButton>
+                <div class='mt-2'><Ab href='../register2'>{ln.recoverWithPhone}</Ab></div>
             </form></Match></Switch>
 
 }
@@ -129,13 +127,13 @@ export const RegisterPage2 = () => {
     return <SimplePage><Switch> <Match when={addkey()}><AddPasskey onClose={onCloseAddKey} /></Match>
         <Match when={true}>
             <form method='post' class='space-y-6' onSubmit={(e: any) => e.preventDefault()} >
-                <H2 class='mb-2'>{ln().register3}</H2>
-                <P class='mb-4'>{ln().register4} </P>
+                <H2 class='mb-2'>{ln.register3}</H2>
+                <P class='mb-4'>{ln.register4} </P>
                 <Error>{error()}</Error>
                 <InputCell cell={data.email} />
                 <PasswordCell cell={data.password} />
-                <BlueButton onClick={() => submitRegister()} >{ln().register}</BlueButton>
-                <TextDivider>{ln().continueWith}</TextDivider>
+                <BlueButton onClick={() => submitRegister()} >{ln.register}</BlueButton>
+                <TextDivider>{ln.continueWith}</TextDivider>
                 <LoginWith />
             </form></Match></Switch></SimplePage>
 
@@ -165,7 +163,7 @@ export const RegisterPage2 = () => {
                             <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
                             <Show when={user()}><div>{user()} is {okname() ? "" : "not"} available</div></Show>
                             <Password onInput={(e: any) => setPassword(e.target.value)} />
-                            <BlueButton disabled={register() && !okname()} >{ln().register}</BlueButton>
+                            <BlueButton disabled={register() && !okname()} >{ln.register}</BlueButton>
                         </form>
 
 
@@ -202,7 +200,7 @@ export function Register() {
         <Username ref={el!} onInput={(e: any) => setUser(e.target.value)} />
         <Show when={user()}><div>{user()} is {okname() ? "" : "not"} available</div></Show>
         <Password onInput={(e: any) => setPassword(e.target.value)} />
-        <BlueButton disabled={register() && !okname()} >{ln().register}</BlueButton>
+        <BlueButton disabled={register() && !okname()} >{ln.register}</BlueButton>
         </form>
         </Body>
     </Page>

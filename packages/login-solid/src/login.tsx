@@ -1,12 +1,13 @@
 import { Component, JSX, Match, Show, Switch, createEffect, createSignal, onCleanup } from "solid-js";
 
-import { Username, AddPasskey, GetSecret, ChallengeNotify, LoginInfo, PasskeyChoice } from "./passkey_add";
+import { AddPasskey, GetSecret, ChallengeNotify, LoginInfo, PasskeyChoice } from "./passkey_add";
 import { abortController, initPasskey, webauthnLogin } from "./passkey";
 import { LoginWith } from "./login_with";
 import { Password } from "./password";
 import { SimplePage } from "./simplepage";
 import { A, useNavigate } from "@solidjs/router";
-import { Ab, H2, P } from "../../ui-solid/src";
+import { Ab, BlueButton, H2, P, TextDivider, Username } from "../../ui-solid/src";
+import { useLn } from "../../i18n/src";
 
 type KeyValue = [number, string]
 
@@ -106,8 +107,12 @@ export interface LocalSettings {
     ExpectPasskey?: boolean
 
 }
-
+export interface IdentityServerApi {
+    loginpassword: (user: string, password: string) => Promise<[ChallengeNotify,string]>
+    loginpassword2: (secret: string) => Promise<[LoginInfo,string]>
+}
 export interface LoginProps {
+    api: IdentityServerApi
     createAccount?: string
     recoverUser?: string
     recoverPassword?: string
@@ -141,9 +146,9 @@ export const LoginPage: Component<LoginProps> = (props) => {
         }
     }
     return <SimplePage>
-        <H2 class='mb-2'>{ln().signin}</H2>
-        <P class='hidden mb-4'>{ln().welcomeback}</P>
-        <Ab class='block mt-2 mb-3' href='../register'>{ln().ifnew}</Ab>
+        <H2 class='mb-2'>{ln.signin}</H2>
+        <P class='hidden mb-4'>{ln.welcomeback}</P>
+        <Ab class='block mt-2 mb-3' href='../register'>{ln.ifnew}</Ab>
         <Login {...props} finishLogin={finishLogin} />
     </SimplePage>
 }
@@ -152,6 +157,7 @@ export const LoginPage: Component<LoginProps> = (props) => {
 // If we are in another tab we might need to connect, maybe connect automatically?
 // maybe send the user secret with the submit?
 export const [loginInfo, setLoginInfo] = createSignal<LoginInfo | undefined>(undefined)
+
 
 interface LoginProps2 extends LoginProps {
     finishLogin: (i: LoginInfo) => void
@@ -180,7 +186,7 @@ export const Login: Component<LoginProps2> = (props) => {
 
     const setError = (e: string) => {
         setScreen(Screen.Login)
-        setError_((ln() as any)[e] ?? e)
+        setError_((ln as any)[e] ?? e)
     }
     // when we set this up we need to start a promise to gather passkeys that are offered
     // This points out the case that we get a passkey that we don't know
@@ -216,7 +222,8 @@ export const Login: Component<LoginProps2> = (props) => {
         e.preventDefault()
         // we clicked submit, so not a passkey. We need to check the login and potentially ask for second factor
         setScreen(Screen.Suspense)
-        let [ch, err] = await ws.rpcje<ChallengeNotify>("loginpassword", { username: user(), password: password() })
+        let [ch, err] = await props.api.loginpassword(user(), password())
+        //await ws.rpcje<ChallengeNotify>("loginpassword", { username: user(), password: password() })
         console.log("loginpassword", ch, err)
         if (err) {
             setError(err)
@@ -265,10 +272,10 @@ export const Login: Component<LoginProps2> = (props) => {
         props.finishLogin(loginInfo()!)
     }
 
-
     const validate = async (secret: string) => {
         // this must be a socket call
-        const [log, e] = await ws.rpcje<LoginInfo>("loginpassword2", { challenge: secret })
+        const [log, e] = await props.api.loginpassword2(secret)
+        // await ws.rpcje<LoginInfo>("loginpassword2", { challenge: secret })
         if (e) {
             setError(e)
             return false
@@ -289,12 +296,12 @@ export const Login: Component<LoginProps2> = (props) => {
                     <Show when={error()}> <div>{error()}</div></Show>
                     <Username autofocus onInput={(e: string) => setUser(e)} />
                     <Password onInput={(e: string) => setPassword(e)} />
-                    <BlueButton  >{ln().signin}</BlueButton>
-                    <TextDivider>{ln().continueWith}</TextDivider>
+                    <BlueButton  >{ln.signin}</BlueButton>
+                    <TextDivider>{ln.continueWith}</TextDivider>
                     <LoginWith />
                 </form>
                 <div class="hidden mt-4"><Spc />
-                    <Ab href='../register'>{ln().ifnew}</Ab>
+                    <Ab href='../register'>{ln.ifnew}</Ab>
                     <Spc /></div>
             </Match>
         </Switch>
@@ -303,21 +310,21 @@ export const Login: Component<LoginProps2> = (props) => {
 }
 
 /* 
- <Ab href={props.recoverPassword!}>{ln().help}</Ab>
+ <Ab href={props.recoverPassword!}>{ln.help}</Ab>
 Imis specifically
 <div class="mt-6 space-y-4">
                     <Show when={props.createAccount}>
                         <div class='flex'><Spc />
-                            <Ag href={props.createAccount ?? "/register"}>{ln().register}</Ag><Spc /></div></Show>
+                            <Ag href={props.createAccount ?? "/register"}>{ln.register}</Ag><Spc /></div></Show>
 
                     <Show when={props.recoverPassword}><div class="flex"><Spc />
-                        <Ag href={props.recoverPassword!}>{ln().forgotPassword}</Ag>
+                        <Ag href={props.recoverPassword!}>{ln.forgotPassword}</Ag>
                         <Spc /></div></Show>
                     <Show when={props.recoverUser}><div class="flex"><Spc />
-                        <Ag href={props.recoverUser!}>{ln().forgotUsername}</Ag>
+                        <Ag href={props.recoverUser!}>{ln.forgotUsername}</Ag>
                         <Spc /></div></Show>
                     <Show when={props.recoverUser}><div class="flex"><Spc />
-                        <Agl href={'../settings'}>{ln().changeLoginSettings}</Agl>
+                        <Agl href={'../settings'}>{ln.changeLoginSettings}</Agl>
                         <Spc /></div></Show>
                 </div>
                 */

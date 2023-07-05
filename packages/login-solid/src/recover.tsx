@@ -54,7 +54,7 @@ export const Recover: Component = (props) => {
             <DirectiveText>Enter phone or email</DirectiveText>
             <InputCell autofocus cell={{...data.phone}} />
             <InputCell cell = {data.email }/>
-            <BlueButton onClick={recover} >{ln().recover}</BlueButton>
+            <BlueButton onClick={recover} >{ln.recover}</BlueButton>
         </form>
     </Match>
     <Match when={screen() == RecoverScreen.Recover2}>
@@ -62,7 +62,7 @@ export const Recover: Component = (props) => {
             <div>Choose a new password </div>
             <InputCell autofocus cell={{...data.phone}} />
             <InputCell cell = {data.email }/>
-            <BlueButton onClick={recover2} >{ln().recover}</BlueButton>
+            <BlueButton onClick={recover2} >{ln.recover}</BlueButton>
         </form>
     </Match>
     <Match when={true}>

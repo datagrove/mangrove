@@ -135,7 +135,7 @@ export const Register = () => {
         <form onSubmit={submit}>
             <div class='space-y-6'>
                 <Username onInput={setUser} />
-                <BlueButton disabled={!user()} >{ln().register}</BlueButton>
+                <BlueButton disabled={!user()} >{ln.register}</BlueButton>
             </div>
         </form>
     </SimplePage>
@@ -178,13 +178,13 @@ export const LoginPasskey: Component<{ login?: boolean }> = (props) => {
                         <Password /></Show>
 
                     <div class='mt-4'>
-                        <BlueButton onClick={() => { }}>{props.login ? ln().signin : ln().register}</BlueButton>
+                        <BlueButton onClick={() => { }}>{props.login ? ln.signin : ln.register}</BlueButton>
                     </div>
                 </Match>
             </Switch>
         </form>
 
-        <div class='flex w-full mt-4'><div class='flex-1' /> <Ab href={`/${"en"}/register`}>{ln().register}</Ab><div class='flex-1' /> </div>
+        <div class='flex w-full mt-4'><div class='flex-1' /> <Ab href={`/${"en"}/register`}>{ln.register}</Ab><div class='flex-1' /> </div>
     </SimplePage>
 
 }
@@ -193,7 +193,7 @@ export const LoginPasskey: Component<{ login?: boolean }> = (props) => {
 export const PasskeyOnly = () => {
     const ln = useLn()
     return <div class="mt-2">
-        <input placeholder={ln().enterPasskey} autofocus id="username" name="username" type="text" autocomplete="username webauthn" class="block w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6" />
+        <input placeholder={ln.enterPasskey} autofocus id="username" name="username" type="text" autocomplete="username webauthn" class="block w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6" />
     </div>
 }
 const Username: Component<{ generate?: boolean, onInput: (s: string) => void }> = (props) => {
@@ -206,10 +206,10 @@ const Username: Component<{ generate?: boolean, onInput: (s: string) => void }> 
     }
     return <div >
         <div class="flex items-center justify-between">
-            <label for="username" class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{ln().username}</label>
+            <label for="username" class="dark:text-neutral-400 text-neutral-600 block text-sm font-medium leading-6">{ln.username}</label>
         </div>
         <div class="mt-2">
-            <input onInput={inp} placeholder={ln().enterUsername} autofocus id="username" name="username" type="text" autocomplete="username webauthn" class="block w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset dark:ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6" />
+            <input onInput={inp} placeholder={ln.enterUsername} autofocus id="username" name="username" type="text" autocomplete="username webauthn" class="block w-full rounded-md border-0 dark:bg-neutral-900 bg-neutral-100 py-1.5  shadow-sm ring-1 ring-inset dark:ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6" />
         </div>
     </div>
 }
@@ -232,9 +232,9 @@ const Password: Component = (props) => {
 
     return <div>
         <div class="flex items-center justify-between">
-            <label for="password" class="block text-sm font-medium leading-6 text-white">{ln().password}</label>
+            <label for="password" class="block text-sm font-medium leading-6 text-white">{ln.password}</label>
             <div class="text-sm">
-                <button onClick={toggle} class="font-semibold text-indigo-400 hover:text-indigo-300">{hide() ? ln().show : ln().hide} {ln().password}</button>
+                <button onClick={toggle} class="font-semibold text-indigo-400 hover:text-indigo-300">{hide() ? ln.show : ln.hide} {ln.password}</button>
             </div>
         </div>
         <div class="mt-2">
