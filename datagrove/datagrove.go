@@ -29,8 +29,9 @@ func defaultConfig() server.ConfigJson {
 		RPID:          "localhost",   // Generally the FQDN for your site
 		RPOrigins: []string{
 			"http://localhost:3000",
-			"https://localhost:5078",
-			"https://localhost:5783"}, // The origin URLs allowed for WebAuthn requests
+			// "https://localhost:5078",
+			// "https://localhost:5783",
+		}, // The origin URLs allowed for WebAuthn requests
 	}
 
 	return server.ConfigJson{
