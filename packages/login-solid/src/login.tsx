@@ -8,7 +8,7 @@ import { A, useNavigate } from "@solidjs/router";
 import { Ab, BlueButton, H2, P, TextDivider, Username } from "../../ui-solid/src";
 import { LoginInfo, useLogin } from "./loginroute";
 import { get } from "@github/webauthn-json";
-import { useLn } from "../../i18n-solid/src";
+import { useLn } from "../../i18n-solid/src/i18n_solid";
 
 
 type KeyValue = [number, string]

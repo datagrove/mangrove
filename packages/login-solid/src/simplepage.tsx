@@ -1,5 +1,5 @@
 import { Component, JSXElement, createEffect } from "solid-js"
-import { LanguageSelect, useLn } from "../../i18n-solid/src"
+import { LanguageSelect, useLn } from "../../i18n-solid/src/i18n_solid"
 import { Ab, Center, DarkButton } from "../../ui-solid/src"
 
 

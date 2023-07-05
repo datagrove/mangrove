@@ -1,5 +1,5 @@
 import { Component, createSignal, Switch, Match } from "solid-js"
-import { useLn } from "../../i18n-solid/src"
+import { useLn } from "../../i18n-solid/src/i18n_solid"
 import { SimplePage } from "./simplepage"
 import { createCells } from "../../datagrove/src"
 import { BlueButton, DirectiveText, InputCell, email, password, phone, user } from "../../ui-solid/src"

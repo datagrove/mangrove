@@ -1,5 +1,5 @@
 import { Component, createSignal } from "solid-js"
-import { useLn } from "../../i18n-solid/src"
+import { useLn } from "../../i18n-solid/src/i18n_solid"
 import { Bb, Input, InputCell, InputLabel, InputProps } from "../../ui-solid/src"
 import { Cell } from "../../datagrove/src"
 

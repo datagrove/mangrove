@@ -1,6 +1,6 @@
 import { Component, createSignal, JSX, JSXElement, onMount, Show } from "solid-js"
 import { Cell, CellOptions } from "../../../datagrove/src"
-import { useLn } from '../../../i18n-solid/src'
+import { useLn } from '../../../i18n-solid/src/i18n_solid'
 import { BlueButton, Center, LightButton } from "./form"
 
 export const DirectiveText = (props: any) => {

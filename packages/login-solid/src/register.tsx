@@ -3,7 +3,7 @@
 // for 1199 we don't need registration at all; just a QR code for pat?
 // how does pat grant then?
 import { Component, JSX, Match, Switch, createSignal } from "solid-js"
-import { useLn } from "../../i18n-solid/src"
+import { useLn } from "../../i18n-solid/src/i18n_solid"
 import { PasswordCell } from "./password"
 import { SimplePage } from "./simplepage"
 import { LoginWith } from "./login_with"

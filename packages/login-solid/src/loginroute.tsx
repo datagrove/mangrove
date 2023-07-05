@@ -1,26 +1,14 @@
-import { useNavigate } from "@solidjs/router";
+import { Route, Routes, useNavigate } from "@solidjs/router";
 import { JSXElement, createContext, useContext } from "solid-js";
 import { Login } from "./login";
-import { useLn } from "../../i18n-solid/src";
+import { useLn } from "../../i18n-solid/src/i18n_solid";
 import { SimplePage } from "./simplepage";
 import { H2, P, Ab } from "../../ui-solid/src";
 import { Channel, Peer, apiCall } from "../../abc/src";
+import { RegisterPage, RegisterPage2 } from "./register";
 
 
-// const LoginRoutes = () => {
-//     const nav = useNavigate()
-//     return <Routes>
-//         <Route path={`/:ln/login`} component={LoginPage} />
-//         <Route path={`/:ln/login`} component={LoginPage} />
-//         <Route path={`/:ln/settings`} component={SettingsPage} />
-//         <Route path={`/:ln/register`} component={RegisterPage} />
-//         <Route path={`/:ln/register2`} component={RegisterPage2} />
-//         <Route path="*" component={() => {
-//             nav("/en/login")
-//             return <></>
-//         }} />
-//     </Routes>
-// }
+
 
 // use mini router here, or a switch?
 
@@ -49,11 +37,21 @@ import { Channel, Peer, apiCall } from "../../abc/src";
 // }
 
 export function LoginOrRegister()  {
-    const props = useLogin()
-    const ln = useLn()
+    //         <Route path={`/:ln/settings`} component={SettingsPage} />
     const nav = useNavigate()
-
-    return <SimplePage>
+    return <Routes>
+        <Route path={`/:ln/login`} component={LoginPage} />
+        <Route path={`/:ln/register`} component={RegisterPage} />
+        <Route path={`/:ln/register2`} component={RegisterPage2} />
+        <Route path="*" component={() => {
+            nav("/en/login")
+            return <></>
+        }} />
+    </Routes>
+}
+export function LoginPage() {
+    const ln = useLn()
+      return  <SimplePage>
         <H2 class='mb-2'>{ln().signin}</H2>
         <P class='hidden mb-4'>{ln().welcomeback}</P>
         <Ab class='block mt-2 mb-3' href='../register'>{ln().ifnew}</Ab>
@@ -93,18 +91,17 @@ export function loginApi(ch: Peer): LoginApi {
     return apiCall(ch,"loginpassword", "loginpassword2", "register", "registerb", "addpasskey", "addpasskey2", "login2", "login", "recover", "recover2")
 }
 
-export interface LoginProps {
+export interface LoginConfig {
     api: LoginApi
     createAccount?: string
     recoverUser?: string
     recoverPassword?: string
     afterLogin?: string
     setLogin: (sec: LoginInfo) => void
-    children: JSXElement
 }
-const LoginContext = createContext<LoginProps>()
-export function LoginProvider(props: LoginProps) {
-    return <LoginContext.Provider value={props}>
+const LoginContext = createContext<LoginConfig>()
+export function LoginProvider(props: {config: LoginConfig, children: JSXElement}) {
+    return <LoginContext.Provider value={props.config}>
         {props.children}
     </LoginContext.Provider>
 }

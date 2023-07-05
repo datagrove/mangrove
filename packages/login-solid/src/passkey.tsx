@@ -7,7 +7,7 @@ import {
     get,
     parseRequestOptionsFromJSON,
 } from "@github/webauthn-json/browser-ponyfill";
-import { useLn } from "../../i18n-solid/src";
+import { useLn } from "../../i18n-solid/src/i18n_solid";
 import { Ab, Bb, BlueButton, CancelButton, Dialog, DialogActions, DialogPage, InputLabel, InputSecret, LightButton, OkButton } from "../../ui-solid/src";
 import { LoginApi, LoginInfo, useLogin } from "./loginroute";
 import { SimplePage } from "./simplepage";

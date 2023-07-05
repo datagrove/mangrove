@@ -69,7 +69,9 @@ export class WorkerChannel implements Channel {
 export class WsChannel implements Channel {
     ws?: WebSocket
     recv?: (d: any) => void
-    constructor(public url: string) {
+    url: string
+    constructor( url?: string) {
+        this.url = url ?? location.href
         this.connect()
     }
     status(x: string) {
@@ -79,11 +81,9 @@ export class WsChannel implements Channel {
         this.status("connecting")
         this.ws.onclose = () => {
             this.status("closed")
-            setTimeout(() => this.connect(), 1000)
         }
         this.ws.onerror = () => {
             this.status("error")
-            setTimeout(() => this.connect(), 1000)
         }
         this.ws.onopen = () => this.status("")
         this.ws.onmessage = async (e: MessageEvent) => {
