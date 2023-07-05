@@ -1,16 +1,17 @@
 
-import { JSX } from "solid-js/web/types/jsx"
-import { createContext, createSignal, useContext } from "solid-js"
 
-const LTR = {
-    dir: "ltr" as JSX.HTMLAttributes<HTMLHtmlElement>['dir'],
-}
-const RTL = {
-    dir: "rtl" as JSX.HTMLAttributes<HTMLHtmlElement>['dir'],
-}
-const en = {
+
+
+// const [lang, setLang] = createSignal<Lang>({
+//     "en": "English",
+//     "es": "Español",
+//     "iw": "עברית"
+// })
+
+export const en = {
     ln: "en",
-    ...LTR,
+    lnd: "English",
+    dir: "ltr",
     signin: "Sign in",
     register: "Create account",
     addPasskey1: "Would you like to add a passkey to your account?",
@@ -58,10 +59,11 @@ const en = {
     register4: "Just fill in your email and password. Or use an account that you already have.",
     recoverWithPhone: "I want a password instead",
 }
-type Ln = typeof en
-const es: Ln = {
+export type Ln = typeof en
+export const es: Ln = {
     ...en,
     ln: "es",
+    lnd: "Español",
     signin: "accceso",
 
     username: "nombre de usuario",
@@ -71,10 +73,11 @@ const es: Ln = {
     register: "crear cuenta",
 
 }
-const iw: Ln = {
+export const iw: Ln = {
     ...en,
-    ...RTL,
+    dir: 'rtl',
     ln: "iw",
+    lnd: "עברית",
     signin: "התחברות",
     username: "שם משתמש",
     password: "סיסמה",
@@ -93,33 +96,30 @@ const iw: Ln = {
     forgotUsername: "שכחת שם משתמש?",
     changeLoginSettings: "שנה הגדרות התחברות",
 }
-const allLn: { [key: string]: Ln } = {
+export const allLn: { [key: string]: Ln } = {
     en,
     es,
     iw
 }
 
-export const I18nContext = createContext<Ln>(en)
+/*
 
-export function useLn() {
-    const r = useContext(I18nContext) 
-    if (!r) return en
-    return r
+export const en = {
+    save: "Save",
+    cancel: "Cancel",
+    insert: "Insert",
 }
 
-
-// export const useLn = (): () => Ln => {
-//     const loc = useLocation()
-//     console.log('loc', loc)
-//     return () => {
-//         const ln = loc.pathname.split('/')[1]
-//         return allLn[ln] ?? allLn['en']
-//     }
-// }
-
-export function lx(key: string): string {
-    const l = allLn[key] ?? allLn['en']
-    return l[key as keyof Ln] ?? key
+export const he = {
+    save: "להציל",
+    cancel: "לְבַטֵל",
+    insert: "לְהַכנִיס",
 }
-export const _ = lx
+
+interface Ln {
+    save: string,
+    cancel: string,
+    insert: string
+}
+*/
 

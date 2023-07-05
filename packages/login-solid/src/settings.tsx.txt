@@ -226,8 +226,8 @@ export const SettingsPage: Component<{}> = (props) => {
 
                 />
                 <div class='mt-2' ><ButtonSet>
-                    <Bs1 onClick={() => done(true)}>{ln.save}</Bs1>
-                    <Bs onClick={() => done(false)}>{ln.cancel}</Bs>
+                    <Bs1 onClick={() => done(true)}>{ln().save}</Bs1>
+                    <Bs onClick={() => done(false)}>{ln().cancel}</Bs>
                 </ButtonSet></div>
             </Match>
             <Match when={true}>
@@ -377,7 +377,7 @@ export const FactorSettings: Component<{
                     onClick={testPasskey}>
                     <Input
                         error={() => error().passkey}
-                        placeholder={ln.viewPasskey}
+                        placeholder={ln().viewPasskey}
                         id="username" name="username" type="text" autocomplete="username webauthn" />
                 </InputButton>
             </Dp>
@@ -394,7 +394,7 @@ export const FactorSettings: Component<{
                 <InputButton onClick={testOtp}>
                     <Input
                         error={() => error().totp}
-                        placeholder={ln.enterCode}
+                        placeholder={ln().enterCode}
                         autofocus onInput={(e:string) => setCode(e)} />
                 </InputButton>
 
@@ -409,7 +409,7 @@ export const FactorSettings: Component<{
                     onClick={() => testText(settings.phone)}>
                     <Input
                         value={settings.phone}
-                        placeholder={ln.phone}
+                        placeholder={ln().phone}
                         autofocus
                         onInput={(e) => {
                             setSettings(produce((s) => {
@@ -427,7 +427,7 @@ export const FactorSettings: Component<{
                 onClick={() => testText(settings.email)}> <Input
                     value={settings.email}
                     autocomplete="email"
-                    placeholder={ln.email}
+                    placeholder={ln().email}
                     autofocus
                     onInput={(e) => setSettings({ ...settings, email: e! })} /></InputButton>
             </Dp>
@@ -437,7 +437,7 @@ export const FactorSettings: Component<{
             <Db>IPhone or Android: {active(settings.app)}</Db>
             <Dp>
                 <P >To activate install the iMIS application on your mobile device. Tap the test button, then pick 42 on your phone.</P>
-                <div class='w-16'><LightButton onClick={testApp}>{ln.test}</LightButton></div>
+                <div class='w-16'><LightButton onClick={testApp}>{ln().test}</LightButton></div>
             </Dp>
         </Disclosure>
 
@@ -446,7 +446,7 @@ export const FactorSettings: Component<{
             <Dp><textarea placeholder={"Paste public SSH keys here"} class='w-full' rows='6'></textarea>
                 <div class='flex items-center'>
                     <textarea class='flex-1 mr-2' placeholder={"Test your keys by signing the word 'test' and pasting the result here"} rows='3'></textarea>
-                    <div class='w-16'><LightButton class='h-6' onClick={testApp}>{ln.test}</LightButton></div>
+                    <div class='w-16'><LightButton class='h-6' onClick={testApp}>{ln().test}</LightButton></div>
                 </div>
 
             </Dp>
@@ -572,8 +572,8 @@ export const AdminOptions = (props: {}) => {
                             <Match when={false}>
                                 <div class="space-y-6 ">
                                     <Icon path={key} class="w-24 h-24 mx-auto" />
-                                    <p >{ln.addPasskey1}</p>
-                                    <p class='text-neutral-500'>{ln.addPasskey2}</p>
+                                    <p >{ln().addPasskey1}</p>
+                                    <p class='text-neutral-500'>{ln().addPasskey2}</p>
                                 </div>
                             </Match>
                             <Match when={factor() === Factor.kPasskey || factor() === Factor.kPasskeyp}>

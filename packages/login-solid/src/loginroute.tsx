@@ -1,7 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import { JSXElement, createContext, useContext } from "solid-js";
 import { Login } from "./login";
-import { useLn } from "../../i18n/src";
+import { useLn } from "../../i18n-solid/src";
 import { SimplePage } from "./simplepage";
 import { H2, P, Ab } from "../../ui-solid/src";
 
@@ -53,9 +53,9 @@ export function LoginOrRegister()  {
     const nav = useNavigate()
 
     return <SimplePage>
-        <H2 class='mb-2'>{ln.signin}</H2>
-        <P class='hidden mb-4'>{ln.welcomeback}</P>
-        <Ab class='block mt-2 mb-3' href='../register'>{ln.ifnew}</Ab>
+        <H2 class='mb-2'>{ln().signin}</H2>
+        <P class='hidden mb-4'>{ln().welcomeback}</P>
+        <Ab class='block mt-2 mb-3' href='../register'>{ln().ifnew}</Ab>
         <Login  />
     </SimplePage>
 }

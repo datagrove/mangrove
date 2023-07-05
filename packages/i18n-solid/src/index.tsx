@@ -1,20 +1,15 @@
-import { ParentComponent, createSignal } from "solid-js"
+import { useLocation } from "@solidjs/router"
+import { Ln, allLn, en } from "../../i18n/src"
+import { Accessor, JSXElement, createContext, createEffect, createSignal, useContext } from "solid-js"
+import { ParentComponent } from "solid-js"
 import { Icon } from "solid-heroicons";
 import { language } from "solid-heroicons/solid";
 import { useNavigate } from "@solidjs/router";
-import { useLn } from "../../../i18n/src";
+
 
 type Lang = { [key: string]: string }
 
-const [lang, setLang] = createSignal<Lang>({
-    "en": "English",
-    "es": "Español",
-    "iw": "עברית"
-})
-export const rtlLang = {
-    "iw": true,
-    'ar': true
-}
+
 const Select: ParentComponent<{
     entries: object
     value: string
@@ -35,7 +30,7 @@ const Select: ParentComponent<{
         >
             {Object.entries(props.entries).map(([code, name]) => (
                 <option value={code}>
-                    {name}&nbsp;&nbsp;&nbsp;
+                    {name.lnd}&nbsp;&nbsp;&nbsp;
                 </option>
             ))}
         </select>
@@ -53,7 +48,35 @@ export const LanguageSelect: ParentComponent<{}> = (props) => {
         nav(p.join('/'))
     }
 
-    return (<Select entries={lang()} value={ln.ln} onChange={update}>
+    return (<Select entries={allLn} value={ln().ln} onChange={update}>
         <Icon class='h-6 w-6' path={language} /></Select>)
 }
 
+
+
+export const I18nContext = createContext<Accessor<Ln>>()
+
+export function LanguageProvider(props: {children: JSXElement}){
+    const loc = useLocation()
+    const [ln,setLn] = createSignal<Ln>(en)
+    createEffect(()=>{
+        setLn(allLn[loc.pathname.split('/')[1]])
+        console.log("ln", ln())
+    })
+
+   return  <I18nContext.Provider value={ln}>
+    {props.children}
+   </I18nContext.Provider>
+    return 
+}
+
+export function useLn() {
+    const r = useContext(I18nContext) 
+    return r!
+}
+
+export function lx(key: string): string {
+    const l = allLn[key] ?? allLn['en']
+    // @ts-ignore
+    return l[key as keyof Ln] ?? key
+}

@@ -85,8 +85,8 @@ export class DocBuffer {
     const nl = this.$create(v)
     // copy the properties to the new node
     dg2lex(v, nl)
-    if (ln.getParent()) {
-      ln.replace(nl)
+    if (ln().getParent()) {
+      ln().replace(nl)
     } else {
       const root = $getRoot()
       root.clear()

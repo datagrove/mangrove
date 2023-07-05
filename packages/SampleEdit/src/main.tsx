@@ -6,6 +6,7 @@ import { Route, Routes, useNavigate } from "@solidjs/router";
 import { Composer } from "../../ui-solid/src"
 import { tools } from "./tools";
 import { ChallengeNotify, LoginApi, Login, LoginInfo, LoginOrRegister, LoginProvider } from "../../login-solid/src";
+import { LanguageProvider } from "../../i18n-solid/src";
 
 
 const [login, setLogin] = createSignal(false)
@@ -47,8 +48,6 @@ const loginApi : LoginApi = {
 }
 
 export function App() {
-    const nav = useNavigate()
-    
     const Signup = () => {
         return <LoginProvider api={loginApi} setLogin={setLogin}>
             <LoginOrRegister  />
@@ -65,9 +64,13 @@ export function App() {
 
 // do I want Datagrove to rely on the router? what's a better way to do this?
 export function EditorApp() {
-    return <Router><Datagrove>
+    return <Router>
+        <LanguageProvider>
+        <Datagrove>
         <App />
-        </Datagrove></Router>
+        </Datagrove>
+        </LanguageProvider>
+        </Router>
 }
 
 

@@ -5,7 +5,7 @@ import { Form, createForm, fcandy, fcell } from "../../ui-solid/src"
 import { createCells } from  "../../datagrove/src"
 import { Bb, H2, H3 } from "../../ui-solid/src/layout/nav"
 import { useLocation, useNavigate } from "@solidjs/router"
-import { LanguageSelect } from "../../ui-solid/src"
+import { LanguageSelect } from "../../i18n-solid/src"
 import { DarkButton } from "../../ui-solid/src"
 
 

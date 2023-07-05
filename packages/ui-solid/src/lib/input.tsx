@@ -1,6 +1,6 @@
 import { Component, createSignal, JSX, JSXElement, onMount, Show } from "solid-js"
 import { Cell, CellOptions } from "../../../datagrove/src"
-import { useLn } from '../../../i18n/src'
+import { useLn } from '../../../i18n-solid/src'
 import { BlueButton, Center, LightButton } from "./form"
 
 export const DirectiveText = (props: any) => {
@@ -34,10 +34,10 @@ export const Username: Component<InputProps> = (props) => {
 
     return <div >
         <div class="flex items-center justify-between">
-            <InputLabel for="username" >{ln.username}</InputLabel>
+            <InputLabel for="username" >{ln().username}</InputLabel>
         </div>
         <div  >
-            <Input {...props} placeholder={ln.enterUsername} id="username" name="username" type="text" autocomplete="username webauthn" />
+            <Input {...props} placeholder={ln().enterUsername} id="username" name="username" type="text" autocomplete="username webauthn" />
         </div>
 
     </div>
@@ -144,18 +144,18 @@ export const EmailInput: Component<InputProps> = (props) => {
     const ln = useLn()
     return <div>
         <div class="flex items-center justify-between">
-            <InputLabel for="username" >{ln.email}</InputLabel>
+            <InputLabel for="username" >{ln().email}</InputLabel>
         </div>
-        <div class="mt-2"><Input {...props} placeholder={ln.email} autocomplete='email' /></div>
+        <div class="mt-2"><Input {...props} placeholder={ln().email} autocomplete='email' /></div>
     </div>
 }
 export const PhoneInput = (props: InputProps) => {
     const ln = useLn()
     return <div>
         <div class="flex items-center justify-between">
-            <InputLabel for="username" >{ln.phone}</InputLabel>
+            <InputLabel for="username" >{ln().phone}</InputLabel>
         </div>
-        <div class="mt-2"><Input {...props} placeholder={ln.phone} autocomplete='phone' /></div>
+        <div class="mt-2"><Input {...props} placeholder={ln().phone} autocomplete='phone' /></div>
     </div>
 }
 

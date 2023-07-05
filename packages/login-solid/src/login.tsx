@@ -6,9 +6,9 @@ import { LoginWith } from "./login_with";
 import { Password } from "./password";
 import { A, useNavigate } from "@solidjs/router";
 import { Ab, BlueButton, H2, P, TextDivider, Username } from "../../ui-solid/src";
-import { useLn } from "../../i18n/src";
 import { LoginInfo, useLogin } from "./loginroute";
 import { get } from "@github/webauthn-json";
+import { useLn } from "../../i18n-solid/src";
 
 
 type KeyValue = [number, string]
@@ -184,7 +184,7 @@ export const Login: Component = () => {
         // })
         // const cro = parseRequestOptionsFromJSON(o2)
         const o = await get(crox())
-        const reg = props.api.login2(o.toJSON())
+        const reg = props.api.login2(o)
         // await ws.rpcj<LoginInfo>("login2", o.toJSON())
         return reg
         //setLogin(reg)
@@ -275,12 +275,12 @@ export const Login: Component = () => {
                     <Show when={error()}> <div>{error()}</div></Show>
                     <Username autofocus onInput={(e: string) => setUser(e)} />
                     <Password onInput={(e: string) => setPassword(e)} />
-                    <BlueButton  >{ln.signin}</BlueButton>
-                    <TextDivider>{ln.continueWith}</TextDivider>
+                    <BlueButton  >{ln().signin}</BlueButton>
+                    <TextDivider>{ln().continueWith}</TextDivider>
                     <LoginWith />
                 </form>
                 <div class="hidden mt-4"><Spc />
-                    <Ab href='../register'>{ln.ifnew}</Ab>
+                    <Ab href='../register'>{ln().ifnew}</Ab>
                     <Spc /></div>
             </Match>
         </Switch>
@@ -289,21 +289,21 @@ export const Login: Component = () => {
 }
 
 /* 
- <Ab href={props.recoverPassword!}>{ln.help}</Ab>
+ <Ab href={props.recoverPassword!}>{ln().help}</Ab>
 Imis specifically
 <div class="mt-6 space-y-4">
                     <Show when={props.createAccount}>
                         <div class='flex'><Spc />
-                            <Ag href={props.createAccount ?? "/register"}>{ln.register}</Ag><Spc /></div></Show>
+                            <Ag href={props.createAccount ?? "/register"}>{ln().register}</Ag><Spc /></div></Show>
 
                     <Show when={props.recoverPassword}><div class="flex"><Spc />
-                        <Ag href={props.recoverPassword!}>{ln.forgotPassword}</Ag>
+                        <Ag href={props.recoverPassword!}>{ln().forgotPassword}</Ag>
                         <Spc /></div></Show>
                     <Show when={props.recoverUser}><div class="flex"><Spc />
-                        <Ag href={props.recoverUser!}>{ln.forgotUsername}</Ag>
+                        <Ag href={props.recoverUser!}>{ln().forgotUsername}</Ag>
                         <Spc /></div></Show>
                     <Show when={props.recoverUser}><div class="flex"><Spc />
-                        <Agl href={'../settings'}>{ln.changeLoginSettings}</Agl>
+                        <Agl href={'../settings'}>{ln().changeLoginSettings}</Agl>
                         <Spc /></div></Show>
                 </div>
                 */

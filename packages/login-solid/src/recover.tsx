@@ -1,5 +1,5 @@
 import { Component, createSignal, Switch, Match } from "solid-js"
-import { useLn } from "../../i18n/src/i18n"
+import { useLn } from "../../i18n-solid/src"
 import { SimplePage } from "./simplepage"
 import { createCells } from "../../datagrove/src"
 import { BlueButton, DirectiveText, InputCell, email, password, phone, user } from "../../ui-solid/src"
@@ -53,7 +53,7 @@ export const Recover: Component = (props) => {
             <DirectiveText>Enter phone or email</DirectiveText>
             <InputCell autofocus cell={{...data.phone}} />
             <InputCell cell = {data.email }/>
-            <BlueButton onClick={recover} >{ln.recover}</BlueButton>
+            <BlueButton onClick={recover} >{ln().recover}</BlueButton>
         </form>
     </Match>
     <Match when={screen() == RecoverScreen.Recover2}>
@@ -61,7 +61,7 @@ export const Recover: Component = (props) => {
             <div>Choose a new password </div>
             <InputCell autofocus cell={{...data.phone}} />
             <InputCell cell = {data.email }/>
-            <BlueButton onClick={recover2} >{ln.recover}</BlueButton>
+            <BlueButton onClick={recover2} >{ln().recover}</BlueButton>
         </form>
     </Match>
     <Match when={true}>
