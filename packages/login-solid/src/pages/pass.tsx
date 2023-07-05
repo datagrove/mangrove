@@ -1,7 +1,7 @@
 
 import { Show, createSignal } from 'solid-js'
 import './pass.css'
-import { generatePassPhrase } from '../../../ui-solid/src/lib/crypto'
+import { generatePassPhrase } from '../crypto'
 
 // const form = document.querySelector('form');
 // const passwordInput = document.querySelector('input#current-password');

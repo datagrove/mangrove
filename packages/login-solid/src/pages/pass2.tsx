@@ -1,7 +1,7 @@
 import { Component, Show, createSignal } from "solid-js"
 import { A } from '../../../ui-solid/src/core/dg'
 import { Center } from "../../../ui-solid/src/lib/form"
-import { createUser, generatePassPhrase, security, setError, setLogin, setSecurity } from "../../../ui-solid/src/lib/crypto"
+import { createUser, generatePassPhrase, security, setError, setLogin, setSecurity } from "../crypto"
 import {
     parseCreationOptionsFromJSON,
     create,

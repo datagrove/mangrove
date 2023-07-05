@@ -1,13 +1,15 @@
-import { Component, JSX, Match, Show, Switch, createEffect, createSignal, onCleanup } from "solid-js";
+import { Component, JSX, JSXElement, Match, Show, Switch, createContext, createEffect, createSignal, onCleanup, useContext } from "solid-js";
 
-import { AddPasskey, GetSecret, ChallengeNotify, LoginInfo, PasskeyChoice } from "./passkey_add";
-import { abortController, initPasskey, webauthnLogin } from "./passkey";
+import { AddPasskey, GetSecret,  PasskeyChoice, crox } from "./passkey";
+import { abortController, initPasskey } from "./passkey";
 import { LoginWith } from "./login_with";
 import { Password } from "./password";
-import { SimplePage } from "./simplepage";
 import { A, useNavigate } from "@solidjs/router";
 import { Ab, BlueButton, H2, P, TextDivider, Username } from "../../ui-solid/src";
 import { useLn } from "../../i18n/src";
+import { LoginInfo, useLogin } from "./loginroute";
+import { get } from "@github/webauthn-json";
+
 
 type KeyValue = [number, string]
 
@@ -65,7 +67,7 @@ export const setLogin = (sec: Sec) => {
     localStorage.setItem("sec", JSON.stringify(sec))
     setSec_(sec)
 }
-export const useLogin = () => () => sec().token["~"]
+//export const useLogin = () => () => sec().token["~"]
 export interface Loc {
     // org-container.server.domain/#/tab/page when published (iframes)
     // but server.dns alone, building anonymous iframes is potentially more powerful
@@ -107,64 +109,20 @@ export interface LocalSettings {
     ExpectPasskey?: boolean
 
 }
-export interface IdentityServerApi {
-    loginpassword: (user: string, password: string) => Promise<[ChallengeNotify,string]>
-    loginpassword2: (secret: string) => Promise<[LoginInfo,string]>
-    register(name: string): Promise<any>
-    registerb(cred: any): Promise<[string,string]>
-}
-export interface LoginProps {
-    api: IdentityServerApi
-    createAccount?: string
-    recoverUser?: string
-    recoverPassword?: string
-    afterLogin?: string
-    setLogin: (sec: LoginInfo) => void
-}
-export const LoginPage: Component<LoginProps> = (props) => {
-    const ln = useLn()
-    const nav = useNavigate()
-    const [suspense, Suspense] = createSignal(false)
-    const finishLogin = (i: LoginInfo) => {
-        props.setLogin(i)
-        nav('../menu')
-        return
-        console.log("finish login", i)
-        i.cookies.forEach((c) => {
-            document.cookie = c + ";path=/"
-        })
-        //location.href = i.home
-        // we can't nav here because it may go to a different page
 
 
-        // conditionally we may want to do nav here instead of location.href
-        // how do we know? maybe h is empty?
-        //location.href = h
-        if (i.home == "../home")
-            nav("../home")
-        else {
-            const h = i.home ? i.home : props.afterLogin ?? "/"
-            location.href = h
-        }
-    }
-    return <SimplePage>
-        <H2 class='mb-2'>{ln.signin}</H2>
-        <P class='hidden mb-4'>{ln.welcomeback}</P>
-        <Ab class='block mt-2 mb-3' href='../register'>{ln.ifnew}</Ab>
-        <Login {...props} finishLogin={finishLogin} />
-    </SimplePage>
-}
 // todo: send language in requests so that we can localize the error messages
 
 // If we are in another tab we might need to connect, maybe connect automatically?
 // maybe send the user secret with the submit?
-export const [loginInfo, setLoginInfo] = createSignal<LoginInfo | undefined>(undefined)
+// export 
 
 
-interface LoginProps2 extends LoginProps {
-    finishLogin: (i: LoginInfo) => void
-}
-export const Login: Component<LoginProps2> = (props) => {
+// interface LoginProps2 extends LoginProps {
+//     finishLogin: (i: LoginInfo) => void
+// }
+export const Login: Component = () => {
+    const props = useLogin()
     enum Screen {
         Login,
         Secret,
@@ -173,7 +131,8 @@ export const Login: Component<LoginProps2> = (props) => {
     }
     const ln = useLn()
     const nav = useNavigate()
-
+    
+    const [loginInfo, setLoginInfo] = createSignal<LoginInfo | undefined>(undefined)
     const [user, setUser] = createSignal("")
     const [password, setPassword] = createSignal("")
     const [error, setError_] = createSignal("")
@@ -195,9 +154,9 @@ export const Login: Component<LoginProps2> = (props) => {
     // in this case we still need to get the user name and password
     const init = async () => {
         try {
-            const i = await initPasskey()
+            const i = await initPasskey(props.api)
             if (i) {
-                props.finishLogin(i)
+                props.setLogin(i)
             }
             else console.log("passkey watch cancelled")
         }
@@ -215,7 +174,25 @@ export const Login: Component<LoginProps2> = (props) => {
         setScreen_(r)
     }
 
-
+    const webauthnLogin = async () => { // id: string, not needed?
+        abortController.abort()
+        //const ws = createWs()
+        // LOGIN
+        // const o2 = await ws.rpcj<any>("loginx", {
+        //     device: id,
+        //     //username: sec.userDid // maybe empty
+        // })
+        // const cro = parseRequestOptionsFromJSON(o2)
+        const o = await get(crox())
+        const reg = props.api.login2(o.toJSON())
+        // await ws.rpcj<LoginInfo>("login2", o.toJSON())
+        return reg
+        //setLogin(reg)
+        // instead of navigate we need get the site first
+        // then we can navigate in it. the site might tell us the first url
+    
+    }
+    
     // we might nag them here to add a second factor, or even require it.
     // if they send a password, but require a passkey, we need to trigger that
     // if they give a passkey, but we need a password anyway, we need to handle that.
@@ -244,11 +221,11 @@ export const Login: Component<LoginProps2> = (props) => {
             case Factor.kPasskey:
             case Factor.kPasskeyp:
                 const li = await webauthnLogin()
-                props.finishLogin(li)
+                props.setLogin(li)
                 break
             case Factor.kNone:
                 // we must have login here, because if we didn't we would have gotten an error
-                props.finishLogin(ch.login_info!)
+                props.setLogin(ch.login_info!)
                 break
             default:
                 setScreen(Screen.Secret)
@@ -262,7 +239,7 @@ export const Login: Component<LoginProps2> = (props) => {
             if (!loginInfo()) {
                 setError("challenge failed")
             } else {
-                props.finishLogin(loginInfo()!)
+                props.setLogin(loginInfo()!)
             }
         }
     }
@@ -271,7 +248,7 @@ export const Login: Component<LoginProps2> = (props) => {
         console.log("closed passkey dialog")
         setScreen(Screen.Suspense)
         // we must have login info here, or we wouldn't be asking to add a passkey
-        props.finishLogin(loginInfo()!)
+        props.setLogin(loginInfo()!)
     }
 
     const validate = async (secret: string) => {

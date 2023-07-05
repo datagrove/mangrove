@@ -1,14 +1,10 @@
 import { Component, createSignal, Switch, Match } from "solid-js"
-import { createWs } from "../core/socket"
-import { BlueButton } from "../lib/form"
-
-import { DirectiveText, email, password, phone, user } from "./passkey_add"
 import { useLn } from "../../i18n/src/i18n"
-
-
-import { InputCell } from "../lib/input"
 import { SimplePage } from "./simplepage"
-import { createCells } from "../db"
+import { createCells } from "../../datagrove/src"
+import { BlueButton, DirectiveText, InputCell, email, password, phone, user } from "../../ui-solid/src"
+import { useLogin } from "./loginroute"
+
 
 enum RecoverScreen {
     Recover,
@@ -19,7 +15,7 @@ export const RecoverPage = () => <SimplePage><Recover /></SimplePage>
 // there is no specific way, we could log in as a super user and get/set their info
 // or we could create an api for it.
 export const Recover: Component = (props) => {
-    const ws = createWs()
+    const lg = useLogin()
     const ln = useLn()
     const [screen,setScreen] = createSignal(RecoverScreen.Recover)
     const [error, setError_] = createSignal("")
@@ -40,11 +36,14 @@ export const Recover: Component = (props) => {
     }
 
     const recover = async () => {
-        const o = await ws.rpcj("recover", { email: data.email.value(), phone: data.phone.value() })
+        await lg.api.recover(data.email.value(),data.phone.value() )
+        //await ws.rpcj("recover", { email: data.email.value(), phone: data.phone.value() })
         setScreen(RecoverScreen.Recover2)
     }
     const recover2 = async () => {
-        const o = await ws.rpcj("recover2", { secret: data.password.value() })
+        //const o = 
+        //await ws.rpcj("recover2", { secret: data.password.value() })
+        await lg.api.recover2(data.password.value())
         setScreen(RecoverScreen.Recover2)
     }
 

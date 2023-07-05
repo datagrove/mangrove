@@ -16,9 +16,9 @@ import { createCells } from "../../datagrove/src"
 import { InputLabel, email, password, setCoreLogin, H2, P, InputCell, BlueButton, Ab, TextDivider } from "../../ui-solid/src"
 import { createWs } from "../../ui-solid/src/core/socket"
 import { user } from "solid-heroicons/solid"
-import { PasskeyChoice, AddPasskey } from "./passkey_add"
-import { LoginProps } from "./login"
-import { Login } from '../../login/src/login';
+import { useLogin } from "./loginroute"
+import { AddPasskey, PasskeyChoice } from "./passkey"
+
 
 
 // as cell is like a lens, do we need both?
@@ -32,10 +32,11 @@ const Bip39Field: Component<{ code: string }> = (props) => {
     return <div ><InputLabel>Recovery Code</InputLabel><textarea rows='2' autocomplete='new-password' name='password' id='bip39' class='w-full  p-2 dark:bg-neutral-800 bg-neutral-200 rounded-md border border-neutral-500 '>{props.code}</textarea></div>
 }
 
-export const RegisterPage = (props:LoginProps) => <SimplePage><Register /></SimplePage>
+export const RegisterPage = () => <SimplePage><Register /></SimplePage>
 
-const Register = (props: LoginProps) => {
+const Register = () => {
     const nav = useNavigate()
+    const props = useLogin()
     //const ws = createWs()
     const ln = useLn()
     // registration is a transaction, but then we later want to be able to edit 

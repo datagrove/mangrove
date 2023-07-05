@@ -1,17 +1,8 @@
-
-
-// autoLogin false until we resolve if we can automatically login
-
 import { createSignal } from "solid-js"
-
-
-
 import { useNavigate } from "@solidjs/router"
 
 //import { EdKeypair } from "@ucans/ucans"
 //import * as ucans from "@ucans/ucans"
-
-
 
 export interface Site {
   name: string

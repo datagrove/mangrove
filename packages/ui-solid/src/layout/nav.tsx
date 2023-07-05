@@ -1,7 +1,7 @@
 import { Component, For, JSXElement, Switch, Match, Show, createEffect, createSignal } from 'solid-js'
 import { pencil, chevronLeft, bars_3, magnifyingGlass, user } from "solid-heroicons/solid"
 import { Icon } from 'solid-heroicons'
-import { useLogout } from '../lib/crypto'
+import { useLogout } from '../../../login-solid/src/crypto'
 import {
   ButtonProps,
 } from 'solid-headless';

@@ -9,7 +9,7 @@ import {
 } from "@github/webauthn-json/browser-ponyfill";
 
 import { BlueButton, Center } from "../../../ui-solid/src/lib/form";
-import { error, hasWebAuthn, security, setError, setLogin, setSecurity, setWelcome } from "../../../ui-solid/src/lib/crypto";
+import { error, hasWebAuthn, security, setError, setLogin, setSecurity, setWelcome } from "../crypto";
 import { useNavigate } from "@solidjs/router";
 
 export const LoginPage = () => {

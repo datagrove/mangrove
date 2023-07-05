@@ -1,19 +1,25 @@
-import { Component, Match, Show, Switch, createSignal } from "solid-js"
-import { Ab } from "../layout/nav"
-import { BlueButton } from "../lib/form"
-import {  security } from "../lib/crypto"
+import { Icon } from "solid-heroicons";
+import { key } from "solid-heroicons/solid";
+import { Component, createSignal, Match, Show, Switch } from "solid-js";
 import {
+    parseCreationOptionsFromJSON,
+    create,
     get,
     parseRequestOptionsFromJSON,
 } from "@github/webauthn-json/browser-ponyfill";
-
-import { createWs } from "../core/socket"
-import { useLn } from "../../i18n/src/i18n"
-import { LoginInfo } from "./passkey_add";
+import { useLn } from "../../i18n/src";
+import { Ab, Bb, BlueButton, CancelButton, Dialog, DialogActions, DialogPage, InputLabel, InputSecret, LightButton, OkButton } from "../../ui-solid/src";
+import { LoginApi, LoginInfo, useLogin } from "./loginroute";
 import { SimplePage } from "./simplepage";
 import { useNavigate } from "@solidjs/router";
+import { security } from "./crypto";
 
-const [crox, setCrox] = createSignal<any>(null)
+
+// type InputProps = JSX.HTMLAttributes<HTMLInputElement> & { placeholder?: string, autofocus?: boolean, name?: string, autocomplete?: string, type?: string, value?: string, id?: string, required?: boolean }
+
+
+
+export const [crox, setCrox] = createSignal<any>(null)
 // this blocks a promise waiting for the user to offer a passkey
 export let abortController: AbortController = new AbortController
 
@@ -31,27 +37,10 @@ export let abortController: AbortController = new AbortController
 
 
 // not a conditional mediation, this will force a dalog.
-export const webauthnLogin = async () => { // id: string, not needed?
-    abortController.abort()
-    const ws = createWs()
-    // LOGIN
-    // const o2 = await ws.rpcj<any>("loginx", {
-    //     device: id,
-    //     //username: sec.userDid // maybe empty
-    // })
-    // const cro = parseRequestOptionsFromJSON(o2)
-    const o = await get(crox())
-    const reg = await ws.rpcj<LoginInfo>("login2", o.toJSON())
-    return reg
-    //setLogin(reg)
-    // instead of navigate we need get the site first
-    // then we can navigate in it. the site might tell us the first url
-
-}
 
 
 // returns null if the login is aborted
-export async function initPasskey(): Promise<LoginInfo | null> {
+export async function initPasskey(api: LoginApi): Promise<LoginInfo | null> {
     if (!window.PublicKeyCredential
         // @ts-ignore
         || !PublicKeyCredential.isConditionalMediationAvailable
@@ -64,7 +53,7 @@ export async function initPasskey(): Promise<LoginInfo | null> {
         abortController.abort()
     }
     abortController = new AbortController()
-    const ws = createWs()
+    //const ws = createWs()
     const sec = security()
 
     // if we loop here, do we need to do first  part twice
@@ -72,9 +61,10 @@ export async function initPasskey(): Promise<LoginInfo | null> {
     // that doesn't seem right
     {
         try {
-            const o2 = await ws.rpcj<any>("login", {
-                device: sec.deviceDid,
-            })
+            const o2 = await api.login(sec.deviceDid)
+            // await ws.rpcj<any>("login", {
+            //     device: sec.deviceDid,
+            // })
 
             const cro = parseRequestOptionsFromJSON(o2)
             setCrox(cro)
@@ -96,7 +86,7 @@ export async function initPasskey(): Promise<LoginInfo | null> {
             // we need to get back the site store here, does it also keep a token?
             // we will eventually write the store into opfs
             // rejected if the key is not registered. loop back then to get another?
-            return await ws.rpcj<LoginInfo>("login2", o.toJSON())
+            //return await ws.rpcj<LoginInfo>("login2", o.toJSON())
         } catch (e: any) {
             // don't show error here, we probably just aborted the signal
             console.log("error", e)
@@ -118,7 +108,8 @@ const [policy, setPolicy] = createSignal(defaultLogin)
 
 
 export const Register = () => {
-    const ws = createWs()
+    //const ws = createWs()
+    const lg = useLogin()
     const [user, setUser] = createSignal("")
     const ln = useLn()
 
@@ -145,13 +136,13 @@ export const Register = () => {
 
 export const LoginPasskey: Component<{ login?: boolean }> = (props) => {
     const ln = useLn()
-
-    const ws = createWs()
+    const lg = useLogin()
+    //const ws = createWs()
     const nav = useNavigate()
     const [user, setUser] = createSignal("")
 
 
-    initPasskey().then((ok) => {
+    initPasskey(lg.api).then((ok) => {
 
     })
 
@@ -198,7 +189,6 @@ export const PasskeyOnly = () => {
 }
 const Username: Component<{ generate?: boolean, onInput: (s: string) => void }> = (props) => {
     const ln = useLn()
-    const ws = createWs()
 
     const inp = (e: InputEvent) => {
         props.onInput((e.target as HTMLInputElement).value)
@@ -283,3 +273,114 @@ const Password: Component = (props) => {
                 </div>
             </Show>
             */
+// Needs to work like a dialog box opens when signals true, calls close when done.
+export const GetSecret: Component<{
+    validate: (secret: string) => Promise<boolean>,
+    onClose: (ok: boolean) => void
+}> = (props) => {
+    const ln = useLn()
+    const [error, setError] = createSignal("")
+    const [inp, setInp] = createSignal("")
+
+    const cancel = (e: any) => {
+        e.preventDefault()
+        props.onClose(false)
+    }
+    const submit = (e: any) => {
+        e.preventDefault()
+        props.validate(inp()).then(ok => {
+            if (!ok) {
+                setError(ln.invalidCode)
+            } else {
+                props.onClose(false)
+            }
+        })
+    }
+    return <Dialog>
+        <DialogPage>
+            <form onSubmit={submit} class='space-y-6'>
+                <div>
+                    <Show when={error()}><div class='text-red-500'>{error()}</div></Show>
+                    <InputLabel>Enter code</InputLabel>
+                    <InputSecret autofocus onInput={(e: any) => setInp(e.target.value)} />
+                </div>
+                <DialogActions><OkButton /> <CancelButton onClick={cancel} /></DialogActions>
+            </form>
+        </DialogPage></Dialog>
+}
+
+// onClose returns true if they added a passkey, false if they didn't
+// no matter what they should be logged in.
+// even if the add passkey fails, they should be logged in.
+export enum PasskeyChoice {
+    Add = 0,
+    NotNow = 1,
+    NotEver = 2,
+}
+export const AddPasskey: Component<{
+    onClose: (u: PasskeyChoice, error: string) => void
+    allow?: string[],
+}> = (props) => {
+    const lg = useLogin()
+    const ln = useLn()
+    let btnSaveEl: HTMLButtonElement | null = null;
+    let btnNot: HTMLButtonElement | null = null;
+
+    const add = async () => {
+        const o = await lg.api.addpasskey()
+        //await ws.rpcj<any>("addpasskey", {})
+        const cco = parseCreationOptionsFromJSON(o)
+        const cred = await create(cco)
+        const [token, err] = await lg.api.addpasskey2(cred.toJSON())
+        //await ws.rpcje<any>("addpasskey2", cred.toJSON())
+        if (err) {
+            props.onClose(PasskeyChoice.NotNow, err)
+            return
+        }
+        props.onClose(PasskeyChoice.Add, "")
+    }
+
+    // we just close and go on.
+    const notNow = () => {
+        props.onClose(PasskeyChoice.NotNow, "")
+    }
+    // here we have to save our choice to the database
+    const notEver = async () => {
+        // await ws.rpcje("addfactor", {
+        //     type: Number(Factor.kNone),
+        // })
+
+        props.onClose(PasskeyChoice.NotEver, "")
+    }
+    return <Dialog> <DialogPage >
+        <div class="space-y-6 ">
+            <Icon path={key} class="w-24 h-24 mx-auto" />
+            <p >{ln.addPasskey1}</p>
+            <p class='text-neutral-500'>{ln.addPasskey2}</p>
+        </div>
+        <div class='flex space-x-4'>
+            <div class='w-24'><BlueButton autofocus tabindex='0' ref={btnSaveEl!} onClick={add}>{ln.add}</BlueButton></div>
+            <div class='w-24'><LightButton tabindex='0' ref={btnNot!} onClick={notNow}>{ln.notNow}</LightButton></div>
+            <div class='w-24'><LightButton tabindex='0' onClick={notEver}>{ln.notEver}</LightButton></div>
+        </div>
+        <div class=' flex'><Bb onClick={() => {
+            //setMore(true)
+        }}>{ln.more2fa}</Bb></div></DialogPage> </Dialog>
+}
+
+
+/*
+
+<select
+                                        id='ln'
+                                        value={factor()}
+                                        aria-label="Select language"
+                                        class='flex-1  rounded-md dark:bg-neutral-900 text-black dark:text-white '
+                                        onChange={changeFactor}>
+                                        {factors.map(([code, name]: [number, string]) => (
+                                            <option value={code}>
+                                                {name}&nbsp;&nbsp;&nbsp;
+                                            </option>
+                                        ))}
+                                    </select>
+*/
