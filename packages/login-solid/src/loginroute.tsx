@@ -4,6 +4,7 @@ import { Login } from "./login";
 import { useLn } from "../../i18n-solid/src";
 import { SimplePage } from "./simplepage";
 import { H2, P, Ab } from "../../ui-solid/src";
+import { Channel, Peer, apiCall } from "../../abc/src";
 
 
 // const LoginRoutes = () => {
@@ -87,6 +88,9 @@ export interface LoginApi {
     login(deviceId: string) : Promise<any>
     recover(email: string, phone: string) : Promise<void>
     recover2(otp: string) : Promise<void>
+}
+export function loginApi(ch: Peer): LoginApi {
+    return apiCall(ch,"loginpassword", "loginpassword2", "register", "registerb", "addpasskey", "addpasskey2", "login2", "login", "recover", "recover2")
 }
 
 export interface LoginProps {
