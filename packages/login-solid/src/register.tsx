@@ -18,6 +18,7 @@ import { createWs } from "../../ui-solid/src/core/socket"
 import { user } from "solid-heroicons/solid"
 import { PasskeyChoice, AddPasskey } from "./passkey_add"
 import { LoginProps } from "./login"
+import { Login } from '../../login/src/login';
 
 
 // as cell is like a lens, do we need both?
@@ -33,7 +34,7 @@ const Bip39Field: Component<{ code: string }> = (props) => {
 
 export const RegisterPage = (props:LoginProps) => <SimplePage><Register /></SimplePage>
 
-const Register = () => {
+const Register = (props: LoginProps) => {
     const nav = useNavigate()
     //const ws = createWs()
     const ln = useLn()
@@ -54,10 +55,12 @@ const Register = () => {
     //const [okname, setOkname] = createSignal(false)
     const submit = async (ev: any) => {
         ev.preventDefault()
-        const o = await ws.rpcj<any>("register", { name: data.user.value() })
+        const o = await props.api.register(data.user.value())
+        //await ws.rpcj<any>("register", { name: data.user.value() })
         const cco = parseCreationOptionsFromJSON(o)
         const cred = await create(cco)
-        const [token, err] = await ws.rpcje<any>("registerb", cred.toJSON())
+        const [token, err] = await props.api.registerb(cred.toJSON())
+        //await ws.rpcje<any>("registerb", cred.toJSON())
         if (err) {
             setError(err)
         } else {

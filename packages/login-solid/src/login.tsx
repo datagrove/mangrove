@@ -110,6 +110,8 @@ export interface LocalSettings {
 export interface IdentityServerApi {
     loginpassword: (user: string, password: string) => Promise<[ChallengeNotify,string]>
     loginpassword2: (secret: string) => Promise<[LoginInfo,string]>
+    register(name: string): Promise<any>
+    registerb(cred: any): Promise<[string,string]>
 }
 export interface LoginProps {
     api: IdentityServerApi
