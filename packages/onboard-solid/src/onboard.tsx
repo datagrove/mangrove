@@ -29,6 +29,7 @@ export function Onboard() {
           Title
         </label>
         <input
+         autofocus
           type="text"
           name="title"
           id="title"
@@ -55,7 +56,7 @@ export function Onboard() {
               class="group -my-2 -ml-2 inline-flex items-center rounded-full px-3 py-2 text-left text-gray-400"
             >
               <PaperClipIcon class="-ml-1 mr-2 h-5 w-5 group-hover:text-gray-500" aria-hidden="true" />
-              <span class="text-sm italic text-gray-500 group-hover:text-gray-600">Images to use (optional)</span>
+              <span class="text-sm italic text-gray-500 group-hover:text-gray-600">Add files (optional)</span>
             </button>
           </div>
           <div class="flex-shrink-0">
