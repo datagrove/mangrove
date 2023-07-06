@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js"
 import { LanguageSelect, useLn } from "../../i18n-solid/src"
 import { SimplePage } from "../../login-solid/src"
-import { Ab, Center, DarkButton } from "../../ui-solid/src"
+import { Ab, Abln, Center, DarkButton } from "../../ui-solid/src"
 import {  Transition }  from 'solid-headless'
 import { paperClip } from 'solid-heroicons/solid'
 import { Icon } from "solid-heroicons"
@@ -10,11 +10,11 @@ import { Icon } from "solid-heroicons"
 
 const PaperClipIcon = (props: {class:string})=><Icon class={props.class} path={paperClip}/>
 
-export function Onboard() {
+export function CreateFirst() {
    const ln = useLn()
    // @ts-ignore
    return <><div dir={ln().dir} class='px-2 space-x-1 my-2 fixed w-screen flex flex-row items-center'>
-      <div><Ab href='#'>{ln().signin}</Ab></div>
+      <div><Abln href='login'>{ln().signin}</Abln></div>
       <div class='flex-1 ' />
       <div class='w-48 '><LanguageSelect /></div>
       <DarkButton />
@@ -49,7 +49,7 @@ export function Onboard() {
         />
 
 
-      <div class="flex items-center justify-between space-x-3 border-t border-gray-200 px-2 py-2 sm:px-3">
+      <div class="flex items-center bg-white dark:bg-black justify-between space-x-3 border-t border-gray-200 px-2 py-2 sm:px-3">
           <div class="flex">
             <button
               type="button"

@@ -36,28 +36,8 @@ import { RegisterPage, RegisterPage2 } from "./register";
 //     }
 // }
 
-export function LoginOrRegister()  {
-    //         <Route path={`/:ln/settings`} component={SettingsPage} />
-    const nav = useNavigate()
-    return <Routes>
-        <Route path={`/:ln/login`} component={LoginPage} />
-        <Route path={`/:ln/register`} component={RegisterPage} />
-        <Route path={`/:ln/register2`} component={RegisterPage2} />
-        <Route path="*" component={() => {
-            nav("/en/login")
-            return <></>
-        }} />
-    </Routes>
-}
-export function LoginPage() {
-    const ln = useLn()
-      return  <SimplePage>
-        <H2 class='mb-2'>{ln().signin}</H2>
-        <P class='hidden mb-4'>{ln().welcomeback}</P>
-        <Ab class='block mt-2 mb-3' href='../register'>{ln().ifnew}</Ab>
-        <Login  />
-    </SimplePage>
-}
+
+
 
 // return this from login process? anything else? a screen name
 export interface LoginInfo {

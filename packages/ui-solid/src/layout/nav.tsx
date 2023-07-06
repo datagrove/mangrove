@@ -8,6 +8,7 @@ import {
 import Dismiss from 'solid-dismiss'
 import { BlueButton } from '../lib/form'
 import { AnchorProps, A as Ar, useNavigate } from '@solidjs/router';
+import { useLn } from '../../../i18n-solid/src/i18n_solid';
 
 
 function classNames(...classes: (string | boolean | undefined)[]): string {
@@ -31,6 +32,14 @@ export const InlineButton: Component<ButtonProps> = (props) => {
 }
 export const Ab: Component<AnchorProps> = (props) => {
   return <Ar {...props} class={`${props.class} dark:text-blue-400 text-blue-700 hover:text-blue-500 hover:underline ${props.class}`} href={props.href}>{props.children}</Ar>
+}
+export const Abln: Component<AnchorProps> = (props) => {
+  const ln = useLn()
+  const href = () => {
+    return "/" + ln().ln + "/" + props.href
+  }
+  return <Ar {...props} class={`${props.class} dark:text-blue-400 text-blue-700 hover:text-blue-500 hover:underline ${props.class}`}
+   href={href()}>{props.children}</Ar>
 }
 export const Bb: Component<ButtonProps> = (props) => {
   return <button {...props} class={`dark:text-blue-400 text-blue-700 hover:text-blue-500 hover:underline ${props.class}`} onClick={props.onClick}>{props.children}</button>

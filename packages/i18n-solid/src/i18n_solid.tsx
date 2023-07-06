@@ -59,7 +59,7 @@ export function LanguageProvider(props: { children: JSXElement }) {
     const loc = useLocation()
     const [ln, setLn] = createSignal<Ln>(en)
     createEffect(()=>{
-        setLn(allLn[loc.pathname.split('/')[1]]??'en')
+        setLn(allLn[loc.pathname.split('/')[1]]??en)
     })
     return <I18nContext.Provider value={ln}>
         {props.children}

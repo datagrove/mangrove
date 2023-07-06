@@ -1,12 +1,12 @@
 
-import { Router } from "@solidjs/router"
+import { Route, Router, Routes, useNavigate } from "@solidjs/router"
 import { Show, createSignal } from "solid-js"
-import { Composer } from "../../ui-solid/src"
+import { Ab, Composer, H2, P } from "../../ui-solid/src"
 import { tools } from "./tools";
-import { LoginInfo, LoginOrRegister, LoginProvider, loginApi, LoginConfig } from "../../login-solid/src";
+import { LoginInfo, LoginProvider, loginApi, LoginConfig, RegisterPage, RegisterPage2, SimplePage, Login } from "../../login-solid/src";
 import { LanguageProvider, useLn } from "../../i18n-solid/src/i18n_solid";
 import { Peer, WsChannel } from "../../abc/src";
-import { Onboard } from "../../onboard-solid/src"
+import { CreateFirst } from "./onboard"
 
 const [login, setLogin] = createSignal<LoginInfo | undefined>()
 
@@ -23,7 +23,30 @@ export function CustomEditor() {
 
 const wss = "ws://localhost:8080/ws"
 
+
 const Signup = () => {
+
+    return 
+       
+
+
+
+}
+
+
+// if they are already logged in they should go to the editor directly
+// otherwise get the landing page.
+export function LoginPage() {
+    const ln = useLn()
+      return  <SimplePage>
+        <H2 class='mb-2'>{ln().signin}</H2>
+        <P class='hidden mb-4'>{ln().welcomeback}</P>
+        <Ab class='block mt-2 mb-3' href='..'>{ln().ifnew}</Ab>
+        <Login  />
+    </SimplePage>
+}
+function Onboard () {
+    const nav = useNavigate()
     const ln = useLn()
     let peer: Peer = new Peer(new WsChannel(wss))
     const api = loginApi(peer)
@@ -32,17 +55,15 @@ const Signup = () => {
         api: api,
         setLogin: setLogin
     }
-
-    return <Show when={ln()}><LoginProvider config={o} >
-        <LoginOrRegister />
-    </LoginProvider></Show>
+    return   <LoginProvider config={o} >
+        <Routes>
+        <Route path={`/:ln/login`} component={LoginPage} />
+        <Route path={`/:ln/register`} component={RegisterPage} />
+        <Route path={`/:ln/register2`} component={RegisterPage2} />
+        <Route path="*" component={CreateFirst} />
+    </Routes>
+    </LoginProvider>
 }
-
-
-// if they are already logged in they should go to the editor directly
-// otherwise get the landing page.
-
-
 
 
 export function EditorApp() {

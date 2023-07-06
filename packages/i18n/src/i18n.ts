@@ -45,7 +45,7 @@ export const en = {
     changeLoginSettings: "Change login settings",
     welcomeback: "Welcome back!",
     help: "Get Help",
-    ifnew: "Not a member? it's free and private.  😎",
+    ifnew: "Create your first website",
     "passkey": "Passkey",
     "passkeyp": "Passkey and Password",
     "totp": "Time Code",
