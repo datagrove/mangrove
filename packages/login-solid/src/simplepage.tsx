@@ -5,10 +5,6 @@ import { Ab, Center, DarkButton } from "../../ui-solid/src"
 
 export const SimplePage: Component<{ children: JSXElement }> = (props) => {
     const ln = useLn()
-
-    createEffect(()=>{
-      console.log("simple page", ln)
-    })
     // @ts-ignore
     return <><div dir={ln().dir} class='px-2 space-x-1 my-2 fixed w-screen flex flex-row items-center'>
 

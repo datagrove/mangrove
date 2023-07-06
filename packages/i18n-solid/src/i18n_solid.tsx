@@ -15,7 +15,6 @@ const Select: ParentComponent<{
     value: string
     onChange: (e: string) => void
 }> = (props) => {
-
     return (<div class='flex  text-black dark:text-white rounded-md items-center '>
         <label class='block mx-2' for='ln'>{props.children}</label>
         <select
@@ -40,7 +39,7 @@ const Select: ParentComponent<{
 export const LanguageSelect: ParentComponent<{}> = (props) => {
     const nav = useNavigate()
     const ln = useLn()
-    
+
     // change the language has to change the route. It doesn't change the store
     const update = (e: string) => {
         const p = window.location.pathname.split('/')
@@ -56,23 +55,22 @@ export const LanguageSelect: ParentComponent<{}> = (props) => {
 
 export const I18nContext = createContext<Accessor<Ln>>()
 
-export function LanguageProvider(props: {children: JSXElement}){
+export function LanguageProvider(props: { children: JSXElement }) {
     const loc = useLocation()
-    const [ln,setLn] = createSignal<Ln>(en)
+    const [ln, setLn] = createSignal<Ln>(en)
     createEffect(()=>{
-        setLn(allLn[loc.pathname.split('/')[1]])
-        console.log("ln", ln())
+        setLn(allLn[loc.pathname.split('/')[1]]??'en')
     })
-
-   return  <I18nContext.Provider value={ln}>
-    {props.children}
-   </I18nContext.Provider>
-    return 
+    return <I18nContext.Provider value={ln}>
+        {props.children}
+    </I18nContext.Provider>
+    return
 }
 
 export function useLn() {
-    const r = useContext(I18nContext) 
-    return r!
+    const r = useContext(I18nContext)
+    if (!r) throw "why?"
+    return r
 }
 
 export function lx(key: string): string {
