@@ -18,7 +18,6 @@ export function CreateFirst() {
       <div class='flex-1 ' />
       <div class='w-48 '><LanguageSelect /></div>
       <DarkButton />
-      <Ab href='#'>{ln().help}</Ab>
    </div>
       <Center>
 
